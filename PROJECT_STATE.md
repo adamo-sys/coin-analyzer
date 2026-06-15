@@ -20,7 +20,7 @@
 * CSV import: imports simple collection CSV files with quantity expansion.
 * CSV export: exports collection records with core and Numista fields.
 * Collection analysis: summarizes countries, years, denominations, and Numista coverage.
-* Buy Advisor: provides rule-based purchase recommendations, price checks, priority scoring, and liquidity scoring.
+* Buy Advisor: provides rule-based purchase recommendations, price checks, priority scoring, liquidity scoring, and collection-intelligence impact scoring.
 * Manual entry support: allows manually entered collection items and basic autocomplete suggestions from Numista-backed data.
 * Experimental image detection: CV/OCR-based identification exists but is suggestion-only and not treated as truth.
 * Test infrastructure: root-level `unittest` discovery, isolated `test_data` fixtures, `run_tests.bat`, `TESTING.md`, and GitHub Actions workflow.
@@ -37,6 +37,7 @@
 * Legacy WANT_LIST staging parser: safely parses workbook `WANT_LIST` rows into acquisition-intent records without creating owned `CoinItem` records or modifying `data/collection.json`.
 * WANT_LIST Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged acquisition-intent rows, skipped rows, warnings, and exporting the preview to CSV without modifying collection data.
 * WANT_LIST-backed generator ranking: Tools -> Want List Generator can load staged workbook `WANT_LIST` intent and blend it with collection gaps and upgrade candidates without modifying collection data.
+* Buy Advisor collection-intelligence integration: Buy Advisor can use collection gaps, generated want-list targets, and staged `WANT_LIST` intent as explainable Adam Priority boosts without changing duplicate or price analysis.
 
 ## Known Bugs
 
@@ -54,15 +55,14 @@
 
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
-3. Connect staged `WANT_LIST` intent to Buy Advisor context
-4. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
-5. Build Upgrade Advisor using `UPGRADE_TARGETS`
-6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
-7. Add image preview in collection list
-8. Add batch editing
-9. Add undo/redo
-10. Add backup/restore
-11. Evaluate SQLite storage for larger collections
+3. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
+4. Build Upgrade Advisor using `UPGRADE_TARGETS`
+5. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+6. Add image preview in collection list
+7. Add batch editing
+8. Add undo/redo
+9. Add backup/restore
+10. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
 
@@ -82,11 +82,11 @@ Improve Buy Advisor validation messages.
 
 * Main application entry point: `coin_collection_gui.py` launches the primary Tkinter collection manager. `main.py` launches the older `gui.py` entry point.
 * Collection management system: `coin_collection.py` defines `CoinItem`, `CoinCollection`, and `CoinCollectionApp`; it handles JSON persistence, CRUD, search, CSV import/export, and collection summaries.
-* Buy Advisor system: `buy_advisor.py` contains rule-based recommendation logic for duplicates, upgrades, collection gaps, value data, priority, liquidity, landed cost, and purchase verdicts.
+* Buy Advisor system: `buy_advisor.py` contains rule-based recommendation logic for duplicates, upgrades, collection gaps, value data, priority, collection-intelligence boosts, liquidity, landed cost, and purchase verdicts.
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, staged `WANT_LIST` ranking boosts, and future evaluator inputs.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
-* Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and future Buy Advisor integration.
+* Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
 * Portfolio preview GUI: `coin_collection_gui.py` exposes Tools -> Portfolio Import Preview and displays importable staged rows, duplicate rows, skipped rows, warnings, and summary counts.
 * WANT_LIST preview GUI: `coin_collection_gui.py` exposes Tools -> Want List Preview and displays staged workbook acquisition intent without modifying collection data.
 * Want List Generator GUI: `coin_collection_gui.py` exposes Tools -> Want List Generator and can combine current collection analysis with staged workbook `WANT_LIST` intent for read-only acquisition recommendations.
@@ -116,6 +116,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Integrated Collection Intelligence into Buy Advisor so collection gaps, generated want-list targets, Newfoundland/1859 priorities, and staged `WANT_LIST` intent add explainable Adam Priority boosts and collection impact scoring.
+* Commit: `4c4b854`
 * Connected staged workbook `WANT_LIST` intent to Want List Generator rankings, including explicit-target scoring, recommendation explanations, table display, and Markdown/CSV export.
 * Commit: `8f11122`
 * Added Tools -> Want List Preview for read-only workbook `WANT_LIST` review and CSV export; no Want List Generator or Buy Advisor integration was added.

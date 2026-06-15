@@ -51,7 +51,7 @@ Work through this queue in priority order. Handle only one task at a time.
 22. `[x]` Implement legacy WANT_LIST staging integration
 23. `[x]` Add WANT_LIST Preview GUI
 24. `[x]` Connect staged WANT_LIST intent to Want List Generator
-25. `[ ]` Connect staged WANT_LIST intent to Buy Advisor
+25. `[x]` Connect staged WANT_LIST intent to Buy Advisor
 
 ## Adam-Specific Collection Priorities
 
@@ -93,6 +93,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Connect staged WANT_LIST intent to Buy Advisor
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `buy_advisor.py`
+  - `coin_collection_gui.py`
+  - `test_buy_advisor_regression.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `4c4b854`
 
 #### `[x]` Connect staged WANT_LIST intent to Want List Generator
 
