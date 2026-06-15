@@ -39,9 +39,11 @@ Work through this queue in priority order. Handle only one task at a time.
 10. `[ ]` Add autocomplete for country/denomination
 11. `[x]` Add Auction Evaluator draft spec
 12. `[x]` Add legacy portfolio import spec
-13. `[ ]` Implement legacy portfolio staging importer
-14. `[ ]` Build Melt Value Engine
-15. `[ ]` Build Upgrade Advisor
+13. `[x]` Add portfolio integration roadmap
+14. `[ ]` Implement legacy portfolio staging importer
+15. `[ ]` Build Melt Value Engine
+16. `[ ]` Build Upgrade Advisor
+17. `[ ]` Recreate dashboard metrics in app
 
 ## Adam-Specific Collection Priorities
 
@@ -83,6 +85,15 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Add portfolio integration roadmap
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `PORTFOLIO_INTEGRATION_ROADMAP.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
 
 #### `[x]` Add legacy portfolio import spec
 

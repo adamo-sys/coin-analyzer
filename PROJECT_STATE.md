@@ -29,6 +29,7 @@
 * Want List Generator MVP: top acquisition targets with estimated impact and recommendation reasons, plus Markdown and CSV export.
 * Auction Evaluator draft spec: documents how the future evaluator should consume the Collection Intelligence Engine.
 * Legacy portfolio import spec: documents how `Adam_Collection_Portfolio_PRO_LEVEL.xlsx` should be staged, mapped, and consumed by future app systems.
+* Portfolio integration roadmap: phases the legacy workbook migration from safe inventory staging through dashboard replacement.
 
 ## Known Bugs
 
@@ -78,6 +79,7 @@ Improve Buy Advisor validation messages.
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, and future evaluator inputs.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio import design: `LEGACY_PORTFOLIO_IMPORT_SPEC.md` maps the external workbook sheets into future staging/import, melt-value, upgrade, want-list, and advisor workflows.
+* Portfolio integration roadmap: `PORTFOLIO_INTEGRATION_ROADMAP.md` defines phased migration work for workbook-backed portfolio features.
 * Testing framework: Python standard-library `unittest` discovery via `python -m unittest discover -s . -p "test_*.py"`, with fixture files in `test_data/` and Windows runner `run_tests.bat`.
 
 ## Development Notes
@@ -101,6 +103,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Added portfolio integration roadmap for phased legacy workbook migration from inventory import through app dashboard metrics.
+* Commit: Pending
 * Added legacy portfolio import spec for `Adam_Collection_Portfolio_PRO_LEVEL.xlsx`, including workbook sheet inspection, field mapping, importer design, and downstream system recommendations.
 * Commit: `217c467`
 * Added Collection Intelligence Engine, Collection Gap Report MVP, Want List Generator MVP, Markdown/CSV exports, Auction Evaluator spec, and engine tests.
