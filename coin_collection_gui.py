@@ -10,6 +10,10 @@ import os
 import cv2
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
+from legacy_portfolio_importer import (
+    LegacyPortfolioImporter,
+    export_import_summary_csv,
+)
 from coin_identifier_interface import CoinIdentifierFactory
 
 
@@ -57,6 +61,7 @@ class CoinCollectionGUI:
         menubar.add_cascade(label="Tools", menu=tools_menu)
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
         tools_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
+        tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
     
     def import_collection_csv(self):
         """Import collection from CSV file."""
@@ -646,6 +651,178 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_portfolio_import_preview(self):
+        """Preview a legacy portfolio workbook without importing collection data."""
+        file_path = filedialog.askopenfilename(
+            title="Select Legacy Portfolio Workbook",
+            filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+
+        try:
+            importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
+            summary = importer.preview_workbook(file_path)
+            self.show_portfolio_import_preview(summary, file_path)
+        except Exception as e:
+            messagebox.showerror(
+                "Portfolio Import Preview Error",
+                f"Failed to preview portfolio workbook: {str(e)}"
+            )
+
+    def show_portfolio_import_preview(self, summary, workbook_path):
+        """Show staged portfolio rows, duplicates, skipped rows, and warnings."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Portfolio Import Preview")
+        dialog.geometry("1050x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        ttk.Label(main_frame, text=os.path.basename(workbook_path)).grid(
+            row=0, column=0, sticky=tk.W, pady=(0, 10)
+        )
+
+        summary_frame = ttk.LabelFrame(main_frame, text="Import Summary", padding="10")
+        summary_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        for column in range(5):
+            summary_frame.columnconfigure(column, weight=1)
+
+        summary_values = [
+            ("Rows Found", summary.rows_found),
+            ("Importable Items", summary.items_importable),
+            ("Duplicates", summary.duplicates_detected),
+            ("Skipped Rows", summary.rows_skipped),
+            ("Warnings", len(summary.warnings)),
+        ]
+        for column, (label, value) in enumerate(summary_values):
+            cell = ttk.Frame(summary_frame)
+            cell.grid(row=0, column=column, sticky=(tk.W, tk.E), padx=(0, 10))
+            ttk.Label(cell, text=label).pack(anchor=tk.W)
+            ttk.Label(cell, text=str(value), font=("Arial", 12, "bold")).pack(anchor=tk.W)
+
+        notebook = ttk.Notebook(main_frame)
+        notebook.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        staged_frame = ttk.Frame(notebook, padding="10")
+        duplicate_frame = ttk.Frame(notebook, padding="10")
+        skipped_frame = ttk.Frame(notebook, padding="10")
+        warnings_frame = ttk.Frame(notebook, padding="10")
+
+        notebook.add(staged_frame, text="Staged Items")
+        notebook.add(duplicate_frame, text="Duplicates")
+        notebook.add(skipped_frame, text="Skipped Rows")
+        notebook.add(warnings_frame, text="Warnings")
+
+        staged_tree = self.create_portfolio_preview_table(staged_frame, include_duplicate=False)
+        for staged in summary.staged_items:
+            self.insert_portfolio_preview_row(staged_tree, staged, include_duplicate=False)
+
+        duplicate_tree = self.create_portfolio_preview_table(duplicate_frame, include_duplicate=True)
+        for duplicate in summary.duplicate_items:
+            self.insert_portfolio_preview_row(duplicate_tree, duplicate, include_duplicate=True)
+
+        skipped_tree = self.create_skipped_rows_table(skipped_frame)
+        for skipped in summary.skipped_rows:
+            skipped_tree.insert(
+                "",
+                tk.END,
+                values=(skipped.sheet_name, skipped.row_number, skipped.reason)
+            )
+
+        warnings_text = tk.Text(warnings_frame, wrap=tk.WORD, height=8)
+        warnings_text.pack(fill=tk.BOTH, expand=True)
+        warnings_text.insert(tk.END, "\n".join(summary.warnings) if summary.warnings else "No warnings.")
+        warnings_text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=tk.W, pady=(10, 0))
+
+        def export_report():
+            output_path = filedialog.asksaveasfilename(
+                title="Export Portfolio Import Preview",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not output_path:
+                return
+            if export_import_summary_csv(summary, output_path):
+                messagebox.showinfo("Success", f"Portfolio import preview exported to {output_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export portfolio import preview")
+
+        ttk.Button(button_frame, text="Export Report", command=export_report).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def create_portfolio_preview_table(self, parent, include_duplicate=False):
+        """Create a table for staged or duplicate portfolio preview rows."""
+        columns = ["Sheet", "Row", "Title", "Country", "Denomination", "Year", "Grade", "Estimate CAD", "Numista #"]
+        if include_duplicate:
+            columns.extend(["Duplicate Of", "Reason"])
+
+        container = ttk.Frame(parent)
+        container.pack(fill=tk.BOTH, expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+
+        tree = ttk.Treeview(container, columns=columns, show="headings", height=12)
+        for column in columns:
+            tree.heading(column, text=column)
+            width = 90
+            if column == "Title":
+                width = 240
+            elif column in ("Duplicate Of", "Reason"):
+                width = 160
+            tree.column(column, width=width, anchor=tk.W)
+
+        y_scrollbar = ttk.Scrollbar(container, orient=tk.VERTICAL, command=tree.yview)
+        x_scrollbar = ttk.Scrollbar(container, orient=tk.HORIZONTAL, command=tree.xview)
+        tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+
+        tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        y_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        x_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        return tree
+
+    def insert_portfolio_preview_row(self, tree, staged, include_duplicate=False):
+        """Insert one staged portfolio preview row into a Treeview."""
+        item = staged.coin_item
+        values = [
+            staged.sheet_name,
+            staged.row_number,
+            item.title,
+            item.country,
+            item.denomination,
+            item.year,
+            item.grade,
+            f"{item.estimate_cad:.2f}" if item.estimate_cad else "",
+            item.numista_n,
+        ]
+        if include_duplicate:
+            values.extend([staged.duplicate_of or "", staged.duplicate_reason])
+        tree.insert("", tk.END, values=values)
+
+    def create_skipped_rows_table(self, parent):
+        """Create a table for skipped legacy portfolio rows."""
+        columns = ("Sheet", "Row", "Reason")
+        container = ttk.Frame(parent)
+        container.pack(fill=tk.BOTH, expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+
+        tree = ttk.Treeview(container, columns=columns, show="headings", height=8)
+        for column in columns:
+            tree.heading(column, text=column)
+            tree.column(column, width=140 if column != "Reason" else 500, anchor=tk.W)
+
+        scrollbar = ttk.Scrollbar(container, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        return tree
     
     def open_buy_advisor(self):
         """Open Buy Advisor dialog."""

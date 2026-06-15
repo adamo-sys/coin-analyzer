@@ -9,6 +9,7 @@ a separate confirmed workflow later.
 from __future__ import annotations
 
 import re
+import csv
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -495,3 +496,86 @@ def _normalize_identity_part(value: Any) -> str:
     text = _clean_text(value).lower()
     text = text.replace("cents", "cent").replace("centavos", "centavo")
     return re.sub(r"\s+", " ", text).strip()
+
+
+def export_import_summary_csv(
+    summary: LegacyPortfolioImportSummary, output_path: str
+) -> bool:
+    """Export a preview summary, staged rows, duplicates, skipped rows, and warnings."""
+
+    try:
+        with open(output_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["Section", "Field", "Value"])
+            writer.writerow(["Summary", "Rows Found", summary.rows_found])
+            writer.writerow(["Summary", "Importable Items", summary.items_importable])
+            writer.writerow(["Summary", "Duplicates", summary.duplicates_detected])
+            writer.writerow(["Summary", "Skipped Rows", summary.rows_skipped])
+            writer.writerow(["Summary", "Warnings", len(summary.warnings)])
+            writer.writerow([])
+
+            writer.writerow(
+                [
+                    "Section",
+                    "Sheet",
+                    "Row",
+                    "Title",
+                    "Country",
+                    "Denomination",
+                    "Year",
+                    "Grade",
+                    "Estimate CAD",
+                    "Numista #",
+                    "Duplicate Of",
+                    "Reason",
+                ]
+            )
+
+            for staged in summary.staged_items:
+                writer.writerow(_staged_item_report_row("Staged", staged))
+
+            for duplicate in summary.duplicate_items:
+                writer.writerow(_staged_item_report_row("Duplicate", duplicate))
+
+            for skipped in summary.skipped_rows:
+                writer.writerow(
+                    [
+                        "Skipped",
+                        skipped.sheet_name,
+                        skipped.row_number,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        skipped.reason,
+                    ]
+                )
+
+            for warning in summary.warnings:
+                writer.writerow(["Warning", "", "", "", "", "", "", "", "", "", "", warning])
+
+        return True
+    except Exception:
+        return False
+
+
+def _staged_item_report_row(section: str, staged: LegacyPortfolioStagedItem) -> List[Any]:
+    item = staged.coin_item
+    return [
+        section,
+        staged.sheet_name,
+        staged.row_number,
+        item.title,
+        item.country,
+        item.denomination,
+        item.year,
+        item.grade,
+        item.estimate_cad,
+        item.numista_n,
+        staged.duplicate_of or "",
+        staged.duplicate_reason or "; ".join(staged.warnings),
+    ]

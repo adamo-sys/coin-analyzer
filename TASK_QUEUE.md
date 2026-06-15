@@ -41,9 +41,10 @@ Work through this queue in priority order. Handle only one task at a time.
 12. `[x]` Add legacy portfolio import spec
 13. `[x]` Add portfolio integration roadmap
 14. `[x]` Implement legacy portfolio staging importer
-15. `[ ]` Build Melt Value Engine
-16. `[ ]` Build Upgrade Advisor
-17. `[ ]` Recreate dashboard metrics in app
+15. `[x]` Add Portfolio Import Preview GUI
+16. `[ ]` Build Melt Value Engine
+17. `[ ]` Build Upgrade Advisor
+18. `[ ]` Recreate dashboard metrics in app
 
 ## Adam-Specific Collection Priorities
 
@@ -85,6 +86,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Add Portfolio Import Preview GUI
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `coin_collection_gui.py`
+  - `legacy_portfolio_importer.py`
+  - `test_legacy_portfolio_importer.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `PENDING`
 
 #### `[x]` Implement legacy portfolio staging importer
 

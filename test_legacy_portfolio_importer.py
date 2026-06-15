@@ -3,6 +3,7 @@ Tests for the safe legacy portfolio workbook preview importer.
 """
 
 import os
+import csv
 import shutil
 import tempfile
 import unittest
@@ -10,7 +11,10 @@ import unittest
 from openpyxl import Workbook
 
 from coin_collection import CoinCollection
-from legacy_portfolio_importer import LegacyPortfolioImporter
+from legacy_portfolio_importer import (
+    LegacyPortfolioImporter,
+    export_import_summary_csv,
+)
 
 
 FIXTURE_COLLECTION = os.path.join(
@@ -222,6 +226,70 @@ class TestLegacyPortfolioImporter(unittest.TestCase):
         self.assertEqual(summary.rows_found, 0)
         self.assertEqual(summary.items_importable, 0)
         self.assertIn("Missing required sheet: SLABS", summary.warnings)
+        self.assertEqual(self._read_collection_file(), self.collection_before)
+
+    def test_export_import_summary_csv_writes_preview_report(self):
+        self._create_workbook(
+            core_rows=[
+                [
+                    "Canada - 1 Cent",
+                    "COIN",
+                    1966,
+                    "1 cent",
+                    "KM# 59",
+                    "VF-20",
+                    "RAW",
+                    "",
+                    0.25,
+                    1.0,
+                    "",
+                    "KEEP",
+                    3,
+                    "Duplicate by Numista",
+                    "Existing fixture",
+                    "2025-01-01",
+                    "Numista",
+                    "N# 1001",
+                ],
+                [
+                    "1900",
+                    "COIN",
+                    1900,
+                    "token",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "KEEP",
+                    "",
+                    "Ambiguous country",
+                    "",
+                    "",
+                    "Manual",
+                    "",
+                ],
+            ],
+            slab_rows=[],
+        )
+        summary = LegacyPortfolioImporter(self.collection.items).preview_workbook(
+            self.workbook_path
+        )
+        output_path = os.path.join(self.temp_dir.name, "portfolio_preview.csv")
+
+        self.assertTrue(export_import_summary_csv(summary, output_path))
+
+        with open(output_path, "r", encoding="utf-8") as handle:
+            rows = list(csv.reader(handle))
+
+        self.assertIn(["Summary", "Rows Found", "2"], rows)
+        self.assertIn(["Summary", "Importable Items", "1"], rows)
+        self.assertIn(["Summary", "Duplicates", "1"], rows)
+        self.assertTrue(any(len(row) > 3 and row[0] == "Staged" and row[3] == "1900" for row in rows))
+        self.assertTrue(any(len(row) > 10 and row[0] == "Duplicate" and row[10] == "fixture_canada_cent_1966" for row in rows))
+        self.assertTrue(any(row and row[0] == "Warning" for row in rows))
         self.assertEqual(self._read_collection_file(), self.collection_before)
 
     def _create_workbook(self, core_rows, slab_rows):
