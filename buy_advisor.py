@@ -141,6 +141,12 @@ class BuyAdvisor:
         recommendation = self.adjust_recommendation_by_priority(
             base_recommendation, adam_priority_score
         )
+        recommendation = self.apply_low_priority_world_guardrail(
+            recommendation,
+            adam_priority_score,
+            collection_impact_score,
+            liquidity_score,
+        )
         
         # Calculate max rational bid based on recommendation
         max_rational_bid, max_bid_explanation = self.calculate_max_rational_bid(
@@ -899,6 +905,26 @@ class BuyAdvisor:
                 return "Pass"
         
         return base_recommendation
+
+    def apply_low_priority_world_guardrail(
+        self,
+        recommendation: str,
+        adam_priority_score: int,
+        collection_impact_score: int,
+        liquidity_score: int,
+    ) -> str:
+        """Prevent low-priority world base metal from becoming buy-now only on price."""
+        if recommendation in ["Duplicate", "Pass"]:
+            return recommendation
+
+        if (
+            adam_priority_score < 0
+            and collection_impact_score == 0
+            and liquidity_score <= 0
+        ):
+            return "Neutral"
+
+        return recommendation
     
     def generate_explanation(self, already_owned: bool, duplicate_count: int,
                            upgrade_candidate: bool, missing_date: bool,

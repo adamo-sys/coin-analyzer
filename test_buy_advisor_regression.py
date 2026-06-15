@@ -117,6 +117,22 @@ class TestBuyAdvisorRegression(unittest.TestCase):
         self.assertEqual(rec.price_verdict, "Cannot price-check")
         self.assertEqual(rec.purchase_verdict, "WATCHLIST")
 
+    def test_random_world_base_metal_good_price_does_not_become_buy_now(self):
+        rec = self.advisor.advise(
+            "Argentina",
+            "1 cent",
+            "1975",
+            asking_price=1.00,
+            estimated_market_value=5.00,
+        )
+
+        self.assertEqual(rec.adam_priority_score, -10)
+        self.assertEqual(rec.collection_impact_score, 0)
+        self.assertLessEqual(rec.liquidity_score, 0)
+        self.assertEqual(rec.recommendation, "Neutral")
+        self.assertEqual(rec.price_verdict, "Good price")
+        self.assertEqual(rec.purchase_verdict, "BID ONLY")
+
     def test_collection_intelligence_boosts_explicit_want_list_target(self):
         intent = LegacyWantListIntent(
             sheet_name="WANT_LIST",
