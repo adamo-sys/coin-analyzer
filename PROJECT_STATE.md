@@ -30,6 +30,7 @@
 * Auction Evaluator draft spec: documents how the future evaluator should consume the Collection Intelligence Engine.
 * Legacy portfolio import spec: documents how `Adam_Collection_Portfolio_PRO_LEVEL.xlsx` should be staged, mapped, and consumed by future app systems.
 * Portfolio integration roadmap: phases the legacy workbook migration from safe inventory staging through dashboard replacement.
+* Legacy portfolio staging importer: safely previews `CORE_RAW` and `SLABS` workbook rows, detects likely duplicates, reports skipped rows and warnings, and does not modify `data/collection.json`.
 
 ## Known Bugs
 
@@ -47,7 +48,7 @@
 
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
-3. Implement legacy portfolio staging importer from `LEGACY_PORTFOLIO_IMPORT_SPEC.md`
+3. Connect legacy `WANT_LIST` and `TARGETS` staging to Buy Advisor
 4. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
 5. Build Upgrade Advisor using `UPGRADE_TARGETS`
 6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
@@ -78,6 +79,7 @@ Improve Buy Advisor validation messages.
 * Buy Advisor system: `buy_advisor.py` contains rule-based recommendation logic for duplicates, upgrades, collection gaps, value data, priority, liquidity, landed cost, and purchase verdicts.
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, and future evaluator inputs.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
+* Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, and summary text without saving collection data.
 * Legacy portfolio import design: `LEGACY_PORTFOLIO_IMPORT_SPEC.md` maps the external workbook sheets into future staging/import, melt-value, upgrade, want-list, and advisor workflows.
 * Portfolio integration roadmap: `PORTFOLIO_INTEGRATION_ROADMAP.md` defines phased migration work for workbook-backed portfolio features.
 * Testing framework: Python standard-library `unittest` discovery via `python -m unittest discover -s . -p "test_*.py"`, with fixture files in `test_data/` and Windows runner `run_tests.bat`.
@@ -85,7 +87,7 @@ Improve Buy Advisor validation messages.
 ## Development Notes
 
 * Python 3.8+ is expected.
-* Runtime dependencies are pinned in `requirements.txt`: `pytesseract`, `Pillow`, `opencv-python`, and `pandas`.
+* Runtime dependencies are pinned in `requirements.txt`: `pytesseract`, `Pillow`, `opencv-python`, `pandas`, and `openpyxl`.
 * Tests must not mutate `data/collection.json`; copy fixtures from `test_data/` into temporary directories instead.
 * Keep app data as UTF-8 JSON.
 * Detection features are experimental suggestions only; user verification is required before saving.
@@ -103,6 +105,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Added Phase 1 legacy portfolio staging importer for safe `CORE_RAW` and `SLABS` workbook previews, duplicate detection, skipped-row reporting, and no-write collection safety tests.
+* Commit: `PENDING`
 * Added portfolio integration roadmap for phased legacy workbook migration from inventory import through app dashboard metrics.
 * Commit: `b3d17bc`
 * Added legacy portfolio import spec for `Adam_Collection_Portfolio_PRO_LEVEL.xlsx`, including workbook sheet inspection, field mapping, importer design, and downstream system recommendations.

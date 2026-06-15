@@ -40,7 +40,7 @@ Work through this queue in priority order. Handle only one task at a time.
 11. `[x]` Add Auction Evaluator draft spec
 12. `[x]` Add legacy portfolio import spec
 13. `[x]` Add portfolio integration roadmap
-14. `[ ]` Implement legacy portfolio staging importer
+14. `[x]` Implement legacy portfolio staging importer
 15. `[ ]` Build Melt Value Engine
 16. `[ ]` Build Upgrade Advisor
 17. `[ ]` Recreate dashboard metrics in app
@@ -85,6 +85,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Implement legacy portfolio staging importer
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `legacy_portfolio_importer.py`
+  - `test_legacy_portfolio_importer.py`
+  - `requirements.txt`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `PENDING`
 
 #### `[x]` Add portfolio integration roadmap
 
