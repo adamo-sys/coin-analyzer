@@ -71,6 +71,13 @@ Implement Collection Gap Report.
 * Detection features are experimental suggestions only; user verification is required before saving.
 * Work one task at a time from `TASK_QUEUE.md`, run tests if possible, summarize changed files, then stop for approval.
 * Update this file whenever a major feature is completed.
+* `PROJECT_STATE.md` and `TASK_QUEUE.md` are the source of truth for project status.
+* Whenever a task is completed:
+  1. Update `PROJECT_STATE.md`.
+  2. Update `TASK_QUEUE.md`.
+  3. Run tests if available.
+  4. Commit changes.
+  5. Include the commit hash in this file's Recent Changes section.
 
 ## Recent Changes
 

@@ -17,6 +17,13 @@ Work through this queue in priority order. Handle only one task at a time.
 4. Stop for approval before continuing to the next task.
 5. Do not add unrelated features while completing a queued task.
 6. When a task is blocked, explain why in the queue or changelog.
+7. `TASK_QUEUE.md` and `PROJECT_STATE.md` are the source of truth for project status.
+8. Whenever a task is completed:
+   - Update `PROJECT_STATE.md`.
+   - Update `TASK_QUEUE.md`.
+   - Run tests if available.
+   - Commit changes.
+   - Include the commit hash in `PROJECT_STATE.md` Recent Changes.
 
 ## Queue
 
