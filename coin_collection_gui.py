@@ -573,7 +573,7 @@ Total Unique Dates: {total_unique_dates}
         text.config(state=tk.DISABLED)
 
     def open_collection_gap_report(self):
-        """Show collection gap report and allow Markdown export."""
+        """Show collection gap report and allow Markdown/CSV export."""
         engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
         report_text = engine.format_gap_report_text()
 
@@ -602,7 +602,21 @@ Total Unique Dates: {total_unique_dates}
             else:
                 messagebox.showerror("Error", "Failed to export gap report")
 
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Gap Report CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if engine.export_gap_report_csv(file_path):
+                messagebox.showinfo("Success", f"Gap report CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export gap report CSV")
+
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_want_list_generator(self):

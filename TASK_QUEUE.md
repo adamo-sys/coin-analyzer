@@ -45,6 +45,7 @@ Work through this queue in priority order. Handle only one task at a time.
 16. `[ ]` Build Melt Value Engine
 17. `[ ]` Build Upgrade Advisor
 18. `[ ]` Recreate dashboard metrics in app
+19. `[x]` Refine Collection Gap Report MVP CSV export
 
 ## Adam-Specific Collection Priorities
 
@@ -86,6 +87,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Refine Collection Gap Report MVP CSV export
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `collection_intelligence.py`
+  - `coin_collection_gui.py`
+  - `test_collection_intelligence.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `PENDING`
 
 #### `[x]` Add Portfolio Import Preview GUI
 

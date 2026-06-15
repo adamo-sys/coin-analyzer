@@ -25,7 +25,7 @@
 * Test infrastructure: root-level `unittest` discovery, isolated `test_data` fixtures, `run_tests.bat`, `TESTING.md`, and GitHub Actions workflow.
 * Task queue: `TASK_QUEUE.md` tracks prioritized work, status, and changelog entries.
 * Collection Intelligence Engine: reusable analysis for country, denomination, series, missing years, completion percentages, duplicates, upgrade candidates, and acquisition priorities.
-* Collection Gap Report MVP: Tools menu report with missing dates, completion percentages, upgrade opportunities, duplicate holdings, priority acquisition targets, and Markdown export.
+* Collection Gap Report MVP: Tools menu report grouped by country/denomination, with missing dates, completion percentages, priority tiers, suggested next acquisitions, duplicate/upgrade context, and Markdown/CSV export.
 * Want List Generator MVP: top acquisition targets with estimated impact and recommendation reasons, plus Markdown and CSV export.
 * Auction Evaluator draft spec: documents how the future evaluator should consume the Collection Intelligence Engine.
 * Legacy portfolio import spec: documents how `Adam_Collection_Portfolio_PRO_LEVEL.xlsx` should be staged, mapped, and consumed by future app systems.
@@ -107,6 +107,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Refined Collection Gap Report MVP with structured country/denomination series rows, Tier 1/Tier 2 prioritization, suggested next acquisitions, and CSV export.
+* Commit: `PENDING`
 * Added Portfolio Import Preview GUI for legacy workbook staging review and CSV report export; no final import confirmation or collection writes were added.
 * Commit: `c50eb12`
 * Added Phase 1 legacy portfolio staging importer for safe `CORE_RAW` and `SLABS` workbook previews, duplicate detection, skipped-row reporting, and no-write collection safety tests.

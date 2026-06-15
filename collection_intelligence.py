@@ -283,7 +283,39 @@ class CollectionIntelligenceEngine:
             "duplicates": self.detect_duplicates(),
             "upgrade_candidates": self.detect_upgrade_candidates(),
             "priority_targets": priorities,
+            "series_rows": self.generate_gap_report_rows(),
         }
+
+    def generate_gap_report_rows(self) -> List[Dict]:
+        """Return country/denomination date-run rows for the gap report MVP."""
+        rows = []
+        for (country, denomination), data in self.analyze_by_series().items():
+            years = data["years"]
+            missing_years = data["missing_years"]
+            rows.append(
+                {
+                    "series": f"{country} / {denomination}",
+                    "country": country,
+                    "denomination": denomination,
+                    "years_owned": self._format_years(years) if years else "",
+                    "missing_years": self._format_years(missing_years) if missing_years else "",
+                    "completion_percentage": data["completion_percentage"],
+                    "priority_tier": self._priority_tier(country, denomination, years),
+                    "suggested_next_acquisitions": self._suggest_next_acquisitions(
+                        country, denomination, years, missing_years
+                    ),
+                }
+            )
+
+        rows.sort(
+            key=lambda row: (
+                self._priority_tier_rank(row["priority_tier"]),
+                -row["completion_percentage"],
+                row["country"],
+                row["denomination"],
+            )
+        )
+        return rows
 
     def generate_want_list(self, limit: int = 10) -> List[AcquisitionTarget]:
         return self.generate_acquisition_priorities(limit=limit)
@@ -295,6 +327,31 @@ class CollectionIntelligenceEngine:
             return True
         except Exception as exc:
             print(f"Error exporting gap report markdown: {exc}")
+            return False
+
+    def export_gap_report_csv(self, output_path: str) -> bool:
+        """Export the read-only collection gap report rows to CSV."""
+        try:
+            with open(output_path, "w", newline="", encoding="utf-8") as handle:
+                fieldnames = [
+                    "priority_tier",
+                    "series",
+                    "country",
+                    "denomination",
+                    "years_owned",
+                    "missing_years",
+                    "completion_percentage",
+                    "suggested_next_acquisitions",
+                ]
+                writer = csv.DictWriter(handle, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in self.generate_gap_report_rows():
+                    output_row = row.copy()
+                    output_row["completion_percentage"] = f"{row['completion_percentage']:.1f}"
+                    writer.writerow(output_row)
+            return True
+        except Exception as exc:
+            print(f"Error exporting gap report CSV: {exc}")
             return False
 
     def export_want_list_markdown(self, output_path: str, limit: int = 10) -> bool:
@@ -339,8 +396,21 @@ class CollectionIntelligenceEngine:
             f"Denominations: {report['summary']['total_denominations']}",
             f"Series: {report['summary']['total_series']}",
             "",
-            "Missing Dates",
+            "Series Gap Analysis",
         ]
+        if report["series_rows"]:
+            for row in report["series_rows"]:
+                lines.append(
+                    f"- {row['priority_tier']} | {row['series']} | "
+                    f"Owned: {row['years_owned'] or 'none'} | "
+                    f"Missing: {row['missing_years'] or 'none'} | "
+                    f"Completion: {row['completion_percentage']:.1f}% | "
+                    f"Next: {row['suggested_next_acquisitions']}"
+                )
+        else:
+            lines.append("- No series data available.")
+
+        lines.extend(["", "Missing Dates"])
         missing = report["missing_dates"]
         if missing:
             for (country, denomination), years in missing.items():
@@ -395,9 +465,26 @@ class CollectionIntelligenceEngine:
             f"- Denominations: {report['summary']['total_denominations']}",
             f"- Series: {report['summary']['total_series']}",
             "",
-            "## Missing Dates",
+            "## Series Gap Analysis",
             "",
         ]
+        if report["series_rows"]:
+            for row in report["series_rows"]:
+                lines.append(
+                    f"- **{row['series']}** ({row['priority_tier']}): "
+                    f"owned {row['years_owned'] or 'none'}; "
+                    f"missing {row['missing_years'] or 'none'}; "
+                    f"completion {row['completion_percentage']:.1f}%; "
+                    f"next {row['suggested_next_acquisitions']}"
+                )
+        else:
+            lines.append("- No series data available.")
+
+        lines.extend([
+            "",
+            "## Missing Dates",
+            "",
+        ])
         missing = report["missing_dates"]
         if missing:
             for (country, denomination), years in missing.items():
@@ -550,6 +637,60 @@ class CollectionIntelligenceEngine:
         if not any("Adam priority" in reason for reason in reasons):
             reasons.append("Supports date-run completion and gap reduction.")
         return " ".join(reasons)
+
+    def _priority_tier(self, country: str, denomination: str, years: List[int]) -> str:
+        country_lower = (country or "").lower()
+        denom_lower = (denomination or "").lower()
+        if "newfoundland" in country_lower:
+            return "Tier 1"
+        if "canada" in country_lower and self._is_canada_silver_denomination(denom_lower):
+            return "Tier 1"
+        if (
+            "canada" in country_lower
+            and 1859 in years
+            and ("cent" in denom_lower or "large" in denom_lower)
+        ):
+            return "Tier 2"
+        return "Tier 3"
+
+    @staticmethod
+    def _priority_tier_rank(priority_tier: str) -> int:
+        return {"Tier 1": 1, "Tier 2": 2, "Tier 3": 3}.get(priority_tier, 9)
+
+    def _suggest_next_acquisitions(
+        self,
+        country: str,
+        denomination: str,
+        years: List[int],
+        missing_years: List[int],
+    ) -> str:
+        country_lower = (country or "").lower()
+        denom_lower = (denomination or "").lower()
+
+        if missing_years:
+            year_text = self._format_years(missing_years[:5])
+            if len(missing_years) > 5:
+                year_text += ", ..."
+            return f"Acquire missing date(s): {year_text}."
+
+        if (
+            "canada" in country_lower
+            and 1859 in years
+            and ("cent" in denom_lower or "large" in denom_lower)
+        ):
+            return "Review 1859 Large Cent varieties and upgrade opportunities."
+
+        if "newfoundland" in country_lower:
+            return "Seek higher-grade Newfoundland examples or key-date upgrades."
+
+        if "canada" in country_lower and self._is_canada_silver_denomination(denom_lower):
+            return "Target Canadian silver upgrades or adjacent missing dates as the run expands."
+
+        return "No immediate date gap detected from the current observed range."
+
+    @staticmethod
+    def _is_canada_silver_denomination(denomination_lower: str) -> bool:
+        return any(term in denomination_lower for term in SILVER_DENOMINATION_TERMS)
 
     @staticmethod
     def _completion_gain(series: Dict) -> float:
