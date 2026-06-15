@@ -118,7 +118,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Completed v0.4 integration audit: main app launch, Buy Advisor with and without staged `WANT_LIST` context, duplicate override behavior, price analysis, Collection Gap Report, Want List Generator, Portfolio Preview, and full test suite passed. No code fixes were required.
-* Commit: pending
+* Commit: `7e17d42`
 * Integrated Collection Intelligence into Buy Advisor so collection gaps, generated want-list targets, Newfoundland/1859 priorities, and staged `WANT_LIST` intent add explainable Adam Priority boosts and collection impact scoring.
 * Commit: `4c4b854`
 * Connected staged workbook `WANT_LIST` intent to Want List Generator rankings, including explicit-target scoring, recommendation explanations, table display, and Markdown/CSV export.
