@@ -38,6 +38,10 @@ Work through this queue in priority order. Handle only one task at a time.
 9. `[ ]` Improve Buy Advisor validation messages
 10. `[ ]` Add autocomplete for country/denomination
 11. `[x]` Add Auction Evaluator draft spec
+12. `[x]` Add legacy portfolio import spec
+13. `[ ]` Implement legacy portfolio staging importer
+14. `[ ]` Build Melt Value Engine
+15. `[ ]` Build Upgrade Advisor
 
 ## Adam-Specific Collection Priorities
 
@@ -79,6 +83,15 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Add legacy portfolio import spec
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `LEGACY_PORTFOLIO_IMPORT_SPEC.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
 
 #### `[x]` Implement Collection Gap Report
 
