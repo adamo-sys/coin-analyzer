@@ -96,7 +96,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_legacy_portfolio_importer.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: `PENDING`
+- Commit hash: `c50eb12`
 
 #### `[x]` Implement legacy portfolio staging importer
 

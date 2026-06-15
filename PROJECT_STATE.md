@@ -108,7 +108,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Added Portfolio Import Preview GUI for legacy workbook staging review and CSV report export; no final import confirmation or collection writes were added.
-* Commit: `PENDING`
+* Commit: `c50eb12`
 * Added Phase 1 legacy portfolio staging importer for safe `CORE_RAW` and `SLABS` workbook previews, duplicate detection, skipped-row reporting, and no-write collection safety tests.
 * Commit: `5e2732b`
 * Added portfolio integration roadmap for phased legacy workbook migration from inventory import through app dashboard metrics.
