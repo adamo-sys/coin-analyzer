@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v0.2` latest tagged release; current working state includes post-`v0.2` test infrastructure and project documentation updates.
+* Current release version: `v0.3` release candidate; latest Git tag remains `v0.2`.
 * Current Git branch: `main`
 * Last updated date: 2026-06-15
 
@@ -10,6 +10,7 @@
 
 * Most recent Git tag: `v0.2`
 * Summary of what was included: collection CSV import support, GUI import entry point, and CSV import tests.
+* `v0.3` status: not tagged yet; release audit completed on 2026-06-15.
 
 ## Completed Features
 
@@ -107,6 +108,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Completed v0.3 release audit: main app launch, CSV import, Portfolio Import Preview, Buy Advisor, Collection Gap Report, and full test suite passed. Updated project state to reflect v0.3 release-candidate status.
+* Commit: `PENDING`
 * Refined Collection Gap Report MVP with structured country/denomination series rows, Tier 1/Tier 2 prioritization, suggested next acquisitions, and CSV export.
 * Commit: `701765a`
 * Added Portfolio Import Preview GUI for legacy workbook staging review and CSV report export; no final import confirmation or collection writes were added.

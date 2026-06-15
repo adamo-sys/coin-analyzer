@@ -46,6 +46,7 @@ Work through this queue in priority order. Handle only one task at a time.
 17. `[ ]` Build Upgrade Advisor
 18. `[ ]` Recreate dashboard metrics in app
 19. `[x]` Refine Collection Gap Report MVP CSV export
+20. `[x]` Perform v0.3 release audit
 
 ## Adam-Specific Collection Priorities
 
@@ -87,6 +88,14 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Perform v0.3 release audit
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `PENDING`
 
 #### `[x]` Refine Collection Gap Report MVP CSV export
 
