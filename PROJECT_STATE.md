@@ -35,6 +35,7 @@
 * Portfolio Import Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged items and duplicates, seeing import summary counts, and exporting the preview report to CSV without importing data.
 * WANT_LIST integration plan: documents the v0.4 Phase 2 approach for staging workbook acquisition intent without importing owned holdings.
 * Legacy WANT_LIST staging parser: safely parses workbook `WANT_LIST` rows into acquisition-intent records without creating owned `CoinItem` records or modifying `data/collection.json`.
+* WANT_LIST Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged acquisition-intent rows, skipped rows, warnings, and exporting the preview to CSV without modifying collection data.
 
 ## Known Bugs
 
@@ -86,6 +87,7 @@ Improve Buy Advisor validation messages.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for future Want List Generator and Buy Advisor integration.
 * Portfolio preview GUI: `coin_collection_gui.py` exposes Tools -> Portfolio Import Preview and displays importable staged rows, duplicate rows, skipped rows, warnings, and summary counts.
+* WANT_LIST preview GUI: `coin_collection_gui.py` exposes Tools -> Want List Preview and displays staged workbook acquisition intent without feeding it into the Want List Generator or Buy Advisor yet.
 * WANT_LIST integration plan: `WANT_LIST_INTEGRATION_PLAN.md` defines the Phase 2 design for staged acquisition intent and future Buy Advisor/Want List Generator integration.
 * Legacy portfolio import design: `LEGACY_PORTFOLIO_IMPORT_SPEC.md` maps the external workbook sheets into future staging/import, melt-value, upgrade, want-list, and advisor workflows.
 * Portfolio integration roadmap: `PORTFOLIO_INTEGRATION_ROADMAP.md` defines phased migration work for workbook-backed portfolio features.
@@ -112,6 +114,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Added Tools -> Want List Preview for read-only workbook `WANT_LIST` review and CSV export; no Want List Generator or Buy Advisor integration was added.
+* Commit: `eced7d9`
 * Added legacy `WANT_LIST` staging parser for acquisition intent records, including empty sheet handling, invalid row skips, no-mutation checks, and deterministic priority ordering tests.
 * Commit: `b8fa9fa`
 * Finalized `v0.3`: created and pushed Git tag `v0.3`, confirmed release audit passed, and added the v0.4 WANT_LIST integration plan.

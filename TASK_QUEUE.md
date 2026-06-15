@@ -49,7 +49,8 @@ Work through this queue in priority order. Handle only one task at a time.
 20. `[x]` Perform v0.3 release audit
 21. `[x]` Finalize v0.3 release and plan WANT_LIST integration
 22. `[x]` Implement legacy WANT_LIST staging integration
-23. `[ ]` Connect staged WANT_LIST intent to Want List Generator and Buy Advisor
+23. `[x]` Add WANT_LIST Preview GUI
+24. `[ ]` Connect staged WANT_LIST intent to Want List Generator and Buy Advisor
 
 ## Adam-Specific Collection Priorities
 
@@ -91,6 +92,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Add WANT_LIST Preview GUI
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `coin_collection_gui.py`
+  - `legacy_portfolio_importer.py`
+  - `test_legacy_portfolio_importer.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `eced7d9`
 
 #### `[x]` Implement legacy WANT_LIST staging integration
 
