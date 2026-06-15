@@ -27,7 +27,7 @@
 * Task queue: `TASK_QUEUE.md` tracks prioritized work, status, and changelog entries.
 * Collection Intelligence Engine: reusable analysis for country, denomination, series, missing years, completion percentages, duplicates, upgrade candidates, and acquisition priorities.
 * Collection Gap Report MVP: Tools menu report grouped by country/denomination, with missing dates, completion percentages, priority tiers, suggested next acquisitions, duplicate/upgrade context, and Markdown/CSV export.
-* Want List Generator MVP: top acquisition targets with estimated impact and recommendation reasons, plus Markdown and CSV export.
+* Want List Generator MVP: ranked acquisition targets with estimated impact, explainable recommendation reasons, Markdown/CSV export, and optional staged `WANT_LIST` intent input.
 * Auction Evaluator draft spec: documents how the future evaluator should consume the Collection Intelligence Engine.
 * Legacy portfolio import spec: documents how `Adam_Collection_Portfolio_PRO_LEVEL.xlsx` should be staged, mapped, and consumed by future app systems.
 * Portfolio integration roadmap: phases the legacy workbook migration from safe inventory staging through dashboard replacement.
@@ -36,6 +36,7 @@
 * WANT_LIST integration plan: documents the v0.4 Phase 2 approach for staging workbook acquisition intent without importing owned holdings.
 * Legacy WANT_LIST staging parser: safely parses workbook `WANT_LIST` rows into acquisition-intent records without creating owned `CoinItem` records or modifying `data/collection.json`.
 * WANT_LIST Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged acquisition-intent rows, skipped rows, warnings, and exporting the preview to CSV without modifying collection data.
+* WANT_LIST-backed generator ranking: Tools -> Want List Generator can load staged workbook `WANT_LIST` intent and blend it with collection gaps and upgrade candidates without modifying collection data.
 
 ## Known Bugs
 
@@ -53,7 +54,7 @@
 
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
-3. Connect staged `WANT_LIST` intent to Want List Generator and Buy Advisor context
+3. Connect staged `WANT_LIST` intent to Buy Advisor context
 4. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
 5. Build Upgrade Advisor using `UPGRADE_TARGETS`
 6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
@@ -82,12 +83,13 @@ Improve Buy Advisor validation messages.
 * Main application entry point: `coin_collection_gui.py` launches the primary Tkinter collection manager. `main.py` launches the older `gui.py` entry point.
 * Collection management system: `coin_collection.py` defines `CoinItem`, `CoinCollection`, and `CoinCollectionApp`; it handles JSON persistence, CRUD, search, CSV import/export, and collection summaries.
 * Buy Advisor system: `buy_advisor.py` contains rule-based recommendation logic for duplicates, upgrades, collection gaps, value data, priority, liquidity, landed cost, and purchase verdicts.
-* Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, and future evaluator inputs.
+* Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, staged `WANT_LIST` ranking boosts, and future evaluator inputs.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
-* Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for future Want List Generator and Buy Advisor integration.
+* Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and future Buy Advisor integration.
 * Portfolio preview GUI: `coin_collection_gui.py` exposes Tools -> Portfolio Import Preview and displays importable staged rows, duplicate rows, skipped rows, warnings, and summary counts.
-* WANT_LIST preview GUI: `coin_collection_gui.py` exposes Tools -> Want List Preview and displays staged workbook acquisition intent without feeding it into the Want List Generator or Buy Advisor yet.
+* WANT_LIST preview GUI: `coin_collection_gui.py` exposes Tools -> Want List Preview and displays staged workbook acquisition intent without modifying collection data.
+* Want List Generator GUI: `coin_collection_gui.py` exposes Tools -> Want List Generator and can combine current collection analysis with staged workbook `WANT_LIST` intent for read-only acquisition recommendations.
 * WANT_LIST integration plan: `WANT_LIST_INTEGRATION_PLAN.md` defines the Phase 2 design for staged acquisition intent and future Buy Advisor/Want List Generator integration.
 * Legacy portfolio import design: `LEGACY_PORTFOLIO_IMPORT_SPEC.md` maps the external workbook sheets into future staging/import, melt-value, upgrade, want-list, and advisor workflows.
 * Portfolio integration roadmap: `PORTFOLIO_INTEGRATION_ROADMAP.md` defines phased migration work for workbook-backed portfolio features.
@@ -114,6 +116,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Connected staged workbook `WANT_LIST` intent to Want List Generator rankings, including explicit-target scoring, recommendation explanations, table display, and Markdown/CSV export.
+* Commit: `8f11122`
 * Added Tools -> Want List Preview for read-only workbook `WANT_LIST` review and CSV export; no Want List Generator or Buy Advisor integration was added.
 * Commit: `eced7d9`
 * Added legacy `WANT_LIST` staging parser for acquisition intent records, including empty sheet handling, invalid row skips, no-mutation checks, and deterministic priority ordering tests.
