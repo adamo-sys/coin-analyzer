@@ -108,7 +108,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Refined Collection Gap Report MVP with structured country/denomination series rows, Tier 1/Tier 2 prioritization, suggested next acquisitions, and CSV export.
-* Commit: `PENDING`
+* Commit: `701765a`
 * Added Portfolio Import Preview GUI for legacy workbook staging review and CSV report export; no final import confirmation or collection writes were added.
 * Commit: `c50eb12`
 * Added Phase 1 legacy portfolio staging importer for safe `CORE_RAW` and `SLABS` workbook previews, duplicate detection, skipped-row reporting, and no-write collection safety tests.
