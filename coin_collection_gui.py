@@ -32,8 +32,51 @@ class CoinCollectionGUI:
         self.current_photo = None
         self.detection_result = None
         
+        # Create menu bar
+        self.create_menu_bar()
+        
         # Create GUI
         self.create_widgets()
+        self.refresh_collection_list()
+    
+    def create_menu_bar(self):
+        """Create the menu bar."""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Import Collection CSV", command=self.import_collection_csv)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+    
+    def import_collection_csv(self):
+        """Import collection from CSV file."""
+        # Open file dialog
+        file_path = filedialog.askopenfilename(
+            title="Import Collection CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        # Import from CSV
+        imported_count, total_coins, total_countries, total_unique_dates = self.app.import_from_csv(file_path)
+        
+        # Display statistics
+        stats_message = f"""
+Import Complete!
+
+Imported: {imported_count} coins
+Total Coins: {total_coins}
+Total Countries: {total_countries}
+Total Unique Dates: {total_unique_dates}
+"""
+        messagebox.showinfo("Import Statistics", stats_message)
+        
+        # Refresh collection list
         self.refresh_collection_list()
     
     def create_widgets(self):

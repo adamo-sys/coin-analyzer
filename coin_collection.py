@@ -201,6 +201,81 @@ class CoinCollection:
                 matches.append(item)
         return matches
     
+    def import_from_csv(self, csv_path: str) -> tuple:
+        """
+        Import collection items from CSV file.
+        
+        Args:
+            csv_path: Path to CSV file
+            
+        Returns:
+            Tuple of (imported_count, total_coins, total_countries, total_unique_dates)
+        """
+        imported_count = 0
+        
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                
+                for row in reader:
+                    # Convert all keys to lowercase for case-insensitive matching
+                    row_lower = {k.lower(): v for k, v in row.items()}
+                    
+                    # Parse required fields (case-insensitive)
+                    country = row_lower.get('country', '').strip()
+                    denomination = row_lower.get('denomination', '').strip()
+                    year = row_lower.get('year', '').strip()
+                    grade = row_lower.get('grade', '').strip()
+                    quantity = row_lower.get('quantity', '1').strip()
+                    notes = row_lower.get('notes', '').strip()
+                    
+                    # Validate required fields
+                    if not country or not denomination or not year:
+                        print(f"Skipping row with missing required fields: {row}")
+                        continue
+                    
+                    # Parse quantity
+                    try:
+                        quantity = int(quantity) if quantity else 1
+                    except ValueError:
+                        quantity = 1
+                    
+                    # Create items (one per quantity)
+                    for i in range(quantity):
+                        # Generate unique ID
+                        item_id = f"csv_import_{len(self.items)}_{i}"
+                        
+                        # Create CoinItem
+                        item = CoinItem(
+                            id=item_id,
+                            image_path="",  # No image for CSV import
+                            country=country,
+                            denomination=denomination,
+                            year=year,
+                            grade=grade,
+                            notes=notes,
+                            date_added=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            auto_detected=False,
+                            quantity=1  # Each item has quantity 1, we create multiple items
+                        )
+                        
+                        self.items.append(item)
+                        imported_count += 1
+            
+            # Save collection
+            self.save_collection()
+            
+            # Calculate statistics
+            total_coins = len(self.items)
+            total_countries = len(set(item.country for item in self.items))
+            total_unique_dates = len(set(f"{item.country}_{item.denomination}_{item.year}" for item in self.items))
+            
+            return imported_count, total_coins, total_countries, total_unique_dates
+            
+        except Exception as e:
+            print(f"Error importing CSV: {str(e)}")
+            return 0, 0, 0, 0
+    
     def analyze_collection_gaps(self) -> Dict:
         """
         Analyze collection for gaps and patterns.
@@ -271,26 +346,6 @@ class CoinCollection:
             return True
         except Exception as e:
             print(f"Error exporting to CSV: {str(e)}")
-            return False
-    
-    def import_from_csv(self, input_path: str) -> bool:
-        """Import collection from CSV."""
-        try:
-            with open(input_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                imported = 0
-                for row in reader:
-                    try:
-                        item = CoinItem.from_dict(row)
-                        self.items.append(item)
-                        imported += 1
-                    except Exception as e:
-                        print(f"Error importing row: {str(e)}")
-                self.save_collection()
-            print(f"Imported {imported} items from {input_path}")
-            return True
-        except Exception as e:
-            print(f"Error importing from CSV: {str(e)}")
             return False
     
     def generate_item_id(self) -> str:
