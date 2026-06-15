@@ -44,28 +44,28 @@ Work through this queue in priority order. Handle only one task at a time.
   - `test_buy_advisor_regression.py`
   - `test_collection_analysis.py`
   - `test_csv_import.py`
-- Commit hash: Not available yet; changes are uncommitted.
+- Commit hash: `ac1d4e7`
 
 #### `[x]` Add `run_tests.bat`
 
 - Date completed: 2026-06-15
 - Files modified:
   - `run_tests.bat`
-- Commit hash: Not available yet; changes are uncommitted.
+- Commit hash: `ac1d4e7`
 
 #### `[x]` Add `TESTING.md`
 
 - Date completed: 2026-06-15
 - Files modified:
   - `TESTING.md`
-- Commit hash: Not available yet; changes are uncommitted.
+- Commit hash: `ac1d4e7`
 
 #### `[x]` Add GitHub Actions workflow
 
 - Date completed: 2026-06-15
 - Files modified:
   - `.github/workflows/tests.yml`
-- Commit hash: Not available yet; changes are uncommitted.
+- Commit hash: `ac1d4e7`
 
 #### `[x]` Ensure tests use isolated test data
 
@@ -77,4 +77,4 @@ Work through this queue in priority order. Handle only one task at a time.
   - `test_buy_advisor_regression.py`
   - `test_collection_analysis.py`
   - `test_csv_import.py`
-- Commit hash: Not available yet; changes are uncommitted.
+- Commit hash: `ac1d4e7`
