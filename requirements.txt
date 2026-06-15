@@ -1,0 +1,4 @@
+pytesseract==0.3.10
+Pillow==10.0.0
+opencv-python==4.8.0.76
+pandas==2.0.3
