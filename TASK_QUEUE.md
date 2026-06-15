@@ -91,7 +91,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `LEGACY_PORTFOLIO_IMPORT_SPEC.md`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `217c467`
 
 #### `[x]` Implement Collection Gap Report
 

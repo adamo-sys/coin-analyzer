@@ -102,7 +102,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Added legacy portfolio import spec for `Adam_Collection_Portfolio_PRO_LEVEL.xlsx`, including workbook sheet inspection, field mapping, importer design, and downstream system recommendations.
-* Commit: Pending
+* Commit: `217c467`
 * Added Collection Intelligence Engine, Collection Gap Report MVP, Want List Generator MVP, Markdown/CSV exports, Auction Evaluator spec, and engine tests.
 * Commit: `259ad42`
 * Added Adam-specific collection priorities to guide Collection Gap Report, Buy Advisor, and acquisition-planning work.
