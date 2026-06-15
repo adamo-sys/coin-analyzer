@@ -2,11 +2,20 @@
 Unit tests for CSV import functionality.
 """
 
-import unittest
-import os
-import tempfile
 import csv
+import os
+import shutil
+import tempfile
+import unittest
+
 from coin_collection import CoinCollection
+
+
+FIXTURE_CSV = os.path.join(
+    os.path.dirname(__file__),
+    "test_data",
+    "sample_import.csv",
+)
 
 
 class TestCSVImport(unittest.TestCase):
@@ -14,32 +23,15 @@ class TestCSVImport(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        # Create a temporary directory for test files
-        self.test_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.test_dir = self.temp_dir.name
         self.test_csv = os.path.join(self.test_dir, "test_collection.csv")
         self.collection_path = os.path.join(self.test_dir, "collection.json")
-        
-        # Create a test CSV file
-        with open(self.test_csv, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Country', 'Denomination', 'Year', 'Grade', 'Quantity', 'Notes'])
-            writer.writerow(['Canada', '1 cent', '1967', 'VF-20', '1', 'Test coin'])
-            writer.writerow(['Canada', '1 cent', '1968', 'VF-30', '2', 'Two coins'])
-            writer.writerow(['Newfoundland', '50 cents', '1909', 'F-12', '1', 'Key date'])
+        shutil.copy(FIXTURE_CSV, self.test_csv)
     
     def tearDown(self):
         """Clean up test fixtures."""
-        # Remove test files
-        if os.path.exists(self.test_csv):
-            os.remove(self.test_csv)
-        if os.path.exists(self.collection_path):
-            os.remove(self.collection_path)
-        # Remove any other files in the test directory
-        for file in os.listdir(self.test_dir):
-            file_path = os.path.join(self.test_dir, file)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        os.rmdir(self.test_dir)
+        self.temp_dir.cleanup()
     
     def test_csv_import_basic(self):
         """Test basic CSV import."""
@@ -73,9 +65,7 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual(imported_count, 1)
         self.assertEqual(total_coins, 1)
         
-        # Clean up
-        os.remove(test_csv_missing)
-    
+
     def test_csv_import_with_quantity(self):
         """Test CSV import with quantity > 1."""
         test_csv_qty = os.path.join(self.test_dir, "test_quantity.csv")
@@ -91,9 +81,7 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual(imported_count, 5)
         self.assertEqual(total_coins, 5)
         
-        # Clean up
-        os.remove(test_csv_qty)
-    
+
     def test_csv_import_empty_file(self):
         """Test CSV import with empty file."""
         test_csv_empty = os.path.join(self.test_dir, "test_empty.csv")
@@ -108,9 +96,7 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual(imported_count, 0)
         self.assertEqual(total_coins, 0)
         
-        # Clean up
-        os.remove(test_csv_empty)
-    
+
     def test_csv_import_invalid_quantity(self):
         """Test CSV import with invalid quantity."""
         test_csv_invalid_qty = os.path.join(self.test_dir, "test_invalid_qty.csv")
@@ -126,9 +112,6 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual(imported_count, 1)
         self.assertEqual(total_coins, 1)
         
-        # Clean up
-        os.remove(test_csv_invalid_qty)
-
 
 if __name__ == '__main__':
     unittest.main()

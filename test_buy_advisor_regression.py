@@ -1,130 +1,121 @@
-"""
-Buy Advisor Regression Tests
-Comprehensive tests for Buy Advisor functionality including Tasks 11 and 12.
-"""
+"""Regression tests for Buy Advisor recommendations."""
+
+import os
+import shutil
+import tempfile
+import unittest
 
 from buy_advisor import BuyAdvisor
 from coin_collection import CoinCollection
 
 
-def run_regression_tests():
-    """Run comprehensive regression tests for Buy Advisor."""
-    collection = CoinCollection('data/collection.json')
-    advisor = BuyAdvisor(collection)
-    
-    print("=" * 80)
-    print("BUY ADVISOR REGRESSION TESTS")
-    print("=" * 80)
-    
-    # Test 1: Duplicate with price
-    print("\n" + "=" * 80)
-    print("TEST 1: Duplicate with price")
-    print("=" * 80)
-    rec = advisor.advise("Argentina", "1.0", "1960", asking_price=2.00, shipping=1.00, tax_fees=0.20)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: PASS (duplicate)")
-    
-    # Test 2: Strong Buy under max bid
-    print("\n" + "=" * 80)
-    print("TEST 2: Strong Buy under max bid")
-    print("=" * 80)
-    rec = advisor.advise("Canada", "1 cent", "1967", asking_price=0.50, shipping=2.00, tax_fees=0.10)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: BUY NOW (Strong Buy + Good price)")
-    
-    # Test 3: Strong Buy overpriced
-    print("\n" + "=" * 80)
-    print("TEST 3: Strong Buy overpriced")
-    print("=" * 80)
-    rec = advisor.advise("Canada", "1 cent", "1967", asking_price=10.00, shipping=2.00, tax_fees=1.00)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: PASS (overpriced)")
-    
-    # Test 4: Neutral good price
-    print("\n" + "=" * 80)
-    print("TEST 4: Neutral good price")
-    print("=" * 80)
-    rec = advisor.advise("Argentina", "20 cents", "1975", asking_price=0.25, shipping=2.00, tax_fees=0.05)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: BID ONLY (Neutral + Good price)")
-    
-    # Test 5: Random world base metal
-    print("\n" + "=" * 80)
-    print("TEST 5: Random world base metal")
-    print("=" * 80)
-    rec = advisor.advise("Argentina", "20 cents", "1975", asking_price=0.50, shipping=2.00, tax_fees=0.10)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: PASS (Neutral + overpriced)")
-    
-    # Test 6: No asking price
-    print("\n" + "=" * 80)
-    print("TEST 6: No asking price")
-    print("=" * 80)
-    rec = advisor.advise("Canada", "1 cent", "1967")
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: BID ONLY (Buy + no asking price)")
-    
-    # Test 7: No value data
-    print("\n" + "=" * 80)
-    print("TEST 7: No value data")
-    print("=" * 80)
-    rec = advisor.advise("Canada", "1 cent", "1967", asking_price=5.00, shipping=2.00, tax_fees=0.50)
-    print(f"Final Recommendation: {rec.recommendation}")
-    print(f"Price Verdict: {rec.price_verdict}")
-    print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
-    print(f"Landed Cost: ${rec.landed_cost:.2f}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
-    print(f"Warnings: {rec.warnings}")
-    print(f"Expected: Cannot price-check (no value data)")
-    
-    print("\n" + "=" * 80)
-    print("REGRESSION TESTS COMPLETE")
-    print("=" * 80)
+FIXTURE_COLLECTION = os.path.join(
+    os.path.dirname(__file__),
+    "test_data",
+    "sample_collection.json",
+)
+
+
+class TestBuyAdvisorRegression(unittest.TestCase):
+    """Verify advisor decisions against deterministic fixture data."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.collection_path = os.path.join(self.temp_dir.name, "collection.json")
+        shutil.copy(FIXTURE_COLLECTION, self.collection_path)
+        self.collection = CoinCollection(self.collection_path)
+        self.advisor = BuyAdvisor(self.collection)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_duplicate_purchase_is_pass(self):
+        rec = self.advisor.advise(
+            "Argentina",
+            "1.0",
+            "1960",
+            asking_price=2.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+
+        self.assertTrue(rec.already_owned)
+        self.assertEqual(rec.recommendation, "Duplicate")
+        self.assertEqual(rec.purchase_verdict, "PASS")
+
+    def test_missing_canadian_key_date_with_good_price_is_buy_now(self):
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
+            "1967",
+            asking_price=0.50,
+            shipping=2.00,
+            tax_fees=0.10,
+            estimated_market_value=10.00,
+        )
+
+        self.assertFalse(rec.already_owned)
+        self.assertEqual(rec.recommendation, "Buy")
+        self.assertEqual(rec.price_verdict, "Good price")
+        self.assertEqual(rec.purchase_verdict, "BUY NOW")
+
+    def test_overpriced_buy_is_pass(self):
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
+            "1967",
+            asking_price=10.00,
+            shipping=2.00,
+            tax_fees=1.00,
+            estimated_market_value=10.00,
+        )
+
+        self.assertEqual(rec.recommendation, "Buy")
+        self.assertEqual(rec.price_verdict, "Overpriced")
+        self.assertEqual(rec.purchase_verdict, "PASS")
+
+    def test_neutral_good_price_is_bid_only(self):
+        rec = self.advisor.advise(
+            "Argentina",
+            "20 cents",
+            "1975",
+            asking_price=0.25,
+            shipping=0.10,
+            tax_fees=0.05,
+            estimated_market_value=1.00,
+        )
+
+        self.assertEqual(rec.recommendation, "Neutral")
+        self.assertEqual(rec.price_verdict, "Good price")
+        self.assertEqual(rec.purchase_verdict, "BID ONLY")
+
+    def test_no_asking_price_for_buy_is_bid_only(self):
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
+            "1967",
+            estimated_market_value=10.00,
+        )
+
+        self.assertEqual(rec.recommendation, "Buy")
+        self.assertEqual(rec.price_verdict, "No asking price entered")
+        self.assertEqual(rec.purchase_verdict, "BID ONLY")
+
+    def test_missing_value_data_warns_and_cannot_price_check(self):
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
+            "1967",
+            asking_price=5.00,
+            shipping=2.00,
+            tax_fees=0.50,
+        )
+
+        self.assertFalse(rec.value_data_available)
+        self.assertEqual(rec.max_rational_bid, 0.0)
+        self.assertEqual(rec.price_verdict, "Cannot price-check")
+        self.assertEqual(rec.purchase_verdict, "WATCHLIST")
 
 
 if __name__ == "__main__":
-    run_regression_tests()
+    unittest.main()

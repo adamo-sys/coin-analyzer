@@ -1,44 +1,53 @@
-"""
-Test collection analysis functionality.
-"""
+"""Unit tests for collection search and analysis behavior."""
+
+import os
+import shutil
+import tempfile
+import unittest
 
 from coin_collection import CoinCollection
 
-def test_collection_analysis():
-    """Test collection analysis."""
-    collection = CoinCollection('data/collection.json')
-    
-    print(f"Total coins: {len(collection.items)}")
-    
-    # Test autocomplete
-    print("\n=== Autocomplete Test ===")
-    suggestions = collection.get_autocomplete_suggestions('country', 'can')
-    print(f"Country suggestions for 'can': {suggestions[:5]}")
-    
-    suggestions = collection.get_autocomplete_suggestions('denomination', '1')
-    print(f"Denomination suggestions for '1': {suggestions[:5]}")
-    
-    # Test find matching coins
-    print("\n=== Find Matching Coins Test ===")
-    matches = collection.find_matching_coins('Canada', 'Nickel', '2000')
-    print(f"Matches for Canada/Nickel/2000: {len(matches)}")
-    
-    # Test collection analysis
-    print("\n=== Collection Analysis Test ===")
-    analysis = collection.analyze_collection_gaps()
-    print(f"Total coins: {analysis['total_coins']}")
-    print(f"Numista coverage: {analysis['numista_coverage']:.1f}%")
-    print(f"Number of countries: {len(analysis['countries'])}")
-    print(f"Number of years: {len(analysis['years'])}")
-    print(f"Number of denominations: {len(analysis['denominations'])}")
-    
-    print("\n=== Top 5 Countries ===")
-    for country, count in sorted(analysis['countries'].items(), key=lambda x: x[1], reverse=True)[:5]:
-        print(f"  {country}: {count}")
-    
-    print("\n=== Top 5 Denominations ===")
-    for denom, count in sorted(analysis['denominations'].items(), key=lambda x: x[1], reverse=True)[:5]:
-        print(f"  {denom}: {count}")
+
+FIXTURE_COLLECTION = os.path.join(
+    os.path.dirname(__file__),
+    "test_data",
+    "sample_collection.json",
+)
+
+
+class TestCollectionAnalysis(unittest.TestCase):
+    """Exercise analysis using isolated fixture data."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.collection_path = os.path.join(self.temp_dir.name, "collection.json")
+        shutil.copy(FIXTURE_COLLECTION, self.collection_path)
+        self.collection = CoinCollection(self.collection_path)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_autocomplete_uses_numista_items_only(self):
+        suggestions = self.collection.get_autocomplete_suggestions("country", "can")
+
+        self.assertIn("Canada", suggestions)
+        self.assertNotIn("Manualia", suggestions)
+
+    def test_find_matching_coins_returns_exact_matches(self):
+        matches = self.collection.find_matching_coins("Canada", "1 cent", "1966")
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].id, "fixture_canada_cent_1966")
+
+    def test_analyze_collection_gaps_counts_fixture_data(self):
+        analysis = self.collection.analyze_collection_gaps()
+
+        self.assertEqual(analysis["total_coins"], 5)
+        self.assertEqual(analysis["countries"]["Canada"], 2)
+        self.assertEqual(analysis["years"]["1966"], 1)
+        self.assertEqual(analysis["denominations"]["1 cent"], 1)
+        self.assertEqual(analysis["numista_coverage"], 80.0)
+
 
 if __name__ == "__main__":
-    test_collection_analysis()
+    unittest.main()
