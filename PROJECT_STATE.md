@@ -83,6 +83,8 @@ Implement Collection Gap Report.
 
 ### 2026-06-15
 
+* Added maintenance rule requiring completed tasks to update `PROJECT_STATE.md` and `TASK_QUEUE.md`, run tests when available, commit changes, and record commit hashes.
+* Commit: `ba66958`
 * Added test infrastructure hardening: converted script-style tests into `unittest` tests.
 * Added isolated test fixtures in `test_data/`.
 * Added `run_tests.bat`.
