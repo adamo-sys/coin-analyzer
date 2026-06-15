@@ -1046,9 +1046,11 @@ Total Unique Dates: {total_unique_dates}
     
     def open_buy_advisor(self):
         """Open Buy Advisor dialog."""
+        staged_want_list_intents = []
+
         dialog = tk.Toplevel(self.root)
         dialog.title("Buy Advisor")
-        dialog.geometry("500x450")
+        dialog.geometry("540x500")
         
         # Form frame
         form_frame = ttk.Frame(dialog, padding="20")
@@ -1105,14 +1107,38 @@ Total Unique Dates: {total_unique_dates}
         ttk.Label(form_frame, text="Est. Market Value ($):").grid(row=9, column=0, sticky=tk.W, pady=5)
         estimated_value_var = tk.StringVar()
         ttk.Entry(form_frame, textvariable=estimated_value_var).grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+
+        want_list_status_var = tk.StringVar(value="No staged WANT_LIST context loaded.")
+        ttk.Label(form_frame, textvariable=want_list_status_var).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
         
         # Buttons
         button_frame = ttk.Frame(form_frame)
-        button_frame.grid(row=10, column=0, columnspan=2, pady=(20, 0))
+        button_frame.grid(row=11, column=0, columnspan=2, pady=(20, 0))
+
+        def load_want_list_context():
+            nonlocal staged_want_list_intents
+            file_path = filedialog.askopenfilename(
+                title="Select Legacy Portfolio Workbook",
+                filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
+                preview = importer.preview_want_list(file_path)
+                staged_want_list_intents = preview.staged_intents
+                want_list_status_var.set(
+                    f"Loaded {preview.intents_staged} staged WANT_LIST intents from {os.path.basename(file_path)}."
+                )
+            except Exception as e:
+                messagebox.showerror(
+                    "Buy Advisor WANT_LIST Error",
+                    f"Failed to load workbook WANT_LIST: {str(e)}"
+                )
         
         def get_advice():
             from buy_advisor import BuyAdvisor
-            advisor = BuyAdvisor(self.app.collection)
+            advisor = BuyAdvisor(self.app.collection, staged_want_list_intents=staged_want_list_intents)
             
             # Parse asking price inputs
             try:
@@ -1230,6 +1256,14 @@ Total Unique Dates: {total_unique_dates}
                     report += f"  - {reason}\n"
             else:
                 report += f"No priority factors applied\n"
+
+            report += f"\n=== Collection Intelligence Factors ===\n"
+            report += f"Collection Impact Score: {rec.collection_impact_score}\n"
+            if rec.collection_intelligence_factors:
+                for factor in rec.collection_intelligence_factors:
+                    report += f"  - {factor}\n"
+            else:
+                report += f"  No collection intelligence factors applied\n"
             
             report += f"\n=== Liquidity Score ===\n"
             report += f"Score: {rec.liquidity_score}\n"
@@ -1268,6 +1302,7 @@ Total Unique Dates: {total_unique_dates}
             result_text.insert(tk.END, report)
             result_text.config(state=tk.DISABLED)
         
+        ttk.Button(button_frame, text="Load WANT_LIST Context", command=load_want_list_context).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Get Advice", command=get_advice).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
         

@@ -3,7 +3,7 @@ Buy Advisor - Rule-based coin purchase recommendations.
 Compares a coin against the collection to provide buying advice.
 """
 
-from typing import Dict, List, Set
+from typing import Dict, Iterable, List, Set
 from dataclasses import dataclass
 
 
@@ -32,6 +32,8 @@ class BuyRecommendation:
     warnings: List[str]
     adam_priority_score: int
     adam_priority_reasons: List[str]
+    collection_impact_score: int
+    collection_intelligence_factors: List[str]
     liquidity_score: int
     liquidity_reasons: List[str]
     landed_cost: float
@@ -52,13 +54,15 @@ class BuyAdvisor:
         'MS-65': 20, 'MS-66': 21, 'MS-67': 22, 'MS-68': 23, 'MS-69': 24, 'MS-70': 25
     }
     
-    def __init__(self, collection):
+    def __init__(self, collection, staged_want_list_intents: Iterable = None):
         self.collection = collection
+        self.staged_want_list_intents = list(staged_want_list_intents or [])
     
     def advise(self, country: str, denomination: str, year: str, 
                reference: str = "", numista_n: str = "", grade: str = "",
                asking_price: float = 0.0, shipping: float = 0.0, tax_fees: float = 0.0,
-               estimated_market_value: float = 0.0) -> BuyRecommendation:
+               estimated_market_value: float = 0.0,
+               staged_want_list_intents: Iterable = None) -> BuyRecommendation:
         """
         Provide buy recommendation for a coin.
         
@@ -118,6 +122,15 @@ class BuyAdvisor:
         adam_priority_score, adam_priority_reasons = self.calculate_adam_priority_score(
             country, denomination, year, reference
         )
+        collection_impact_score, collection_intelligence_factors = self.calculate_collection_intelligence_boosts(
+            country,
+            denomination,
+            year,
+            reference,
+            staged_want_list_intents,
+        )
+        adam_priority_score += collection_impact_score
+        adam_priority_reasons.extend(collection_intelligence_factors)
         
         # Calculate Liquidity Score
         liquidity_score, liquidity_reasons = self.calculate_liquidity_score(
@@ -197,6 +210,8 @@ class BuyAdvisor:
             warnings=warnings,
             adam_priority_score=adam_priority_score,
             adam_priority_reasons=adam_priority_reasons,
+            collection_impact_score=collection_impact_score,
+            collection_intelligence_factors=collection_intelligence_factors,
             liquidity_score=liquidity_score,
             liquidity_reasons=liquidity_reasons,
             landed_cost=landed_cost,
@@ -534,6 +549,141 @@ class BuyAdvisor:
                     reasons.append("Random world base metal (-10)")
         
         return score, reasons
+
+    def calculate_collection_intelligence_boosts(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        reference: str = "",
+        staged_want_list_intents: Iterable = None,
+    ) -> tuple:
+        """Score collection-intelligence signals without changing price or duplicate logic."""
+        score = 0
+        factors = []
+        intents = list(staged_want_list_intents) if staged_want_list_intents is not None else self.staged_want_list_intents
+
+        if self._matches_want_list_intent(country, denomination, year, reference, intents):
+            score += 50
+            factors.append("+50 Explicit WANT_LIST target")
+
+        missing_gap, completes_run = self._gap_report_match(country, denomination, year)
+        country_lower = (country or "").lower()
+        denom_lower = (denomination or "").lower()
+        reference_lower = (reference or "").lower()
+
+        if missing_gap:
+            if "newfoundland" in country_lower:
+                score += 30
+                factors.append("+30 Missing Newfoundland date")
+            else:
+                score += 25
+                factors.append("+25 Fills collection gap")
+
+        if completes_run:
+            score += 20
+            factors.append("+20 Completes date run")
+
+        if "newfoundland" in country_lower:
+            score += 25
+            factors.append("+25 Newfoundland priority")
+
+        if (
+            "canada" in country_lower
+            and year == "1859"
+            and ("cent" in denom_lower or "large" in denom_lower or "large" in reference_lower)
+        ):
+            score += 30
+            factors.append("+30 1859 Large Cent target")
+
+        if self._matches_generated_want_list_target(country, denomination, year, intents):
+            score += 15
+            factors.append("+15 Want List Generator target")
+
+        return score, factors
+
+    def _gap_report_match(self, country: str, denomination: str, year: str) -> tuple:
+        """Return whether a candidate fills a generated gap and completes a date run."""
+        if not country or not denomination or not year:
+            return False, False
+        try:
+            from collection_intelligence import CollectionIntelligenceEngine
+
+            rows = CollectionIntelligenceEngine(self.collection.items).generate_gap_report_rows()
+        except Exception:
+            return False, False
+
+        for row in rows:
+            if (
+                self._normalize(row.get("country")) == self._normalize(country)
+                and self._normalize(row.get("denomination")) == self._normalize(denomination)
+            ):
+                missing_years = self._split_years(row.get("missing_years", ""))
+                if year in missing_years:
+                    return True, len(missing_years) == 1
+        return False, False
+
+    def _matches_generated_want_list_target(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        intents: Iterable,
+    ) -> bool:
+        try:
+            from collection_intelligence import CollectionIntelligenceEngine
+
+            targets = CollectionIntelligenceEngine(self.collection.items).generate_want_list(
+                limit=25,
+                staged_want_list_intents=intents,
+            )
+        except Exception:
+            return False
+
+        candidate = self._candidate_tokens(country, denomination, year)
+        for target in targets:
+            target_tokens = self._candidate_tokens(target.country, target.denomination, target.year)
+            if candidate and candidate == target_tokens:
+                return True
+        return False
+
+    def _matches_want_list_intent(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        reference: str,
+        intents: Iterable,
+    ) -> bool:
+        candidate_text = " ".join(part for part in [country, denomination, year, reference] if part)
+        candidate_tokens = set(self._normalize(candidate_text).split())
+        if not candidate_tokens:
+            return False
+
+        for intent in intents:
+            target_coin = getattr(intent, "target_coin", "")
+            target_tokens = set(self._normalize(target_coin).split())
+            if target_tokens and target_tokens.issubset(candidate_tokens):
+                return True
+            if candidate_tokens and candidate_tokens.issubset(target_tokens):
+                return True
+        return False
+
+    def _candidate_tokens(self, country: str, denomination: str, year: str) -> tuple:
+        return tuple(self._normalize(part) for part in [country, denomination, year] if self._normalize(part))
+
+    @staticmethod
+    def _split_years(value: str) -> Set[str]:
+        years = set()
+        for part in str(value or "").replace(";", ",").split(","):
+            year = part.strip()
+            if year:
+                years.add(year)
+        return years
+
+    @staticmethod
+    def _normalize(value: str) -> str:
+        return " ".join(str(value or "").lower().replace("-", " ").split())
     
     def calculate_liquidity_score(self, country: str, denomination: str, 
                                   year: str, reference: str) -> tuple:
