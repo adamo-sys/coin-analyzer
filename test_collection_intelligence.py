@@ -8,6 +8,7 @@ from datetime import datetime
 
 from coin_collection import CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
+from legacy_portfolio_importer import LegacyWantListIntent
 
 
 def make_item(item_id, country, denomination, year, grade="VF-20", **overrides):
@@ -141,6 +142,84 @@ class TestCollectionIntelligenceEngine(unittest.TestCase):
 
         self.assertTrue(rows)
         self.assertEqual(rows[0]["country"], "Newfoundland")
+
+    def test_want_list_generator_combines_collection_gaps_and_staged_intent(self):
+        intents = [
+            LegacyWantListIntent(
+                sheet_name="WANT_LIST",
+                row_number=2,
+                legacy_id="legacy_want_list_2",
+                target_coin="Newfoundland 50 Cents 1904",
+                priority="High",
+                target_grade="VF-20",
+                budget=125.0,
+                why_wanted="Explicit user priority",
+                status="Active",
+                priority_score=75,
+            )
+        ]
+
+        targets = self.engine.generate_want_list(
+            limit=10,
+            staged_want_list_intents=intents,
+        )
+
+        self.assertEqual(targets[0].coin_label, "Newfoundland 50 Cents 1904")
+        self.assertEqual(targets[0].target_type, "Explicit WANT_LIST Target")
+        self.assertIn("Explicit WANT_LIST target", targets[0].reason)
+        self.assertIn("Explicit user priority", targets[0].reason)
+        self.assertTrue(any(target.year == "1901" for target in targets))
+
+    def test_want_list_reasons_explain_gap_and_upgrade_targets(self):
+        targets = self.engine.generate_want_list(limit=10)
+        reasons = " ".join(target.reason for target in targets)
+
+        self.assertIn("Missing Newfoundland date", reasons)
+        self.assertIn("Completes date run", reasons)
+        self.assertIn("Upgrade opportunity", reasons)
+
+    def test_want_list_exports_include_rank_coin_and_staged_intent(self):
+        intents = [
+            LegacyWantListIntent(
+                sheet_name="WANT_LIST",
+                row_number=2,
+                legacy_id="legacy_want_list_2",
+                target_coin="Canada 10 Cents 1911",
+                priority="High",
+                target_grade="VF-20",
+                budget=100.0,
+                why_wanted="Explicit WANT_LIST target for silver gap",
+                status="Active",
+                priority_score=75,
+            )
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, "want_list.csv")
+            md_path = os.path.join(temp_dir, "want_list.md")
+
+            self.assertTrue(
+                self.engine.export_want_list_csv(
+                    csv_path,
+                    limit=10,
+                    staged_want_list_intents=intents,
+                )
+            )
+            self.assertTrue(
+                self.engine.export_want_list_markdown(
+                    md_path,
+                    limit=10,
+                    staged_want_list_intents=intents,
+                )
+            )
+            with open(csv_path, "r", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            with open(md_path, "r", encoding="utf-8") as handle:
+                markdown = handle.read()
+
+        self.assertEqual(rows[0]["rank"], "1")
+        self.assertEqual(rows[0]["coin"], "Canada 10 Cents 1911")
+        self.assertIn("Explicit WANT_LIST target", rows[0]["reason"])
+        self.assertIn("Canada 10 Cents 1911", markdown)
 
 
 if __name__ == "__main__":

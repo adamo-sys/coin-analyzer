@@ -622,21 +622,80 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_want_list_generator(self):
-        """Show top acquisition targets and allow Markdown/CSV export."""
+        """Show ranked acquisition targets and allow Markdown/CSV export."""
         engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
-        want_list_text = engine.format_want_list_markdown(limit=10)
+        staged_want_list_intents = []
 
         dialog = tk.Toplevel(self.root)
         dialog.title("Want List Generator")
-        dialog.geometry("800x600")
+        dialog.geometry("1000x600")
 
-        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
-        text.pack(fill=tk.BOTH, expand=True)
-        text.insert(tk.END, want_list_text)
-        text.config(state=tk.DISABLED)
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
 
-        button_frame = ttk.Frame(dialog, padding="10")
-        button_frame.pack(fill=tk.X)
+        status_var = tk.StringVar(value="Using current collection analysis only.")
+        ttk.Label(main_frame, textvariable=status_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+
+        columns = ("Rank", "Coin", "Priority Score", "Reason")
+        target_tree = ttk.Treeview(main_frame, columns=columns, show="headings", height=15)
+        for column in columns:
+            target_tree.heading(column, text=column)
+            width = 90
+            if column == "Coin":
+                width = 260
+            elif column == "Reason":
+                width = 520
+            target_tree.column(column, width=width, anchor=tk.W)
+
+        y_scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=target_tree.yview)
+        x_scrollbar = ttk.Scrollbar(main_frame, orient=tk.HORIZONTAL, command=target_tree.xview)
+        target_tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+        target_tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        y_scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
+        x_scrollbar.grid(row=2, column=0, sticky=(tk.W, tk.E))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=tk.W, pady=(10, 0))
+
+        def current_targets():
+            return engine.generate_want_list(
+                limit=10,
+                staged_want_list_intents=staged_want_list_intents,
+            )
+
+        def refresh_targets():
+            for row in target_tree.get_children():
+                target_tree.delete(row)
+            for rank, target in enumerate(current_targets(), 1):
+                target_tree.insert(
+                    "",
+                    tk.END,
+                    values=(rank, target.coin_label, target.priority_score, target.reason)
+                )
+
+        def load_want_list_workbook():
+            nonlocal staged_want_list_intents
+            file_path = filedialog.askopenfilename(
+                title="Select Legacy Portfolio Workbook",
+                filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
+                preview = importer.preview_want_list(file_path)
+                staged_want_list_intents = preview.staged_intents
+                status_var.set(
+                    f"Loaded {preview.intents_staged} staged WANT_LIST intents from {os.path.basename(file_path)}."
+                )
+                refresh_targets()
+            except Exception as e:
+                messagebox.showerror(
+                    "Want List Generator Error",
+                    f"Failed to load workbook WANT_LIST: {str(e)}"
+                )
 
         def export_markdown():
             file_path = filedialog.asksaveasfilename(
@@ -646,7 +705,11 @@ Total Unique Dates: {total_unique_dates}
             )
             if not file_path:
                 return
-            if engine.export_want_list_markdown(file_path, limit=10):
+            if engine.export_want_list_markdown(
+                file_path,
+                limit=10,
+                staged_want_list_intents=staged_want_list_intents,
+            ):
                 messagebox.showinfo("Success", f"Want list exported to {file_path}")
             else:
                 messagebox.showerror("Error", "Failed to export want list")
@@ -659,14 +722,20 @@ Total Unique Dates: {total_unique_dates}
             )
             if not file_path:
                 return
-            if engine.export_want_list_csv(file_path, limit=10):
+            if engine.export_want_list_csv(
+                file_path,
+                limit=10,
+                staged_want_list_intents=staged_want_list_intents,
+            ):
                 messagebox.showinfo("Success", f"Want list CSV exported to {file_path}")
             else:
                 messagebox.showerror("Error", "Failed to export want list CSV")
 
+        ttk.Button(button_frame, text="Load Staged WANT_LIST", command=load_want_list_workbook).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+        refresh_targets()
 
     def open_portfolio_import_preview(self):
         """Preview a legacy portfolio workbook without importing collection data."""

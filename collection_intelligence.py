@@ -64,6 +64,12 @@ class AcquisitionTarget:
     reference: str = ""
     current_best_grade: str = ""
 
+    @property
+    def coin_label(self) -> str:
+        parts = [self.country, self.denomination, self.year]
+        label = " ".join(part for part in parts if part).strip()
+        return label or self.denomination or self.year or self.country
+
     def to_dict(self) -> Dict:
         return {
             "country": self.country,
@@ -75,6 +81,7 @@ class AcquisitionTarget:
             "reason": self.reason,
             "reference": self.reference,
             "current_best_grade": self.current_best_grade,
+            "coin": self.coin_label,
         }
 
 
@@ -221,7 +228,11 @@ class CollectionIntelligenceEngine:
                 )
         return candidates
 
-    def generate_acquisition_priorities(self, limit: Optional[int] = None) -> List[AcquisitionTarget]:
+    def generate_acquisition_priorities(
+        self,
+        limit: Optional[int] = None,
+        staged_want_list_intents: Optional[Iterable] = None,
+    ) -> List[AcquisitionTarget]:
         targets: List[AcquisitionTarget] = []
         for key, series in self.analyze_by_series().items():
             country, denomination = key
@@ -237,7 +248,12 @@ class CollectionIntelligenceEngine:
                         target_type="Missing Date",
                         priority_score=score + 20,
                         estimated_impact=f"Adds about {completion_gain:.1f} percentage points to this date run.",
-                        reason=self._priority_reason(country, denomination, str(year), "Missing date in observed series."),
+                        reason=self._priority_reason(
+                            country,
+                            denomination,
+                            str(year),
+                            self._missing_date_reason(country, denomination, str(year), completion_gain),
+                        ),
                     )
                 )
 
@@ -254,11 +270,17 @@ class CollectionIntelligenceEngine:
                     target_type="Upgrade Candidate",
                     priority_score=score + 15,
                     estimated_impact="Improves quality without expanding duplicate exposure.",
-                    reason=self._priority_reason(country, denomination, year, candidate["reason"]),
+                    reason=self._priority_reason(
+                        country,
+                        denomination,
+                        year,
+                        f"Upgrade opportunity: {candidate['reason']}",
+                    ),
                     current_best_grade=candidate["current_best_grade"],
                 )
             )
 
+        targets.extend(self._targets_from_want_list_intents(staged_want_list_intents or []))
         targets.sort(key=lambda target: (-target.priority_score, target.country, target.denomination, target.year))
         return targets[:limit] if limit is not None else targets
 
@@ -317,8 +339,15 @@ class CollectionIntelligenceEngine:
         )
         return rows
 
-    def generate_want_list(self, limit: int = 10) -> List[AcquisitionTarget]:
-        return self.generate_acquisition_priorities(limit=limit)
+    def generate_want_list(
+        self,
+        limit: int = 10,
+        staged_want_list_intents: Optional[Iterable] = None,
+    ) -> List[AcquisitionTarget]:
+        return self.generate_acquisition_priorities(
+            limit=limit,
+            staged_want_list_intents=staged_want_list_intents,
+        )
 
     def export_gap_report_markdown(self, output_path: str) -> bool:
         try:
@@ -354,19 +383,36 @@ class CollectionIntelligenceEngine:
             print(f"Error exporting gap report CSV: {exc}")
             return False
 
-    def export_want_list_markdown(self, output_path: str, limit: int = 10) -> bool:
+    def export_want_list_markdown(
+        self,
+        output_path: str,
+        limit: int = 10,
+        staged_want_list_intents: Optional[Iterable] = None,
+    ) -> bool:
         try:
             with open(output_path, "w", encoding="utf-8") as handle:
-                handle.write(self.format_want_list_markdown(limit=limit))
+                handle.write(
+                    self.format_want_list_markdown(
+                        limit=limit,
+                        staged_want_list_intents=staged_want_list_intents,
+                    )
+                )
             return True
         except Exception as exc:
             print(f"Error exporting want list markdown: {exc}")
             return False
 
-    def export_want_list_csv(self, output_path: str, limit: int = 10) -> bool:
+    def export_want_list_csv(
+        self,
+        output_path: str,
+        limit: int = 10,
+        staged_want_list_intents: Optional[Iterable] = None,
+    ) -> bool:
         try:
             with open(output_path, "w", newline="", encoding="utf-8") as handle:
                 fieldnames = [
+                    "rank",
+                    "coin",
                     "priority_score",
                     "target_type",
                     "country",
@@ -379,8 +425,16 @@ class CollectionIntelligenceEngine:
                 ]
                 writer = csv.DictWriter(handle, fieldnames=fieldnames)
                 writer.writeheader()
-                for target in self.generate_want_list(limit=limit):
-                    writer.writerow(target.to_dict())
+                for rank, target in enumerate(
+                    self.generate_want_list(
+                        limit=limit,
+                        staged_want_list_intents=staged_want_list_intents,
+                    ),
+                    1,
+                ):
+                    row = target.to_dict()
+                    row["rank"] = rank
+                    writer.writerow(row)
             return True
         except Exception as exc:
             print(f"Error exporting want list CSV: {exc}")
@@ -529,9 +583,16 @@ class CollectionIntelligenceEngine:
         lines.append("")
         return "\n".join(lines)
 
-    def format_want_list_markdown(self, limit: int = 10) -> str:
+    def format_want_list_markdown(
+        self,
+        limit: int = 10,
+        staged_want_list_intents: Optional[Iterable] = None,
+    ) -> str:
         lines = ["# Want List", ""]
-        targets = self.generate_want_list(limit=limit)
+        targets = self.generate_want_list(
+            limit=limit,
+            staged_want_list_intents=staged_want_list_intents,
+        )
         if not targets:
             lines.append("No acquisition targets generated.")
             return "\n".join(lines) + "\n"
@@ -539,7 +600,7 @@ class CollectionIntelligenceEngine:
         for index, target in enumerate(targets, 1):
             lines.extend(
                 [
-                    f"## {index}. {target.country} {target.denomination} {target.year}",
+                    f"## {index}. {target.coin_label}",
                     "",
                     f"- Type: {target.target_type}",
                     f"- Priority score: {target.priority_score}",
@@ -637,6 +698,79 @@ class CollectionIntelligenceEngine:
         if not any("Adam priority" in reason for reason in reasons):
             reasons.append("Supports date-run completion and gap reduction.")
         return " ".join(reasons)
+
+    def _targets_from_want_list_intents(self, intents: Iterable) -> List[AcquisitionTarget]:
+        targets = []
+        for intent in intents:
+            target_coin = (getattr(intent, "target_coin", "") or "").strip()
+            if not target_coin:
+                continue
+            priority_score = int(getattr(intent, "priority_score", 0) or 0)
+            tier_score = self._intent_tier_score(target_coin)
+            budget = self._format_budget(getattr(intent, "budget", 0.0))
+            reason_parts = ["Explicit WANT_LIST target."]
+            why_wanted = (getattr(intent, "why_wanted", "") or "").strip()
+            if why_wanted:
+                reason_parts.append(why_wanted)
+            target_grade = (getattr(intent, "target_grade", "") or "").strip()
+            if target_grade:
+                reason_parts.append(f"Target grade: {target_grade}.")
+            status = (getattr(intent, "status", "") or "").strip()
+            if status:
+                reason_parts.append(f"Status: {status}.")
+
+            targets.append(
+                AcquisitionTarget(
+                    country="",
+                    denomination=target_coin,
+                    year="",
+                    target_type="Explicit WANT_LIST Target",
+                    priority_score=priority_score + tier_score + 40,
+                    estimated_impact=f"Human-curated acquisition intent{budget}.",
+                    reason=" ".join(reason_parts),
+                )
+            )
+        return targets
+
+    @staticmethod
+    def _format_budget(budget) -> str:
+        try:
+            budget_value = float(budget or 0)
+        except (TypeError, ValueError):
+            budget_value = 0
+        if budget_value > 0:
+            return f" with budget target ${budget_value:.2f}"
+        return ""
+
+    def _intent_tier_score(self, target_coin: str) -> int:
+        text = (target_coin or "").lower()
+        if "newfoundland" in text:
+            return 70
+        if "canada" in text and any(term in text for term in SILVER_DENOMINATION_TERMS):
+            return 55
+        if "canada" in text and "1859" in text and ("cent" in text or "large" in text):
+            return 45
+        if "canada" in text:
+            return 25
+        return 0
+
+    def _missing_date_reason(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        completion_gain: float,
+    ) -> str:
+        country_lower = (country or "").lower()
+        if "newfoundland" in country_lower:
+            base = "Missing Newfoundland date."
+        else:
+            base = "Missing date in observed series."
+        if completion_gain >= 25:
+            return f"{base} Completes date run or provides high collection impact."
+        if completion_gain >= 10:
+            return f"{base} High collection impact."
+        return base
 
     def _priority_tier(self, country: str, denomination: str, years: List[int]) -> str:
         country_lower = (country or "").lower()
