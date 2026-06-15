@@ -38,9 +38,54 @@ Work through this queue in priority order. Handle only one task at a time.
 9. `[ ]` Add autocomplete for country/denomination
 10. `[ ]` Add Auction Evaluator draft spec
 
+## Adam-Specific Collection Priorities
+
+Use these priorities when designing gap reports, Buy Advisor changes, acquisition ranking, and evaluator specs.
+
+1. Newfoundland Coinage
+   - Date runs
+   - Key dates
+   - Higher-grade examples
+   - 5 cent, 10 cent, 20 cent, and 50 cent focus
+2. 1859 Canadian Large Cents
+   - Variety attribution
+   - Narrow 9 / Wide 9
+   - 8 over 9 varieties
+   - Date and die variety analysis
+   - Upgrade opportunities
+3. Canadian Silver Coinage
+   - Dimes
+   - Quarters
+   - Half dollars
+   - Dollars
+4. Date Run Completion
+   - Identify missing years
+   - Prioritize easiest completions
+   - Calculate completion percentages
+5. Upgrade Over Duplicate Strategy
+   - Prefer quality upgrades
+   - Minimize duplicate purchases
+   - Identify replacement candidates
+6. Budget-Conscious Acquisitions
+   - Maximize value per dollar spent
+   - Focus on high-ROI purchases
+   - Highlight underpriced opportunities
+7. Collection Gap Reduction
+   - Generate want lists
+   - Rank acquisition targets
+   - Recommend highest-impact purchases
+
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Add Adam-specific collection priorities
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
 
 #### `[x]` Harden test infrastructure
 

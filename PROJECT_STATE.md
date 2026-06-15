@@ -50,6 +50,16 @@
 9. Add backup/restore
 10. Evaluate SQLite storage for larger collections
 
+## Adam-Specific Collection Priorities
+
+1. Newfoundland coinage: date runs, key dates, higher-grade examples, and 5 cent, 10 cent, 20 cent, and 50 cent focus.
+2. 1859 Canadian Large Cents: variety attribution, Narrow 9 / Wide 9, 8 over 9 varieties, date and die variety analysis, and upgrade opportunities.
+3. Canadian silver coinage: dimes, quarters, half dollars, and dollars.
+4. Date run completion: identify missing years, prioritize easiest completions, and calculate completion percentages.
+5. Upgrade-over-duplicate strategy: prefer quality upgrades, minimize duplicate purchases, and identify replacement candidates.
+6. Budget-conscious acquisitions: maximize value per dollar spent, focus on high-ROI purchases, and highlight underpriced opportunities.
+7. Collection gap reduction: generate want lists, rank acquisition targets, and recommend highest-impact purchases.
+
 ## Next Priority Task
 
 Implement Collection Gap Report.
@@ -83,6 +93,8 @@ Implement Collection Gap Report.
 
 ### 2026-06-15
 
+* Added Adam-specific collection priorities to guide Collection Gap Report, Buy Advisor, and acquisition-planning work.
+* Commit: Pending
 * Added maintenance rule requiring completed tasks to update `PROJECT_STATE.md` and `TASK_QUEUE.md`, run tests when available, commit changes, and record commit hashes.
 * Commit: `ba66958`
 * Added test infrastructure hardening: converted script-style tests into `unittest` tests.
