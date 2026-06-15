@@ -89,7 +89,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_collection_intelligence.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `259ad42`
 
 #### `[x]` Add Markdown export for gap report
 
@@ -100,7 +100,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_collection_intelligence.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `259ad42`
 
 #### `[x]` Implement Want List Generator MVP
 
@@ -111,7 +111,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_collection_intelligence.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `259ad42`
 
 #### `[x]` Add Auction Evaluator draft spec
 
@@ -120,7 +120,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AUCTION_EVALUATOR_SPEC.md`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `259ad42`
 
 #### `[x]` Add Adam-specific collection priorities
 

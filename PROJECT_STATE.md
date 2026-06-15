@@ -97,7 +97,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Added Collection Intelligence Engine, Collection Gap Report MVP, Want List Generator MVP, Markdown/CSV exports, Auction Evaluator spec, and engine tests.
-* Commit: Pending
+* Commit: `259ad42`
 * Added Adam-specific collection priorities to guide Collection Gap Report, Buy Advisor, and acquisition-planning work.
 * Commit: `f9014c3`
 * Added maintenance rule requiring completed tasks to update `PROJECT_STATE.md` and `TASK_QUEUE.md`, run tests when available, commit changes, and record commit hashes.
