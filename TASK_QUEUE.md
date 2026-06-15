@@ -93,7 +93,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PORTFOLIO_INTEGRATION_ROADMAP.md`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: Pending
+- Commit hash: `b3d17bc`
 
 #### `[x]` Add legacy portfolio import spec
 

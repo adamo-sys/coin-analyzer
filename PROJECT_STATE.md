@@ -104,7 +104,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Added portfolio integration roadmap for phased legacy workbook migration from inventory import through app dashboard metrics.
-* Commit: Pending
+* Commit: `b3d17bc`
 * Added legacy portfolio import spec for `Adam_Collection_Portfolio_PRO_LEVEL.xlsx`, including workbook sheet inspection, field mapping, importer design, and downstream system recommendations.
 * Commit: `217c467`
 * Added Collection Intelligence Engine, Collection Gap Report MVP, Want List Generator MVP, Markdown/CSV exports, Auction Evaluator spec, and engine tests.
