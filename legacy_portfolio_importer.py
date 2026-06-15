@@ -20,6 +20,16 @@ from coin_collection import CoinItem
 
 
 INVENTORY_SHEETS = ("CORE_RAW", "SLABS")
+WANT_LIST_SHEET = "WANT_LIST"
+
+WANT_LIST_HEADERS = (
+    "Target Coin",
+    "Priority",
+    "Target Grade",
+    "Budget",
+    "Why Wanted",
+    "Status",
+)
 
 REQUIRED_HEADERS = (
     "Item",
@@ -120,6 +130,38 @@ class LegacyPortfolioSkippedRow:
 
 
 @dataclass
+class LegacyWantListIntent:
+    """A workbook WANT_LIST row staged as acquisition intent, not inventory."""
+
+    sheet_name: str
+    row_number: int
+    legacy_id: str
+    target_coin: str
+    priority: str = ""
+    target_grade: str = ""
+    budget: float = 0.0
+    why_wanted: str = ""
+    status: str = ""
+    priority_score: int = 0
+    warnings: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "sheet_name": self.sheet_name,
+            "row_number": self.row_number,
+            "legacy_id": self.legacy_id,
+            "target_coin": self.target_coin,
+            "priority": self.priority,
+            "target_grade": self.target_grade,
+            "budget": self.budget,
+            "why_wanted": self.why_wanted,
+            "status": self.status,
+            "priority_score": self.priority_score,
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass
 class LegacyPortfolioImportSummary:
     """Reviewable result of a legacy workbook preview."""
 
@@ -172,6 +214,50 @@ class LegacyPortfolioImportSummary:
                 for row in self.skipped_rows
             ],
         }
+
+
+@dataclass
+class LegacyWantListPreview:
+    """Reviewable result of a workbook WANT_LIST preview."""
+
+    rows_found: int = 0
+    intents_staged: int = 0
+    rows_skipped: int = 0
+    warnings: List[str] = field(default_factory=list)
+    staged_intents: List[LegacyWantListIntent] = field(default_factory=list)
+    skipped_rows: List[LegacyPortfolioSkippedRow] = field(default_factory=list)
+
+    def add_warning(self, warning: str) -> None:
+        self.warnings.append(warning)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "rows_found": self.rows_found,
+            "intents_staged": self.intents_staged,
+            "rows_skipped": self.rows_skipped,
+            "warnings": list(self.warnings),
+            "staged_intents": [intent.to_dict() for intent in self.staged_intents],
+            "skipped_rows": [
+                {
+                    "sheet_name": row.sheet_name,
+                    "row_number": row.row_number,
+                    "reason": row.reason,
+                }
+                for row in self.skipped_rows
+            ],
+        }
+
+    def sorted_intents(self) -> List[LegacyWantListIntent]:
+        """Return staged intents in deterministic priority order."""
+
+        return sorted(
+            self.staged_intents,
+            key=lambda intent: (
+                -intent.priority_score,
+                intent.target_coin.lower(),
+                intent.row_number,
+            ),
+        )
 
 
 class LegacyPortfolioImporter:
@@ -239,6 +325,89 @@ class LegacyPortfolioImporter:
 
         workbook.close()
         return summary
+
+    def preview_want_list(self, workbook_path: str) -> LegacyWantListPreview:
+        """
+        Parse WANT_LIST rows into acquisition-intent staging data.
+
+        This is read-only and deliberately separate from inventory import. It does
+        not create CoinItem objects and does not save collection data.
+        """
+
+        preview = LegacyWantListPreview()
+        workbook = load_workbook(workbook_path, read_only=True, data_only=True)
+        try:
+            if WANT_LIST_SHEET not in workbook.sheetnames:
+                preview.add_warning(f"Missing optional sheet: {WANT_LIST_SHEET}")
+                return preview
+
+            sheet = workbook[WANT_LIST_SHEET]
+            header_map = self._header_map(sheet)
+            missing_headers = [
+                header for header in WANT_LIST_HEADERS if header not in header_map
+            ]
+            if missing_headers:
+                preview.add_warning(
+                    f"{WANT_LIST_SHEET} missing required headers: "
+                    + ", ".join(missing_headers)
+                )
+                return preview
+
+            for row_number, row_values in self._iter_data_rows(sheet, header_map):
+                preview.rows_found += 1
+                intent, skip_reason = self._stage_want_list_row(row_number, row_values)
+                if skip_reason:
+                    preview.rows_skipped += 1
+                    preview.skipped_rows.append(
+                        LegacyPortfolioSkippedRow(
+                            WANT_LIST_SHEET, row_number, skip_reason
+                        )
+                    )
+                    continue
+
+                preview.intents_staged += 1
+                preview.staged_intents.append(intent)
+                preview.warnings.extend(intent.warnings)
+
+            preview.staged_intents = preview.sorted_intents()
+            return preview
+        finally:
+            workbook.close()
+
+    def _stage_want_list_row(
+        self, row_number: int, row: Dict[str, Any]
+    ) -> Tuple[Optional[LegacyWantListIntent], str]:
+        target_coin = _clean_text(row.get("Target Coin"))
+        if not target_coin:
+            return None, "Missing Target Coin"
+
+        priority = _clean_text(row.get("Priority"))
+        target_grade = _clean_text(row.get("Target Grade"))
+        budget = _to_float(row.get("Budget"))
+        why_wanted = _clean_text(row.get("Why Wanted"))
+        status = _clean_text(row.get("Status"))
+        warnings: List[str] = []
+        if row.get("Budget") not in ("", None) and budget <= 0:
+            warnings.append(
+                f"{WANT_LIST_SHEET} row {row_number}: Budget could not be parsed"
+            )
+
+        return (
+            LegacyWantListIntent(
+                sheet_name=WANT_LIST_SHEET,
+                row_number=row_number,
+                legacy_id=_want_list_legacy_id(row_number, target_coin),
+                target_coin=target_coin,
+                priority=priority,
+                target_grade=target_grade,
+                budget=budget,
+                why_wanted=why_wanted,
+                status=status,
+                priority_score=_priority_score(priority),
+                warnings=warnings,
+            ),
+            "",
+        )
 
     def _stage_row(
         self, sheet_name: str, row_number: int, row: Dict[str, Any]
@@ -469,6 +638,33 @@ def _legacy_id(
     if len(slug) > 60:
         slug = slug[:60].rstrip("_")
     return f"legacy_{sheet_name.lower()}_{row_number}_{slug or 'row'}"
+
+
+def _want_list_legacy_id(row_number: int, target_coin: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", target_coin.lower()).strip("_")
+    if len(slug) > 60:
+        slug = slug[:60].rstrip("_")
+    return f"legacy_want_list_{row_number}_{slug or 'target'}"
+
+
+def _priority_score(priority: Any) -> int:
+    text = _clean_text(priority).lower()
+    if not text:
+        return 0
+    try:
+        return int(float(text))
+    except ValueError:
+        pass
+
+    if text in ("urgent", "critical"):
+        return 100
+    if text in ("high", "h"):
+        return 75
+    if text in ("medium", "med", "m"):
+        return 50
+    if text in ("low", "l"):
+        return 25
+    return 10
 
 
 def _build_comments(sheet_name: str, row: Dict[str, Any]) -> str:

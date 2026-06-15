@@ -13,6 +13,7 @@ from openpyxl import Workbook
 from coin_collection import CoinCollection
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
+    LegacyWantListIntent,
     export_import_summary_csv,
 )
 
@@ -63,6 +64,14 @@ HEADERS_CORE_RAW = [
 ]
 
 HEADERS_SLABS = HEADERS_CORE_RAW[:25]
+HEADERS_WANT_LIST = [
+    "Target Coin",
+    "Priority",
+    "Target Grade",
+    "Budget",
+    "Why Wanted",
+    "Status",
+]
 
 
 class TestLegacyPortfolioImporter(unittest.TestCase):
@@ -292,6 +301,112 @@ class TestLegacyPortfolioImporter(unittest.TestCase):
         self.assertTrue(any(row and row[0] == "Warning" for row in rows))
         self.assertEqual(self._read_collection_file(), self.collection_before)
 
+    def test_empty_want_list_sheet_returns_empty_preview(self):
+        self._create_want_list_workbook([])
+
+        preview = LegacyPortfolioImporter(self.collection.items).preview_want_list(
+            self.workbook_path
+        )
+
+        self.assertEqual(preview.rows_found, 0)
+        self.assertEqual(preview.intents_staged, 0)
+        self.assertEqual(preview.rows_skipped, 0)
+        self.assertEqual(preview.staged_intents, [])
+        self.assertEqual(self._read_collection_file(), self.collection_before)
+
+    def test_populated_want_list_sheet_stages_acquisition_intent(self):
+        self._create_want_list_workbook(
+            [
+                [
+                    "Newfoundland 50 Cents 1904",
+                    "High",
+                    "VF-20",
+                    "125.50",
+                    "Priority date-run target",
+                    "Active",
+                ],
+                [
+                    "Canada 1859 Large Cent Narrow 9",
+                    "Medium",
+                    "EF-40",
+                    200,
+                    "Variety attribution target",
+                    "Watching",
+                ],
+            ]
+        )
+
+        preview = LegacyPortfolioImporter(self.collection.items).preview_want_list(
+            self.workbook_path
+        )
+
+        self.assertEqual(preview.rows_found, 2)
+        self.assertEqual(preview.intents_staged, 2)
+        self.assertEqual(preview.rows_skipped, 0)
+        self.assertIsInstance(preview.staged_intents[0], LegacyWantListIntent)
+        self.assertEqual(preview.staged_intents[0].target_coin, "Newfoundland 50 Cents 1904")
+        self.assertEqual(preview.staged_intents[0].priority, "High")
+        self.assertEqual(preview.staged_intents[0].target_grade, "VF-20")
+        self.assertEqual(preview.staged_intents[0].budget, 125.50)
+        self.assertEqual(preview.staged_intents[0].why_wanted, "Priority date-run target")
+        self.assertEqual(preview.staged_intents[0].status, "Active")
+        self.assertNotEqual(preview.staged_intents[0].legacy_id, "")
+        self.assertEqual(self._read_collection_file(), self.collection_before)
+
+    def test_invalid_want_list_rows_are_skipped_with_warnings(self):
+        self._create_want_list_workbook(
+            [
+                ["", "High", "VF-20", 100, "Missing target", "Active"],
+                [
+                    "Canada 10 Cents 1911",
+                    "High",
+                    "VF-20",
+                    "not money",
+                    "Budget parse warning",
+                    "Active",
+                ],
+            ]
+        )
+
+        preview = LegacyPortfolioImporter(self.collection.items).preview_want_list(
+            self.workbook_path
+        )
+
+        self.assertEqual(preview.rows_found, 2)
+        self.assertEqual(preview.intents_staged, 1)
+        self.assertEqual(preview.rows_skipped, 1)
+        self.assertEqual(preview.skipped_rows[0].reason, "Missing Target Coin")
+        self.assertIn("Budget could not be parsed", preview.warnings[0])
+        self.assertEqual(self._read_collection_file(), self.collection_before)
+
+    def test_want_list_priority_order_is_deterministic(self):
+        self._create_want_list_workbook(
+            [
+                ["Canada 25 Cents 1912", "Low", "VF-20", 50, "", "Active"],
+                ["Newfoundland 20 Cents 1888", "High", "VF-20", 150, "", "Active"],
+                ["Canada 10 Cents 1911", "High", "VF-20", 100, "", "Active"],
+                ["Canada 1859 Large Cent", "2", "VF-20", 200, "", "Active"],
+            ]
+        )
+
+        preview = LegacyPortfolioImporter(self.collection.items).preview_want_list(
+            self.workbook_path
+        )
+
+        self.assertEqual(
+            [intent.target_coin for intent in preview.staged_intents],
+            [
+                "Canada 10 Cents 1911",
+                "Newfoundland 20 Cents 1888",
+                "Canada 25 Cents 1912",
+                "Canada 1859 Large Cent",
+            ],
+        )
+        self.assertEqual(
+            [intent.priority_score for intent in preview.staged_intents],
+            [75, 75, 25, 2],
+        )
+
     def _create_workbook(self, core_rows, slab_rows):
         workbook = Workbook()
         core_sheet = workbook.active
@@ -305,6 +420,15 @@ class TestLegacyPortfolioImporter(unittest.TestCase):
         for row in slab_rows:
             slab_sheet.append(row)
 
+        workbook.save(self.workbook_path)
+
+    def _create_want_list_workbook(self, want_list_rows):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "WANT_LIST"
+        worksheet.append(HEADERS_WANT_LIST)
+        for row in want_list_rows:
+            worksheet.append(row)
         workbook.save(self.workbook_path)
 
     def _read_collection_file(self):
