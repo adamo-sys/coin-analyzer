@@ -52,6 +52,7 @@ Work through this queue in priority order. Handle only one task at a time.
 23. `[x]` Add WANT_LIST Preview GUI
 24. `[x]` Connect staged WANT_LIST intent to Want List Generator
 25. `[x]` Connect staged WANT_LIST intent to Buy Advisor
+26. `[x]` Perform v0.4 integration audit
 
 ## Adam-Specific Collection Priorities
 
@@ -93,6 +94,14 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Perform v0.4 integration audit
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: pending
 
 #### `[x]` Connect staged WANT_LIST intent to Buy Advisor
 

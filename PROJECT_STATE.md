@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v0.3`; current working state includes post-`v0.3` WANT_LIST staging work for v0.4.
+* Current release version: `v0.3`; current working state includes post-`v0.3` v0.4 integration work.
 * Current Git branch: `main`
 * Last updated date: 2026-06-15
 
@@ -11,6 +11,7 @@
 * Most recent Git tag: `v0.3`
 * Summary of what was included: Collection Intelligence Engine, Collection Gap Report MVP with CSV export, Want List Generator MVP, Auction Evaluator draft spec, legacy portfolio staging importer, Portfolio Import Preview GUI, hardened test infrastructure, and project state/task tracking.
 * `v0.3` release audit passed on 2026-06-15.
+* `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 
 ## Completed Features
 
@@ -116,6 +117,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Completed v0.4 integration audit: main app launch, Buy Advisor with and without staged `WANT_LIST` context, duplicate override behavior, price analysis, Collection Gap Report, Want List Generator, Portfolio Preview, and full test suite passed. No code fixes were required.
+* Commit: pending
 * Integrated Collection Intelligence into Buy Advisor so collection gaps, generated want-list targets, Newfoundland/1859 priorities, and staged `WANT_LIST` intent add explainable Adam Priority boosts and collection impact scoring.
 * Commit: `4c4b854`
 * Connected staged workbook `WANT_LIST` intent to Want List Generator rankings, including explicit-target scoring, recommendation explanations, table display, and Markdown/CSV export.
