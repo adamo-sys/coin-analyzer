@@ -98,7 +98,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
   - `WANT_LIST_INTEGRATION_PLAN.md`
-- Commit hash: `PENDING`
+- Commit hash: `fab99b0`
 
 #### `[x]` Perform v0.3 release audit
 

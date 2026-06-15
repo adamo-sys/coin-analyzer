@@ -111,7 +111,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Finalized `v0.3`: created and pushed Git tag `v0.3`, confirmed release audit passed, and added the v0.4 WANT_LIST integration plan.
-* Commit: `PENDING`
+* Commit: `fab99b0`
 * Completed v0.3 release audit: main app launch, CSV import, Portfolio Import Preview, Buy Advisor, Collection Gap Report, and full test suite passed. Updated project state to reflect v0.3 release-candidate status.
 * Commit: `20513d9`
 * Refined Collection Gap Report MVP with structured country/denomination series rows, Tier 1/Tier 2 prioritization, suggested next acquisitions, and CSV export.
