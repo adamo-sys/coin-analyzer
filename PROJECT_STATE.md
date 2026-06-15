@@ -24,6 +24,10 @@
 * Experimental image detection: CV/OCR-based identification exists but is suggestion-only and not treated as truth.
 * Test infrastructure: root-level `unittest` discovery, isolated `test_data` fixtures, `run_tests.bat`, `TESTING.md`, and GitHub Actions workflow.
 * Task queue: `TASK_QUEUE.md` tracks prioritized work, status, and changelog entries.
+* Collection Intelligence Engine: reusable analysis for country, denomination, series, missing years, completion percentages, duplicates, upgrade candidates, and acquisition priorities.
+* Collection Gap Report MVP: Tools menu report with missing dates, completion percentages, upgrade opportunities, duplicate holdings, priority acquisition targets, and Markdown export.
+* Want List Generator MVP: top acquisition targets with estimated impact and recommendation reasons, plus Markdown and CSV export.
+* Auction Evaluator draft spec: documents how the future evaluator should consume the Collection Intelligence Engine.
 
 ## Known Bugs
 
@@ -39,16 +43,14 @@
 
 ## Active Roadmap
 
-1. Implement Collection Gap Report
-2. Add Markdown export for gap report
-3. Improve Buy Advisor validation messages
-4. Add autocomplete for country/denomination
-5. Add Auction Evaluator draft spec
-6. Add image preview in collection list
-7. Add batch editing
-8. Add undo/redo
-9. Add backup/restore
-10. Evaluate SQLite storage for larger collections
+1. Improve Buy Advisor validation messages
+2. Add autocomplete for country/denomination
+3. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+4. Add image preview in collection list
+5. Add batch editing
+6. Add undo/redo
+7. Add backup/restore
+8. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
 
@@ -62,13 +64,14 @@
 
 ## Next Priority Task
 
-Implement Collection Gap Report.
+Improve Buy Advisor validation messages.
 
 ## Project Architecture
 
 * Main application entry point: `coin_collection_gui.py` launches the primary Tkinter collection manager. `main.py` launches the older `gui.py` entry point.
 * Collection management system: `coin_collection.py` defines `CoinItem`, `CoinCollection`, and `CoinCollectionApp`; it handles JSON persistence, CRUD, search, CSV import/export, and collection summaries.
 * Buy Advisor system: `buy_advisor.py` contains rule-based recommendation logic for duplicates, upgrades, collection gaps, value data, priority, liquidity, landed cost, and purchase verdicts.
+* Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, and future evaluator inputs.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Testing framework: Python standard-library `unittest` discovery via `python -m unittest discover -s . -p "test_*.py"`, with fixture files in `test_data/` and Windows runner `run_tests.bat`.
 
@@ -93,6 +96,8 @@ Implement Collection Gap Report.
 
 ### 2026-06-15
 
+* Added Collection Intelligence Engine, Collection Gap Report MVP, Want List Generator MVP, Markdown/CSV exports, Auction Evaluator spec, and engine tests.
+* Commit: Pending
 * Added Adam-specific collection priorities to guide Collection Gap Report, Buy Advisor, and acquisition-planning work.
 * Commit: `f9014c3`
 * Added maintenance rule requiring completed tasks to update `PROJECT_STATE.md` and `TASK_QUEUE.md`, run tests when available, commit changes, and record commit hashes.

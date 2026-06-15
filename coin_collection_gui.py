@@ -9,6 +9,7 @@ from PIL import Image, ImageTk
 import os
 import cv2
 from coin_collection import CoinCollectionApp, CoinItem
+from collection_intelligence import CollectionIntelligenceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 
 
@@ -50,6 +51,12 @@ class CoinCollectionGUI:
         file_menu.add_command(label="Import Collection CSV", command=self.import_collection_csv)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
+
+        # Tools menu
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
+        tools_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
     
     def import_collection_csv(self):
         """Import collection from CSV file."""
@@ -245,6 +252,7 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(collection_buttons, text="Buy Advisor", command=self.open_buy_advisor).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Import Numista", command=self.import_numista).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Analyze Collection", command=self.analyze_collection).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Gap Report", command=self.open_collection_gap_report).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT)
     
     def upload_image(self):
@@ -558,6 +566,86 @@ Total Unique Dates: {total_unique_dates}
         
         text.insert(tk.END, report)
         text.config(state=tk.DISABLED)
+
+    def open_collection_gap_report(self):
+        """Show collection gap report and allow Markdown export."""
+        engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
+        report_text = engine.format_gap_report_text()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Gap Report")
+        dialog.geometry("800x600")
+
+        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report_text)
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Gap Report",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if engine.export_gap_report_markdown(file_path):
+                messagebox.showinfo("Success", f"Gap report exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export gap report")
+
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_want_list_generator(self):
+        """Show top acquisition targets and allow Markdown/CSV export."""
+        engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
+        want_list_text = engine.format_want_list_markdown(limit=10)
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Want List Generator")
+        dialog.geometry("800x600")
+
+        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, want_list_text)
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Want List",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if engine.export_want_list_markdown(file_path, limit=10):
+                messagebox.showinfo("Success", f"Want list exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export want list")
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Want List CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if engine.export_want_list_csv(file_path, limit=10):
+                messagebox.showinfo("Success", f"Want list CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export want list CSV")
+
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
     
     def open_buy_advisor(self):
         """Open Buy Advisor dialog."""

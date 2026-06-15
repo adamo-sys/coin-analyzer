@@ -32,11 +32,12 @@ Work through this queue in priority order. Handle only one task at a time.
 3. `[x]` Add `TESTING.md`
 4. `[x]` Add GitHub Actions workflow
 5. `[x]` Ensure tests use isolated test data
-6. `[ ]` Implement Collection Gap Report
-7. `[ ]` Add Markdown export for gap report
-8. `[ ]` Improve Buy Advisor validation messages
-9. `[ ]` Add autocomplete for country/denomination
-10. `[ ]` Add Auction Evaluator draft spec
+6. `[x]` Implement Collection Gap Report
+7. `[x]` Add Markdown export for gap report
+8. `[x]` Implement Want List Generator MVP
+9. `[ ]` Improve Buy Advisor validation messages
+10. `[ ]` Add autocomplete for country/denomination
+11. `[x]` Add Auction Evaluator draft spec
 
 ## Adam-Specific Collection Priorities
 
@@ -78,6 +79,48 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Implement Collection Gap Report
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `collection_intelligence.py`
+  - `coin_collection_gui.py`
+  - `test_collection_intelligence.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
+
+#### `[x]` Add Markdown export for gap report
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `collection_intelligence.py`
+  - `coin_collection_gui.py`
+  - `test_collection_intelligence.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
+
+#### `[x]` Implement Want List Generator MVP
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `collection_intelligence.py`
+  - `coin_collection_gui.py`
+  - `test_collection_intelligence.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
+
+#### `[x]` Add Auction Evaluator draft spec
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `AUCTION_EVALUATOR_SPEC.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: Pending
 
 #### `[x]` Add Adam-specific collection priorities
 
