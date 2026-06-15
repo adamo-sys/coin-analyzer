@@ -775,3 +775,75 @@ def _staged_item_report_row(section: str, staged: LegacyPortfolioStagedItem) -> 
         staged.duplicate_of or "",
         staged.duplicate_reason or "; ".join(staged.warnings),
     ]
+
+
+def export_want_list_preview_csv(
+    preview: LegacyWantListPreview, output_path: str
+) -> bool:
+    """Export staged WANT_LIST acquisition-intent preview data to CSV."""
+
+    try:
+        with open(output_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["Section", "Field", "Value"])
+            writer.writerow(["Summary", "Total Intents Found", preview.rows_found])
+            writer.writerow(["Summary", "Valid Intents", preview.intents_staged])
+            writer.writerow(["Summary", "Skipped Rows", preview.rows_skipped])
+            writer.writerow(["Summary", "Warnings", len(preview.warnings)])
+            writer.writerow([])
+
+            writer.writerow(
+                [
+                    "Section",
+                    "Sheet",
+                    "Row",
+                    "Target Coin",
+                    "Priority",
+                    "Priority Score",
+                    "Target Grade",
+                    "Budget",
+                    "Why Wanted",
+                    "Status",
+                    "Reason",
+                ]
+            )
+            for intent in preview.staged_intents:
+                writer.writerow(
+                    [
+                        "Intent",
+                        intent.sheet_name,
+                        intent.row_number,
+                        intent.target_coin,
+                        intent.priority,
+                        intent.priority_score,
+                        intent.target_grade,
+                        intent.budget,
+                        intent.why_wanted,
+                        intent.status,
+                        "; ".join(intent.warnings),
+                    ]
+                )
+
+            for skipped in preview.skipped_rows:
+                writer.writerow(
+                    [
+                        "Skipped",
+                        skipped.sheet_name,
+                        skipped.row_number,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        skipped.reason,
+                    ]
+                )
+
+            for warning in preview.warnings:
+                writer.writerow(["Warning", "", "", "", "", "", "", "", "", "", warning])
+
+        return True
+    except Exception:
+        return False

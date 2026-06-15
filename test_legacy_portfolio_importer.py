@@ -15,6 +15,7 @@ from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
     LegacyWantListIntent,
     export_import_summary_csv,
+    export_want_list_preview_csv,
 )
 
 
@@ -406,6 +407,44 @@ class TestLegacyPortfolioImporter(unittest.TestCase):
             [intent.priority_score for intent in preview.staged_intents],
             [75, 75, 25, 2],
         )
+
+    def test_want_list_preview_csv_export_writes_summary_and_intents(self):
+        self._create_want_list_workbook(
+            [
+                [
+                    "Newfoundland 50 Cents 1904",
+                    "High",
+                    "VF-20",
+                    125,
+                    "Priority date-run target",
+                    "Active",
+                ],
+                ["", "High", "VF-20", 100, "Missing target", "Active"],
+            ]
+        )
+        preview = LegacyPortfolioImporter(self.collection.items).preview_want_list(
+            self.workbook_path
+        )
+        output_path = os.path.join(self.temp_dir.name, "want_list_preview.csv")
+
+        self.assertTrue(export_want_list_preview_csv(preview, output_path))
+
+        with open(output_path, "r", encoding="utf-8") as handle:
+            rows = list(csv.reader(handle))
+
+        self.assertIn(["Summary", "Total Intents Found", "2"], rows)
+        self.assertIn(["Summary", "Valid Intents", "1"], rows)
+        self.assertIn(["Summary", "Skipped Rows", "1"], rows)
+        self.assertTrue(
+            any(
+                len(row) > 3
+                and row[0] == "Intent"
+                and row[3] == "Newfoundland 50 Cents 1904"
+                for row in rows
+            )
+        )
+        self.assertTrue(any(len(row) > 10 and row[0] == "Skipped" for row in rows))
+        self.assertEqual(self._read_collection_file(), self.collection_before)
 
     def _create_workbook(self, core_rows, slab_rows):
         workbook = Workbook()

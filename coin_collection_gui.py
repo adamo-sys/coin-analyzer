@@ -13,6 +13,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
     export_import_summary_csv,
+    export_want_list_preview_csv,
 )
 from coin_identifier_interface import CoinIdentifierFactory
 
@@ -62,6 +63,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
         tools_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
+        tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
     
     def import_collection_csv(self):
         """Import collection from CSV file."""
@@ -770,6 +772,141 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Export Report", command=export_report).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_want_list_preview(self):
+        """Preview legacy WANT_LIST acquisition-intent rows without importing data."""
+        file_path = filedialog.askopenfilename(
+            title="Select Legacy Portfolio Workbook",
+            filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+
+        try:
+            importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
+            preview = importer.preview_want_list(file_path)
+            self.show_want_list_preview(preview, file_path)
+        except Exception as e:
+            messagebox.showerror(
+                "Want List Preview Error",
+                f"Failed to preview workbook WANT_LIST: {str(e)}"
+            )
+
+    def show_want_list_preview(self, preview, workbook_path):
+        """Show staged WANT_LIST acquisition intent, skipped rows, and warnings."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Want List Preview")
+        dialog.geometry("1000x650")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        ttk.Label(main_frame, text=os.path.basename(workbook_path)).grid(
+            row=0, column=0, sticky=tk.W, pady=(0, 10)
+        )
+
+        summary_frame = ttk.LabelFrame(main_frame, text="Want List Summary", padding="10")
+        summary_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        for column in range(4):
+            summary_frame.columnconfigure(column, weight=1)
+
+        summary_values = [
+            ("Total Intents Found", preview.rows_found),
+            ("Valid Intents", preview.intents_staged),
+            ("Skipped Rows", preview.rows_skipped),
+            ("Warnings", len(preview.warnings)),
+        ]
+        for column, (label, value) in enumerate(summary_values):
+            cell = ttk.Frame(summary_frame)
+            cell.grid(row=0, column=column, sticky=(tk.W, tk.E), padx=(0, 10))
+            ttk.Label(cell, text=label).pack(anchor=tk.W)
+            ttk.Label(cell, text=str(value), font=("Arial", 12, "bold")).pack(anchor=tk.W)
+
+        notebook = ttk.Notebook(main_frame)
+        notebook.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        intents_frame = ttk.Frame(notebook, padding="10")
+        skipped_frame = ttk.Frame(notebook, padding="10")
+        warnings_frame = ttk.Frame(notebook, padding="10")
+
+        notebook.add(intents_frame, text="Staged Intents")
+        notebook.add(skipped_frame, text="Skipped Rows")
+        notebook.add(warnings_frame, text="Warnings")
+
+        intents_tree = self.create_want_list_preview_table(intents_frame)
+        for intent in preview.staged_intents:
+            intents_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    intent.target_coin,
+                    intent.priority,
+                    intent.target_grade,
+                    f"{intent.budget:.2f}" if intent.budget else "",
+                    intent.why_wanted,
+                    intent.status,
+                )
+            )
+
+        skipped_tree = self.create_skipped_rows_table(skipped_frame)
+        for skipped in preview.skipped_rows:
+            skipped_tree.insert(
+                "",
+                tk.END,
+                values=(skipped.sheet_name, skipped.row_number, skipped.reason)
+            )
+
+        warnings_text = tk.Text(warnings_frame, wrap=tk.WORD, height=8)
+        warnings_text.pack(fill=tk.BOTH, expand=True)
+        warnings_text.insert(tk.END, "\n".join(preview.warnings) if preview.warnings else "No warnings.")
+        warnings_text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=tk.W, pady=(10, 0))
+
+        def export_report():
+            output_path = filedialog.asksaveasfilename(
+                title="Export Want List Preview",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not output_path:
+                return
+            if export_want_list_preview_csv(preview, output_path):
+                messagebox.showinfo("Success", f"Want list preview exported to {output_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export want list preview")
+
+        ttk.Button(button_frame, text="Export CSV", command=export_report).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def create_want_list_preview_table(self, parent):
+        """Create a table for staged WANT_LIST acquisition-intent rows."""
+        columns = ("Target Coin", "Priority", "Target Grade", "Budget", "Why Wanted", "Status")
+        container = ttk.Frame(parent)
+        container.pack(fill=tk.BOTH, expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+
+        tree = ttk.Treeview(container, columns=columns, show="headings", height=12)
+        for column in columns:
+            tree.heading(column, text=column)
+            width = 110
+            if column == "Target Coin":
+                width = 240
+            elif column == "Why Wanted":
+                width = 300
+            tree.column(column, width=width, anchor=tk.W)
+
+        y_scrollbar = ttk.Scrollbar(container, orient=tk.VERTICAL, command=tree.yview)
+        x_scrollbar = ttk.Scrollbar(container, orient=tk.HORIZONTAL, command=tree.xview)
+        tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+        tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        y_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        x_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        return tree
 
     def create_portfolio_preview_table(self, parent, include_duplicate=False):
         """Create a table for staged or duplicate portfolio preview rows."""
