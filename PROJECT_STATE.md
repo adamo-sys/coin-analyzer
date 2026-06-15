@@ -2,15 +2,15 @@
 
 ## Current Version
 
-* Current release version: `v0.3` release candidate; latest Git tag remains `v0.2`.
+* Current release version: `v0.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-15
 
 ## Last Release Tag
 
-* Most recent Git tag: `v0.2`
-* Summary of what was included: collection CSV import support, GUI import entry point, and CSV import tests.
-* `v0.3` status: not tagged yet; release audit completed on 2026-06-15.
+* Most recent Git tag: `v0.3`
+* Summary of what was included: Collection Intelligence Engine, Collection Gap Report MVP with CSV export, Want List Generator MVP, Auction Evaluator draft spec, legacy portfolio staging importer, Portfolio Import Preview GUI, hardened test infrastructure, and project state/task tracking.
+* `v0.3` release audit passed on 2026-06-15.
 
 ## Completed Features
 
@@ -33,6 +33,7 @@
 * Portfolio integration roadmap: phases the legacy workbook migration from safe inventory staging through dashboard replacement.
 * Legacy portfolio staging importer: safely previews `CORE_RAW` and `SLABS` workbook rows, detects likely duplicates, reports skipped rows and warnings, and does not modify `data/collection.json`.
 * Portfolio Import Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged items and duplicates, seeing import summary counts, and exporting the preview report to CSV without importing data.
+* WANT_LIST integration plan: documents the v0.4 Phase 2 approach for staging workbook acquisition intent without importing owned holdings.
 
 ## Known Bugs
 
@@ -50,7 +51,7 @@
 
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
-3. Connect legacy `WANT_LIST` and `TARGETS` staging to Buy Advisor
+3. Implement legacy `WANT_LIST` staging from `WANT_LIST_INTEGRATION_PLAN.md`
 4. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
 5. Build Upgrade Advisor using `UPGRADE_TARGETS`
 6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
@@ -83,6 +84,7 @@ Improve Buy Advisor validation messages.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Portfolio preview GUI: `coin_collection_gui.py` exposes Tools -> Portfolio Import Preview and displays importable staged rows, duplicate rows, skipped rows, warnings, and summary counts.
+* WANT_LIST integration plan: `WANT_LIST_INTEGRATION_PLAN.md` defines the Phase 2 design for staged acquisition intent and future Buy Advisor/Want List Generator integration.
 * Legacy portfolio import design: `LEGACY_PORTFOLIO_IMPORT_SPEC.md` maps the external workbook sheets into future staging/import, melt-value, upgrade, want-list, and advisor workflows.
 * Portfolio integration roadmap: `PORTFOLIO_INTEGRATION_ROADMAP.md` defines phased migration work for workbook-backed portfolio features.
 * Testing framework: Python standard-library `unittest` discovery via `python -m unittest discover -s . -p "test_*.py"`, with fixture files in `test_data/` and Windows runner `run_tests.bat`.
@@ -108,6 +110,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Finalized `v0.3`: created and pushed Git tag `v0.3`, confirmed release audit passed, and added the v0.4 WANT_LIST integration plan.
+* Commit: `PENDING`
 * Completed v0.3 release audit: main app launch, CSV import, Portfolio Import Preview, Buy Advisor, Collection Gap Report, and full test suite passed. Updated project state to reflect v0.3 release-candidate status.
 * Commit: `20513d9`
 * Refined Collection Gap Report MVP with structured country/denomination series rows, Tier 1/Tier 2 prioritization, suggested next acquisitions, and CSV export.

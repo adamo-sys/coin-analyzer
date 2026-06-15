@@ -47,6 +47,8 @@ Work through this queue in priority order. Handle only one task at a time.
 18. `[ ]` Recreate dashboard metrics in app
 19. `[x]` Refine Collection Gap Report MVP CSV export
 20. `[x]` Perform v0.3 release audit
+21. `[x]` Finalize v0.3 release and plan WANT_LIST integration
+22. `[ ]` Implement legacy WANT_LIST staging integration
 
 ## Adam-Specific Collection Priorities
 
@@ -88,6 +90,15 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Finalize v0.3 release and plan WANT_LIST integration
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `WANT_LIST_INTEGRATION_PLAN.md`
+- Commit hash: `PENDING`
 
 #### `[x]` Perform v0.3 release audit
 
