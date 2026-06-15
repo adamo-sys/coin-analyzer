@@ -105,7 +105,7 @@ class BuyAdvisor:
         matching_items = self.find_matching_items(country, denomination, year, reference, numista_n)
         
         # Check value data availability (check both owned and matching items)
-        value_data_available, value_warning = self.check_value_data(owned_items + matching_items)
+        value_data_available, value_warning = self.check_value_data(owned_items + matching_items, estimated_market_value)
         
         # Generate recommendation with improved logic
         base_recommendation, reasons = self.generate_recommendation(
@@ -306,11 +306,17 @@ class BuyAdvisor:
         
         return matches[:10]  # Return top 10 matches
     
-    def check_value_data(self, items: List) -> tuple:
+    def check_value_data(self, items: List, estimated_market_value: float = 0.0) -> tuple:
         """Check if value/estimate data is available."""
         has_value_data = False
         warning = ""
         
+        # Check manual estimated market value first
+        if estimated_market_value and estimated_market_value > 0:
+            has_value_data = True
+            return has_value_data, warning
+        
+        # Check Numista estimates
         for item in items:
             # Handle both CoinItem objects and dictionaries
             if isinstance(item, dict):
@@ -978,14 +984,16 @@ def test_buy_advisor():
     
     # Test 5: Manual estimated market value
     print("\n=== Test 5: Manual estimated market value ===")
-    rec = advisor.advise("Canada", "1 cent", "1967", estimated_market_value=5.00, asking_price=3.00, shipping=1.00, tax_fees=0.20)
+    rec = advisor.advise("Canada", "1 cent", "1967", estimated_market_value=100.00, asking_price=50.00, shipping=5.00, tax_fees=2.00)
     print(f"Final Recommendation: {rec.recommendation}")
     print(f"Price Verdict: {rec.price_verdict}")
     print(f"Purchase Verdict: {rec.purchase_verdict}")
     print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
     print(f"Landed Cost: ${rec.landed_cost:.2f}")
     print(f"Estimated Market Value: ${rec.estimated_market_value:.2f}")
-    print(f"Expected: BUY NOW (Buy + Good price using manual value)")
+    print(f"Value Data Available: {rec.value_data_available}")
+    print(f"Value Quality: {rec.value_quality}")
+    print(f"Expected: BUY NOW (Buy + Good price using manual value, Max Bid = $70)")
 
 
 if __name__ == "__main__":
