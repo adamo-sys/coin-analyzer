@@ -120,7 +120,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Finalized `v0.4` release state after confirming the full test suite passed with 47 tests OK; release includes the world base-metal Buy Advisor guardrail.
-* Commit: pending
+* Commit: `af2e5c4`
 * Added Buy Advisor guardrail for random world base-metal purchases so negative-priority, zero-impact, low-liquidity candidates downgrade to Neutral before purchase verdict calculation.
 * Commit: `2aec691`
 * Completed v0.4 integration audit: main app launch, Buy Advisor with and without staged `WANT_LIST` context, duplicate override behavior, price analysis, Collection Gap Report, Want List Generator, Portfolio Preview, and full test suite passed. No code fixes were required.
