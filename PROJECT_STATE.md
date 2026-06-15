@@ -2,16 +2,17 @@
 
 ## Current Version
 
-* Current release version: `v0.3`; current working state includes post-`v0.3` v0.4 integration work.
+* Current release version: `v0.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-15
 
 ## Last Release Tag
 
-* Most recent Git tag: `v0.3`
-* Summary of what was included: Collection Intelligence Engine, Collection Gap Report MVP with CSV export, Want List Generator MVP, Auction Evaluator draft spec, legacy portfolio staging importer, Portfolio Import Preview GUI, hardened test infrastructure, and project state/task tracking.
+* Most recent Git tag: `v0.4`
+* Summary of what was included: Legacy `WANT_LIST` staging and preview, staged `WANT_LIST` integration into Want List Generator and Buy Advisor, Buy Advisor collection-intelligence factors, and the world base-metal guardrail.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
+* `v0.4` release tests passed on 2026-06-15: 47 OK.
 
 ## Completed Features
 
@@ -118,6 +119,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Finalized `v0.4` release state after confirming the full test suite passed with 47 tests OK; release includes the world base-metal Buy Advisor guardrail.
+* Commit: pending
 * Added Buy Advisor guardrail for random world base-metal purchases so negative-priority, zero-impact, low-liquidity candidates downgrade to Neutral before purchase verdict calculation.
 * Commit: `2aec691`
 * Completed v0.4 integration audit: main app launch, Buy Advisor with and without staged `WANT_LIST` context, duplicate override behavior, price analysis, Collection Gap Report, Want List Generator, Portfolio Preview, and full test suite passed. No code fixes were required.
