@@ -53,6 +53,7 @@ Work through this queue in priority order. Handle only one task at a time.
 24. `[x]` Connect staged WANT_LIST intent to Want List Generator
 25. `[x]` Connect staged WANT_LIST intent to Buy Advisor
 26. `[x]` Perform v0.4 integration audit
+27. `[x]` Fix low-priority world base metal Buy Advisor guardrail
 
 ## Adam-Specific Collection Priorities
 
@@ -94,6 +95,16 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Fix low-priority world base metal Buy Advisor guardrail
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `buy_advisor.py`
+  - `test_buy_advisor_regression.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `2aec691`
 
 #### `[x]` Perform v0.4 integration audit
 

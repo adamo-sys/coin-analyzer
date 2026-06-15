@@ -39,6 +39,7 @@
 * WANT_LIST Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged acquisition-intent rows, skipped rows, warnings, and exporting the preview to CSV without modifying collection data.
 * WANT_LIST-backed generator ranking: Tools -> Want List Generator can load staged workbook `WANT_LIST` intent and blend it with collection gaps and upgrade candidates without modifying collection data.
 * Buy Advisor collection-intelligence integration: Buy Advisor can use collection gaps, generated want-list targets, and staged `WANT_LIST` intent as explainable Adam Priority boosts without changing duplicate or price analysis.
+* Buy Advisor low-priority world guardrail: prevents low-priority world base-metal coins with negative Adam Priority, no collection impact, and no liquidity support from becoming `BUY NOW` solely because price is good.
 
 ## Known Bugs
 
@@ -117,6 +118,8 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Added Buy Advisor guardrail for random world base-metal purchases so negative-priority, zero-impact, low-liquidity candidates downgrade to Neutral before purchase verdict calculation.
+* Commit: `2aec691`
 * Completed v0.4 integration audit: main app launch, Buy Advisor with and without staged `WANT_LIST` context, duplicate override behavior, price analysis, Collection Gap Report, Want List Generator, Portfolio Preview, and full test suite passed. No code fixes were required.
 * Commit: `7e17d42`
 * Integrated Collection Intelligence into Buy Advisor so collection gaps, generated want-list targets, Newfoundland/1859 priorities, and staged `WANT_LIST` intent add explainable Adam Priority boosts and collection impact scoring.
