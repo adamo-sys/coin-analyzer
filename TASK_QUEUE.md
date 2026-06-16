@@ -114,7 +114,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
-- Commit hash: `TBD`
+- Commit hash: `77771f6`
 
 #### `[x]` Integrate WANT_LIST context into Collection Intelligence Engine and Do I Own This
 

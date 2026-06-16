@@ -135,7 +135,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-16
 
 * Implemented v0.9 Acquisition Workflow on top of the focused Collection Intelligence Engine. The workflow provides deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance using internal collection, WANT_LIST, priority, duplicate, upgrade, and review-risk signals only.
-* Commit: `TBD`
+* Commit: `77771f6`
 * Full test suite passed: 203 tests OK.
 
 * Implemented v0.8 WANT_LIST context awareness for the focused Collection Intelligence Engine and Do I Own This workflow. Candidate analysis now reports `ON_WANT_LIST`, `NOT_ON_WANT_LIST`, `GAP_NOT_EXPLICITLY_TARGETED`, or `WANT_LIST_UNAVAILABLE` while preserving existing primary classifications and deterministic behavior.
