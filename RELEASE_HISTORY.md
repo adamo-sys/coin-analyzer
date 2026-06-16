@@ -8,6 +8,7 @@
 | `v0.8` | `f3acc605024712a867046be24e3c32db3f18d854` | WANT_LIST context integrated into candidate analysis and Do I Own This workflow. |
 | `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow added with deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance. |
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable v1.0 release baseline after readiness audit, full regression suite, GUI smoke checks, export checks, and tag verification. |
+| `v1.1-dev` | Unreleased | Shared Session Context for load-once workbook and WANT_LIST reuse across collector tools. |
 
 ## Notes
 

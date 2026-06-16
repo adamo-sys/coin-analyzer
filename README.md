@@ -1,6 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.0`
+Current development version: `v1.1-dev`
+
+Latest tagged release: `v1.0`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -35,6 +37,7 @@ The app is especially tuned for Adam-specific priorities:
 - Numista Excel import: import Numista `.xlsx` exports with field mapping and duplicate detection.
 - CSV import and export: import simple collection CSV files and export collection data.
 - Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
+- Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -49,12 +52,13 @@ The app is especially tuned for Adam-specific priorities:
 
 1. Launch Coin Analyzer.
 2. Load or review the local collection.
-3. Open Tools -> Do I Own This?
-4. Enter a candidate item: country, denomination, year, type or series, variety, grade, certification details, asking price, and notes.
-5. Optionally load the legacy workbook WANT_LIST context for the session.
+3. Use Tools -> Load Collection Context to select the legacy workbook once for the session.
+4. Open Tools -> Do I Own This?
+5. Enter a candidate item: country, denomination, year, type or series, variety, grade, certification details, asking price, and notes.
 6. Review ownership status, duplicate risk, upgrade status, WANT_LIST status, collection impact, max rational price, recommendation, confidence, reasons, and warnings.
 7. If the item looks promising, compare it with Buy Advisor or Upgrade Advisor before purchasing.
-8. Export reports when needed for collection planning or records.
+8. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
+9. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -96,7 +100,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.0 release-readiness audit passed with `203 tests OK`.
+The v1.1 shared-context development suite passed with `213 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -110,6 +114,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v0.8` | `f3acc605024712a867046be24e3c32db3f18d854` | WANT_LIST context integration in candidate analysis. |
 | `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow with deterministic max rational price guidance. |
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
+| `v1.1-dev` | Unreleased | Shared Session Context for load-once workbook and WANT_LIST reuse. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -134,7 +139,6 @@ Near-term maintenance candidates:
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
-- Share session-loaded WANT_LIST context across Buy Advisor, Want List Generator, and Do I Own This.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
 
 Future candidates:
@@ -148,9 +152,23 @@ Future candidates:
 
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
-- WANT_LIST context loaded in Do I Own This is session-local and not persisted as app state.
+- Shared Session Context is per app session only; it is not persisted after closing the application.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
+
+## Shared Session Context
+
+Use Tools -> Load Collection Context to select a legacy workbook once per app session. The app stores the workbook path, previewed collection row counts, active WANT_LIST intent count, load timestamp, warnings, and errors in shared runtime state.
+
+Tools that can reuse the shared WANT_LIST context include:
+
+- Do I Own This?
+- Acquisition Workflow guidance shown from Do I Own This
+- Buy Advisor
+- Want List Generator
+- Portfolio Import Preview and Want List Preview where appropriate
+
+If no context is loaded, tools fall back to their existing behavior and show unavailable or not-loaded status instead of failing.
 
 ## Data Safety
 

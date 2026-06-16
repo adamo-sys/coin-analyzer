@@ -20,6 +20,7 @@ from legacy_portfolio_importer import (
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
+from session_context import SessionContext
 
 
 class CoinCollectionGUI:
@@ -32,6 +33,8 @@ class CoinCollectionGUI:
         
         # Initialize backend
         self.app = CoinCollectionApp()
+        self.session_context = SessionContext()
+        self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
         # Initialize optional identifier
         self.identifier = None
@@ -64,6 +67,9 @@ class CoinCollectionGUI:
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Load Collection Context", command=self.load_collection_context)
+        tools_menu.add_command(label="Clear Session Context", command=self.clear_session_context)
+        tools_menu.add_separator()
         tools_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
@@ -270,6 +276,48 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(collection_buttons, text="Analyze Collection", command=self.analyze_collection).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Gap Report", command=self.open_collection_gap_report).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT)
+
+        ttk.Label(
+            main_frame,
+            textvariable=self.session_status_var,
+            anchor=tk.W,
+            relief=tk.SUNKEN,
+            padding=(6, 3),
+        ).grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+
+    def _collection_items(self):
+        return self.app.collection.get_all_items()
+
+    def _active_want_list_intents(self):
+        return self.session_context.get_want_list_intents()
+
+    def refresh_session_status(self):
+        self.session_status_var.set(self.session_context.format_status_line())
+
+    def load_collection_context(self):
+        """Load shared workbook and WANT_LIST context for this app session."""
+        file_path = filedialog.askopenfilename(
+            title="Select Collection Context Workbook",
+            filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+
+        result = self.session_context.load_workbook_context(file_path, self._collection_items())
+        self.refresh_session_status()
+        if result.success:
+            detail = self.session_context.format_status_line()
+            if result.warnings:
+                detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in result.warnings[:5])
+            messagebox.showinfo("Collection Context Loaded", detail)
+        else:
+            messagebox.showerror("Collection Context Error", "\n".join(result.errors))
+
+    def clear_session_context(self):
+        """Clear workbook and WANT_LIST context for this app session."""
+        self.session_context.clear()
+        self.refresh_session_status()
+        messagebox.showinfo("Session Context", "Session context cleared.")
     
     def upload_image(self):
         """Upload coin image."""
@@ -592,6 +640,12 @@ Total Unique Dates: {total_unique_dates}
         dialog.title("Collection Gap Report")
         dialog.geometry("800x600")
 
+        ttk.Label(
+            dialog,
+            text=self.session_context.format_status_line(),
+            padding=(10, 8),
+        ).pack(fill=tk.X)
+
         text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
         text.pack(fill=tk.BOTH, expand=True)
         text.insert(tk.END, report_text)
@@ -633,7 +687,7 @@ Total Unique Dates: {total_unique_dates}
     def open_want_list_generator(self):
         """Show ranked acquisition targets and allow Markdown/CSV export."""
         engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
-        staged_want_list_intents = []
+        staged_want_list_intents = self._active_want_list_intents()
 
         dialog = tk.Toplevel(self.root)
         dialog.title("Want List Generator")
@@ -644,7 +698,11 @@ Total Unique Dates: {total_unique_dates}
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(1, weight=1)
 
-        status_var = tk.StringVar(value="Using current collection analysis only.")
+        if staged_want_list_intents:
+            status_text = f"Using shared WANT_LIST context: {len(staged_want_list_intents)} active intent(s)."
+        else:
+            status_text = "Using current collection analysis only. No shared WANT_LIST loaded."
+        status_var = tk.StringVar(value=status_text)
         ttk.Label(main_frame, textvariable=status_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
 
         columns = ("Rank", "Coin", "Priority Score", "Reason")
@@ -696,6 +754,8 @@ Total Unique Dates: {total_unique_dates}
                 importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
                 preview = importer.preview_want_list(file_path)
                 staged_want_list_intents = preview.staged_intents
+                self.session_context.load_want_list_context(file_path, self._collection_items())
+                self.refresh_session_status()
                 status_var.set(
                     f"Loaded {preview.intents_staged} staged WANT_LIST intents from {os.path.basename(file_path)}."
                 )
@@ -758,6 +818,8 @@ Total Unique Dates: {total_unique_dates}
         try:
             importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
             summary = importer.preview_workbook(file_path)
+            self.session_context.load_collection_context(file_path, self._collection_items())
+            self.refresh_session_status()
             self.show_portfolio_import_preview(summary, file_path)
         except Exception as e:
             messagebox.showerror(
@@ -863,6 +925,8 @@ Total Unique Dates: {total_unique_dates}
         try:
             importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
             preview = importer.preview_want_list(file_path)
+            self.session_context.load_want_list_context(file_path, self._collection_items())
+            self.refresh_session_status()
             self.show_want_list_preview(preview, file_path)
         except Exception as e:
             messagebox.showerror(
@@ -1055,7 +1119,7 @@ Total Unique Dates: {total_unique_dates}
     
     def open_buy_advisor(self):
         """Open Buy Advisor dialog."""
-        staged_want_list_intents = []
+        staged_want_list_intents = self._active_want_list_intents()
 
         dialog = tk.Toplevel(self.root)
         dialog.title("Buy Advisor")
@@ -1117,7 +1181,11 @@ Total Unique Dates: {total_unique_dates}
         estimated_value_var = tk.StringVar()
         ttk.Entry(form_frame, textvariable=estimated_value_var).grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
 
-        want_list_status_var = tk.StringVar(value="No staged WANT_LIST context loaded.")
+        if staged_want_list_intents:
+            want_list_status = f"Using shared WANT_LIST context: {len(staged_want_list_intents)} active intent(s)."
+        else:
+            want_list_status = "No staged WANT_LIST context loaded."
+        want_list_status_var = tk.StringVar(value=want_list_status)
         ttk.Label(form_frame, textvariable=want_list_status_var).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
         
         # Buttons
@@ -1136,6 +1204,8 @@ Total Unique Dates: {total_unique_dates}
                 importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
                 preview = importer.preview_want_list(file_path)
                 staged_want_list_intents = preview.staged_intents
+                self.session_context.load_want_list_context(file_path, self._collection_items())
+                self.refresh_session_status()
                 want_list_status_var.set(
                     f"Loaded {preview.intents_staged} staged WANT_LIST intents from {os.path.basename(file_path)}."
                 )
@@ -1466,7 +1536,7 @@ Total Unique Dates: {total_unique_dates}
         dialog = tk.Toplevel(self.root)
         dialog.title("Do I Own This?")
         dialog.geometry("720x760")
-        staged_want_list_intents = []
+        staged_want_list_intents = self._active_want_list_intents()
 
         main_frame = ttk.Frame(dialog, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -1510,7 +1580,11 @@ Total Unique Dates: {total_unique_dates}
         ttk.Label(form_frame, text="Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
         notes_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
         notes_text.grid(row=len(fields), column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
-        want_list_status_var = tk.StringVar(value="WANT_LIST context: unavailable")
+        if staged_want_list_intents:
+            want_list_status = f"WANT_LIST context: {len(staged_want_list_intents)} shared active intent(s) loaded"
+        else:
+            want_list_status = "WANT_LIST context: unavailable"
+        want_list_status_var = tk.StringVar(value=want_list_status)
         ttk.Label(form_frame, textvariable=want_list_status_var).grid(
             row=len(fields) + 1, column=0, columnspan=2, sticky=tk.W, pady=(8, 0)
         )
@@ -1620,6 +1694,8 @@ Total Unique Dates: {total_unique_dates}
                 importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
                 preview = importer.preview_want_list(file_path)
                 staged_want_list_intents = preview.staged_intents
+                self.session_context.load_want_list_context(file_path, self._collection_items())
+                self.refresh_session_status()
                 want_list_status_var.set(
                     f"WANT_LIST context: {preview.intents_staged} active intent(s) loaded"
                 )

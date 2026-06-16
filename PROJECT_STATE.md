@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v1.0`
+* Current release version: `v1.1-dev`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
@@ -56,6 +56,7 @@
 * Do I Own This lookup: Tools menu entry for read-only manual candidate analysis using the focused Collection Intelligence Engine.
 * Do I Own This WANT_LIST awareness: the lookup can load staged workbook `WANT_LIST` context, report whether a candidate is on the want list, not on the want list, or a collection gap not explicitly targeted, and keep analysis read-only.
 * Acquisition Workflow: reusable deterministic purchase guidance service built on the focused Collection Intelligence Engine. It provides max rational price, BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations, confidence, reasons, and warnings without live pricing, scraping, OCR, image recognition, or Numista expansion.
+* Shared Session Context: per-session workbook and WANT_LIST context layer that lets Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, Portfolio Import Preview, and related tools reuse one loaded context while preserving manual file-selection fallbacks.
 
 ## Known Bugs
 
@@ -72,14 +73,13 @@
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
 3. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
-4. Share session-loaded WANT_LIST context across Buy Advisor, Want List Generator, and Do I Own This
-5. Expand normalization fixtures for country, denomination, and variety edge cases
-6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
-7. Add image preview in collection list
-8. Add batch editing
-9. Add undo/redo
-10. Add backup/restore
-11. Evaluate SQLite storage for larger collections
+4. Expand normalization fixtures for country, denomination, and variety edge cases
+5. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+6. Add image preview in collection list
+7. Add batch editing
+8. Add undo/redo
+9. Add backup/restore
+10. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
 
@@ -93,7 +93,7 @@
 
 ## Next Priority Task
 
-Continue post-v1.0 stabilization work from `TASK_QUEUE.md`; next implementation candidate is Buy Advisor validation message polish.
+Perform a focused v1.1 acceptance audit for Shared Session Context, then continue with Buy Advisor validation message polish.
 
 ## Project Architecture
 
@@ -103,6 +103,7 @@ Continue post-v1.0 stabilization work from `TASK_QUEUE.md`; next implementation 
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, staged `WANT_LIST` ranking boosts, and future evaluator inputs.
 * Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, staged WANT_LIST context awareness, Buy Advisor duplicate/upgrade detection, and Upgrade Advisor match/upgrade decisions, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
 * Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
+* Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
@@ -134,6 +135,11 @@ Continue post-v1.0 stabilization work from `TASK_QUEUE.md`; next implementation 
 ## Recent Changes
 
 ### 2026-06-16
+
+* Implemented v1.1 Shared Session Context: load-once workbook/WANT_LIST state, menu actions for loading and clearing context, status-line visibility, shared WANT_LIST reuse across Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, and portfolio preview workflows, plus regression tests.
+* Commit: `TBD`
+* Full test suite passed: 213 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; full non-GUI regression suite passed.
 
 * Completed post-v1.0 release packaging documentation: refreshed README for v1.0, added screenshot guidance, v1.0 release notes, release history, backup guide, and verified local/remote release tags from `v0.5` through `v1.0`.
 * Commit: `2318550`
