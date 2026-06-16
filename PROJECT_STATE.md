@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v0.8-dev`
+* Current release version: `v0.9-dev`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v0.7`
-* Summary of what was included: Focused Collection Intelligence Engine, Do I Own This workflow, and advisor decision-source consolidation around the focused engine.
+* Most recent Git tag: `v0.8`
+* Summary of what was included: WANT_LIST context awareness in the focused Collection Intelligence Engine and Do I Own This workflow.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -17,6 +17,7 @@
 * `v0.5` release audit rerun passed on 2026-06-16; no release-blocking defects found.
 * `v0.6` release audit passed on 2026-06-15; no release-blocking defects found.
 * `v0.7` acceptance audit passed on 2026-06-16; tag `v0.7` points to `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0`.
+* `v0.8` acceptance audit passed on 2026-06-16; tag `v0.8` points to `f3acc605024712a867046be24e3c32db3f18d854`.
 
 ## Completed Features
 
@@ -52,6 +53,7 @@
 * Portfolio Dashboard: high-level collection health overview showing total items, countries, estimated value, melt value, Newfoundland progress, Canadian silver progress, 1859 Large Cent progress, top gap-fill targets, top upgrade targets, duplicate-heavy areas, and WANT_LIST progress. GUI integration (Tools → Portfolio Dashboard) with CSV and Markdown export.
 * Do I Own This lookup: Tools menu entry for read-only manual candidate analysis using the focused Collection Intelligence Engine.
 * Do I Own This WANT_LIST awareness: the lookup can load staged workbook `WANT_LIST` context, report whether a candidate is on the want list, not on the want list, or a collection gap not explicitly targeted, and keep analysis read-only.
+* Acquisition Workflow: reusable deterministic purchase guidance service built on the focused Collection Intelligence Engine. It provides max rational price, BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations, confidence, reasons, and warnings without live pricing, scraping, OCR, image recognition, or Numista expansion.
 
 ## Known Bugs
 
@@ -99,6 +101,7 @@ Improve Buy Advisor validation messages.
 * Upgrade Advisor system: `upgrade_advisor.py` evaluates candidate coins against existing collection for upgrade potential, with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, staged `WANT_LIST` ranking boosts, and future evaluator inputs.
 * Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, staged WANT_LIST context awareness, Buy Advisor duplicate/upgrade detection, and Upgrade Advisor match/upgrade decisions, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
+* Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
@@ -130,6 +133,10 @@ Improve Buy Advisor validation messages.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Implemented v0.9 Acquisition Workflow on top of the focused Collection Intelligence Engine. The workflow provides deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance using internal collection, WANT_LIST, priority, duplicate, upgrade, and review-risk signals only.
+* Commit: `TBD`
+* Full test suite passed: 203 tests OK.
 
 * Implemented v0.8 WANT_LIST context awareness for the focused Collection Intelligence Engine and Do I Own This workflow. Candidate analysis now reports `ON_WANT_LIST`, `NOT_ON_WANT_LIST`, `GAP_NOT_EXPLICITLY_TARGETED`, or `WANT_LIST_UNAVAILABLE` while preserving existing primary classifications and deterministic behavior.
 * Commit: `76b4f11`

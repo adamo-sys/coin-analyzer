@@ -5,6 +5,7 @@ Compares a coin against the collection to provide buying advice.
 
 from typing import Dict, Iterable, List, Set, Optional
 from dataclasses import dataclass
+from acquisition_workflow import AcquisitionWorkflow
 from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
 from collection_intelligence import GRADE_HIERARCHY
 from focused_collection_intelligence import (
@@ -50,6 +51,7 @@ class BuyRecommendation:
     melt_value_cad: Optional[float] = None
     melt_value_available: bool = False
     spot_price_warning: Optional[str] = None
+    acquisition_workflow_result: Optional[Dict] = None
 
 
 class BuyAdvisor:
@@ -89,6 +91,15 @@ class BuyAdvisor:
         """
         intelligence_result = self._analyze_candidate_with_intelligence(
             country, denomination, year, reference, grade, staged_want_list_intents
+        )
+        acquisition_result = self._evaluate_acquisition_workflow(
+            country,
+            denomination,
+            year,
+            reference,
+            grade,
+            asking_price,
+            staged_want_list_intents,
         )
 
         # Check if already owned
@@ -259,7 +270,8 @@ class BuyAdvisor:
             estimated_market_value=estimated_market_value,
             melt_value_cad=melt_value_cad,
             melt_value_available=melt_value_available,
-            spot_price_warning=spot_price_warning
+            spot_price_warning=spot_price_warning,
+            acquisition_workflow_result=acquisition_result.to_dict(),
         )
     
     def find_owned_items(self, country: str, denomination: str, year: str,
@@ -327,6 +339,28 @@ class BuyAdvisor:
             grade=grade,
         )
         return FocusedCollectionIntelligenceEngine(self.collection.items, intents).analyze_candidate(candidate)
+
+    def _evaluate_acquisition_workflow(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        reference: str = "",
+        grade: str = "",
+        asking_price: float = 0.0,
+        staged_want_list_intents: Iterable = None,
+    ):
+        """Run acquisition workflow as supporting structured context."""
+        intents = list(staged_want_list_intents) if staged_want_list_intents is not None else self.staged_want_list_intents
+        candidate = CandidateItem(
+            country=country,
+            denomination=denomination,
+            year=year,
+            type_series=reference,
+            grade=grade,
+            asking_price=asking_price,
+        )
+        return AcquisitionWorkflow(self.collection.items, intents).evaluate(candidate)
 
     @staticmethod
     def _is_owned_status(match_status) -> bool:

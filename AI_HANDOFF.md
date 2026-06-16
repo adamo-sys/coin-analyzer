@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v0.8-dev`
-- Current active task completed: WANT_LIST context integration for the focused Collection Intelligence Engine and Do I Own This workflow
+- Current project state file reports release version: `v0.9-dev`
+- Current active task completed: Acquisition Workflow on top of the focused Collection Intelligence Engine
 
 ## What Changed
 
@@ -17,6 +17,9 @@
 - Added regression tests proving both advisors route through the focused engine while preserving existing verdict behavior.
 - Added WANT_LIST context status to focused candidate analysis: `ON_WANT_LIST`, `NOT_ON_WANT_LIST`, `GAP_NOT_EXPLICITLY_TARGETED`, and `WANT_LIST_UNAVAILABLE`.
 - Added a lightweight Load WANT_LIST Context button to Tools -> Do I Own This.
+- Added `acquisition_workflow.py`, a deterministic purchase-guidance service using the focused Collection Intelligence Engine as its decision source.
+- Buy Advisor now stores the acquisition workflow result as supporting structured context while preserving existing user-visible behavior.
+- Do I Own This shows acquisition guidance when asking price is provided.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -32,6 +35,14 @@ The focused engine accepts manual candidate input and returns structured output:
 - Priority reasons
 - Warning flags
 - WANT_LIST status
+
+The acquisition workflow adds:
+
+- Asking price
+- Max rational price
+- BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendation
+- Owned/current match summary
+- Upgrade status
 
 Supported statuses:
 
@@ -53,9 +64,8 @@ Supported statuses:
 
 ## Test Status
 
-- `py -m unittest test_focused_collection_intelligence.py`: 17 tests OK.
-- `.\run_tests.bat`: 190 tests OK.
-- GUI smoke for Do I Own This, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
+- `.\run_tests.bat`: 203 tests OK.
+- GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -64,11 +74,12 @@ Supported statuses:
 - Variety matching depends on existing text fields such as reference, title, notes, and comments.
 - The Do I Own This dialog loads staged WANT_LIST context from a selected legacy workbook for the current session only; it does not persist that context.
 - Buy Advisor still keeps its legacy collection-intelligence boost scoring separate from duplicate/upgrade classification to preserve current user-visible behavior.
+- Acquisition workflow max rational price is rule-based internal guidance only; it is not market pricing.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Run a focused v0.8 acceptance audit for Do I Own This with and without loaded WANT_LIST context.
-2. Decide whether session-loaded WANT_LIST context should be shared across Buy Advisor, Want List Generator, and Do I Own This.
-3. Expand normalization fixtures for country, denomination, and variety edge cases.
-4. Continue reducing older duplicate matching helpers only where regression coverage proves behavior is preserved.
+1. Run a focused v0.9 acceptance audit for Acquisition Workflow, Buy Advisor, and Do I Own This.
+2. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports.
+3. Decide whether session-loaded WANT_LIST context should be shared across Buy Advisor, Want List Generator, and Do I Own This.
+4. Expand normalization fixtures for country, denomination, and variety edge cases.

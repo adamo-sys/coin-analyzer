@@ -478,7 +478,13 @@ class FocusedCollectionIntelligenceEngine:
     def _token_set(self, value: str) -> set:
         normalized = value.lower().replace("-", " ")
         normalized = self._normalize_country(normalized)
-        return {token for token in normalized.split() if token}
+        tokens = {token for token in normalized.split() if token}
+        if "large cent" in normalized:
+            tokens.add("1")
+            tokens.add("cent")
+        if "silver dollar" in normalized:
+            tokens.add("dollar")
+        return tokens
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:

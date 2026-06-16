@@ -8,6 +8,7 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 from PIL import Image, ImageTk
 import os
 import cv2
+from acquisition_workflow import AcquisitionWorkflow
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
@@ -1529,7 +1530,7 @@ Total Unique Dates: {total_unique_dates}
                 return 0.0
             return float(cleaned)
 
-        def format_result(result):
+        def format_result(result, acquisition_decision=None):
             lines = [
                 "Collection Intelligence",
                 "",
@@ -1564,6 +1565,15 @@ Total Unique Dates: {total_unique_dates}
             lines.append("")
             lines.append("Warning Flags:")
             lines.extend([f"  - {warning}" for warning in result.warning_flags] or ["  None"])
+            if acquisition_decision:
+                lines.extend([
+                    "",
+                    "Acquisition Guidance:",
+                    f"  Recommendation: {acquisition_decision.recommendation}",
+                    f"  Asking Price: ${acquisition_decision.asking_price:.2f}",
+                    f"  Max Rational Price: ${acquisition_decision.max_rational_price:.2f}",
+                    f"  Confidence Score: {acquisition_decision.confidence_score}/100",
+                ])
             return "\n".join(lines)
 
         def analyze_candidate():
@@ -1585,8 +1595,14 @@ Total Unique Dates: {total_unique_dates}
                     staged_want_list_intents,
                 )
                 result = engine.analyze_candidate(candidate)
+                acquisition_decision = None
+                if candidate.asking_price > 0:
+                    acquisition_decision = AcquisitionWorkflow(
+                        self.app.collection.get_all_items(),
+                        staged_want_list_intents,
+                    ).evaluate(candidate)
                 result_text.delete("1.0", tk.END)
-                result_text.insert(tk.END, format_result(result))
+                result_text.insert(tk.END, format_result(result, acquisition_decision))
             except ValueError:
                 messagebox.showerror("Invalid Price", "Please enter a numeric asking price.")
             except Exception as e:

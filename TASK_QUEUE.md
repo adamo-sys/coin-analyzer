@@ -59,6 +59,7 @@ Work through this queue in priority order. Handle only one task at a time.
 30. `[x]` Build focused Collection Intelligence Engine
 31. `[x]` Consolidate advisor decisions on Collection Intelligence Engine
 32. `[x]` Integrate WANT_LIST context into Collection Intelligence Engine and Do I Own This
+33. `[x]` Build Acquisition Workflow on Collection Intelligence Engine
 
 ## Adam-Specific Collection Priorities
 
@@ -100,6 +101,20 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Build Acquisition Workflow on Collection Intelligence Engine
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `acquisition_workflow.py` (new file)
+  - `test_acquisition_workflow.py` (new file)
+  - `focused_collection_intelligence.py`
+  - `buy_advisor.py`
+  - `coin_collection_gui.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+- Commit hash: `TBD`
 
 #### `[x]` Integrate WANT_LIST context into Collection Intelligence Engine and Do I Own This
 
