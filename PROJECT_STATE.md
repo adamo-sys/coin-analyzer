@@ -126,7 +126,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-16
 
 * Completed v0.5 release audit rerun: main app launch, collection load, Upgrade Advisor dialog, manual candidate analysis, collection lookup, upgrade analysis, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, full test suite, targeted upgrade scenarios, WANT_LIST interaction, and random world base-metal non-upgrade all passed. No source defects required fixes.
-* Commit: pending
+* Commit: `36fc71b`
 * Full test suite passed: 171 tests OK.
 * Note: `AI_HANDOFF.md` was requested but is not present in this repository.
 
