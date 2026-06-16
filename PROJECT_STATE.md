@@ -137,7 +137,7 @@ Perform a focused v1.1 acceptance audit for Shared Session Context, then continu
 ### 2026-06-16
 
 * Implemented v1.1 Shared Session Context: load-once workbook/WANT_LIST state, menu actions for loading and clearing context, status-line visibility, shared WANT_LIST reuse across Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, and portfolio preview workflows, plus regression tests.
-* Commit: `TBD`
+* Commit: `a63edb5`
 * Full test suite passed: 213 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; full non-GUI regression suite passed.
 

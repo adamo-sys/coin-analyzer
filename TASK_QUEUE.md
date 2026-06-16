@@ -117,7 +117,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `RELEASE_HISTORY.md`
-- Commit hash: `TBD`
+- Commit hash: `a63edb5`
 
 #### `[x]` Complete post-v1.0 release packaging documentation
 
