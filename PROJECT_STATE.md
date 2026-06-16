@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v0.9-dev`
+* Current release version: `v1.0-rc`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v0.8`
-* Summary of what was included: WANT_LIST context awareness in the focused Collection Intelligence Engine and Do I Own This workflow.
+* Most recent Git tag: `v0.9`
+* Summary of what was included: Acquisition Workflow on top of the focused Collection Intelligence Engine, with deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -18,6 +18,7 @@
 * `v0.6` release audit passed on 2026-06-15; no release-blocking defects found.
 * `v0.7` acceptance audit passed on 2026-06-16; tag `v0.7` points to `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0`.
 * `v0.8` acceptance audit passed on 2026-06-16; tag `v0.8` points to `f3acc605024712a867046be24e3c32db3f18d854`.
+* `v0.9` acceptance audit passed on 2026-06-16; tag `v0.9` points to `af09668dd9b735479a0885445a7198302d6432f3`.
 
 ## Completed Features
 
@@ -57,9 +58,8 @@
 
 ## Known Bugs
 
-* Ad-hoc `py -c` smoke commands may fail if the Windows Python launcher cannot find an interpreter, even when `run_tests.bat` succeeds in the project environment.
+* Direct multi-module `py -m unittest ...` commands can be flaky in this environment due to the Windows Python launcher; use `run_tests.bat` as the reliable suite command.
 * Some README text has encoding/mojibake artifacts in tree diagrams and symbols.
-* `analyze_collection_gaps()` can divide by zero for an empty collection.
 * GUI autocomplete currently prints suggestions to the console instead of showing a dropdown.
 * Experimental detection and template matching are incomplete and should remain manual-verification-only.
 * Numista API integration is not implemented and is blocked by API key, terms, pricing, and access review.
@@ -71,14 +71,15 @@
 
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
-3. Build Melt Value Engine using `ASW_REFERENCE` and workbook ASW fields
-4. Build Upgrade Advisor using `UPGRADE_TARGETS`
-5. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
-6. Add image preview in collection list
-7. Add batch editing
-8. Add undo/redo
-9. Add backup/restore
-10. Evaluate SQLite storage for larger collections
+3. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
+4. Share session-loaded WANT_LIST context across Buy Advisor, Want List Generator, and Do I Own This
+5. Expand normalization fixtures for country, denomination, and variety edge cases
+6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+7. Add image preview in collection list
+8. Add batch editing
+9. Add undo/redo
+10. Add backup/restore
+11. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
 
@@ -92,7 +93,7 @@
 
 ## Next Priority Task
 
-Improve Buy Advisor validation messages.
+Finalize and tag v1.0 if release-candidate approval is granted.
 
 ## Project Architecture
 
@@ -133,6 +134,10 @@ Improve Buy Advisor validation messages.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Completed v1.0 release-readiness audit: application launch, collection load, Do I Own This with and without WANT_LIST-capable workflow, Acquisition Workflow, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, export smoke tests, tag metadata, and full regression suite passed. No source defects required fixes.
+* Commit: `TBD`
+* Full test suite passed: 203 tests OK.
 
 * Implemented v0.9 Acquisition Workflow on top of the focused Collection Intelligence Engine. The workflow provides deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance using internal collection, WANT_LIST, priority, duplicate, upgrade, and review-risk signals only.
 * Commit: `77771f6`
