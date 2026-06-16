@@ -48,6 +48,89 @@ class TestBuyAdvisorRegression(unittest.TestCase):
         rec = self.advisor.advise(
             "Canada",
             "1 cent",
+            "1920",
+            asking_price=2.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+
+        self.assertFalse(rec.already_owned)
+        self.assertEqual(rec.recommendation, "Buy")
+        self.assertEqual(rec.purchase_verdict, "WATCHLIST")
+    
+    def test_melt_value_integration_for_silver_coin(self):
+        """Test that melt value is calculated for silver coins."""
+        rec = self.advisor.advise(
+            "Canada",
+            "dollar",
+            "1935",
+            asking_price=10.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+        
+        # Melt value should be available for silver coins
+        self.assertTrue(rec.melt_value_available)
+        self.assertIsNotNone(rec.melt_value_cad)
+        self.assertGreater(rec.melt_value_cad, 0)
+        # Melt value should be mentioned in explanation
+        self.assertIn("Melt value", rec.explanation)
+    
+    def test_melt_value_not_available_for_non_silver_coin(self):
+        """Test that melt value is not calculated for non-silver coins."""
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
+            "1920",
+            asking_price=2.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+        
+        # Melt value should be 0 for non-silver coins
+        self.assertFalse(rec.melt_value_available)
+        self.assertEqual(rec.melt_value_cad, 0.0)
+    
+    def test_melt_value_does_not_change_purchase_verdict(self):
+        """Test that melt value is a supporting factor, not a primary driver."""
+        # This test ensures that melt value integration doesn't change existing verdict logic
+        rec = self.advisor.advise(
+            "Argentina",
+            "1.0",
+            "1960",
+            asking_price=2.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+        
+        # Should still be a duplicate/pass regardless of melt value
+        self.assertTrue(rec.already_owned)
+        self.assertEqual(rec.recommendation, "Duplicate")
+        self.assertEqual(rec.purchase_verdict, "PASS")
+    
+    def test_melt_value_fields_populated_correctly(self):
+        """Test that all melt value fields are populated correctly."""
+        rec = self.advisor.advise(
+            "Canada",
+            "dollar",
+            "1935",
+            asking_price=10.00,
+            shipping=1.00,
+            tax_fees=0.20,
+        )
+        
+        # Check that all melt value fields are present
+        self.assertTrue(hasattr(rec, 'melt_value_cad'))
+        self.assertTrue(hasattr(rec, 'melt_value_available'))
+        self.assertTrue(hasattr(rec, 'spot_price_warning'))
+        
+        # For silver coins with manual provider, no warning should be present
+        self.assertIsNone(rec.spot_price_warning)
+    
+    def test_missing_year_with_good_price_is_buy_now(self):
+        rec = self.advisor.advise(
+            "Canada",
+            "1 cent",
             "1967",
             asking_price=0.50,
             shipping=2.00,

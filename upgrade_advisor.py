@@ -8,6 +8,7 @@ from collection_intelligence import (
     SILVER_DENOMINATION_TERMS,
     NEWFOUNDLAND_FOCUS_TERMS,
 )
+from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
 
 
 @dataclass
@@ -32,6 +33,10 @@ class UpgradeRecommendation:
     value_improvement: float  # Value difference
     reason: str
     explanation: str
+    candidate_melt_value_cad: Optional[float] = None
+    existing_melt_value_cad: Optional[float] = None
+    melt_value_improvement: Optional[float] = None
+    spot_price_warning: Optional[str] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -53,6 +58,10 @@ class UpgradeRecommendation:
             "value_improvement": self.value_improvement,
             "reason": self.reason,
             "explanation": self.explanation,
+            "candidate_melt_value_cad": self.candidate_melt_value_cad,
+            "existing_melt_value_cad": self.existing_melt_value_cad,
+            "melt_value_improvement": self.melt_value_improvement,
+            "spot_price_warning": self.spot_price_warning,
         }
 
 
@@ -62,6 +71,11 @@ class UpgradeAdvisor:
     def __init__(self, collection_items: List):
         """Initialize with collection items."""
         self.collection_items = collection_items
+        
+        # Initialize melt value engine
+        self.asw_loader = ASWReferenceLoader()
+        self.spot_provider = ManualSpotPriceProvider(default_spot_price_cad=35.0)
+        self.melt_engine = MeltValueEngine(self.asw_loader, self.spot_provider)
     
     def analyze_upgrade(
         self,
@@ -129,6 +143,48 @@ class UpgradeAdvisor:
             grade_improvement
         )
         
+        # Calculate melt values (supporting factor, won't break if fails)
+        candidate_melt_value_cad = None
+        existing_melt_value_cad = None
+        melt_value_improvement = None
+        spot_price_warning = None
+        try:
+            # Calculate candidate melt value
+            candidate_melt_result = self.melt_engine.calculate_melt_value(
+                country=candidate_country,
+                denomination=candidate_denomination,
+                year=candidate_year
+            )
+            candidate_melt_value_cad = candidate_melt_result.melt_value_cad
+            spot_price_warning = candidate_melt_result.spot_price_warning
+            
+            # Calculate existing melt value
+            existing_melt_result = self.melt_engine.calculate_melt_value(
+                country=best_existing.country,
+                denomination=best_existing.denomination,
+                year=best_existing.year
+            )
+            existing_melt_value_cad = existing_melt_result.melt_value_cad
+            
+            # Calculate melt value improvement
+            if candidate_melt_value_cad is not None and existing_melt_value_cad is not None:
+                melt_value_improvement = candidate_melt_value_cad - existing_melt_value_cad
+            
+            # Add melt value to explanation for silver coins
+            if candidate_melt_value_cad > 0 or existing_melt_value_cad > 0:
+                explanation += f"\n\n**Melt Value Analysis:**"
+                if candidate_melt_value_cad > 0:
+                    explanation += f"\n- Candidate melt value: ${candidate_melt_value_cad:.2f} CAD"
+                if existing_melt_value_cad > 0:
+                    explanation += f"\n- Existing melt value: ${existing_melt_value_cad:.2f} CAD"
+                if melt_value_improvement is not None and melt_value_improvement != 0:
+                    explanation += f"\n- Melt value difference: ${melt_value_improvement:.2f} CAD"
+                if spot_price_warning:
+                    explanation += f"\n- {spot_price_warning}"
+        except Exception as e:
+            # Melt value calculation failed, continue without it
+            pass
+        
         return UpgradeRecommendation(
             candidate_country=candidate_country,
             candidate_denomination=candidate_denomination,
@@ -147,6 +203,10 @@ class UpgradeAdvisor:
             value_improvement=value_improvement,
             reason=reason,
             explanation=explanation,
+            candidate_melt_value_cad=candidate_melt_value_cad,
+            existing_melt_value_cad=existing_melt_value_cad,
+            melt_value_improvement=melt_value_improvement,
+            spot_price_warning=spot_price_warning
         )
     
     def _find_matching_items(
@@ -335,6 +395,10 @@ class UpgradeAdvisor:
             value_improvement=0.0,
             reason="No matching coin in collection.",
             explanation=f"No matching coin found in collection for {country} {denomination} {year}. This is not an upgrade scenario.",
+            candidate_melt_value_cad=None,
+            existing_melt_value_cad=None,
+            melt_value_improvement=None,
+            spot_price_warning=None
         )
     
     def export_to_csv(self, recommendations: List[UpgradeRecommendation], output_path: str) -> bool:
@@ -347,7 +411,9 @@ class UpgradeAdvisor:
                     "existing_country", "existing_denomination", "existing_year",
                     "existing_grade", "existing_estimate", "existing_item_id",
                     "verdict", "upgrade_score", "grade_improvement",
-                    "value_improvement", "reason", "explanation"
+                    "value_improvement", "reason", "explanation",
+                    "candidate_melt_value_cad", "existing_melt_value_cad",
+                    "melt_value_improvement", "spot_price_warning"
                 ]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()

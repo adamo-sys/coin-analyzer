@@ -197,6 +197,64 @@ class TestUpgradeAdvisor(unittest.TestCase):
         # Should still work
         self.assertIsNotNone(recommendation)
         self.assertEqual(recommendation.verdict, "Upgrade")
+    
+    def test_melt_value_integration_for_silver_coin(self):
+        """Test that melt value is calculated for silver coins."""
+        recommendation = self.advisor.analyze_upgrade(
+            "Canada", "dollar", "1935", "EF-40", 150.0
+        )
+        
+        # Melt value should be available for silver coins
+        self.assertIsNotNone(recommendation.candidate_melt_value_cad)
+        self.assertIsNotNone(recommendation.existing_melt_value_cad)
+        self.assertIsNotNone(recommendation.melt_value_improvement)
+        # Melt value should be mentioned in explanation
+        self.assertIn("Melt Value Analysis", recommendation.explanation)
+    
+    def test_melt_value_not_available_for_non_silver_coin(self):
+        """Test that melt value is not calculated for non-silver coins."""
+        recommendation = self.advisor.analyze_upgrade(
+            "Canada", "1 cent", "1967", "EF-40", 20.0
+        )
+        
+        # Melt value should be 0 for non-silver coins
+        self.assertEqual(recommendation.candidate_melt_value_cad, 0.0)
+        self.assertEqual(recommendation.existing_melt_value_cad, 0.0)
+        self.assertEqual(recommendation.melt_value_improvement, 0.0)
+    
+    def test_melt_value_does_not_change_verdict(self):
+        """Test that melt value is a supporting factor, not a primary driver."""
+        # This test ensures that melt value integration doesn't change existing verdict logic
+        recommendation = self.advisor.analyze_upgrade(
+            "Canada", "1 cent", "1967", "EF-40", 20.0
+        )
+        
+        # Should still be Hold Existing regardless of melt value
+        self.assertEqual(recommendation.verdict, "Hold Existing")
+    
+    def test_melt_value_fields_populated_correctly(self):
+        """Test that all melt value fields are populated correctly."""
+        recommendation = self.advisor.analyze_upgrade(
+            "Canada", "dollar", "1935", "EF-40", 150.0
+        )
+        
+        # Check that all melt value fields are present
+        self.assertTrue(hasattr(recommendation, 'candidate_melt_value_cad'))
+        self.assertTrue(hasattr(recommendation, 'existing_melt_value_cad'))
+        self.assertTrue(hasattr(recommendation, 'melt_value_improvement'))
+        self.assertTrue(hasattr(recommendation, 'spot_price_warning'))
+        
+        # For silver coins with manual provider, no warning should be present
+        self.assertIsNone(recommendation.spot_price_warning)
+    
+    def test_melt_value_improvement_calculation(self):
+        """Test that melt value improvement is calculated correctly."""
+        recommendation = self.advisor.analyze_upgrade(
+            "Canada", "dollar", "1935", "EF-40", 150.0
+        )
+        
+        # Both coins have same ASW, so melt value improvement should be 0
+        self.assertEqual(recommendation.melt_value_improvement, 0.0)
 
 
 if __name__ == '__main__':

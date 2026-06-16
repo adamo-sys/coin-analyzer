@@ -3,8 +3,9 @@ Buy Advisor - Rule-based coin purchase recommendations.
 Compares a coin against the collection to provide buying advice.
 """
 
-from typing import Dict, Iterable, List, Set
+from typing import Dict, Iterable, List, Set, Optional
 from dataclasses import dataclass
+from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
 
 
 @dataclass
@@ -40,6 +41,9 @@ class BuyRecommendation:
     price_verdict: str
     purchase_verdict: str
     estimated_market_value: float
+    melt_value_cad: Optional[float] = None
+    melt_value_available: bool = False
+    spot_price_warning: Optional[str] = None
 
 
 class BuyAdvisor:
@@ -57,6 +61,11 @@ class BuyAdvisor:
     def __init__(self, collection, staged_want_list_intents: Iterable = None):
         self.collection = collection
         self.staged_want_list_intents = list(staged_want_list_intents or [])
+        
+        # Initialize melt value engine
+        self.asw_loader = ASWReferenceLoader()
+        self.spot_provider = ManualSpotPriceProvider(default_spot_price_cad=35.0)
+        self.melt_engine = MeltValueEngine(self.asw_loader, self.spot_provider)
     
     def advise(self, country: str, denomination: str, year: str, 
                reference: str = "", numista_n: str = "", grade: str = "",
@@ -193,6 +202,29 @@ class BuyAdvisor:
             elif adam_priority_score < 0:
                 explanation += f" Adam Priority adjusted recommendation from {base_recommendation} to {recommendation} because priority score is {adam_priority_score} (below 0)."
         
+        # Calculate melt value (supporting factor, won't break if fails)
+        melt_value_cad = None
+        melt_value_available = False
+        spot_price_warning = None
+        try:
+            melt_result = self.melt_engine.calculate_melt_value(
+                country=country,
+                denomination=denomination,
+                year=year
+            )
+            melt_value_cad = melt_result.melt_value_cad
+            melt_value_available = melt_result.is_silver
+            spot_price_warning = melt_result.spot_price_warning
+            
+            # Add melt value to explanation for silver coins
+            if melt_value_available and melt_value_cad > 0:
+                explanation += f" Melt value: ${melt_value_cad:.2f} CAD."
+                if spot_price_warning:
+                    explanation += f" {spot_price_warning}"
+        except Exception as e:
+            # Melt value calculation failed, continue without it
+            pass
+        
         return BuyRecommendation(
             already_owned=already_owned,
             duplicate_count=duplicate_count,
@@ -223,7 +255,10 @@ class BuyAdvisor:
             landed_cost=landed_cost,
             price_verdict=price_verdict,
             purchase_verdict=purchase_verdict,
-            estimated_market_value=estimated_market_value
+            estimated_market_value=estimated_market_value,
+            melt_value_cad=melt_value_cad,
+            melt_value_available=melt_value_available,
+            spot_price_warning=spot_price_warning
         )
     
     def find_owned_items(self, country: str, denomination: str, year: str,
