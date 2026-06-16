@@ -171,8 +171,7 @@ class TestPriorityReasons(unittest.TestCase):
         """Test blank priority reasons."""
         reasons = ["", "  ", "Valid reason"]
         result = format_priority_reasons(reasons)
-        self.assertIn("Valid reason.", result)
-        self.assertNotIn("", result)
+        self.assertEqual(result, "Valid reason.")
 
 
 if __name__ == '__main__':
