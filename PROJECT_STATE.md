@@ -125,19 +125,19 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Completed v0.7 release audit: main app launch, Portfolio Dashboard opens, collection totals display correctly, estimated value calculation works, melt value subtotal works, Newfoundland progress displays correctly, Canadian silver progress displays correctly, 1859 Large Cent progress displays correctly, top gap-fill targets display correctly, top upgrade targets display correctly, duplicate-heavy report works, WANT_LIST progress displays correctly, CSV export works, Markdown export works, and full test suite passed. No release-blocking defects found.
-* Commit: `58910a0`
+* Commit: `cabd83c`
 * Full test suite passed: 153 tests OK.
 * Audit test suite passed: 22 tests OK.
 * All targeted scenarios covered: collection with no silver, collection with silver, empty WANT_LIST, populated WANT_LIST, heavy duplicates, Newfoundland-focused collection, Canadian silver-focused collection, missing-value records, empty collection.
 
 * Implemented v0.7 Portfolio Dashboard with high-level collection health overview showing total items, countries, estimated value, melt value, Newfoundland progress, Canadian silver progress, 1859 Large Cent progress, top gap-fill targets, top upgrade targets, duplicate-heavy areas, and WANT_LIST progress. GUI integration (Tools → Portfolio Dashboard) with CSV and Markdown export.
-* Commit: `bb23c24`
+* Commit: `714e875`
 * Full test suite passed: 131 tests OK.
 * Portfolio dashboard unit tests passed: 15 tests OK.
 * All targeted scenarios covered: collection with no silver, collection with silver, empty WANT_LIST, populated WANT_LIST, heavy duplicates, Newfoundland-focused collection, Canadian silver-focused collection, missing-value records, empty collection.
 
 * Completed v0.6 release audit: main app launch, MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider, ApiSpotPriceProvider, API failure fallback, 24-hour cache, Buy Advisor integration, Upgrade Advisor integration, melt value as supporting factor only, non-silver coins no false melt values, and full test suite passed. No release-blocking defects found.
-* Commit: `779d51a`
+* Commit: `2aed7a0`
 * Full test suite passed: 99 tests OK.
 * Audit test suite passed: 17 tests OK.
 * All targeted scenarios covered: Canadian silver dime, Canadian silver quarter, Newfoundland silver, 1859 Large Cent non-silver, random world base metal non-silver, API failure fallback, manual spot price override.
@@ -150,13 +150,13 @@ Improve Buy Advisor validation messages.
 * Full test suite passed: 99 tests OK.
 
 * Completed v0.5 release audit: main app launch, Upgrade Advisor GUI integration, manual candidate entry, collection lookup, upgrade analysis report, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, and full test suite passed. No release-blocking defects found. Only patchable cleanup items (pending commit hashes) were fixed.
-* Commit: `1ce86f4`
+* Commit: `f3eae0e`
 * Full test suite passed: 60 tests OK.
 * Upgrade Advisor unit tests passed: 13 tests OK.
 * All targeted scenarios covered: better grade replacement, same-grade duplicate, lower-grade candidate, Newfoundland upgrade, Canadian silver upgrade, 1859 Large Cent upgrade, no-match scenario (random world base metal non-upgrade).
 
 * Implemented v0.5 Upgrade Advisor with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
-* Commit: `63ddfb1`
+* Commit: `4601863`
 * Added Upgrade Advisor backend engine with `UpgradeAdvisor` class and `UpgradeRecommendation` dataclass.
 * Added GUI Tools → Upgrade Advisor menu with manual candidate entry form, collection lookup, upgrade analysis report display, and CSV export.
 * Added comprehensive unit tests for Upgrade Advisor covering grade comparison scenarios, Adam priority tests, WANT_LIST integration tests, read-only behavior tests, and CSV export tests.

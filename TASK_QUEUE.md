@@ -106,7 +106,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_upgrade_advisor.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: `63ddfb1`
+- Commit hash: `4601863`
 
 #### `[x]` Perform v0.7 release audit
 
@@ -115,7 +115,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_v07_audit.py` (new file)
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: `58910a0`
+- Commit hash: `cabd83c`
 
 #### `[x]` Recreate dashboard metrics in app
 
@@ -126,7 +126,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `coin_collection_gui.py`
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: `bb23c24`
+- Commit hash: `714e875`
 
 #### `[x]` Perform v0.6 release audit
 
@@ -135,7 +135,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_v06_audit.py` (new file)
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: `779d51a`
+- Commit hash: `2aed7a0`
 
 #### `[x]` Build Melt Value Engine
 
@@ -147,7 +147,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `upgrade_advisor.py`
   - `test_buy_advisor_regression.py`
   - `test_upgrade_advisor.py`
-- Commit hash: `50c8072`
+- Commit hash: `8f85073`
 
 #### `[x]` Fix low-priority world base metal Buy Advisor guardrail
 
