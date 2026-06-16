@@ -6,6 +6,7 @@ Compares a coin against the collection to provide buying advice.
 from typing import Dict, Iterable, List, Set, Optional
 from dataclasses import dataclass
 from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
+from collection_intelligence import GRADE_HIERARCHY
 
 
 @dataclass
@@ -48,15 +49,6 @@ class BuyRecommendation:
 
 class BuyAdvisor:
     """Rule-based buy advisor for coin collection."""
-    
-    # Grade hierarchy (higher is better)
-    GRADE_HIERARCHY = {
-        'PO-1': 1, 'FR-2': 2, 'AG-3': 3, 'G-4': 4, 'VG-8': 5,
-        'F-12': 6, 'VF-20': 7, 'VF-30': 8, 'EF-40': 9, 'EF-45': 10,
-        'AU-50': 11, 'AU-53': 12, 'AU-55': 13, 'AU-58': 14,
-        'MS-60': 15, 'MS-61': 16, 'MS-62': 17, 'MS-63': 18, 'MS-64': 19,
-        'MS-65': 20, 'MS-66': 21, 'MS-67': 22, 'MS-68': 23, 'MS-69': 24, 'MS-70': 25
-    }
     
     def __init__(self, collection, staged_want_list_intents: Iterable = None):
         self.collection = collection
@@ -294,15 +286,15 @@ class BuyAdvisor:
         best_existing_score = 0
         
         for item in owned_items:
-            if item.grade and item.grade in self.GRADE_HIERARCHY:
-                score = self.GRADE_HIERARCHY[item.grade]
+            if item.grade and item.grade in GRADE_HIERARCHY:
+                score = GRADE_HIERARCHY[item.grade]
                 if score > best_existing_score:
                     best_existing_score = score
                     best_existing_grade = item.grade
         
         # Compare with new grade
-        if new_grade in self.GRADE_HIERARCHY:
-            new_score = self.GRADE_HIERARCHY[new_grade]
+        if new_grade in GRADE_HIERARCHY:
+            new_score = GRADE_HIERARCHY[new_grade]
             if new_score > best_existing_score:
                 return True, best_existing_grade
         
