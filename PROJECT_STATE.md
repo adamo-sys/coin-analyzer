@@ -14,6 +14,7 @@
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
 * `v0.5` release audit passed on 2026-06-15; no release-blocking defects found.
+* `v0.6` release audit passed on 2026-06-15; no release-blocking defects found.
 
 ## Completed Features
 
@@ -121,6 +122,12 @@ Improve Buy Advisor validation messages.
 ## Recent Changes
 
 ### 2026-06-15
+
+* Completed v0.6 release audit: main app launch, MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider, ApiSpotPriceProvider, API failure fallback, 24-hour cache, Buy Advisor integration, Upgrade Advisor integration, melt value as supporting factor only, non-silver coins no false melt values, and full test suite passed. No release-blocking defects found.
+* Commit: pending
+* Full test suite passed: 99 tests OK.
+* Audit test suite passed: 17 tests OK.
+* All targeted scenarios covered: Canadian silver dime, Canadian silver quarter, Newfoundland silver, 1859 Large Cent non-silver, random world base metal non-silver, API failure fallback, manual spot price override.
 
 * Implemented v0.6 Melt Value Engine with provider abstraction (ManualSpotPriceProvider, ApiSpotPriceProvider), 24-hour spot price caching, API failure fallback logic, and integration into Buy Advisor and Upgrade Advisor as supporting factor.
 * Added MeltValueEngine core class, ASWReferenceLoader for parsing ASW_REFERENCE sheet, and dataclasses (MeltValueResult, ASWReferenceEntry).

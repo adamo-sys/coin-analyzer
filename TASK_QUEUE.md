@@ -54,6 +54,7 @@ Work through this queue in priority order. Handle only one task at a time.
 25. `[x]` Connect staged WANT_LIST intent to Buy Advisor
 26. `[x]` Perform v0.4 integration audit
 27. `[x]` Fix low-priority world base metal Buy Advisor guardrail
+28. `[x]` Perform v0.6 release audit
 
 ## Adam-Specific Collection Priorities
 
@@ -106,6 +107,15 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
 - Commit hash: `63ddfb1`
+
+#### `[x]` Perform v0.6 release audit
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `test_v06_audit.py` (new file)
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: pending
 
 #### `[x]` Build Melt Value Engine
 
