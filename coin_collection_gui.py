@@ -10,6 +10,7 @@ import os
 import cv2
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
+from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
     export_import_summary_csv,
@@ -69,6 +70,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_separator()
+        tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
         tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
     def import_collection_csv(self):
@@ -1457,6 +1459,132 @@ Total Unique Dates: {total_unique_dates}
                 
             except Exception as e:
                 messagebox.showerror("Import Error", f"Failed to import Numista export: {str(e)}")
+
+    def open_collection_intelligence_lookup(self):
+        """Open read-only collection intelligence lookup dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Do I Own This?")
+        dialog.geometry("720x760")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Candidate Item", padding="10")
+        form_frame.pack(fill=tk.X, pady=(0, 10))
+
+        fields = [
+            ("Country:", tk.StringVar()),
+            ("Denomination:", tk.StringVar()),
+            ("Year:", tk.StringVar()),
+            ("Type / Series:", tk.StringVar()),
+            ("Variety:", tk.StringVar()),
+            ("Grade:", tk.StringVar()),
+            ("Certifier:", tk.StringVar()),
+            ("Certification #:", tk.StringVar()),
+            ("Asking Price:", tk.StringVar()),
+        ]
+        field_vars = {}
+        for row, (label, variable) in enumerate(fields):
+            ttk.Label(form_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+            key = label.rstrip(":").lower().replace(" / ", "_").replace(" ", "_").replace("#", "number")
+            field_vars[key] = variable
+            if label == "Grade:":
+                ttk.Combobox(
+                    form_frame,
+                    textvariable=variable,
+                    values=[
+                        "", "PO-1", "FR-2", "AG-3", "G-4", "VG-8", "F-12",
+                        "VF-20", "VF-30", "EF-40", "EF-45", "AU-50", "AU-53",
+                        "AU-55", "AU-58", "MS-60", "MS-61", "MS-62", "MS-63",
+                        "MS-64", "MS-65", "MS-66", "MS-67", "MS-68", "MS-69",
+                        "MS-70",
+                    ],
+                ).grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+            else:
+                ttk.Entry(form_frame, textvariable=variable).grid(
+                    row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4
+                )
+
+        ttk.Label(form_frame, text="Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
+        notes_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
+        notes_text.grid(row=len(fields), column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+        form_frame.columnconfigure(1, weight=1)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Analysis", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_price(value):
+            cleaned = value.strip().replace("$", "").replace(",", "")
+            if not cleaned:
+                return 0.0
+            return float(cleaned)
+
+        def format_result(result):
+            lines = [
+                "Collection Intelligence",
+                "",
+                f"Match Status: {result.match_status.value}",
+                f"Recommendation: {result.recommendation}",
+                f"Confidence Score: {result.confidence_score}/100",
+                "",
+                "Best Existing Match:",
+            ]
+            if result.best_existing_match:
+                match = result.best_existing_match
+                lines.extend([
+                    f"  ID: {match.item_id}",
+                    f"  Coin: {match.country} {match.denomination} {match.year}",
+                    f"  Grade: {match.grade or 'Unknown'}",
+                    f"  Match Type: {match.match_type}",
+                    f"  Match Score: {match.match_score}/100",
+                    f"  Variety Match: {'Yes' if match.variety_match else 'No'}",
+                    f"  Certified: {'Yes' if match.certified else 'No'}",
+                ])
+            else:
+                lines.append("  None")
+            lines.extend([
+                "",
+                f"Grade Comparison: {result.grade_comparison}",
+                f"Collection Impact: {result.collection_impact}",
+                "",
+                "Priority Reasons:",
+            ])
+            lines.extend([f"  - {reason}" for reason in result.priority_reasons] or ["  None"])
+            lines.append("")
+            lines.append("Warning Flags:")
+            lines.extend([f"  - {warning}" for warning in result.warning_flags] or ["  None"])
+            return "\n".join(lines)
+
+        def analyze_candidate():
+            try:
+                candidate = CandidateItem(
+                    country=field_vars["country"].get().strip(),
+                    denomination=field_vars["denomination"].get().strip(),
+                    year=field_vars["year"].get().strip(),
+                    type_series=field_vars["type_series"].get().strip(),
+                    variety=field_vars["variety"].get().strip(),
+                    grade=field_vars["grade"].get().strip(),
+                    certifier=field_vars["certifier"].get().strip(),
+                    certification_number=field_vars["certification_number"].get().strip(),
+                    asking_price=parse_price(field_vars["asking_price"].get()),
+                    notes=notes_text.get("1.0", tk.END).strip(),
+                )
+                engine = FocusedCollectionIntelligenceEngine(self.app.collection.get_all_items())
+                result = engine.analyze_candidate(candidate)
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, format_result(result))
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Please enter a numeric asking price.")
+            except Exception as e:
+                messagebox.showerror("Analysis Error", f"Collection intelligence failed: {str(e)}")
+
+        ttk.Button(button_frame, text="Analyze", command=analyze_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_upgrade_advisor(self):
         """Open Upgrade Advisor dialog."""
