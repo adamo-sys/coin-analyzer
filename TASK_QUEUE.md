@@ -108,6 +108,15 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
 - Commit hash: `63ddfb1`
 
+#### `[x]` Perform v0.7 release audit
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `test_v07_audit.py` (new file)
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: pending
+
 #### `[x]` Recreate dashboard metrics in app
 
 - Date completed: 2026-06-15
