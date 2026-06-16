@@ -124,7 +124,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Completed v0.6 release audit: main app launch, MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider, ApiSpotPriceProvider, API failure fallback, 24-hour cache, Buy Advisor integration, Upgrade Advisor integration, melt value as supporting factor only, non-silver coins no false melt values, and full test suite passed. No release-blocking defects found.
-* Commit: pending
+* Commit: `779d51a`
 * Full test suite passed: 99 tests OK.
 * Audit test suite passed: 17 tests OK.
 * All targeted scenarios covered: Canadian silver dime, Canadian silver quarter, Newfoundland silver, 1859 Large Cent non-silver, random world base metal non-silver, API failure fallback, manual spot price override.
