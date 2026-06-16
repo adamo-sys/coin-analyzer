@@ -1465,6 +1465,7 @@ Total Unique Dates: {total_unique_dates}
         dialog = tk.Toplevel(self.root)
         dialog.title("Do I Own This?")
         dialog.geometry("720x760")
+        staged_want_list_intents = []
 
         main_frame = ttk.Frame(dialog, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -1508,6 +1509,10 @@ Total Unique Dates: {total_unique_dates}
         ttk.Label(form_frame, text="Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
         notes_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
         notes_text.grid(row=len(fields), column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+        want_list_status_var = tk.StringVar(value="WANT_LIST context: unavailable")
+        ttk.Label(form_frame, textvariable=want_list_status_var).grid(
+            row=len(fields) + 1, column=0, columnspan=2, sticky=tk.W, pady=(8, 0)
+        )
         form_frame.columnconfigure(1, weight=1)
 
         button_frame = ttk.Frame(main_frame)
@@ -1531,6 +1536,7 @@ Total Unique Dates: {total_unique_dates}
                 f"Match Status: {result.match_status.value}",
                 f"Recommendation: {result.recommendation}",
                 f"Confidence Score: {result.confidence_score}/100",
+                f"WANT_LIST Status: {result.want_list_status}",
                 "",
                 "Best Existing Match:",
             ]
@@ -1574,7 +1580,10 @@ Total Unique Dates: {total_unique_dates}
                     asking_price=parse_price(field_vars["asking_price"].get()),
                     notes=notes_text.get("1.0", tk.END).strip(),
                 )
-                engine = FocusedCollectionIntelligenceEngine(self.app.collection.get_all_items())
+                engine = FocusedCollectionIntelligenceEngine(
+                    self.app.collection.get_all_items(),
+                    staged_want_list_intents,
+                )
                 result = engine.analyze_candidate(candidate)
                 result_text.delete("1.0", tk.END)
                 result_text.insert(tk.END, format_result(result))
@@ -1583,6 +1592,27 @@ Total Unique Dates: {total_unique_dates}
             except Exception as e:
                 messagebox.showerror("Analysis Error", f"Collection intelligence failed: {str(e)}")
 
+        def load_want_list_context():
+            nonlocal staged_want_list_intents
+            file_path = filedialog.askopenfilename(
+                title="Select Legacy Portfolio Workbook",
+                filetypes=[("Excel files", "*.xlsx *.xlsm *.xls"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                importer = LegacyPortfolioImporter(self.app.collection.get_all_items())
+                preview = importer.preview_want_list(file_path)
+                staged_want_list_intents = preview.staged_intents
+                want_list_status_var.set(
+                    f"WANT_LIST context: {preview.intents_staged} active intent(s) loaded"
+                )
+            except Exception as e:
+                staged_want_list_intents = []
+                want_list_status_var.set("WANT_LIST context: unavailable")
+                messagebox.showerror("WANT_LIST Error", f"Failed to load WANT_LIST context: {str(e)}")
+
+        ttk.Button(button_frame, text="Load WANT_LIST Context", command=load_want_list_context).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Analyze", command=analyze_candidate).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 

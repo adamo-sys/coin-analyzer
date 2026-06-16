@@ -67,6 +67,7 @@ class CollectionIntelligenceResult:
     confidence_score: int
     priority_reasons: List[str] = field(default_factory=list)
     warning_flags: List[str] = field(default_factory=list)
+    want_list_status: str = "WANT_LIST_UNAVAILABLE"
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a serializable representation."""
@@ -79,6 +80,7 @@ class CollectionIntelligenceResult:
             "confidence_score": self.confidence_score,
             "priority_reasons": list(self.priority_reasons),
             "warning_flags": list(self.warning_flags),
+            "want_list_status": self.want_list_status,
         }
 
 
@@ -144,6 +146,9 @@ class FocusedCollectionIntelligenceEngine:
         matches = self._find_matches(candidate)
         best_match = matches[0] if matches else None
         want_match = self._matches_want_list(candidate)
+        want_list_status = self._want_list_status(want_match)
+        if want_match:
+            priority_reasons.append("Explicit WANT_LIST Target")
 
         if best_match and best_match.match_score >= self.EXACT_THRESHOLD:
             status, grade_text, recommendation, impact, extra_reasons, extra_warnings = self._classify_existing_match(
@@ -161,10 +166,10 @@ class FocusedCollectionIntelligenceEngine:
                 confidence_score=confidence,
                 priority_reasons=self._dedupe(priority_reasons),
                 warning_flags=self._dedupe(warnings),
+                want_list_status=want_list_status,
             )
 
         if want_match:
-            priority_reasons.append("Explicit WANT_LIST target")
             return CollectionIntelligenceResult(
                 match_status=MatchStatus.WANT_LIST_MATCH,
                 best_existing_match=best_match,
@@ -174,10 +179,11 @@ class FocusedCollectionIntelligenceEngine:
                 confidence_score=85 if not best_match else max(75, best_match.match_score),
                 priority_reasons=self._dedupe(priority_reasons),
                 warning_flags=self._dedupe(warnings),
+                want_list_status=want_list_status,
             )
 
         if self._is_collection_gap(candidate):
-            priority_reasons.append("Missing date or denomination in observed collection area")
+            priority_reasons.append("Collection Gap")
             return CollectionIntelligenceResult(
                 match_status=MatchStatus.COLLECTION_GAP,
                 best_existing_match=best_match,
@@ -187,6 +193,7 @@ class FocusedCollectionIntelligenceEngine:
                 confidence_score=78 if not best_match else max(78, best_match.match_score),
                 priority_reasons=self._dedupe(priority_reasons),
                 warning_flags=self._dedupe(warnings),
+                want_list_status="GAP_NOT_EXPLICITLY_TARGETED" if self.want_list_intents else want_list_status,
             )
 
         if best_match and best_match.match_score >= self.REVIEW_THRESHOLD:
@@ -200,6 +207,7 @@ class FocusedCollectionIntelligenceEngine:
                 confidence_score=best_match.match_score,
                 priority_reasons=self._dedupe(priority_reasons),
                 warning_flags=self._dedupe(warnings),
+                want_list_status=want_list_status,
             )
 
         if self._is_low_priority_world_base(candidate):
@@ -214,6 +222,7 @@ class FocusedCollectionIntelligenceEngine:
             confidence_score=70,
             priority_reasons=self._dedupe(priority_reasons),
             warning_flags=self._dedupe(warnings),
+            want_list_status=want_list_status,
         )
 
     def find_exact_items(self, candidate: CandidateItem) -> List[Any]:
@@ -255,6 +264,7 @@ class FocusedCollectionIntelligenceEngine:
         if self._candidate_certified(candidate) and not match.certified and grade_delta >= 0:
             reasons.append("Certified candidate may replace raw example")
         if grade_delta > 0:
+            reasons.append("Upgrade Candidate")
             return (
                 MatchStatus.BETTER_GRADE_UPGRADE,
                 f"Candidate is {grade_delta} grade step(s) higher than existing.",
@@ -264,6 +274,7 @@ class FocusedCollectionIntelligenceEngine:
                 warnings,
             )
         if grade_delta == 0:
+            reasons.append("Duplicate Risk")
             return (
                 MatchStatus.SAME_GRADE_DUPLICATE,
                 "Candidate grade matches best existing example.",
@@ -272,6 +283,7 @@ class FocusedCollectionIntelligenceEngine:
                 reasons,
                 warnings,
             )
+        reasons.append("Duplicate Risk")
         return (
             MatchStatus.LOWER_GRADE_DUPLICATE,
             f"Candidate is {abs(grade_delta)} grade step(s) lower than existing.",
@@ -352,14 +364,21 @@ class FocusedCollectionIntelligenceEngine:
                 return True
         return False
 
+    def _want_list_status(self, want_match: bool) -> str:
+        if want_match:
+            return "ON_WANT_LIST"
+        if self.want_list_intents:
+            return "NOT_ON_WANT_LIST"
+        return "WANT_LIST_UNAVAILABLE"
+
     def _candidate_priority_reasons(self, candidate: CandidateItem) -> List[str]:
         reasons = []
         if candidate.country == "newfoundland":
-            reasons.append("Adam priority: Newfoundland")
+            reasons.append("High-Priority Series: Newfoundland")
         if candidate.country == "canada" and candidate.year == "1859" and "cent" in candidate.denomination:
-            reasons.append("Adam priority: 1859 Canadian Large Cent")
+            reasons.append("High-Priority Series: 1859 Canadian Large Cent")
         if candidate.country == "canada" and self._is_silver_denomination(candidate.denomination):
-            reasons.append("Adam priority: Canadian silver")
+            reasons.append("High-Priority Series: Canadian silver")
         return reasons
 
     def _candidate_warnings(self, candidate: CandidateItem) -> List[str]:

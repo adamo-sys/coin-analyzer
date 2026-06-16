@@ -58,6 +58,7 @@ Work through this queue in priority order. Handle only one task at a time.
 29. `[x]` Perform complete v0.5 release audit rerun
 30. `[x]` Build focused Collection Intelligence Engine
 31. `[x]` Consolidate advisor decisions on Collection Intelligence Engine
+32. `[x]` Integrate WANT_LIST context into Collection Intelligence Engine and Do I Own This
 
 ## Adam-Specific Collection Priorities
 
@@ -99,6 +100,18 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Integrate WANT_LIST context into Collection Intelligence Engine and Do I Own This
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `focused_collection_intelligence.py`
+  - `coin_collection_gui.py`
+  - `test_focused_collection_intelligence.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+- Commit hash: `TBD`
 
 #### `[x]` Consolidate advisor decisions on Collection Intelligence Engine
 

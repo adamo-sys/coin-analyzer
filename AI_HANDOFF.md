@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v0.7`
-- Current active task completed: advisor decision-source consolidation on the focused Collection Intelligence Engine
+- Current project state file reports release version: `v0.8-dev`
+- Current active task completed: WANT_LIST context integration for the focused Collection Intelligence Engine and Do I Own This workflow
 
 ## What Changed
 
@@ -15,6 +15,8 @@
 - Refactored `buy_advisor.py` duplicate/upgrade flags to use `FocusedCollectionIntelligenceEngine`.
 - Refactored `upgrade_advisor.py` match/upgrade decisions to use `FocusedCollectionIntelligenceEngine`.
 - Added regression tests proving both advisors route through the focused engine while preserving existing verdict behavior.
+- Added WANT_LIST context status to focused candidate analysis: `ON_WANT_LIST`, `NOT_ON_WANT_LIST`, `GAP_NOT_EXPLICITLY_TARGETED`, and `WANT_LIST_UNAVAILABLE`.
+- Added a lightweight Load WANT_LIST Context button to Tools -> Do I Own This.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -29,6 +31,7 @@ The focused engine accepts manual candidate input and returns structured output:
 - Confidence score
 - Priority reasons
 - Warning flags
+- WANT_LIST status
 
 Supported statuses:
 
@@ -50,21 +53,22 @@ Supported statuses:
 
 ## Test Status
 
-- `py -m unittest test_focused_collection_intelligence.py test_upgrade_advisor.py test_buy_advisor_regression.py`: 46 tests OK.
-- `.\run_tests.bat`: 184 tests OK.
-- Ad-hoc `py -c` GUI smoke failed because the Windows launcher reported no installed Python; the full test runner succeeded.
+- `py -m unittest test_focused_collection_intelligence.py`: 17 tests OK.
+- `.\run_tests.bat`: 190 tests OK.
+- GUI smoke for Do I Own This, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
+- Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
 
 - Fuzzy matching is deterministic and intentionally basic.
 - Variety matching depends on existing text fields such as reference, title, notes, and comments.
-- The Do I Own This dialog currently analyzes current collection items only; staged WANT_LIST context is supported by the engine but not yet loaded through that dialog.
+- The Do I Own This dialog loads staged WANT_LIST context from a selected legacy workbook for the current session only; it does not persist that context.
 - Buy Advisor still keeps its legacy collection-intelligence boost scoring separate from duplicate/upgrade classification to preserve current user-visible behavior.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Run a focused v0.7 acceptance audit for Buy Advisor, Upgrade Advisor, and Do I Own This.
-2. Add a safe optional WANT_LIST context loader to the Do I Own This workflow.
+1. Run a focused v0.8 acceptance audit for Do I Own This with and without loaded WANT_LIST context.
+2. Decide whether session-loaded WANT_LIST context should be shared across Buy Advisor, Want List Generator, and Do I Own This.
 3. Expand normalization fixtures for country, denomination, and variety edge cases.
 4. Continue reducing older duplicate matching helpers only where regression coverage proves behavior is preserved.
