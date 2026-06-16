@@ -136,7 +136,7 @@ Finalize and tag v1.0 if release-candidate approval is granted.
 ### 2026-06-16
 
 * Completed v1.0 release-readiness audit: application launch, collection load, Do I Own This with and without WANT_LIST-capable workflow, Acquisition Workflow, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, export smoke tests, tag metadata, and full regression suite passed. No source defects required fixes.
-* Commit: `TBD`
+* Commit: `f20fd22`
 * Full test suite passed: 203 tests OK.
 
 * Implemented v0.9 Acquisition Workflow on top of the focused Collection Intelligence Engine. The workflow provides deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance using internal collection, WANT_LIST, priority, duplicate, upgrade, and review-risk signals only.
