@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.0-rc`
+* Current release version: `v1.0`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v0.9`
-* Summary of what was included: Acquisition Workflow on top of the focused Collection Intelligence Engine, with deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance.
+* Most recent Git tag: `v1.0`
+* Summary of what was included: Stable v1.0 release baseline after readiness audit, full regression suite, GUI smoke checks, export checks, and tag verification.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -19,6 +19,7 @@
 * `v0.7` acceptance audit passed on 2026-06-16; tag `v0.7` points to `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0`.
 * `v0.8` acceptance audit passed on 2026-06-16; tag `v0.8` points to `f3acc605024712a867046be24e3c32db3f18d854`.
 * `v0.9` acceptance audit passed on 2026-06-16; tag `v0.9` points to `af09668dd9b735479a0885445a7198302d6432f3`.
+* `v1.0` release-readiness audit passed on 2026-06-16; tag `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
 
 ## Completed Features
 
@@ -59,7 +60,6 @@
 ## Known Bugs
 
 * Direct multi-module `py -m unittest ...` commands can be flaky in this environment due to the Windows Python launcher; use `run_tests.bat` as the reliable suite command.
-* Some README text has encoding/mojibake artifacts in tree diagrams and symbols.
 * GUI autocomplete currently prints suggestions to the console instead of showing a dropdown.
 * Experimental detection and template matching are incomplete and should remain manual-verification-only.
 * Numista API integration is not implemented and is blocked by API key, terms, pricing, and access review.
@@ -93,7 +93,7 @@
 
 ## Next Priority Task
 
-Finalize and tag v1.0 if release-candidate approval is granted.
+Continue post-v1.0 stabilization work from `TASK_QUEUE.md`; next implementation candidate is Buy Advisor validation message polish.
 
 ## Project Architecture
 
@@ -134,6 +134,10 @@ Finalize and tag v1.0 if release-candidate approval is granted.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Completed post-v1.0 release packaging documentation: refreshed README for v1.0, added screenshot guidance, v1.0 release notes, release history, backup guide, and verified local/remote release tags from `v0.5` through `v1.0`.
+* Commit: `TBD`
+* Test status: documentation-only changes; full suite rerun after packaging.
 
 * Completed v1.0 release-readiness audit: application launch, collection load, Do I Own This with and without WANT_LIST-capable workflow, Acquisition Workflow, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, export smoke tests, tag metadata, and full regression suite passed. No source defects required fixes.
 * Commit: `f20fd22`

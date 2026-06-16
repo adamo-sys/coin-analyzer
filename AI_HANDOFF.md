@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v1.0-rc`
-- Current active task completed: v1.0 release-readiness audit
+- Current project state file reports release version: `v1.0`
+- Current active task completed: post-v1.0 release packaging documentation
 
 ## What Changed
 
@@ -21,6 +21,8 @@
 - Buy Advisor now stores the acquisition workflow result as supporting structured context while preserving existing user-visible behavior.
 - Do I Own This shows acquisition guidance when asking price is provided.
 - Completed v1.0 release-readiness audit with app/tool smoke checks, export smoke checks, tag metadata verification, and full regression suite.
+- Tagged v1.0 at `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
+- Added post-v1.0 packaging docs: README refresh, release notes, release history, screenshot guide, and backup guide.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -68,7 +70,7 @@ Supported statuses:
 - `.\run_tests.bat`: 203 tests OK.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
-- Tag metadata verified for `v0.5` through `v0.9`; current HEAD is `v0.9`.
+- Tag metadata verified for `v0.5` through `v1.0`; `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -82,7 +84,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Tag `v1.0` if release-candidate approval is granted.
-2. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports.
-3. Decide whether session-loaded WANT_LIST context should be shared across Buy Advisor, Want List Generator, and Do I Own This.
-4. Expand normalization fixtures for country, denomination, and variety edge cases.
+1. Improve Buy Advisor validation messages.
+2. Add GUI autocomplete for country and denomination.
+3. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports.
+4. Decide whether session-loaded WANT_LIST context should be shared across Buy Advisor, Want List Generator, and Do I Own This.
+5. Expand normalization fixtures for country, denomination, and variety edge cases.
