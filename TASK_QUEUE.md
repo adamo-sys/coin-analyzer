@@ -43,7 +43,7 @@ Work through this queue in priority order. Handle only one task at a time.
 14. `[x]` Implement legacy portfolio staging importer
 15. `[x]` Add Portfolio Import Preview GUI
 16. `[ ]` Build Melt Value Engine
-17. `[ ]` Build Upgrade Advisor
+17. `[x]` Build Upgrade Advisor
 18. `[ ]` Recreate dashboard metrics in app
 19. `[x]` Refine Collection Gap Report MVP CSV export
 20. `[x]` Perform v0.3 release audit
@@ -95,6 +95,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-15
+
+#### `[x]` Build Upgrade Advisor
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `upgrade_advisor.py`
+  - `coin_collection_gui.py`
+  - `test_upgrade_advisor.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: pending
 
 #### `[x]` Fix low-priority world base metal Buy Advisor guardrail
 
