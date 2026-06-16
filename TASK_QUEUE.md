@@ -42,7 +42,7 @@ Work through this queue in priority order. Handle only one task at a time.
 13. `[x]` Add portfolio integration roadmap
 14. `[x]` Implement legacy portfolio staging importer
 15. `[x]` Add Portfolio Import Preview GUI
-16. `[ ]` Build Melt Value Engine
+16. `[x]` Build Melt Value Engine
 17. `[x]` Build Upgrade Advisor
 18. `[ ]` Recreate dashboard metrics in app
 19. `[x]` Refine Collection Gap Report MVP CSV export
@@ -106,6 +106,18 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
 - Commit hash: `63ddfb1`
+
+#### `[x]` Build Melt Value Engine
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `melt_value_engine.py` (new file)
+  - `test_melt_value_engine.py` (new file)
+  - `buy_advisor.py`
+  - `upgrade_advisor.py`
+  - `test_buy_advisor_regression.py`
+  - `test_upgrade_advisor.py`
+- Commit hash: pending
 
 #### `[x]` Fix low-priority world base metal Buy Advisor guardrail
 

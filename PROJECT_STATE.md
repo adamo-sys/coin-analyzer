@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v0.5`
+* Current release version: `v0.6`
 * Current Git branch: `main`
 * Last updated date: 2026-06-15
 
@@ -43,6 +43,7 @@
 * Buy Advisor collection-intelligence integration: Buy Advisor can use collection gaps, generated want-list targets, and staged `WANT_LIST` intent as explainable Adam Priority boosts without changing duplicate or price analysis.
 * Buy Advisor low-priority world guardrail: prevents low-priority world base-metal coins with negative Adam Priority, no collection impact, and no liquidity support from becoming `BUY NOW` solely because price is good.
 * Upgrade Advisor: evaluates candidate coins against existing collection for upgrade potential, with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
+* Melt Value Engine: calculates silver coin melt values using ASW (Actual Silver Weight) reference data from legacy workbook. Supports manual spot price input with optional API-based spot price provider with 24-hour caching and fallback logic. Integrated into Buy Advisor and Upgrade Advisor as supporting factor for silver coin analysis.
 
 ## Known Bugs
 
@@ -121,8 +122,15 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
+* Implemented v0.6 Melt Value Engine with provider abstraction (ManualSpotPriceProvider, ApiSpotPriceProvider), 24-hour spot price caching, API failure fallback logic, and integration into Buy Advisor and Upgrade Advisor as supporting factor.
+* Added MeltValueEngine core class, ASWReferenceLoader for parsing ASW_REFERENCE sheet, and dataclasses (MeltValueResult, ASWReferenceEntry).
+* Integrated melt value into Buy Advisor and Upgrade Advisor reports with melt value fields in recommendation dataclasses and melt value analysis in explanations.
+* Added comprehensive unit tests for MeltValueEngine, ASWReferenceLoader, and spot price providers (29 tests).
+* Added regression tests for Buy Advisor and Upgrade Advisor to ensure melt value integration doesn't break existing functionality.
+* Full test suite passed: 99 tests OK.
+
 * Completed v0.5 release audit: main app launch, Upgrade Advisor GUI integration, manual candidate entry, collection lookup, upgrade analysis report, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, and full test suite passed. No release-blocking defects found. Only patchable cleanup items (pending commit hashes) were fixed.
-* Commit: pending
+* Commit: `1ce86f4`
 * Full test suite passed: 60 tests OK.
 * Upgrade Advisor unit tests passed: 13 tests OK.
 * All targeted scenarios covered: better grade replacement, same-grade duplicate, lower-grade candidate, Newfoundland upgrade, Canadian silver upgrade, 1859 Large Cent upgrade, no-match scenario (random world base metal non-upgrade).
