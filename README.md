@@ -1,192 +1,160 @@
-# Coin Collection Manager (Stable MVP)
+# Coin Analyzer
 
-A desktop application for managing coin collections with Numista import, search, export, and gap analysis capabilities.
+Current version: `v1.0`
 
-## What the App Does
+Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
-**Core Features:**
-- **Numista Import**: Import coin collections from Numista Excel exports with automatic field mapping
-- **Collection Management**: Add, edit, delete, and view coin items in a local collection
-- **Search Functionality**: Search coins by N#, title, year, country, denomination, and other fields
-- **Gap Analysis**: Analyze collection patterns by countries, years, and denominations
-- **CSV Export**: Export collection data with all Numista fields
-- **Manual Entry**: Add coins manually with autocomplete suggestions from Numista dataset
-- **Duplicate Detection**: Automatic duplicate detection based on Numista N# and metadata
-- **Experimental Detection**: Optional computer vision detection (labeled as experimental suggestions only)
+The project is focused on practical collector decisions. A collector can enter a candidate coin or banknote and receive ownership status, duplicate detection, upgrade analysis, WANT_LIST status, an acquisition recommendation, and max rational price guidance without web scraping, live pricing APIs, OCR expansion, or automatic image recognition decisions.
 
-**Data Preserved:**
-- Country, Issuer, Currency, Face value, Reference, Numista N#
-- Title, Year, Quantity, Grade, Estimate (CAD), Comments
-- Image paths, detection confidence, auto-detection flags
+## Project Overview
 
-## How to Run It
+Coin Analyzer stores collection data locally in JSON and provides a Tkinter desktop GUI for collection management, analysis, and read-only acquisition guidance. Its current stable release centers on a deterministic Collection Intelligence Engine and Acquisition Workflow that help answer:
 
-### Prerequisites
-- Python 3.8 or higher
-- Required packages (install with `pip install -r requirements.txt`)
+- Do I already own this?
+- Is this a duplicate, downgrade, or better-grade upgrade?
+- Is this an explicit WANT_LIST target?
+- Does this fill a collection gap?
+- Should I buy, pass, watch, negotiate, or review?
 
-### Installation
-```bash
-cd C:\Users\<username>\CascadeProjects\coin-analyzer
-pip install -r requirements.txt
+## What Problem It Solves
+
+Collectors often compare possible purchases against incomplete date runs, duplicate holdings, upgrade opportunities, want-list notes, and budget constraints by hand. Coin Analyzer consolidates those checks into repeatable local workflows so a candidate can be reviewed consistently before money is spent.
+
+The app is especially tuned for Adam-specific priorities:
+
+- Newfoundland coinage
+- 1859 Canadian Large Cents and varieties
+- Canadian silver coinage
+- Date-run completion
+- Upgrade-over-duplicate strategy
+- Budget-conscious acquisition decisions
+
+## Core Features
+
+- Collection manager: add, edit, delete, view, and search local collection records.
+- Numista Excel import: import Numista `.xlsx` exports with field mapping and duplicate detection.
+- CSV import and export: import simple collection CSV files and export collection data.
+- Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
+- Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
+- Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
+- Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
+- Upgrade Advisor: compare candidates against existing holdings for upgrade, duplicate, downgrade, and priority scenarios.
+- Collection Gap Report: analyze missing dates and completion percentages by country and denomination.
+- Want List Generator: rank acquisition targets using gaps, priorities, and staged WANT_LIST intent.
+- Legacy Portfolio Preview: safely stage `CORE_RAW`, `SLABS`, and `WANT_LIST` workbook data without modifying `data/collection.json`.
+- Melt Value Engine: support silver melt-value calculations from internal ASW reference data.
+- Portfolio Dashboard: summarize collection health, gaps, upgrades, duplicates, and WANT_LIST progress.
+
+## Example Collector Workflow
+
+1. Launch Coin Analyzer.
+2. Load or review the local collection.
+3. Open Tools -> Do I Own This?
+4. Enter a candidate item: country, denomination, year, type or series, variety, grade, certification details, asking price, and notes.
+5. Optionally load the legacy workbook WANT_LIST context for the session.
+6. Review ownership status, duplicate risk, upgrade status, WANT_LIST status, collection impact, max rational price, recommendation, confidence, reasons, and warnings.
+7. If the item looks promising, compare it with Buy Advisor or Upgrade Advisor before purchasing.
+8. Export reports when needed for collection planning or records.
+
+## Installation
+
+Prerequisites:
+
+- Python 3.8 or newer
+- Windows is the primary tested desktop environment
+- Tkinter available in the Python installation
+
+Clone and install:
+
+```powershell
+git clone https://github.com/adamo-sys/coin-analyzer.git
+cd coin-analyzer
+py -m pip install -r requirements.txt
 ```
 
-### Running the Application
-```bash
-python coin_collection_gui.py
+If the repository is already cloned, install dependencies from the project root:
+
+```powershell
+py -m pip install -r requirements.txt
 ```
 
-## How to Import Numista Export
+## Running the Application
 
-1. **Export from Numista**: Export your collection from Numista as an Excel file (.xlsx)
-2. **Launch App**: Run `python coin_collection_gui.py`
-3. **Click "Import Numista"**: In the collection panel, click the "Import Numista" button
-4. **Select File**: Choose your Numista Excel export file
-5. **Review Results**: The app will show:
-   - Number of items imported
-   - Number of duplicates skipped
-   - Total items processed
-6. **View Collection**: Imported items appear in the collection list
+From the project root:
 
-**Field Mapping:**
-- Numista fields are automatically mapped to local collection structure
-- Years are formatted as integers (1949, not 1949.0)
-- Denominations are formatted where possible ($1, 1 cent, 10 cents)
-- Empty values show as blank instead of NaN
-- Duplicate detection prevents importing the same coin twice
+```powershell
+py coin_collection_gui.py
+```
 
-## Known Limitations
+The main data file is `data/collection.json`. Analysis and preview workflows are designed to be read-only unless the user explicitly performs a collection-management action.
 
-**Denomination Formatting:**
-- Some fractional values (0.00104167, etc.) are preserved as-is (historical fractions)
-- Currency symbol detection is based on currency field name matching
-- Non-standard currency types may not format correctly
+## Running Tests
 
-**Manual Entry:**
-- Manual entries were lost during initial re-import (backup had 0 manual entries)
-- Future imports will preserve manual entries automatically
+Use the project test runner:
 
-**Experimental Detection:**
-- Computer vision detection is labeled as "experimental suggestions only"
-- Detection results are not auto-saved as truth
-- Manual verification is required before saving
-- Detection confidence is displayed but not used for auto-acceptance
+```powershell
+.\run_tests.bat
+```
 
-**Data Storage:**
-- Collection stored in JSON format (data/collection.json)
-- No database backend (JSON file for simplicity)
-- Large collections (>1000 items) may have performance issues
+The v1.0 release-readiness audit passed with `203 tests OK`.
 
-**GUI Limitations:**
-- Autocomplete suggestions print to console (not dropdown UI)
-- No image preview in collection list
-- No batch editing capabilities
-- No undo/redo functionality
+The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
+
+## Release History
+
+| Version | Release Hash | Summary |
+| --- | --- | --- |
+| `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor release with CI dependency compatibility fix. |
+| `v0.6` | `d976f9ec3d0e95124013db5f10cffd503b1acb03` | Focused Collection Intelligence Engine and Do I Own This foundation. |
+| `v0.7` | `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0` | Advisor decision-source consolidation on Collection Intelligence. |
+| `v0.8` | `f3acc605024712a867046be24e3c32db3f18d854` | WANT_LIST context integration in candidate analysis. |
+| `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow with deterministic max rational price guidance. |
+| `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
+
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
+
+## Screenshot Placeholders
+
+Screenshots are not committed yet. Recommended screenshot slots:
+
+- Main application
+- Collector Decision Center
+- Do I Own This?
+- Buy Advisor
+- Upgrade Advisor
+- Collection Gap Report
+- WANT_LIST workflow
+
+See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filenames and capture notes.
 
 ## Roadmap
 
-**Phase 1 - Completed (Current MVP):**
-- Numista Excel import with field mapping
-- Collection CRUD operations
-- Search functionality
-- CSV export with Numista fields
-- Gap analysis
-- Duplicate detection
-- Manual entry autocomplete
-- Experimental detection integration
+Near-term maintenance candidates:
 
-**Phase 2 - Planned Enhancements:**
-- Dropdown autocomplete UI for manual entry
-- Image preview in collection list
-- Batch editing capabilities
-- Undo/redo functionality
-- Collection backup/restore
-- Advanced search filters
+- Improve Buy Advisor validation messages.
+- Add GUI autocomplete for country and denomination entry.
+- Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
+- Share session-loaded WANT_LIST context across Buy Advisor, Want List Generator, and Do I Own This.
+- Expand normalization fixtures for country, denomination, and variety edge cases.
 
-**Phase 3 - Future Features:**
-- Database backend (SQLite) for better performance
-- Image storage and management
-- Collection comparison between users
-- Numista API integration (requires API key)
-- Advanced reporting and statistics
-- Mobile companion app
+Future candidates:
 
-**Phase 4 - Advanced Features:**
-- Machine learning for better denomination detection
-- Image recognition for coin identification
-- Automatic grading suggestions
-- Collection valuation estimates
-- Integration with coin grading services
+- Build Auction Evaluator from `AUCTION_EVALUATOR_SPEC.md`.
+- Add image preview in the collection list.
+- Add batch editing, undo/redo, and backup/restore workflows.
+- Evaluate SQLite storage for larger collections.
 
-## Project Structure
+## Known Limitations
 
-```
-coin-analyzer/
-├── coin_collection.py          # Collection management backend
-├── coin_collection_gui.py      # Main GUI application
-├── numista_importer.py         # Numista Excel import
-├── coin_identifier_interface.py # Interface for identification methods
-├── template_matching_year.py    # Experimental year detection
-├── coin_recognition.py          # Computer vision denomination detector
-├── data/
-│   ├── collection.json         # Local collection storage
-│   ├── numista_export.xlsx     # Numista export file
-│   └── debug_feedback.csv      # Detection feedback logging
-├── requirements.txt            # Python dependencies
-└── README.md                   # This file
-```
+- Acquisition price guidance is deterministic internal guidance, not live market pricing.
+- Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
+- WANT_LIST context loaded in Do I Own This is session-local and not persisted as app state.
+- JSON storage is simple and may not scale well for very large collections.
+- GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
-## Data Storage
+## Data Safety
 
-**Collection Storage:**
-- Location: `data/collection.json`
-- Format: JSON with UTF-8 encoding
-- Fields: All coin metadata including Numista fields
-- Backup: Automatic backup created before re-import
-
-**Debug Logging:**
-- Location: `data/debug_feedback.csv`
-- Purpose: Log detection attempts and corrections
-- Fields: timestamp, image_path, suggested values, corrected values, method
-
-## Troubleshooting
-
-**Import Issues:**
-- Ensure Numista export file is in .xlsx format
-- Check that file is not corrupted
-- Verify file path is accessible
-
-**Collection Not Loading:**
-- Check that `data/collection.json` exists
-- Verify JSON file has valid UTF-8 encoding
-- Try deleting the file and re-importing
-
-**GUI Not Starting:**
-- Ensure all dependencies are installed
-- Check Python version (3.8+ required)
-- Verify no other instances are running
-
-## Tips for Best Results
-
-**Numista Import:**
-- Use the latest Numista export format
-- Ensure all fields are filled in Numista before export
-- Review duplicates after import to verify detection accuracy
-
-**Manual Entry:**
-- Use autocomplete suggestions for consistency
-- Enter country names exactly as they appear in Numista
-- Use standard denomination formats
-
-**Collection Management:**
-- Regularly export CSV backups
-- Use gap analysis to identify collection gaps
-- Search by N# for quick lookup of specific coins
-
-## License
-
-This project is open source and available for personal use.
-
-## Support
-
-For issues or questions, refer to the troubleshooting section above or check the test results in `test_results.md`.
+- Production collection data lives in `data/collection.json`.
+- Tests use `test_data/` fixtures and temporary files.
+- Legacy portfolio import workflows stage previews first and do not overwrite collection data.
+- Keep regular backups of the repository, collection JSON, and legacy workbook. See [docs/BACKUP.md](docs/BACKUP.md).
