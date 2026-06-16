@@ -118,7 +118,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `RELEASE_HISTORY.md`
-- Commit hash: `TBD`
+- Commit hash: `7d12b54`
 
 #### `[x]` Build Shared Session Context
 

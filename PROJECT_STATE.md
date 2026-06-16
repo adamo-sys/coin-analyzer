@@ -141,7 +141,7 @@ Perform a focused v1.2 acceptance audit for Listing Analyzer, then tag v1.2 if i
 ### 2026-06-16
 
 * Implemented v1.2 Listing Analyzer: offline pasted listing model, URL validation, total-cost calculation, basic candidate parsing, acquisition workflow integration, shared WANT_LIST context reuse, Tools -> Listing Analyzer GUI entry point, and listing regression tests.
-* Commit: `TBD`
+* Commit: `7d12b54`
 * Full test suite passed: 229 tests OK.
 
 * Implemented v1.1 Shared Session Context: load-once workbook/WANT_LIST state, menu actions for loading and clearing context, status-line visibility, shared WANT_LIST reuse across Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, and portfolio preview workflows, plus regression tests.
