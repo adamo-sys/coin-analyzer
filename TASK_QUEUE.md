@@ -117,7 +117,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `upgrade_advisor.py`
   - `test_buy_advisor_regression.py`
   - `test_upgrade_advisor.py`
-- Commit hash: pending
+- Commit hash: `50c8072`
 
 #### `[x]` Fix low-priority world base metal Buy Advisor guardrail
 
