@@ -16,6 +16,7 @@ from legacy_portfolio_importer import (
     export_want_list_preview_csv,
 )
 from coin_identifier_interface import CoinIdentifierFactory
+from upgrade_advisor import UpgradeAdvisor
 
 
 class CoinCollectionGUI:
@@ -64,6 +65,8 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
     def import_collection_csv(self):
         """Import collection from CSV file."""
@@ -1451,6 +1454,114 @@ Total Unique Dates: {total_unique_dates}
                 
             except Exception as e:
                 messagebox.showerror("Import Error", f"Failed to import Numista export: {str(e)}")
+
+    def open_upgrade_advisor(self):
+        """Open Upgrade Advisor dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Upgrade Advisor")
+        dialog.geometry("600x700")
+        
+        # Form frame
+        form_frame = ttk.Frame(dialog, padding="20")
+        form_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Candidate Coin section
+        candidate_frame = ttk.LabelFrame(form_frame, text="Candidate Coin", padding="10")
+        candidate_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Country
+        ttk.Label(candidate_frame, text="Country:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        country_var = tk.StringVar()
+        ttk.Entry(candidate_frame, textvariable=country_var).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        
+        # Denomination
+        ttk.Label(candidate_frame, text="Denomination:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        denom_var = tk.StringVar()
+        ttk.Entry(candidate_frame, textvariable=denom_var).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        
+        # Year
+        ttk.Label(candidate_frame, text="Year:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        year_var = tk.StringVar()
+        ttk.Entry(candidate_frame, textvariable=year_var).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        
+        # Grade
+        ttk.Label(candidate_frame, text="Grade:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        grade_var = tk.StringVar()
+        grade_combo = ttk.Combobox(candidate_frame, textvariable=grade_var,
+                                   values=["", "PO-1", "FR-2", "AG-3", "G-4", "VG-8", "F-12", "VF-20", "VF-30", "EF-40", "EF-45", "AU-50", "AU-53", "AU-55", "AU-58", "MS-60", "MS-61", "MS-62", "MS-63", "MS-64", "MS-65", "MS-66", "MS-67", "MS-68", "MS-69", "MS-70"])
+        grade_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        
+        # Estimated Value
+        ttk.Label(candidate_frame, text="Estimated Value ($):").grid(row=4, column=0, sticky=tk.W, pady=5)
+        estimate_var = tk.StringVar()
+        ttk.Entry(candidate_frame, textvariable=estimate_var).grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        
+        candidate_frame.columnconfigure(1, weight=1)
+        
+        # Button frame
+        button_frame = ttk.Frame(form_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def analyze_upgrade():
+            try:
+                country = country_var.get().strip()
+                denomination = denom_var.get().strip()
+                year = year_var.get().strip()
+                grade = grade_var.get().strip()
+                estimate = float(estimate_var.get()) if estimate_var.get() else 0.0
+                
+                if not country or not denomination or not year:
+                    messagebox.showwarning("Missing Information", "Please enter Country, Denomination, and Year")
+                    return
+                
+                # Get collection items
+                collection_items = self.app.collection.get_all_items()
+                
+                # Analyze upgrade
+                advisor = UpgradeAdvisor(collection_items)
+                recommendation = advisor.analyze_upgrade(country, denomination, year, grade, estimate)
+                
+                # Display results
+                result_text.delete(1.0, tk.END)
+                result_text.insert(tk.END, recommendation.explanation)
+                
+                # Store recommendation for export
+                dialog.current_recommendation = recommendation
+                
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid input: {str(e)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Analysis failed: {str(e)}")
+        
+        def export_csv():
+            if not hasattr(dialog, 'current_recommendation'):
+                messagebox.showwarning("No Analysis", "Please run an analysis first")
+                return
+            
+            file_path = filedialog.asksaveasfilename(
+                title="Export Upgrade Analysis",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            
+            advisor = UpgradeAdvisor(self.app.collection.get_all_items())
+            if advisor.export_to_csv([dialog.current_recommendation], file_path):
+                messagebox.showinfo("Success", f"Upgrade analysis exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export upgrade analysis")
+        
+        ttk.Button(button_frame, text="Analyze Upgrade", command=analyze_upgrade).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+        
+        # Results frame
+        results_frame = ttk.LabelFrame(form_frame, text="Upgrade Analysis", padding="10")
+        results_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        
+        result_text = tk.Text(results_frame, wrap=tk.WORD, height=15)
+        result_text.pack(fill=tk.BOTH, expand=True)
 
 
 def main():
