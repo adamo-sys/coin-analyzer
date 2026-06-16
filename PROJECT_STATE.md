@@ -125,7 +125,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-15
 
 * Completed v0.7 release audit: main app launch, Portfolio Dashboard opens, collection totals display correctly, estimated value calculation works, melt value subtotal works, Newfoundland progress displays correctly, Canadian silver progress displays correctly, 1859 Large Cent progress displays correctly, top gap-fill targets display correctly, top upgrade targets display correctly, duplicate-heavy report works, WANT_LIST progress displays correctly, CSV export works, Markdown export works, and full test suite passed. No release-blocking defects found.
-* Commit: pending
+* Commit: `58910a0`
 * Full test suite passed: 153 tests OK.
 * Audit test suite passed: 22 tests OK.
 * All targeted scenarios covered: collection with no silver, collection with silver, empty WANT_LIST, populated WANT_LIST, heavy duplicates, Newfoundland-focused collection, Canadian silver-focused collection, missing-value records, empty collection.

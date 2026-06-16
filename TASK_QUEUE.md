@@ -115,7 +115,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_v07_audit.py` (new file)
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
-- Commit hash: pending
+- Commit hash: `58910a0`
 
 #### `[x]` Recreate dashboard metrics in app
 
