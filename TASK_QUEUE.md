@@ -63,6 +63,7 @@ Work through this queue in priority order. Handle only one task at a time.
 34. `[x]` Perform v1.0 release-readiness audit
 35. `[x]` Complete post-v1.0 release packaging documentation
 36. `[x]` Build Shared Session Context
+37. `[x]` Build Listing Analyzer
 
 ## Adam-Specific Collection Priorities
 
@@ -104,6 +105,20 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Build Listing Analyzer
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `listing_analyzer.py` (new file)
+  - `test_listing_analyzer.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Commit hash: `TBD`
 
 #### `[x]` Build Shared Session Context
 

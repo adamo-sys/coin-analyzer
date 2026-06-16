@@ -21,6 +21,7 @@ from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
+from listing_analyzer import ListingAnalyzer, ListingCandidate
 
 
 class CoinCollectionGUI:
@@ -78,6 +79,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_separator()
         tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
+        tools_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
         tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
     def import_collection_csv(self):
@@ -1706,6 +1708,133 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Load WANT_LIST Context", command=load_want_list_context).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Analyze", command=analyze_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_listing_analyzer(self):
+        """Open offline listing analyzer dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Listing Analyzer")
+        dialog.geometry("780x760")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Listing", padding="10")
+        form_frame.pack(fill=tk.X, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        title_var = tk.StringVar()
+        url_var = tk.StringVar()
+        price_var = tk.StringVar()
+        shipping_var = tk.StringVar()
+        seller_var = tk.StringVar()
+        source_var = tk.StringVar()
+
+        fields = [
+            ("Title:", title_var),
+            ("URL:", url_var),
+            ("Price:", price_var),
+            ("Shipping:", shipping_var),
+            ("Seller:", seller_var),
+            ("Source:", source_var),
+        ]
+        for row, (label, variable) in enumerate(fields):
+            ttk.Label(form_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+            ttk.Entry(form_frame, textvariable=variable).grid(
+                row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4
+            )
+
+        ttk.Label(form_frame, text="Seller Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
+        notes_text = tk.Text(form_frame, height=3, wrap=tk.WORD)
+        notes_text.grid(row=len(fields), column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        ttk.Label(form_frame, text="Description:").grid(row=len(fields) + 1, column=0, sticky=(tk.W, tk.N), pady=4)
+        description_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
+        description_text.grid(row=len(fields) + 1, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        context_label = ttk.Label(
+            form_frame,
+            text=self.session_context.format_status_line(),
+            wraplength=680,
+        )
+        context_label.grid(row=len(fields) + 2, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Analysis", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = value.strip().replace("$", "").replace(",", "")
+            if not cleaned:
+                return 0.0
+            return float(cleaned)
+
+        def format_listing_result(result):
+            candidate = result.candidate
+            lines = [
+                "Listing Analyzer",
+                "",
+                f"Title: {result.listing.title}",
+                f"URL: {result.listing.url or 'Not provided'}",
+                f"Price: ${result.listing.price:.2f}",
+                f"Shipping: ${result.listing.shipping:.2f}",
+                f"Total Cost: ${result.listing.total_cost:.2f}",
+                "",
+                "Parsed Candidate:",
+                f"  Country: {candidate.country or 'Unknown'}",
+                f"  Denomination: {candidate.denomination or 'Unknown'}",
+                f"  Year: {candidate.year or 'Unknown'}",
+                f"  Grade: {candidate.grade or 'Unknown'}",
+                f"  Variety: {candidate.variety or 'None'}",
+                f"  Certifier: {candidate.certifier or 'None'}",
+                "",
+                "Acquisition Analysis:",
+                f"  Ownership Status: {result.ownership_status}",
+                f"  Duplicate Status: {result.duplicate_status}",
+                f"  Upgrade Status: {result.upgrade_status}",
+                f"  WANT_LIST Status: {result.want_list_status}",
+                f"  Collection Impact: {result.collection_impact}",
+                f"  Priority Score: {result.priority_score}",
+                f"  Max Rational Price: ${result.max_rational_price:.2f}",
+                f"  Recommendation: {result.recommendation}",
+            ]
+            if result.acquisition_decision.priority_reasons:
+                lines.extend(["", "Priority Reasons:"])
+                lines.extend(f"  - {reason}" for reason in result.acquisition_decision.priority_reasons)
+            if result.warnings:
+                lines.extend(["", "Warnings:"])
+                lines.extend(f"  - {warning}" for warning in result.warnings)
+            return "\n".join(lines)
+
+        def analyze_listing():
+            try:
+                listing = ListingCandidate(
+                    title=title_var.get(),
+                    price=parse_money(price_var.get()),
+                    shipping=parse_money(shipping_var.get()),
+                    url=url_var.get(),
+                    notes=notes_text.get("1.0", tk.END).strip(),
+                    seller=seller_var.get(),
+                    source=source_var.get(),
+                    description=description_text.get("1.0", tk.END).strip(),
+                )
+                analyzer = ListingAnalyzer(
+                    self._collection_items(),
+                    self._active_want_list_intents(),
+                )
+                result = analyzer.analyze(listing)
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, format_listing_result(result))
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Please enter numeric price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Listing Analyzer Error", f"Listing analysis failed: {str(e)}")
+
+        ttk.Button(button_frame, text="Analyze Listing", command=analyze_listing).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_upgrade_advisor(self):

@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current development version: `v1.1-dev`
+Current development version: `v1.2-dev`
 
-Latest tagged release: `v1.0`
+Latest tagged release: `v1.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -38,6 +38,7 @@ The app is especially tuned for Adam-specific priorities:
 - CSV import and export: import simple collection CSV files and export collection data.
 - Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
+- Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -53,10 +54,10 @@ The app is especially tuned for Adam-specific priorities:
 1. Launch Coin Analyzer.
 2. Load or review the local collection.
 3. Use Tools -> Load Collection Context to select the legacy workbook once for the session.
-4. Open Tools -> Do I Own This?
-5. Enter a candidate item: country, denomination, year, type or series, variety, grade, certification details, asking price, and notes.
+4. Open Tools -> Listing Analyzer.
+5. Paste listing title, optional URL, asking price, shipping, seller notes, and description.
 6. Review ownership status, duplicate risk, upgrade status, WANT_LIST status, collection impact, max rational price, recommendation, confidence, reasons, and warnings.
-7. If the item looks promising, compare it with Buy Advisor or Upgrade Advisor before purchasing.
+7. If the listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
 8. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
 9. Export reports when needed for collection planning or records.
 
@@ -100,7 +101,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.1 shared-context development suite passed with `213 tests OK`.
+The v1.2 listing-analyzer development suite passed with `229 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -114,7 +115,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v0.8` | `f3acc605024712a867046be24e3c32db3f18d854` | WANT_LIST context integration in candidate analysis. |
 | `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow with deterministic max rational price guidance. |
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
-| `v1.1-dev` | Unreleased | Shared Session Context for load-once workbook and WANT_LIST reuse. |
+| `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse. |
+| `v1.2-dev` | Unreleased | Listing Analyzer for offline pasted listing evaluation. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -151,6 +153,7 @@ Future candidates:
 ## Known Limitations
 
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
+- Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context is per app session only; it is not persisted after closing the application.
 - JSON storage is simple and may not scale well for very large collections.
@@ -169,6 +172,31 @@ Tools that can reuse the shared WANT_LIST context include:
 - Portfolio Import Preview and Want List Preview where appropriate
 
 If no context is loaded, tools fall back to their existing behavior and show unavailable or not-loaded status instead of failing.
+
+## Listing Analyzer
+
+Use Tools -> Listing Analyzer to evaluate a real-world listing without reconstructing the acquisition workflow by hand.
+
+Supported inputs:
+
+- Listing title
+- URL, stored for reference only
+- Asking price
+- Shipping cost
+- Seller
+- Source
+- Seller notes
+- Description
+
+The analyzer parses basic candidate details from pasted text, including country, denomination, year, grade, certifier, and simple variety terms. It then reuses Shared Session Context, WANT_LIST context, Collection Intelligence, and Acquisition Workflow to report ownership, duplicate, upgrade, want-list, collection impact, max rational price, and recommendation.
+
+Known limitations:
+
+- Fully offline and deterministic.
+- No web scraping or URL fetching.
+- No market-price API lookup.
+- No OCR, image recognition, or AI grading.
+- Listing parsing is intentionally basic and should be manually reviewed for ambiguous listings.
 
 ## Data Safety
 

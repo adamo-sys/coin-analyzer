@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v1.1-dev`
-- Current active task completed: v1.1 Shared Session Context
+- Current project state file reports release version: `v1.2-dev`
+- Current active task completed: v1.2 Listing Analyzer
 
 ## What Changed
 
@@ -27,6 +27,9 @@
 - Added Tools -> Load Collection Context and Tools -> Clear Session Context, plus a lightweight session status line in `coin_collection_gui.py`.
 - Do I Own This, Acquisition Workflow guidance, Buy Advisor, Want List Generator, Portfolio Import Preview, and Want List Preview can now reuse loaded shared WANT_LIST/workbook context while preserving manual load fallbacks.
 - Added `test_session_context.py` for empty context, successful loads, missing/invalid workbook handling, shared consumer behavior, clearing state, and manual workflow preservation.
+- Added `listing_analyzer.py` with `ListingCandidate`, URL validation, total-cost calculation, basic candidate parsing, and offline analysis through Acquisition Workflow.
+- Added Tools -> Listing Analyzer in `coin_collection_gui.py`.
+- Added `test_listing_analyzer.py` covering listing creation, URL validation, total cost, WANT_LIST, duplicate, upgrade, gap, missing inputs, and Shared Session Context integration.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -52,6 +55,13 @@ The acquisition workflow adds:
 - Owned/current match summary
 - Upgrade status
 
+The listing analyzer adds:
+
+- Listing title, URL, seller/source notes, price, shipping, and total cost
+- Parsed candidate fields from pasted text
+- Ownership, duplicate, upgrade, WANT_LIST, collection impact, priority score, max rational price, and listing recommendation
+- Offline URL storage only; no scraping or network requests
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -72,7 +82,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 213 tests OK.
+- `.\run_tests.bat`: 229 tests OK.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified for `v0.5` through `v1.0`; `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
@@ -86,12 +96,14 @@ Supported statuses:
 - Shared Session Context is per app session only; it does not persist loaded workbook or WANT_LIST state after closing the app.
 - Buy Advisor still keeps its legacy collection-intelligence boost scoring separate from duplicate/upgrade classification to preserve current user-visible behavior.
 - Acquisition workflow max rational price is rule-based internal guidance only; it is not market pricing.
+- Listing Analyzer parsing is intentionally basic and requires manual review for ambiguous listing titles.
+- Listing URLs are stored as reference data only; no website fetches, scraping, enrichment, or market-price lookups occur.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Perform a focused v1.1 acceptance audit for Shared Session Context.
-2. Improve Buy Advisor validation messages.
-3. Add GUI autocomplete for country and denomination.
-4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports.
-5. Expand normalization fixtures for country, denomination, and variety edge cases.
+1. Perform a focused v1.2 acceptance audit for Listing Analyzer.
+2. Tag v1.2 if the audit passes.
+3. Improve Buy Advisor validation messages.
+4. Add GUI autocomplete for country and denomination.
+5. Plan v1.3 Collection Dashboard work.

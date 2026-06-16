@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.1-dev`
+* Current release version: `v1.2-dev`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.0`
-* Summary of what was included: Stable v1.0 release baseline after readiness audit, full regression suite, GUI smoke checks, export checks, and tag verification.
+* Most recent Git tag: `v1.1`
+* Summary of what was included: Shared Session Context for load-once workbook and WANT_LIST reuse across collector tools.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -20,6 +20,7 @@
 * `v0.8` acceptance audit passed on 2026-06-16; tag `v0.8` points to `f3acc605024712a867046be24e3c32db3f18d854`.
 * `v0.9` acceptance audit passed on 2026-06-16; tag `v0.9` points to `af09668dd9b735479a0885445a7198302d6432f3`.
 * `v1.0` release-readiness audit passed on 2026-06-16; tag `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
+* `v1.1` acceptance audit passed on 2026-06-16; tag `v1.1` points to `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e`.
 
 ## Completed Features
 
@@ -57,6 +58,7 @@
 * Do I Own This WANT_LIST awareness: the lookup can load staged workbook `WANT_LIST` context, report whether a candidate is on the want list, not on the want list, or a collection gap not explicitly targeted, and keep analysis read-only.
 * Acquisition Workflow: reusable deterministic purchase guidance service built on the focused Collection Intelligence Engine. It provides max rational price, BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations, confidence, reasons, and warnings without live pricing, scraping, OCR, image recognition, or Numista expansion.
 * Shared Session Context: per-session workbook and WANT_LIST context layer that lets Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, Portfolio Import Preview, and related tools reuse one loaded context while preserving manual file-selection fallbacks.
+* Listing Analyzer: offline pasted-listing workflow that stores URL reference data, parses basic listing text into a candidate, and reuses Shared Session Context, Collection Intelligence, WANT_LIST context, and Acquisition Workflow to answer ownership, duplicate, upgrade, want-list, and buy/pass questions.
 
 ## Known Bugs
 
@@ -73,13 +75,14 @@
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
 3. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
-4. Expand normalization fixtures for country, denomination, and variety edge cases
-5. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
-6. Add image preview in collection list
-7. Add batch editing
-8. Add undo/redo
-9. Add backup/restore
-10. Evaluate SQLite storage for larger collections
+4. Build v1.3 Collection Dashboard release line
+5. Expand normalization fixtures for country, denomination, and variety edge cases
+6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+7. Add image preview in collection list
+8. Add batch editing
+9. Add undo/redo
+10. Add backup/restore
+11. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
 
@@ -93,7 +96,7 @@
 
 ## Next Priority Task
 
-Perform a focused v1.1 acceptance audit for Shared Session Context, then continue with Buy Advisor validation message polish.
+Perform a focused v1.2 acceptance audit for Listing Analyzer, then tag v1.2 if it passes.
 
 ## Project Architecture
 
@@ -104,6 +107,7 @@ Perform a focused v1.1 acceptance audit for Shared Session Context, then continu
 * Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, staged WANT_LIST context awareness, Buy Advisor duplicate/upgrade detection, and Upgrade Advisor match/upgrade decisions, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
 * Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
+* Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
@@ -135,6 +139,10 @@ Perform a focused v1.1 acceptance audit for Shared Session Context, then continu
 ## Recent Changes
 
 ### 2026-06-16
+
+* Implemented v1.2 Listing Analyzer: offline pasted listing model, URL validation, total-cost calculation, basic candidate parsing, acquisition workflow integration, shared WANT_LIST context reuse, Tools -> Listing Analyzer GUI entry point, and listing regression tests.
+* Commit: `TBD`
+* Full test suite passed: 229 tests OK.
 
 * Implemented v1.1 Shared Session Context: load-once workbook/WANT_LIST state, menu actions for loading and clearing context, status-line visibility, shared WANT_LIST reuse across Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, and portfolio preview workflows, plus regression tests.
 * Commit: `a63edb5`
