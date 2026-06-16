@@ -55,6 +55,7 @@ Work through this queue in priority order. Handle only one task at a time.
 26. `[x]` Perform v0.4 integration audit
 27. `[x]` Fix low-priority world base metal Buy Advisor guardrail
 28. `[x]` Perform v0.6 release audit
+29. `[x]` Perform complete v0.5 release audit rerun
 
 ## Adam-Specific Collection Priorities
 
@@ -94,6 +95,16 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
    - Recommend highest-impact purchases
 
 ## Project Changelog
+
+### 2026-06-16
+
+#### `[x]` Perform complete v0.5 release audit rerun
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: pending
 
 ### 2026-06-15
 

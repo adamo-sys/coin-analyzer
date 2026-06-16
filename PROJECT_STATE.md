@@ -14,6 +14,7 @@
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
 * `v0.5` release audit passed on 2026-06-15; no release-blocking defects found.
+* `v0.5` release audit rerun passed on 2026-06-16; no release-blocking defects found.
 * `v0.6` release audit passed on 2026-06-15; no release-blocking defects found.
 
 ## Completed Features
@@ -121,6 +122,13 @@ Improve Buy Advisor validation messages.
   5. Include the commit hash in this file's Recent Changes section.
 
 ## Recent Changes
+
+### 2026-06-16
+
+* Completed v0.5 release audit rerun: main app launch, collection load, Upgrade Advisor dialog, manual candidate analysis, collection lookup, upgrade analysis, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, full test suite, targeted upgrade scenarios, WANT_LIST interaction, and random world base-metal non-upgrade all passed. No source defects required fixes.
+* Commit: pending
+* Full test suite passed: 171 tests OK.
+* Note: `AI_HANDOFF.md` was requested but is not present in this repository.
 
 ### 2026-06-15
 
