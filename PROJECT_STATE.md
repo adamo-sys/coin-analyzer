@@ -129,7 +129,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-16
 
 * Implemented focused Collection Intelligence Engine for manual candidate analysis, including deterministic classifications, fuzzy matching, grade comparison, raw/certified handling, variety review flags, want-list context support, and read-only Tools -> Do I Own This GUI entry point.
-* Commit: `TBD`
+* Commit: `831d363`
 * Full test suite passed: 182 tests OK.
 
 * Completed v0.5 release audit rerun: main app launch, collection load, Upgrade Advisor dialog, manual candidate analysis, collection lookup, upgrade analysis, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, full test suite, targeted upgrade scenarios, WANT_LIST interaction, and random world base-metal non-upgrade all passed. No source defects required fixes.
