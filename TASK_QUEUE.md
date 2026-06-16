@@ -44,7 +44,7 @@ Work through this queue in priority order. Handle only one task at a time.
 15. `[x]` Add Portfolio Import Preview GUI
 16. `[x]` Build Melt Value Engine
 17. `[x]` Build Upgrade Advisor
-18. `[ ]` Recreate dashboard metrics in app
+18. `[x]` Recreate dashboard metrics in app
 19. `[x]` Refine Collection Gap Report MVP CSV export
 20. `[x]` Perform v0.3 release audit
 21. `[x]` Finalize v0.3 release and plan WANT_LIST integration
@@ -107,6 +107,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
 - Commit hash: `63ddfb1`
+
+#### `[x]` Recreate dashboard metrics in app
+
+- Date completed: 2026-06-15
+- Files modified:
+  - `portfolio_dashboard.py` (new file)
+  - `test_portfolio_dashboard.py` (new file)
+  - `coin_collection_gui.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+- Commit hash: `bb23c24`
 
 #### `[x]` Perform v0.6 release audit
 
