@@ -17,6 +17,7 @@ from legacy_portfolio_importer import (
 )
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
+from portfolio_dashboard import PortfolioDashboard
 
 
 class CoinCollectionGUI:
@@ -61,6 +62,8 @@ class CoinCollectionGUI:
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
+        tools_menu.add_separator()
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
         tools_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
@@ -1562,6 +1565,196 @@ Total Unique Dates: {total_unique_dates}
         
         result_text = tk.Text(results_frame, wrap=tk.WORD, height=15)
         result_text.pack(fill=tk.BOTH, expand=True)
+    
+    def open_portfolio_dashboard(self):
+        """Open Portfolio Dashboard dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Portfolio Dashboard")
+        dialog.geometry("900x700")
+        
+        # Get collection items
+        items = self.app.collection.get_all_items()
+        
+        # Create dashboard
+        dashboard = PortfolioDashboard(items)
+        summary = dashboard.generate_dashboard()
+        
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Summary section
+        summary_frame = ttk.LabelFrame(main_frame, text="Collection Overview", padding="10")
+        summary_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        summary_text = (
+            f"Total Items: {summary.total_items} | "
+            f"Total Countries: {summary.total_countries} | "
+            f"Total Estimated Value: CAD ${summary.total_estimated_value_cad:.2f} | "
+            f"Total Melt Value: CAD ${summary.total_melt_value_cad:.2f}"
+        )
+        ttk.Label(summary_frame, text=summary_text, font=("Arial", 10, "bold")).pack()
+        
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Priority progress tab
+        priority_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(priority_frame, text="Priority Progress")
+        
+        # Newfoundland progress
+        nf_frame = ttk.LabelFrame(priority_frame, text="Newfoundland Coinage", padding="10")
+        nf_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(nf_frame, text=f"Total Items: {summary.newfoundland_progress['total_items']}").pack(anchor=tk.W)
+        ttk.Label(nf_frame, text=f"Denominations: {summary.newfoundland_progress['denominations']}").pack(anchor=tk.W)
+        
+        nf_tree = ttk.Treeview(nf_frame, columns=("Denomination", "Count", "Years"), show="headings", height=3)
+        nf_tree.heading("Denomination", text="Denomination")
+        nf_tree.heading("Count", text="Count")
+        nf_tree.heading("Years", text="Years")
+        nf_tree.pack(fill=tk.X, pady=(5, 0))
+        
+        for denom, data in summary.newfoundland_progress["series"].items():
+            nf_tree.insert("", tk.END, values=(denom, data["count"], data["years"]))
+        
+        # Canadian silver progress
+        cs_frame = ttk.LabelFrame(priority_frame, text="Canadian Silver Coinage", padding="10")
+        cs_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(cs_frame, text=f"Total Items: {summary.canadian_silver_progress['total_items']}").pack(anchor=tk.W)
+        ttk.Label(cs_frame, text=f"Denominations: {summary.canadian_silver_progress['denominations']}").pack(anchor=tk.W)
+        
+        cs_tree = ttk.Treeview(cs_frame, columns=("Denomination", "Count", "Years"), show="headings", height=3)
+        cs_tree.heading("Denomination", text="Denomination")
+        cs_tree.heading("Count", text="Count")
+        cs_tree.heading("Years", text="Years")
+        cs_tree.pack(fill=tk.X, pady=(5, 0))
+        
+        for denom, data in summary.canadian_silver_progress["series"].items():
+            cs_tree.insert("", tk.END, values=(denom, data["count"], data["years"]))
+        
+        # 1859 Large Cent progress
+        lc_frame = ttk.LabelFrame(priority_frame, text="1859 Large Cent", padding="10")
+        lc_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(lc_frame, text=f"Total Items: {summary.large_cent_1859_progress['total_items']}").pack(anchor=tk.W)
+        ttk.Label(lc_frame, text=f"Unique Grades: {summary.large_cent_1859_progress['unique_grades']}").pack(anchor=tk.W)
+        
+        lc_tree = ttk.Treeview(lc_frame, columns=("Grade", "Count"), show="headings", height=3)
+        lc_tree.heading("Grade", text="Grade")
+        lc_tree.heading("Count", text="Count")
+        lc_tree.pack(fill=tk.X, pady=(5, 0))
+        
+        for grade, count in summary.large_cent_1859_progress["grades"].items():
+            lc_tree.insert("", tk.END, values=(grade, count))
+        
+        # Targets tab
+        targets_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(targets_frame, text="Targets & Duplicates")
+        
+        # Top gap targets
+        gap_frame = ttk.LabelFrame(targets_frame, text="Top Gap-Fill Targets", padding="10")
+        gap_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        gap_tree = ttk.Treeview(gap_frame, columns=("Country", "Denomination", "Year", "Type", "Priority"), show="headings", height=5)
+        gap_tree.heading("Country", text="Country")
+        gap_tree.heading("Denomination", text="Denomination")
+        gap_tree.heading("Year", text="Year")
+        gap_tree.heading("Type", text="Type")
+        gap_tree.heading("Priority", text="Priority")
+        gap_tree.pack(fill=tk.BOTH, expand=True)
+        
+        for target in summary.top_gap_targets:
+            gap_tree.insert("", tk.END, values=(
+                target["country"],
+                target["denomination"],
+                target["year"],
+                target["target_type"],
+                target["priority_score"]
+            ))
+        
+        # Top upgrade targets
+        upgrade_frame = ttk.LabelFrame(targets_frame, text="Top Upgrade Targets", padding="10")
+        upgrade_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        upgrade_tree = ttk.Treeview(upgrade_frame, columns=("Country", "Denomination", "Year", "Best Grade"), show="headings", height=5)
+        upgrade_tree.heading("Country", text="Country")
+        upgrade_tree.heading("Denomination", text="Denomination")
+        upgrade_tree.heading("Year", text="Year")
+        upgrade_tree.heading("Best Grade", text="Best Grade")
+        upgrade_tree.pack(fill=tk.BOTH, expand=True)
+        
+        for target in summary.top_upgrade_targets:
+            upgrade_tree.insert("", tk.END, values=(
+                target["country"],
+                target["denomination"],
+                target["year"],
+                target["current_best_grade"]
+            ))
+        
+        # Duplicate-heavy areas
+        dup_frame = ttk.LabelFrame(targets_frame, text="Duplicate-Heavy Areas", padding="10")
+        dup_frame.pack(fill=tk.BOTH, expand=True)
+        
+        dup_tree = ttk.Treeview(dup_frame, columns=("Country", "Denomination", "Year", "Count"), show="headings", height=5)
+        dup_tree.heading("Country", text="Country")
+        dup_tree.heading("Denomination", text="Denomination")
+        dup_tree.heading("Year", text="Year")
+        dup_tree.heading("Count", text="Count")
+        dup_tree.pack(fill=tk.BOTH, expand=True)
+        
+        for dup in summary.duplicate_heavy_areas:
+            dup_tree.insert("", tk.END, values=(
+                dup["country"],
+                dup["denomination"],
+                dup["year"],
+                dup["count"]
+            ))
+        
+        # WANT_LIST tab
+        want_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(want_frame, text="WANT_LIST Progress")
+        
+        want_label_frame = ttk.LabelFrame(want_frame, text="WANT_LIST Progress", padding="10")
+        want_label_frame.pack(fill=tk.X)
+        
+        ttk.Label(want_label_frame, text=f"Total Intents: {summary.want_list_progress['total_intents']}").pack(anchor=tk.W)
+        ttk.Label(want_label_frame, text=f"Fulfilled: {summary.want_list_progress['fulfilled']}").pack(anchor=tk.W)
+        ttk.Label(want_label_frame, text=f"Pending: {summary.want_list_progress['pending']}").pack(anchor=tk.W)
+        ttk.Label(want_label_frame, text=f"Progress: {summary.want_list_progress['progress_percentage']:.1f}%").pack(anchor=tk.W)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Dashboard to CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")]
+            )
+            if file_path:
+                try:
+                    dashboard.export_to_csv(file_path)
+                    messagebox.showinfo("Success", f"Dashboard exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export dashboard: {str(e)}")
+        
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Dashboard to Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md")]
+            )
+            if file_path:
+                try:
+                    dashboard.export_to_markdown(file_path)
+                    messagebox.showinfo("Success", f"Dashboard exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export dashboard: {str(e)}")
+        
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 
 
 def main():
