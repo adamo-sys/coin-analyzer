@@ -13,6 +13,7 @@
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
+* `v0.5` release audit passed on 2026-06-15; no release-blocking defects found.
 
 ## Completed Features
 
@@ -120,8 +121,14 @@ Improve Buy Advisor validation messages.
 
 ### 2026-06-15
 
-* Implemented v0.5 Upgrade Advisor with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
+* Completed v0.5 release audit: main app launch, Upgrade Advisor GUI integration, manual candidate entry, collection lookup, upgrade analysis report, CSV export, Buy Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, and full test suite passed. No release-blocking defects found. Only patchable cleanup items (pending commit hashes) were fixed.
 * Commit: pending
+* Full test suite passed: 60 tests OK.
+* Upgrade Advisor unit tests passed: 13 tests OK.
+* All targeted scenarios covered: better grade replacement, same-grade duplicate, lower-grade candidate, Newfoundland upgrade, Canadian silver upgrade, 1859 Large Cent upgrade, no-match scenario (random world base metal non-upgrade).
+
+* Implemented v0.5 Upgrade Advisor with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
+* Commit: `63ddfb1`
 * Added Upgrade Advisor backend engine with `UpgradeAdvisor` class and `UpgradeRecommendation` dataclass.
 * Added GUI Tools → Upgrade Advisor menu with manual candidate entry form, collection lookup, upgrade analysis report display, and CSV export.
 * Added comprehensive unit tests for Upgrade Advisor covering grade comparison scenarios, Adam priority tests, WANT_LIST integration tests, read-only behavior tests, and CSV export tests.
