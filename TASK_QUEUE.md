@@ -112,7 +112,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
-- Commit hash: `TBD`
+- Commit hash: `fb96574`
 
 #### `[x]` Build focused Collection Intelligence Engine
 

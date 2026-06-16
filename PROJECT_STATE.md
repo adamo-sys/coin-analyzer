@@ -130,7 +130,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-16
 
 * Consolidated Buy Advisor and Upgrade Advisor decision sources around the focused Collection Intelligence Engine. Duplicate detection, owned-match lookup, and upgrade classification now reuse the focused engine while preserving existing scoring, price analysis, melt-value support, explanations, and verdict behavior.
-* Commit: `TBD`
+* Commit: `fb96574`
 * Full test suite passed: 184 tests OK.
 
 * Implemented focused Collection Intelligence Engine for manual candidate analysis, including deterministic classifications, fuzzy matching, grade comparison, raw/certified handling, variety review flags, want-list context support, and read-only Tools -> Do I Own This GUI entry point.
