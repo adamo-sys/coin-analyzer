@@ -216,6 +216,17 @@ class FocusedCollectionIntelligenceEngine:
             warning_flags=self._dedupe(warnings),
         )
 
+    def find_exact_items(self, candidate: CandidateItem) -> List[Any]:
+        """Return exact owned collection items for a manual candidate."""
+        normalized_candidate = self._normalize_candidate(candidate)
+        exact_items = [
+            item
+            for item in self.collection_items
+            if self._match_score(normalized_candidate, item) >= self.EXACT_THRESHOLD
+            and self._variety_matches(normalized_candidate, item)
+        ]
+        return sorted(exact_items, key=lambda item: self._grade_score(getattr(item, "grade", "")), reverse=True)
+
     def _classify_existing_match(
         self, candidate: CandidateItem, match: ExistingMatch
     ) -> Tuple[MatchStatus, str, str, str, List[str], List[str]]:
@@ -276,7 +287,16 @@ class FocusedCollectionIntelligenceEngine:
             score = self._match_score(candidate, item)
             if score >= self.REVIEW_THRESHOLD:
                 matches.append(self._to_existing_match(candidate, item, score))
-        return sorted(matches, key=lambda match: (-match.match_score, match.country, match.denomination, match.year))
+        return sorted(
+            matches,
+            key=lambda match: (
+                -match.match_score,
+                -self._grade_score(match.grade),
+                match.country,
+                match.denomination,
+                match.year,
+            ),
+        )
 
     def _match_score(self, candidate: CandidateItem, item: Any) -> int:
         item_country = self._normalize_country(getattr(item, "country", ""))

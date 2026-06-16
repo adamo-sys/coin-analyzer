@@ -8,6 +8,10 @@ from collection_intelligence import (
     SILVER_DENOMINATION_TERMS,
     NEWFOUNDLAND_FOCUS_TERMS,
 )
+from focused_collection_intelligence import (
+    CandidateItem,
+    FocusedCollectionIntelligenceEngine,
+)
 from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
 
 
@@ -98,10 +102,15 @@ class UpgradeAdvisor:
         Returns:
             UpgradeRecommendation with verdict and explanation
         """
-        # Find matching coins in collection
-        matching_items = self._find_matching_items(
-            candidate_country, candidate_denomination, candidate_year
+        candidate = CandidateItem(
+            country=candidate_country,
+            denomination=candidate_denomination,
+            year=candidate_year,
+            grade=candidate_grade,
         )
+        intelligence = FocusedCollectionIntelligenceEngine(self.collection_items)
+        intelligence_result = intelligence.analyze_candidate(candidate)
+        matching_items = intelligence.find_exact_items(candidate)
         
         if not matching_items:
             # No matching coins - not an upgrade scenario
@@ -111,7 +120,7 @@ class UpgradeAdvisor:
             )
         
         # Get best existing item
-        best_existing = self._get_best_grade_item(matching_items)
+        best_existing = self._get_intelligence_best_item(intelligence_result, matching_items)
         
         # Calculate upgrade metrics
         grade_improvement = self._calculate_grade_improvement(
@@ -127,7 +136,8 @@ class UpgradeAdvisor:
         
         # Determine verdict
         verdict = self._determine_verdict(
-            grade_improvement, upgrade_score, candidate_grade, best_existing.grade
+            intelligence_result, grade_improvement, upgrade_score,
+            candidate_grade, best_existing.grade
         )
         
         # Generate explanation
@@ -212,14 +222,18 @@ class UpgradeAdvisor:
     def _find_matching_items(
         self, country: str, denomination: str, year: str
     ) -> List:
-        """Find items in collection matching country/denomination/year."""
-        matches = []
-        for item in self.collection_items:
-            if (item.country.lower() == country.lower() and
-                item.denomination.lower() == denomination.lower() and
-                item.year == year):
-                matches.append(item)
-        return matches
+        """Find owned items through the focused Collection Intelligence Engine."""
+        candidate = CandidateItem(country=country, denomination=denomination, year=year)
+        return FocusedCollectionIntelligenceEngine(self.collection_items).find_exact_items(candidate)
+
+    def _get_intelligence_best_item(self, intelligence_result, matching_items: List):
+        """Resolve the best item selected by Collection Intelligence."""
+        best_match = intelligence_result.best_existing_match
+        if best_match:
+            for item in matching_items:
+                if str(getattr(item, "id", "")) == best_match.item_id:
+                    return item
+        return self._get_best_grade_item(matching_items)
     
     def _get_best_grade_item(self, items: List):
         """Get item with highest grade from list."""
@@ -280,11 +294,11 @@ class UpgradeAdvisor:
         return min(score, 100)
     
     def _determine_verdict(
-        self, grade_improvement: int, upgrade_score: int,
+        self, intelligence_result, grade_improvement: int, upgrade_score: int,
         candidate_grade: str, existing_grade: str
     ) -> str:
-        """Determine upgrade verdict."""
-        if grade_improvement <= 0:
+        """Determine upgrade verdict from Collection Intelligence status and legacy score."""
+        if intelligence_result.match_status.value != "BETTER_GRADE_UPGRADE":
             return "Hold Existing"
         
         if upgrade_score >= 70:

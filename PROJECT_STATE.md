@@ -44,6 +44,7 @@
 * WANT_LIST Preview GUI: Tools menu workflow for selecting a legacy workbook, reviewing staged acquisition-intent rows, skipped rows, warnings, and exporting the preview to CSV without modifying collection data.
 * WANT_LIST-backed generator ranking: Tools -> Want List Generator can load staged workbook `WANT_LIST` intent and blend it with collection gaps and upgrade candidates without modifying collection data.
 * Buy Advisor collection-intelligence integration: Buy Advisor can use collection gaps, generated want-list targets, and staged `WANT_LIST` intent as explainable Adam Priority boosts without changing duplicate or price analysis.
+* Advisor decision-source consolidation: Buy Advisor duplicate/upgrade flags and Upgrade Advisor match/upgrade decisions now route through the focused Collection Intelligence Engine while preserving existing scoring, pricing, melt-value, and user-visible verdict behavior.
 * Buy Advisor low-priority world guardrail: prevents low-priority world base-metal coins with negative Adam Priority, no collection impact, and no liquidity support from becoming `BUY NOW` solely because price is good.
 * Upgrade Advisor: evaluates candidate coins against existing collection for upgrade potential, with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
 * Melt Value Engine: calculates silver coin melt values using ASW (Actual Silver Weight) reference data from legacy workbook. Supports manual spot price input with optional API-based spot price provider with 24-hour caching and fallback logic. Integrated into Buy Advisor and Upgrade Advisor as supporting factor for silver coin analysis.
@@ -95,7 +96,7 @@ Improve Buy Advisor validation messages.
 * Collection management system: `coin_collection.py` defines `CoinItem`, `CoinCollection`, and `CoinCollectionApp`; it handles JSON persistence, CRUD, search, CSV import/export, and collection summaries.
 * Upgrade Advisor system: `upgrade_advisor.py` evaluates candidate coins against existing collection for upgrade potential, with grade improvement, value improvement, and Adam-specific priority scoring (Newfoundland, Canadian silver, 1859 Large Cents). Provides verdicts (Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass) with human-readable explanations. Read-only analysis with GUI integration (Tools → Upgrade Advisor) and CSV export.
 * Collection Intelligence system: `collection_intelligence.py` powers gap reports, want lists, duplicate/upgrade detection, Adam-specific priority scoring, staged `WANT_LIST` ranking boosts, and future evaluator inputs.
-* Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
+* Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, Buy Advisor duplicate/upgrade detection, and Upgrade Advisor match/upgrade decisions, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
@@ -127,6 +128,10 @@ Improve Buy Advisor validation messages.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Consolidated Buy Advisor and Upgrade Advisor decision sources around the focused Collection Intelligence Engine. Duplicate detection, owned-match lookup, and upgrade classification now reuse the focused engine while preserving existing scoring, price analysis, melt-value support, explanations, and verdict behavior.
+* Commit: `TBD`
+* Full test suite passed: 184 tests OK.
 
 * Implemented focused Collection Intelligence Engine for manual candidate analysis, including deterministic classifications, fuzzy matching, grade comparison, raw/certified handling, variety review flags, want-list context support, and read-only Tools -> Do I Own This GUI entry point.
 * Commit: `831d363`

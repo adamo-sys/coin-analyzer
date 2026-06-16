@@ -4,9 +4,11 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from buy_advisor import BuyAdvisor
 from coin_collection import CoinCollection, CoinItem
+from focused_collection_intelligence import FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import LegacyWantListIntent
 
 
@@ -40,6 +42,25 @@ class TestBuyAdvisorRegression(unittest.TestCase):
             tax_fees=0.20,
         )
 
+        self.assertTrue(rec.already_owned)
+        self.assertEqual(rec.recommendation, "Duplicate")
+        self.assertEqual(rec.purchase_verdict, "PASS")
+
+    def test_uses_collection_intelligence_engine_for_duplicate_decision(self):
+        with patch(
+            "buy_advisor.FocusedCollectionIntelligenceEngine",
+            wraps=FocusedCollectionIntelligenceEngine,
+        ) as engine_class:
+            rec = self.advisor.advise(
+                "Argentina",
+                "1.0",
+                "1960",
+                asking_price=2.00,
+                shipping=1.00,
+                tax_fees=0.20,
+            )
+
+        self.assertTrue(engine_class.called)
         self.assertTrue(rec.already_owned)
         self.assertEqual(rec.recommendation, "Duplicate")
         self.assertEqual(rec.purchase_verdict, "PASS")

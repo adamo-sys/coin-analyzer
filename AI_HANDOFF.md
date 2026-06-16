@@ -5,13 +5,16 @@
 - Date: 2026-06-16
 - Branch: `main`
 - Current project state file reports release version: `v0.7`
-- Current active task completed: focused Collection Intelligence Engine for manual candidate analysis
+- Current active task completed: advisor decision-source consolidation on the focused Collection Intelligence Engine
 
 ## What Changed
 
 - Added `focused_collection_intelligence.py` with reusable deterministic candidate classification.
 - Added Tools -> Do I Own This in `coin_collection_gui.py`.
 - Added `test_focused_collection_intelligence.py` with focused unit coverage.
+- Refactored `buy_advisor.py` duplicate/upgrade flags to use `FocusedCollectionIntelligenceEngine`.
+- Refactored `upgrade_advisor.py` match/upgrade decisions to use `FocusedCollectionIntelligenceEngine`.
+- Added regression tests proving both advisors route through the focused engine while preserving existing verdict behavior.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -47,8 +50,8 @@ Supported statuses:
 
 ## Test Status
 
-- `py -m unittest test_focused_collection_intelligence.py`: 11 tests OK.
-- `.\run_tests.bat`: 182 tests OK.
+- `py -m unittest test_focused_collection_intelligence.py test_upgrade_advisor.py test_buy_advisor_regression.py`: 46 tests OK.
+- `.\run_tests.bat`: 184 tests OK.
 - Ad-hoc `py -c` GUI smoke failed because the Windows launcher reported no installed Python; the full test runner succeeded.
 
 ## Known Limitations
@@ -56,11 +59,12 @@ Supported statuses:
 - Fuzzy matching is deterministic and intentionally basic.
 - Variety matching depends on existing text fields such as reference, title, notes, and comments.
 - The Do I Own This dialog currently analyzes current collection items only; staged WANT_LIST context is supported by the engine but not yet loaded through that dialog.
+- Buy Advisor still keeps its legacy collection-intelligence boost scoring separate from duplicate/upgrade classification to preserve current user-visible behavior.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Run a focused release audit for this engine and the Do I Own This dialog.
-2. Decide whether this focused engine should become the shared backend for Upgrade Advisor and Buy Advisor classification.
-3. Add a safe optional WANT_LIST context loader to the Do I Own This workflow.
-4. Expand normalization fixtures for country, denomination, and variety edge cases.
+1. Run a focused v0.7 acceptance audit for Buy Advisor, Upgrade Advisor, and Do I Own This.
+2. Add a safe optional WANT_LIST context loader to the Do I Own This workflow.
+3. Expand normalization fixtures for country, denomination, and variety edge cases.
+4. Continue reducing older duplicate matching helpers only where regression coverage proves behavior is preserved.

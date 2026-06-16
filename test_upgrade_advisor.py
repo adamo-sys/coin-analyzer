@@ -6,8 +6,10 @@ import unittest
 import os
 import tempfile
 from dataclasses import dataclass
+from unittest.mock import patch
 from upgrade_advisor import UpgradeAdvisor, UpgradeRecommendation
 from coin_collection import CoinItem
+from focused_collection_intelligence import FocusedCollectionIntelligenceEngine
 
 
 @dataclass
@@ -46,6 +48,20 @@ class TestUpgradeAdvisor(unittest.TestCase):
         # EF-40 (score 9) vs VF-30 (score 8) = +1 grade improvement = 10 points
         # Below threshold for Upgrade (40), so Hold Existing
         self.assertEqual(recommendation.verdict, "Hold Existing")
+        self.assertEqual(recommendation.grade_improvement, 1)
+
+    def test_uses_collection_intelligence_engine_for_upgrade_match(self):
+        """Upgrade Advisor routes match/upgrade classification through Collection Intelligence."""
+        with patch(
+            "upgrade_advisor.FocusedCollectionIntelligenceEngine",
+            wraps=FocusedCollectionIntelligenceEngine,
+        ) as engine_class:
+            recommendation = self.advisor.analyze_upgrade(
+                "Canada", "1 cent", "1967", "EF-40", 20.0
+            )
+
+        self.assertTrue(engine_class.called)
+        self.assertEqual(recommendation.existing_grade, "VF-30")
         self.assertEqual(recommendation.grade_improvement, 1)
     
     def test_same_grade_duplicate(self):

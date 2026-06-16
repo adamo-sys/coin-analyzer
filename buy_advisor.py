@@ -7,6 +7,11 @@ from typing import Dict, Iterable, List, Set, Optional
 from dataclasses import dataclass
 from melt_value_engine import MeltValueEngine, ASWReferenceLoader, ManualSpotPriceProvider
 from collection_intelligence import GRADE_HIERARCHY
+from focused_collection_intelligence import (
+    CandidateItem,
+    FocusedCollectionIntelligenceEngine,
+    MatchStatus,
+)
 
 
 @dataclass
@@ -82,13 +87,17 @@ class BuyAdvisor:
         Returns:
             BuyRecommendation with analysis and recommendation
         """
+        intelligence_result = self._analyze_candidate_with_intelligence(
+            country, denomination, year, reference, grade, staged_want_list_intents
+        )
+
         # Check if already owned
         owned_items = self.find_owned_items(country, denomination, year, reference, numista_n)
-        already_owned = len(owned_items) > 0
+        already_owned = self._is_owned_status(intelligence_result.match_status) or len(owned_items) > 0
         duplicate_count = len(owned_items)
         
         # Check upgrade candidate
-        upgrade_candidate, existing_grade = self.check_upgrade(owned_items, grade)
+        upgrade_candidate, existing_grade = self.check_upgrade(owned_items, grade, intelligence_result)
         
         # Check series completion
         series_years = self.collection.get_series_years(country, denomination)
@@ -255,31 +264,30 @@ class BuyAdvisor:
     
     def find_owned_items(self, country: str, denomination: str, year: str,
                        reference: str = "", numista_n: str = "") -> List:
-        """Find items in collection matching the coin."""
-        matches = []
+        """Find owned items through the focused Collection Intelligence Engine."""
+        candidate = CandidateItem(country=country, denomination=denomination, year=year)
+        matches = FocusedCollectionIntelligenceEngine(self.collection.items).find_exact_items(candidate)
+
         for item in self.collection.items:
             # Match by Numista N# if provided
-            if numista_n and item.numista_n == numista_n:
+            if numista_n and item.numista_n == numista_n and item not in matches:
                 matches.append(item)
                 continue
             
             # Match by reference if provided
-            if reference and item.reference == reference:
-                matches.append(item)
-                continue
-            
-            # Match by country, denomination, year
-            if (item.country.lower() == country.lower() and
-                item.denomination.lower() == denomination.lower() and
-                item.year == year):
+            if reference and item.reference == reference and item not in matches:
                 matches.append(item)
         
         return matches
     
-    def check_upgrade(self, owned_items: List, new_grade: str) -> tuple:
-        """Check if new coin is an upgrade over existing."""
+    def check_upgrade(self, owned_items: List, new_grade: str, intelligence_result=None) -> tuple:
+        """Check if new coin is an upgrade over existing through Collection Intelligence."""
         if not owned_items or not new_grade:
             return False, ""
+
+        if intelligence_result and intelligence_result.best_existing_match:
+            existing_grade = intelligence_result.best_existing_match.grade
+            return intelligence_result.match_status == MatchStatus.BETTER_GRADE_UPGRADE, existing_grade
         
         # Get best existing grade
         best_existing_grade = ""
@@ -299,6 +307,35 @@ class BuyAdvisor:
                 return True, best_existing_grade
         
         return False, best_existing_grade
+
+    def _analyze_candidate_with_intelligence(
+        self,
+        country: str,
+        denomination: str,
+        year: str,
+        reference: str = "",
+        grade: str = "",
+        staged_want_list_intents: Iterable = None,
+    ):
+        """Analyze duplicate/upgrade status with the focused Collection Intelligence Engine."""
+        intents = list(staged_want_list_intents) if staged_want_list_intents is not None else self.staged_want_list_intents
+        candidate = CandidateItem(
+            country=country,
+            denomination=denomination,
+            year=year,
+            type_series=reference,
+            grade=grade,
+        )
+        return FocusedCollectionIntelligenceEngine(self.collection.items, intents).analyze_candidate(candidate)
+
+    @staticmethod
+    def _is_owned_status(match_status) -> bool:
+        return match_status in {
+            MatchStatus.ALREADY_OWNED,
+            MatchStatus.BETTER_GRADE_UPGRADE,
+            MatchStatus.SAME_GRADE_DUPLICATE,
+            MatchStatus.LOWER_GRADE_DUPLICATE,
+        }
     
     def find_matching_items(self, country: str, denomination: str, year: str,
                            reference: str = "", numista_n: str = "") -> List[Dict]:

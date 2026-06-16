@@ -57,6 +57,7 @@ Work through this queue in priority order. Handle only one task at a time.
 28. `[x]` Perform v0.6 release audit
 29. `[x]` Perform complete v0.5 release audit rerun
 30. `[x]` Build focused Collection Intelligence Engine
+31. `[x]` Consolidate advisor decisions on Collection Intelligence Engine
 
 ## Adam-Specific Collection Priorities
 
@@ -98,6 +99,20 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Consolidate advisor decisions on Collection Intelligence Engine
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `focused_collection_intelligence.py`
+  - `buy_advisor.py`
+  - `upgrade_advisor.py`
+  - `test_buy_advisor_regression.py`
+  - `test_upgrade_advisor.py`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+- Commit hash: `TBD`
 
 #### `[x]` Build focused Collection Intelligence Engine
 
