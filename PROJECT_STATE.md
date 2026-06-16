@@ -136,7 +136,7 @@ Continue post-v1.0 stabilization work from `TASK_QUEUE.md`; next implementation 
 ### 2026-06-16
 
 * Completed post-v1.0 release packaging documentation: refreshed README for v1.0, added screenshot guidance, v1.0 release notes, release history, backup guide, and verified local/remote release tags from `v0.5` through `v1.0`.
-* Commit: `TBD`
+* Commit: `2318550`
 * Test status: documentation-only changes; full suite rerun after packaging.
 
 * Completed v1.0 release-readiness audit: application launch, collection load, Do I Own This with and without WANT_LIST-capable workflow, Acquisition Workflow, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, Portfolio Import Preview, export smoke tests, tag metadata, and full regression suite passed. No source defects required fixes.
