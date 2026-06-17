@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v1.3`
-- Current active task completed: v1.3 Collection Dashboard release line
+- Current project state file reports release version: `v1.4`
+- Current active task completed: v1.4 Collection Quality Engine
 
 ## What Changed
 
@@ -35,6 +35,9 @@
 - Added `collection_dashboard.py` with structured dashboard data, snapshot counts, actionable priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown export.
 - Added Tools -> Collection Dashboard in `coin_collection_gui.py`.
 - Added `test_collection_dashboard.py` for empty collection, small collection summary, WANT_LIST integration, upgrade reporting, gap reporting, series completion, exports, and Shared Session Context integration.
+- Added `collection_quality.py` with deterministic quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown export.
+- Integrated Collection Quality output into Collection Dashboard markdown and CSV exports.
+- Added `test_collection_quality.py` covering empty, small, and larger collections; completeness, upgrade, WANT_LIST, diversity, certification scores; strengths, weaknesses, recommended actions, dashboard integration, and exports.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -78,6 +81,15 @@ The collection dashboard adds:
 - Basic collection evolution from available `date_added` values
 - CSV and Markdown export
 
+The collection quality engine adds:
+
+- Overall Quality Score
+- Completeness, Upgrade, WANT_LIST Progress, Diversity, and Certification scores
+- Data-driven strengths and weaknesses
+- Ranked recommended actions with why they matter and expected impact
+- Supporting metrics for future acquisition-impact work
+- CSV and Markdown export
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -101,12 +113,13 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 238 tests OK for the v1.3 dashboard release line.
+- `.\run_tests.bat`: 251 tests OK for the v1.4 quality engine release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
 - Local GUI smoke for v1.1 could not run because this Python/Tcl install cannot find `init.tcl`.
 - Local GUI smoke for v1.3 also could not run because this Python/Tcl install cannot find `init.tcl`; dashboard and GUI module imports passed.
+- Local GUI smoke for v1.4 also could not run because this Python/Tcl install cannot find `init.tcl`; quality/dashboard/GUI module imports passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -119,11 +132,12 @@ Supported statuses:
 - Listing Analyzer parsing is intentionally basic and requires manual review for ambiguous listing titles.
 - Listing URLs are stored as reference data only; no website fetches, scraping, enrichment, or market-price lookups occur.
 - Collection Dashboard does not estimate unknown values and depends on available collection fields for certified counts and collection evolution.
+- Collection Quality Engine uses deterministic internal scoring only; it does not use rarity guides, market pricing, population reports, OCR, scraping, or Numista expansion.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v1.4 Collection Scoring Engine planning.
+1. Begin v1.5 Smarter Acquisition Intelligence planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

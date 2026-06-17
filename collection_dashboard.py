@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
 from collection_intelligence import CollectionIntelligenceEngine, SILVER_DENOMINATION_TERMS
+from collection_quality import CollectionQualityEngine, CollectionQualityReport
 
 
 @dataclass
@@ -57,6 +58,7 @@ class CollectionSnapshot:
 @dataclass
 class CollectionDashboardData:
     snapshot: CollectionSnapshot
+    quality_report: Optional[CollectionQualityReport] = None
     top_collection_priorities: List[DashboardItem] = field(default_factory=list)
     best_upgrade_opportunities: List[DashboardItem] = field(default_factory=list)
     want_list_priorities: List[DashboardItem] = field(default_factory=list)
@@ -96,9 +98,14 @@ class CollectionDashboard:
             limit=10,
             staged_want_list_intents=self.staged_want_list_intents,
         )
+        quality_report = CollectionQualityEngine(
+            self.items,
+            self.staged_want_list_intents,
+        ).generate_report()
 
         return CollectionDashboardData(
             snapshot=snapshot,
+            quality_report=quality_report,
             top_collection_priorities=self._top_priorities(want_targets, series_completion, upgrades),
             best_upgrade_opportunities=self._upgrade_panel(upgrades),
             want_list_priorities=self._want_list_panel(want_targets),
@@ -124,6 +131,26 @@ class CollectionDashboard:
             f"- Silver items: {s.silver_items_count}",
             f"- Certified items: {s.certified_items_count}",
         ]
+        if data.quality_report:
+            lines.extend([
+                "",
+                "## Collection Quality",
+                "",
+                f"- Overall quality score: {data.quality_report.overall_quality_score}",
+            ])
+            for category in data.quality_report.category_scores:
+                lines.append(f"- {category.name}: {category.score}")
+            lines.extend(self._format_quality_findings("Top Strengths", data.quality_report.strengths))
+            lines.extend(self._format_quality_findings("Top Weaknesses", data.quality_report.weaknesses))
+            lines.extend(["", "## Top Recommended Actions", ""])
+            if data.quality_report.recommended_actions:
+                for action in data.quality_report.recommended_actions[:5]:
+                    lines.append(
+                        f"- {action.rank}. {action.action}: {action.why_it_matters} "
+                        f"Expected impact: {action.expected_impact}"
+                    )
+            else:
+                lines.append("- No recommended actions generated.")
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Best Upgrade Opportunities", data.best_upgrade_opportunities))
         lines.extend(self._format_items("WANT_LIST Priorities", data.want_list_priorities))
@@ -154,6 +181,22 @@ class CollectionDashboard:
                 writer.writerow(["Section", "Title", "Detail", "Priority", "Action"])
                 for key, value in data.snapshot.to_dict().items():
                     writer.writerow(["Snapshot", key, value, "", ""])
+                if data.quality_report:
+                    writer.writerow(["Quality", "Overall Quality Score", data.quality_report.overall_quality_score, "", ""])
+                    for category in data.quality_report.category_scores:
+                        writer.writerow(["Quality Category", category.name, category.explanation, category.score, ""])
+                    for finding in data.quality_report.strengths:
+                        writer.writerow(["Quality Strength", finding.title, finding.detail, finding.impact_score, ""])
+                    for finding in data.quality_report.weaknesses:
+                        writer.writerow(["Quality Weakness", finding.title, finding.detail, finding.impact_score, ""])
+                    for action in data.quality_report.recommended_actions[:5]:
+                        writer.writerow([
+                            "Quality Recommended Action",
+                            action.action,
+                            action.why_it_matters,
+                            action.priority_score,
+                            action.expected_impact,
+                        ])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Best Upgrade Opportunities", data.best_upgrade_opportunities)
                 self._write_items(writer, "WANT_LIST Priorities", data.want_list_priorities)
@@ -305,3 +348,13 @@ class CollectionDashboard:
     def _write_items(writer, section: str, items: List[DashboardItem]) -> None:
         for item in items:
             writer.writerow([section, item.title, item.detail, item.priority, item.action])
+
+    @staticmethod
+    def _format_quality_findings(title: str, findings) -> List[str]:
+        lines = ["", f"## {title}", ""]
+        if not findings:
+            lines.append("- No items available.")
+            return lines
+        for finding in findings[:5]:
+            lines.append(f"- {finding.title}: {finding.detail}")
+        return lines

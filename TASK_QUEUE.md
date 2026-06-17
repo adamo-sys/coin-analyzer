@@ -69,9 +69,10 @@ Work through this queue in priority order. Handle only one task at a time.
 37. `[x]` Build Listing Analyzer
 38. `[x]` Perform v1.2 post-release usability documentation audit
 39. `[x]` Build v1.3 Collection Dashboard release line
-40. `[ ]` Begin v1.4 Collection Scoring Engine planning
-41. `[ ]` Improve Buy Advisor validation messages
-42. `[ ]` Add autocomplete for country/denomination
+40. `[x]` Build v1.4 Collection Quality Engine
+41. `[ ]` Begin v1.5 Smarter Acquisition Intelligence planning
+42. `[ ]` Improve Buy Advisor validation messages
+43. `[ ]` Add autocomplete for country/denomination
 
 ## Adam-Specific Collection Priorities
 
@@ -113,6 +114,21 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Build v1.4 Collection Quality Engine
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `collection_quality.py` (new file)
+  - `test_collection_quality.py` (new file)
+  - `collection_dashboard.py`
+  - `test_collection_dashboard.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Implementation commit hash: pending implementation commit hash.
 
 #### `[x]` Build v1.3 Collection Dashboard release line
 

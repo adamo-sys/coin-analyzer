@@ -10,7 +10,8 @@
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable v1.0 release baseline after readiness audit, full regression suite, GUI smoke checks, export checks, and tag verification. |
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse across collector tools. |
 | `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation through Acquisition Workflow. |
-| `v1.3` | Pending tag verification | Collection Dashboard for actionable collection snapshot, priorities, WANT_LIST opportunities, upgrades, gaps, series completion, and exports. |
+| `v1.3` | `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e` | Collection Dashboard for actionable collection snapshot, priorities, WANT_LIST opportunities, upgrades, gaps, series completion, and exports. |
+| `v1.4` | Pending tag verification | Collection Quality Engine for explainable category scores, strengths, weaknesses, and highest-impact improvement actions. |
 
 ## Notes
 

@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.3`
+* Current release version: `v1.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.3`
-* Summary of what was included: Collection Dashboard for actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, series completion, and exports.
+* Most recent Git tag: `v1.4`
+* Summary of what was included: Collection Quality Engine for explainable quality scoring, strengths, weaknesses, and ranked improvement actions integrated into Collection Dashboard.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -22,7 +22,8 @@
 * `v1.0` release-readiness audit passed on 2026-06-16; tag `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
 * `v1.1` acceptance audit passed on 2026-06-16; tag `v1.1` points to `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e`.
 * `v1.2` acceptance audit passed on 2026-06-16; tag `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
-* `v1.3` acceptance audit passed on 2026-06-16; tag `v1.3` pending final verification.
+* `v1.3` acceptance audit passed on 2026-06-16; tag `v1.3` points to `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e`.
+* `v1.4` acceptance audit passed on 2026-06-16; tag `v1.4` pending final verification.
 
 ## Completed Features
 
@@ -62,6 +63,7 @@
 * Shared Session Context: per-session workbook and WANT_LIST context layer that lets Do I Own This, Acquisition Workflow, Buy Advisor, Want List Generator, Portfolio Import Preview, and related tools reuse one loaded context while preserving manual file-selection fallbacks.
 * Listing Analyzer: offline pasted-listing workflow that stores URL reference data, parses basic listing text into a candidate, and reuses Shared Session Context, Collection Intelligence, WANT_LIST context, and Acquisition Workflow to answer ownership, duplicate, upgrade, want-list, and buy/pass questions.
 * Collection Dashboard: actionable read-only overview that combines collection snapshot counts, WANT_LIST opportunities, upgrade opportunities, collection gaps, series completion, and basic collection evolution into CSV/Markdown-exportable planning data.
+* Collection Quality Engine: deterministic scoring engine that explains overall quality, completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions using only available collection data.
 
 ## Known Bugs
 
@@ -75,7 +77,7 @@
 
 ## Active Roadmap
 
-1. Begin v1.4 Collection Scoring Engine planning
+1. Begin v1.5 Smarter Acquisition Intelligence planning
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -99,7 +101,7 @@
 
 ## Next Priority Task
 
-Begin v1.4 Collection Scoring Engine planning.
+Begin v1.5 Smarter Acquisition Intelligence planning.
 
 ## Project Architecture
 
@@ -112,6 +114,7 @@ Begin v1.4 Collection Scoring Engine planning.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Collection Dashboard system: `collection_dashboard.py` generates actionable dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown exports.
+* Collection Quality system: `collection_quality.py` generates explainable quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown exports. Collection Dashboard displays its top-level quality output.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
 * Legacy portfolio staging system: `legacy_portfolio_importer.py` parses `CORE_RAW` and `SLABS` from the legacy workbook into reviewable staged `CoinItem` records, future metadata, duplicate buckets, skipped rows, summary text, and CSV preview reports without saving collection data.
 * Legacy WANT_LIST staging: `legacy_portfolio_importer.py` also exposes read-only `WANT_LIST` acquisition intent previews for Want List Generator input and Buy Advisor context.
@@ -146,6 +149,11 @@ Begin v1.4 Collection Scoring Engine planning.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Implemented v1.4 Collection Quality Engine: explainable overall quality score, category scores, strengths, weaknesses, recommended actions, supporting metrics, CSV/Markdown export, and Collection Dashboard integration.
+* Implementation commit: pending implementation commit hash.
+* Full test suite passed: 251 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; quality/dashboard/GUI module imports passed and full non-GUI regression suite passed.
 
 * Implemented v1.3 Collection Dashboard: Tools -> Collection Dashboard, reusable structured dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown export.
 * Implementation commit: `da1c37f`

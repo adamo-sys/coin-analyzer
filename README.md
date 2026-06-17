@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.3`
+Current version: `v1.4`
 
-Latest tagged release: `v1.3`
+Latest tagged release: `v1.4`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -40,6 +40,7 @@ The app is especially tuned for Adam-specific priorities:
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
+- Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -103,7 +104,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.3 collection-dashboard development suite passed with `238 tests OK`.
+The v1.4 collection-quality development suite passed with `251 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -119,7 +120,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse. |
 | `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation. |
-| `v1.3` | Pending tag verification | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
+| `v1.3` | `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e` | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
+| `v1.4` | Pending tag verification | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -129,6 +131,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
+- Use Collection Quality Engine outputs inside Collection Dashboard when you want explainable quality scores, strengths, weaknesses, and ranked improvement actions.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -152,7 +155,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.4 Collection Scoring Engine planning.
+- Begin v1.5 Smarter Acquisition Intelligence planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -223,6 +226,8 @@ Export support is intentionally report-specific:
 - Portfolio Import Preview: CSV export.
 - WANT_LIST Preview: CSV export.
 - Upgrade Advisor: CSV export.
+- Collection Dashboard: CSV and Markdown export.
+- Collection Quality Engine: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
@@ -250,6 +255,34 @@ Known limitations:
 - The dashboard does not estimate unknown values.
 - Series completion uses existing collection years and known contiguous date spans; sparse or irregular series may need manual interpretation.
 - Collection evolution depends on `date_added` being present in collection records.
+
+## Collection Quality Engine
+
+The Collection Quality Engine evaluates collection strength as decision support, not as a vanity score. It uses only available local collection data and staged WANT_LIST context.
+
+Score categories:
+
+- Completeness: observed series completion, collection gaps, and missing dates.
+- Upgrade: duplicate-based upgrade opportunities and grade improvement pressure.
+- WANT_LIST Progress: completed, remaining, and high-priority staged WANT_LIST targets.
+- Diversity: countries, denominations, and series represented.
+- Certification: certified/slabbed evidence versus raw items.
+
+Outputs:
+
+- Overall Quality Score
+- Category scores with explanations and supporting metrics
+- Top strengths
+- Top weaknesses
+- Ranked recommended actions with why they matter and expected impact
+
+The dashboard displays the quality score, strengths, weaknesses, and top recommended actions. The quality report also supports CSV and Markdown export.
+
+Known limitations:
+
+- No rarity guides, market pricing, population reports, or external value estimates are used.
+- Certification coverage depends on available text fields such as notes, comments, certifier, or certification number.
+- WANT_LIST progress depends on staged workbook WANT_LIST context being loaded.
 
 ## Data Safety
 

@@ -130,9 +130,13 @@ class TestCollectionDashboard(unittest.TestCase):
             self.assertTrue(dashboard.export_markdown(md_path))
 
             with open(csv_path, "r", encoding="utf-8") as handle:
-                self.assertIn("Top Collection Priorities", handle.read())
+                csv_text = handle.read()
+                self.assertIn("Top Collection Priorities", csv_text)
+                self.assertIn("Overall Quality Score", csv_text)
             with open(md_path, "r", encoding="utf-8") as handle:
-                self.assertIn("# Collection Dashboard", handle.read())
+                markdown_text = handle.read()
+                self.assertIn("# Collection Dashboard", markdown_text)
+                self.assertIn("## Collection Quality", markdown_text)
 
     def test_shared_session_context_integration(self):
         with tempfile.TemporaryDirectory() as temp_dir:
