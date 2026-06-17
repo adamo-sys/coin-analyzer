@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.4`
+* Current release version: `v1.5`
 * Current Git branch: `main`
 * Last updated date: 2026-06-16
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.4`
-* Summary of what was included: Collection Quality Engine for explainable quality scoring, strengths, weaknesses, and ranked improvement actions integrated into Collection Dashboard.
+* Most recent Git tag: `v1.5`
+* Summary of what was included: Smarter Acquisition Intelligence with deterministic acquisition impact simulation, quality/completion/WANT_LIST/upgrade deltas, and Listing Analyzer/Dashboard integration.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -23,7 +23,8 @@
 * `v1.1` acceptance audit passed on 2026-06-16; tag `v1.1` points to `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e`.
 * `v1.2` acceptance audit passed on 2026-06-16; tag `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
 * `v1.3` acceptance audit passed on 2026-06-16; tag `v1.3` points to `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e`.
-* `v1.4` acceptance audit passed on 2026-06-16; tag `v1.4` pending final verification.
+* `v1.4` acceptance audit passed on 2026-06-16; tag `v1.4` points to `7cc5a7cc4b0e99a01e7515b89d11089461ea097d`.
+* `v1.5` acceptance audit passed on 2026-06-16; tag `v1.5` pending final verification.
 
 ## Completed Features
 
@@ -64,6 +65,7 @@
 * Listing Analyzer: offline pasted-listing workflow that stores URL reference data, parses basic listing text into a candidate, and reuses Shared Session Context, Collection Intelligence, WANT_LIST context, and Acquisition Workflow to answer ownership, duplicate, upgrade, want-list, and buy/pass questions.
 * Collection Dashboard: actionable read-only overview that combines collection snapshot counts, WANT_LIST opportunities, upgrade opportunities, collection gaps, series completion, and basic collection evolution into CSV/Markdown-exportable planning data.
 * Collection Quality Engine: deterministic scoring engine that explains overall quality, completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions using only available collection data.
+* Smarter Acquisition Intelligence: deterministic impact simulation that measures collection impact, quality score delta, completion delta, WANT_LIST impact, and upgrade impact for candidate purchases without modifying collection data.
 
 ## Known Bugs
 
@@ -77,7 +79,7 @@
 
 ## Active Roadmap
 
-1. Begin v1.5 Smarter Acquisition Intelligence planning
+1. Begin v1.6 Photo Vault planning
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -101,7 +103,7 @@
 
 ## Next Priority Task
 
-Begin v1.5 Smarter Acquisition Intelligence planning.
+Begin v1.6 Photo Vault planning.
 
 ## Project Architecture
 
@@ -113,6 +115,7 @@ Begin v1.5 Smarter Acquisition Intelligence planning.
 * Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
+* Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Collection Dashboard system: `collection_dashboard.py` generates actionable dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown exports.
 * Collection Quality system: `collection_quality.py` generates explainable quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown exports. Collection Dashboard displays its top-level quality output.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
@@ -149,6 +152,11 @@ Begin v1.5 Smarter Acquisition Intelligence planning.
 ## Recent Changes
 
 ### 2026-06-16
+
+* Implemented v1.5 Smarter Acquisition Intelligence: Acquisition Impact Engine, deterministic add/replace simulation, quality/completion/WANT_LIST/upgrade deltas, impact score, recommendation reasoning, Listing Analyzer display integration, and Dashboard top potential collection improvements panel.
+* Implementation commit: pending implementation commit hash.
+* Full test suite passed: 260 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.5 imports and non-GUI impact/listing/dashboard checks passed.
 
 * Implemented v1.4 Collection Quality Engine: explainable overall quality score, category scores, strengths, weaknesses, recommended actions, supporting metrics, CSV/Markdown export, and Collection Dashboard integration.
 * Implementation commit: `4df68f2`

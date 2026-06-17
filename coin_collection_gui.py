@@ -1859,9 +1859,15 @@ Total Unique Dates: {total_unique_dates}
                 f"  WANT_LIST Status: {result.want_list_status}",
                 f"  Collection Impact: {result.collection_impact}",
                 f"  Priority Score: {result.priority_score}",
+                f"  Acquisition Impact Score: {result.acquisition_impact_score}",
+                f"  Quality Impact: {result.quality_impact:+d}",
+                f"  Completion Impact: {result.completion_impact:+.1f}%",
                 f"  Max Rational Price: ${result.max_rational_price:.2f}",
                 f"  Recommendation: {result.recommendation}",
             ]
+            if result.recommendation_reasoning:
+                lines.extend(["", "Recommendation Reasoning:"])
+                lines.extend(f"  - {reason}" for reason in result.recommendation_reasoning)
             if result.acquisition_decision.priority_reasons:
                 lines.extend(["", "Priority Reasons:"])
                 lines.extend(f"  - {reason}" for reason in result.acquisition_decision.priority_reasons)

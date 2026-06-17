@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.4`
+Current version: `v1.5`
 
-Latest tagged release: `v1.4`
+Latest tagged release: `v1.5`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -41,6 +41,7 @@ The app is especially tuned for Adam-specific priorities:
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
+- Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -104,7 +105,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.4 collection-quality development suite passed with `251 tests OK`.
+The v1.5 acquisition-impact development suite passed with `260 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -121,7 +122,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse. |
 | `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation. |
 | `v1.3` | `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e` | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
-| `v1.4` | Pending tag verification | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
+| `v1.4` | `7cc5a7cc4b0e99a01e7515b89d11089461ea097d` | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
+| `v1.5` | Pending tag verification | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -132,6 +134,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
 - Use Collection Quality Engine outputs inside Collection Dashboard when you want explainable quality scores, strengths, weaknesses, and ranked improvement actions.
+- Use acquisition impact output from Listing Analyzer when you need to know how much a candidate improves the collection, not just whether it is buyable.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -155,7 +158,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.5 Smarter Acquisition Intelligence planning.
+- Begin v1.6 Photo Vault planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -206,7 +209,7 @@ Supported inputs:
 - Seller notes
 - Description
 
-The analyzer parses basic candidate details from pasted text, including country, denomination, year, grade, certifier, and simple variety terms. It then reuses Shared Session Context, WANT_LIST context, Collection Intelligence, and Acquisition Workflow to report ownership, duplicate, upgrade, want-list, collection impact, max rational price, and recommendation.
+The analyzer parses basic candidate details from pasted text, including country, denomination, year, grade, certifier, and simple variety terms. It then reuses Shared Session Context, WANT_LIST context, Collection Intelligence, Acquisition Workflow, and Acquisition Impact Engine to report ownership, duplicate, upgrade, want-list, collection impact, max rational price, acquisition impact score, quality impact, completion impact, recommendation reasoning, and recommendation.
 
 Known limitations:
 
@@ -283,6 +286,39 @@ Known limitations:
 - No rarity guides, market pricing, population reports, or external value estimates are used.
 - Certification coverage depends on available text fields such as notes, comments, certifier, or certification number.
 - WANT_LIST progress depends on staged workbook WANT_LIST context being loaded.
+
+## Smarter Acquisition Intelligence
+
+The Acquisition Impact Engine answers how much a candidate improves the collection if acquired.
+
+It simulates:
+
+1. Current collection.
+2. Add candidate, or replace the weaker matching item for better-grade upgrade scenarios.
+3. Recalculate quality metrics.
+4. Measure quality, completion, WANT_LIST, and upgrade deltas.
+
+Impact categories:
+
+- LOW
+- MEDIUM
+- HIGH
+- MAJOR
+
+Impact outputs:
+
+- Acquisition Impact Score from 0 to 100
+- Quality score before and after
+- Series completion before and after
+- Upgrade opportunity impact
+- WANT_LIST completion impact
+- Recommendation reasoning such as quality gain, completion gain, WANT_LIST resolution, upgrade impact, and priority-series signals
+
+Known limitations:
+
+- No market pricing, rarity guides, population reports, web scraping, OCR, or Numista expansion.
+- Impact simulation is deterministic planning guidance and does not modify collection data.
+- Upgrade scenarios assume the candidate replaces the weaker matching example for impact measurement.
 
 ## Data Safety
 

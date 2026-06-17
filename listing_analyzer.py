@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import urlparse
 
 from acquisition_workflow import AcquisitionDecision, AcquisitionWorkflow
+from acquisition_impact import AcquisitionImpactEngine, AcquisitionImpactReport
 from focused_collection_intelligence import CandidateItem, CollectionIntelligenceResult, MatchStatus
 
 
@@ -100,8 +101,13 @@ class ListingAnalysisResult:
     collection_impact: str
     priority_score: int
     max_rational_price: float
+    acquisition_impact_score: int
+    quality_impact: int
+    completion_impact: float
+    recommendation_reasoning: List[str]
     recommendation: str
     acquisition_decision: AcquisitionDecision
+    acquisition_impact_report: Optional[AcquisitionImpactReport] = None
     intelligence_result: Optional[CollectionIntelligenceResult] = None
     warnings: List[str] = field(default_factory=list)
 
@@ -116,6 +122,10 @@ class ListingAnalysisResult:
             "collection_impact": self.collection_impact,
             "priority_score": self.priority_score,
             "max_rational_price": self.max_rational_price,
+            "acquisition_impact_score": self.acquisition_impact_score,
+            "quality_impact": self.quality_impact,
+            "completion_impact": self.completion_impact,
+            "recommendation_reasoning": list(self.recommendation_reasoning),
             "recommendation": self.recommendation,
             "warnings": list(self.warnings),
         }
@@ -163,6 +173,7 @@ class ListingAnalyzer:
 
         candidate = self.to_candidate_item(listing)
         acquisition = AcquisitionWorkflow(self.collection_items, self.want_list_intents).evaluate(candidate)
+        impact = AcquisitionImpactEngine(self.collection_items, self.want_list_intents).evaluate(candidate)
         intelligence = acquisition.intelligence_result
         warnings = list(listing.validate())
         warnings.extend(acquisition.warning_flags)
@@ -177,8 +188,13 @@ class ListingAnalyzer:
             collection_impact=intelligence.collection_impact if intelligence else "",
             priority_score=self._priority_score(acquisition),
             max_rational_price=acquisition.max_rational_price,
+            acquisition_impact_score=impact.impact_score,
+            quality_impact=impact.quality_delta,
+            completion_impact=impact.completion_delta,
+            recommendation_reasoning=impact.recommendation_reasoning,
             recommendation=self._listing_recommendation(acquisition),
             acquisition_decision=acquisition,
+            acquisition_impact_report=impact,
             intelligence_result=intelligence,
             warnings=self._dedupe(warnings),
         )

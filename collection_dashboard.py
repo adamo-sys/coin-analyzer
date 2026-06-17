@@ -59,6 +59,7 @@ class CollectionSnapshot:
 class CollectionDashboardData:
     snapshot: CollectionSnapshot
     quality_report: Optional[CollectionQualityReport] = None
+    top_potential_collection_improvements: List[DashboardItem] = field(default_factory=list)
     top_collection_priorities: List[DashboardItem] = field(default_factory=list)
     best_upgrade_opportunities: List[DashboardItem] = field(default_factory=list)
     want_list_priorities: List[DashboardItem] = field(default_factory=list)
@@ -106,6 +107,7 @@ class CollectionDashboard:
         return CollectionDashboardData(
             snapshot=snapshot,
             quality_report=quality_report,
+            top_potential_collection_improvements=self._quality_improvement_panel(quality_report),
             top_collection_priorities=self._top_priorities(want_targets, series_completion, upgrades),
             best_upgrade_opportunities=self._upgrade_panel(upgrades),
             want_list_priorities=self._want_list_panel(want_targets),
@@ -152,6 +154,7 @@ class CollectionDashboard:
             else:
                 lines.append("- No recommended actions generated.")
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
+        lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
         lines.extend(self._format_items("Best Upgrade Opportunities", data.best_upgrade_opportunities))
         lines.extend(self._format_items("WANT_LIST Priorities", data.want_list_priorities))
         lines.extend(self._format_items("Collection Gaps", data.collection_gaps))
@@ -198,6 +201,7 @@ class CollectionDashboard:
                             action.expected_impact,
                         ])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
+                self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
                 self._write_items(writer, "Best Upgrade Opportunities", data.best_upgrade_opportunities)
                 self._write_items(writer, "WANT_LIST Priorities", data.want_list_priorities)
                 self._write_items(writer, "Collection Gaps", data.collection_gaps)
@@ -249,6 +253,17 @@ class CollectionDashboard:
                 detail=f"Current best grade: {upgrade['current_best_grade']}",
                 priority=60,
                 action=upgrade["reason"],
+            ))
+        return rows
+
+    def _quality_improvement_panel(self, quality_report: CollectionQualityReport) -> List[DashboardItem]:
+        rows = []
+        for action in quality_report.recommended_actions[:8]:
+            rows.append(DashboardItem(
+                title=action.action,
+                detail=action.why_it_matters,
+                priority=action.priority_score,
+                action=action.expected_impact,
             ))
         return rows
 
