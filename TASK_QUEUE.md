@@ -119,7 +119,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `RELEASE_HISTORY.md`
-- Commit hash: `TBD`
+- Commit hash: `d3eac79`
 
 #### `[x]` Build Listing Analyzer
 

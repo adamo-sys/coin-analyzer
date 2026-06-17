@@ -142,7 +142,7 @@ Begin v1.3 Collection Dashboard release planning and audit the existing dashboar
 ### 2026-06-16
 
 * Completed v1.2 post-release usability documentation audit: clarified Listing Analyzer workflow positioning, Buy Advisor / Listing Analyzer / Want List overlap, export support, known limitations, release metadata, and next priorities.
-* Commit: `TBD`
+* Commit: `d3eac79`
 * Full test suite passed after documentation cleanup: 229 tests OK.
 
 * Implemented v1.2 Listing Analyzer: offline pasted listing model, URL validation, total-cost calculation, basic candidate parsing, acquisition workflow integration, shared WANT_LIST context reuse, Tools -> Listing Analyzer GUI entry point, and listing regression tests.
