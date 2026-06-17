@@ -68,9 +68,10 @@ Work through this queue in priority order. Handle only one task at a time.
 36. `[x]` Build Shared Session Context
 37. `[x]` Build Listing Analyzer
 38. `[x]` Perform v1.2 post-release usability documentation audit
-39. `[ ]` Build v1.3 Collection Dashboard release line
-40. `[ ]` Improve Buy Advisor validation messages
-41. `[ ]` Add autocomplete for country/denomination
+39. `[x]` Build v1.3 Collection Dashboard release line
+40. `[ ]` Begin v1.4 Collection Scoring Engine planning
+41. `[ ]` Improve Buy Advisor validation messages
+42. `[ ]` Add autocomplete for country/denomination
 
 ## Adam-Specific Collection Priorities
 
@@ -112,6 +113,20 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Build v1.3 Collection Dashboard release line
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `collection_dashboard.py` (new file)
+  - `test_collection_dashboard.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Commit hash: pending implementation commit hash.
 
 #### `[x]` Perform v1.2 post-release usability documentation audit
 

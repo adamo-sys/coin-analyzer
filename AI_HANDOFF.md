@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v1.2`
-- Current active task completed: v1.2 post-release usability documentation audit
+- Current project state file reports release version: `v1.3`
+- Current active task completed: v1.3 Collection Dashboard release line
 
 ## What Changed
 
@@ -32,6 +32,9 @@
 - Added `test_listing_analyzer.py` covering listing creation, URL validation, total cost, WANT_LIST, duplicate, upgrade, gap, missing inputs, and Shared Session Context integration.
 - Tagged and pushed `v1.2` at `db001da4187af5a2bd2350bd956b2876007f7587`.
 - Clarified README guidance for which acquisition tool to use, report/export support, and Listing Analyzer limitations.
+- Added `collection_dashboard.py` with structured dashboard data, snapshot counts, actionable priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown export.
+- Added Tools -> Collection Dashboard in `coin_collection_gui.py`.
+- Added `test_collection_dashboard.py` for empty collection, small collection summary, WANT_LIST integration, upgrade reporting, gap reporting, series completion, exports, and Shared Session Context integration.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -64,6 +67,17 @@ The listing analyzer adds:
 - Ownership, duplicate, upgrade, WANT_LIST, collection impact, priority score, max rational price, and listing recommendation
 - Offline URL storage only; no scraping or network requests
 
+The collection dashboard adds:
+
+- Collection snapshot counts
+- Top collection priorities
+- Best upgrade opportunities
+- WANT_LIST priorities
+- Collection gaps
+- Series completion percentages from actual collection data
+- Basic collection evolution from available `date_added` values
+- CSV and Markdown export
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -87,11 +101,12 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 229 tests OK for the v1.2 release.
+- `.\run_tests.bat`: 238 tests OK for the v1.3 dashboard release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
 - Local GUI smoke for v1.1 could not run because this Python/Tcl install cannot find `init.tcl`.
+- Local GUI smoke for v1.3 also could not run because this Python/Tcl install cannot find `init.tcl`; dashboard and GUI module imports passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -103,11 +118,12 @@ Supported statuses:
 - Acquisition workflow max rational price is rule-based internal guidance only; it is not market pricing.
 - Listing Analyzer parsing is intentionally basic and requires manual review for ambiguous listing titles.
 - Listing URLs are stored as reference data only; no website fetches, scraping, enrichment, or market-price lookups occur.
+- Collection Dashboard does not estimate unknown values and depends on available collection fields for certified counts and collection evolution.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v1.3 Collection Dashboard release planning and audit the existing dashboard against collector workflow needs.
+1. Begin v1.4 Collection Scoring Engine planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

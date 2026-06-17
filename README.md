@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.2`
+Current version: `v1.3`
 
-Latest tagged release: `v1.2`
+Latest tagged release: `v1.3`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -39,6 +39,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
+- Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -59,7 +60,8 @@ The app is especially tuned for Adam-specific priorities:
 6. Review ownership status, duplicate risk, upgrade status, WANT_LIST status, collection impact, max rational price, recommendation, confidence, reasons, and warnings.
 7. If the listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
 8. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
-9. Export reports when needed for collection planning or records.
+9. Open Tools -> Collection Dashboard to review what to focus on next without manually running every report.
+10. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -101,7 +103,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.2 listing-analyzer development suite passed with `229 tests OK`.
+The v1.3 collection-dashboard development suite passed with `238 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -117,6 +119,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse. |
 | `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation. |
+| `v1.3` | Pending tag verification | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -125,6 +128,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
+- Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -148,6 +152,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
+- Begin v1.4 Collection Scoring Engine planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -220,6 +225,31 @@ Export support is intentionally report-specific:
 - Upgrade Advisor: CSV export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
+
+## Collection Dashboard
+
+Use Tools -> Collection Dashboard for a read-only overview of the current collection and active WANT_LIST context.
+
+Dashboard sections:
+
+- Collection Snapshot: item count, WANT_LIST count, duplicates, upgrade opportunities, country count, denomination count, silver count, and certified count when available.
+- Top Collection Priorities: closest completion targets, explicit WANT_LIST opportunities, and upgrade-focused next actions.
+- Best Upgrade Opportunities: duplicate groups where the highest-grade item should guide replacement decisions.
+- WANT_LIST Priorities: highest-priority staged workbook WANT_LIST targets and acquisition candidates.
+- Collection Gaps: missing date runs and suggested next acquisitions using existing gap-report logic.
+- Series Completion: deterministic completion percentages from actual owned years only.
+- Collection Evolution: basic growth signal from available `date_added` values.
+
+Exports:
+
+- CSV
+- Markdown
+
+Known limitations:
+
+- The dashboard does not estimate unknown values.
+- Series completion uses existing collection years and known contiguous date spans; sparse or irregular series may need manual interpretation.
+- Collection evolution depends on `date_added` being present in collection records.
 
 ## Data Safety
 

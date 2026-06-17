@@ -22,6 +22,7 @@ from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
+from collection_dashboard import CollectionDashboard
 
 
 class CoinCollectionGUI:
@@ -71,6 +72,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Load Collection Context", command=self.load_collection_context)
         tools_menu.add_command(label="Clear Session Context", command=self.clear_session_context)
         tools_menu.add_separator()
+        tools_menu.add_command(label="Collection Dashboard", command=self.open_collection_dashboard)
         tools_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
@@ -807,6 +809,64 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
         refresh_targets()
+
+    def open_collection_dashboard(self):
+        """Open actionable Collection Dashboard dialog."""
+        dashboard = CollectionDashboard(
+            self._collection_items(),
+            self._active_want_list_intents(),
+        )
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Dashboard")
+        dialog.geometry("900x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            main_frame,
+            text=self.session_context.format_status_line(),
+            padding=(0, 0, 0, 8),
+        ).pack(fill=tk.X)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, dashboard.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Dashboard CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if dashboard.export_csv(file_path):
+                messagebox.showinfo("Success", f"Collection dashboard CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export collection dashboard CSV")
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Dashboard Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if dashboard.export_markdown(file_path):
+                messagebox.showinfo("Success", f"Collection dashboard Markdown exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export collection dashboard Markdown")
+
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_portfolio_import_preview(self):
         """Preview a legacy portfolio workbook without importing collection data."""
