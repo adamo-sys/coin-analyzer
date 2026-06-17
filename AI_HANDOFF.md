@@ -4,8 +4,8 @@
 
 - Date: 2026-06-16
 - Branch: `main`
-- Current project state file reports release version: `v1.2-dev`
-- Current active task completed: v1.2 Listing Analyzer
+- Current project state file reports release version: `v1.2`
+- Current active task completed: v1.2 post-release usability documentation audit
 
 ## What Changed
 
@@ -30,6 +30,8 @@
 - Added `listing_analyzer.py` with `ListingCandidate`, URL validation, total-cost calculation, basic candidate parsing, and offline analysis through Acquisition Workflow.
 - Added Tools -> Listing Analyzer in `coin_collection_gui.py`.
 - Added `test_listing_analyzer.py` covering listing creation, URL validation, total cost, WANT_LIST, duplicate, upgrade, gap, missing inputs, and Shared Session Context integration.
+- Tagged and pushed `v1.2` at `db001da4187af5a2bd2350bd956b2876007f7587`.
+- Clarified README guidance for which acquisition tool to use, report/export support, and Listing Analyzer limitations.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -82,10 +84,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 229 tests OK.
+- `.\run_tests.bat`: 229 tests OK for the v1.2 release.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
-- Tag metadata verified for `v0.5` through `v1.0`; `v1.0` points to `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7`.
+- Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
 - Local GUI smoke for v1.1 could not run because this Python/Tcl install cannot find `init.tcl`.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
@@ -102,8 +104,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Perform a focused v1.2 acceptance audit for Listing Analyzer.
-2. Tag v1.2 if the audit passes.
-3. Improve Buy Advisor validation messages.
-4. Add GUI autocomplete for country and denomination.
-5. Plan v1.3 Collection Dashboard work.
+1. Begin v1.3 Collection Dashboard release planning and audit the existing dashboard against collector workflow needs.
+2. Improve Buy Advisor validation messages.
+3. Add GUI autocomplete for country and denomination.
+4. Decide whether Listing Analyzer should eventually export its result.
+5. Expand normalization fixtures for listing-title parsing edge cases.

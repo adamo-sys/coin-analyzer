@@ -9,10 +9,10 @@
 | `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow added with deterministic max rational price and BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance. |
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable v1.0 release baseline after readiness audit, full regression suite, GUI smoke checks, export checks, and tag verification. |
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse across collector tools. |
-| `v1.2-dev` | Unreleased | Listing Analyzer for offline pasted listing evaluation through Acquisition Workflow. |
+| `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation through Acquisition Workflow. |
 
 ## Notes
 
 - Release hashes are tag targets, not necessarily the latest post-release documentation commit.
-- The `v1.0` tag intentionally points to the audited application release commit.
-- Post-release packaging documentation can exist after the `v1.0` tag without changing the released application behavior.
+- Release tags intentionally point to audited application release commits.
+- Post-release documentation commits can exist after a release tag without changing the released application behavior.

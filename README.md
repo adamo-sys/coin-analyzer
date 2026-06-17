@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current development version: `v1.2-dev`
+Current version: `v1.2`
 
-Latest tagged release: `v1.1`
+Latest tagged release: `v1.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -116,9 +116,19 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v0.9` | `af09668dd9b735479a0885445a7198302d6432f3` | Acquisition Workflow with deterministic max rational price guidance. |
 | `v1.0` | `2c3d68bc65fcb2f3787f9a3d7624bd49675684c7` | Stable release candidate audit passed; production-ready v1.0 baseline. |
 | `v1.1` | `0fd5e1fbe5807cf8889cee3ea94d5752acfdf06e` | Shared Session Context for load-once workbook and WANT_LIST reuse. |
-| `v1.2-dev` | Unreleased | Listing Analyzer for offline pasted listing evaluation. |
+| `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
+
+## Which Tool To Use
+
+- Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
+- Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
+- Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
+- Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
+- Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
+
+These tools overlap intentionally. Listing Analyzer is the fastest entry point for pasted listings; it reuses the same underlying Collection Intelligence and Acquisition Workflow instead of replacing them.
 
 ## Screenshot Placeholders
 
@@ -197,6 +207,19 @@ Known limitations:
 - No market-price API lookup.
 - No OCR, image recognition, or AI grading.
 - Listing parsing is intentionally basic and should be manually reviewed for ambiguous listings.
+
+## Exports
+
+Export support is intentionally report-specific:
+
+- Collection data: CSV export.
+- Collection Gap Report: CSV and Markdown export.
+- Want List Generator: CSV and Markdown export.
+- Portfolio Import Preview: CSV export.
+- WANT_LIST Preview: CSV export.
+- Upgrade Advisor: CSV export.
+
+Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
 ## Data Safety
 

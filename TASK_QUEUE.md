@@ -64,6 +64,10 @@ Work through this queue in priority order. Handle only one task at a time.
 35. `[x]` Complete post-v1.0 release packaging documentation
 36. `[x]` Build Shared Session Context
 37. `[x]` Build Listing Analyzer
+38. `[x]` Perform v1.2 post-release usability documentation audit
+39. `[ ]` Build v1.3 Collection Dashboard release line
+40. `[ ]` Improve Buy Advisor validation messages
+41. `[ ]` Add autocomplete for country/denomination
 
 ## Adam-Specific Collection Priorities
 
@@ -105,6 +109,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-16
+
+#### `[x]` Perform v1.2 post-release usability documentation audit
+
+- Date completed: 2026-06-16
+- Files modified:
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Commit hash: `TBD`
 
 #### `[x]` Build Listing Analyzer
 
