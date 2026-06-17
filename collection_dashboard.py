@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from collection_intelligence import CollectionIntelligenceEngine, SILVER_DENOMINATION_TERMS
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
+from market_awareness import MarketAwarenessEngine, MarketAwarenessReport
 from photo_vault import PhotoCoverageSummary, PhotoRecord, PhotoVault
 from series_tracker import SeriesReport, SeriesTracker
 
@@ -62,6 +63,7 @@ class CollectionDashboardData:
     snapshot: CollectionSnapshot
     quality_report: Optional[CollectionQualityReport] = None
     photo_coverage: Optional[PhotoCoverageSummary] = None
+    market_report: Optional[MarketAwarenessReport] = None
     series_tracker_reports: List[SeriesReport] = field(default_factory=list)
     top_potential_collection_improvements: List[DashboardItem] = field(default_factory=list)
     top_series_focus: List[DashboardItem] = field(default_factory=list)
@@ -81,10 +83,12 @@ class CollectionDashboard:
         items: Iterable[Any],
         staged_want_list_intents: Optional[Iterable[Any]] = None,
         photo_records: Optional[Iterable[PhotoRecord]] = None,
+        market_awareness_engine: Optional[MarketAwarenessEngine] = None,
     ):
         self.items = list(items or [])
         self.staged_want_list_intents = list(staged_want_list_intents or [])
         self.photo_records = list(photo_records or [])
+        self.market_awareness_engine = market_awareness_engine or MarketAwarenessEngine()
         self.intelligence = CollectionIntelligenceEngine(self.items)
 
     def generate_dashboard(self) -> CollectionDashboardData:
@@ -122,11 +126,13 @@ class CollectionDashboard:
             self.photo_records,
             self.items,
         ).coverage_summary()
+        market_report = self.market_awareness_engine.generate_report()
 
         return CollectionDashboardData(
             snapshot=snapshot,
             quality_report=quality_report,
             photo_coverage=photo_coverage,
+            market_report=market_report,
             series_tracker_reports=series_reports,
             top_potential_collection_improvements=self._quality_improvement_panel(quality_report),
             top_series_focus=self._series_focus_panel(series_reports),
@@ -185,6 +191,25 @@ class CollectionDashboard:
                 f"- Items without photos: {data.photo_coverage.items_without_photos}",
                 f"- Certified coins with photos: {data.photo_coverage.certified_photo_coverage_percentage:.1f}%",
             ])
+        if data.market_report:
+            market = data.market_report.summary
+            lines.extend([
+                "",
+                "## Market Awareness",
+                "",
+                f"- Purchases tracked: {market.purchase_count}",
+                f"- Sales tracked: {market.sale_count}",
+                f"- Observations tracked: {market.observation_count}",
+                f"- Auctions tracked: {market.auction_count}",
+                f"- Average observed price: ${market.average_observed_price:.2f}",
+                "",
+                "### Recent Market Activity",
+                "",
+            ])
+            if data.market_report.recent_activity:
+                lines.extend(f"- {activity}" for activity in data.market_report.recent_activity[:5])
+            else:
+                lines.append("- No market activity recorded.")
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
         lines.extend(self._format_items("Top Series", data.top_series_focus))
@@ -236,6 +261,11 @@ class CollectionDashboard:
                 if data.photo_coverage:
                     for key, value in data.photo_coverage.to_dict().items():
                         writer.writerow(["Photo Coverage", key, value, "", ""])
+                if data.market_report:
+                    for key, value in data.market_report.summary.to_dict().items():
+                        writer.writerow(["Market Awareness", key, value, "", ""])
+                    for activity in data.market_report.recent_activity[:10]:
+                        writer.writerow(["Market Recent Activity", activity, "", "", ""])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
                 self._write_items(writer, "Top Series", data.top_series_focus)

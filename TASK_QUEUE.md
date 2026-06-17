@@ -73,9 +73,10 @@ Work through this queue in priority order. Handle only one task at a time.
 41. `[x]` Build v1.5 Smarter Acquisition Intelligence
 42. `[x]` Build v1.6 Series Tracker
 43. `[x]` Build v1.7 Photo Vault
-44. `[ ]` Begin v1.8 Market Awareness Layer planning
+44. `[x]` Build v1.8 Market Awareness Layer
 45. `[ ]` Improve Buy Advisor validation messages
 46. `[ ]` Add autocomplete for country/denomination
+47. `[ ]` Begin v1.9 Smart Shopping Assistant planning
 
 ## Adam-Specific Collection Priorities
 
@@ -117,6 +118,21 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-17
+
+#### `[x]` Build v1.8 Market Awareness Layer
+
+- Date completed: 2026-06-17
+- Files modified:
+  - `market_awareness.py` (new file)
+  - `test_market_awareness.py` (new file)
+  - `collection_dashboard.py`
+  - `acquisition_impact.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Implementation commit hash: pending
 
 #### `[x]` Build v1.7 Photo Vault
 

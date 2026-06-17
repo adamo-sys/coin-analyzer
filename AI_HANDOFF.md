@@ -4,8 +4,8 @@
 
 - Date: 2026-06-17
 - Branch: `main`
-- Current project state file reports release version: `v1.7`
-- Current active task completed: v1.7 Photo Vault
+- Current project state file reports release version: `v1.8`
+- Current active task completed: v1.8 Market Awareness Layer
 
 ## What Changed
 
@@ -51,6 +51,11 @@
 - Added `photo_vault.py` with metadata-only `PhotoRecord`, collection/candidate/reference linking, certification-number lookup, deterministic search, expected folder mapping, coverage metrics, and CSV/Markdown export.
 - Collection Dashboard now accepts optional photo records and displays photo coverage metrics.
 - Added `test_photo_vault.py` covering record creation, collection linking, candidate linking, reference linking, certification lookup, dashboard integration, search, and exports.
+- Added `market_awareness.py` with local-only observed price, purchase, sale, and auction records plus market summaries, historical observed-price context, and CSV/Markdown export.
+- Collection Dashboard now accepts an optional Market Awareness engine and displays purchases, sales, observations, auctions, averages, and recent market activity.
+- Acquisition Impact can now expose local historical observed-price context for a candidate without changing recommendation thresholds or using live pricing.
+- Market records can preserve linked Photo Vault reference identifiers without moving files.
+- Added `test_market_awareness.py` covering record creation, auction tracking, dashboard integration, acquisition context, export support, and photo-reference IDs.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -134,6 +139,17 @@ The photo vault adds:
 - Collection photo coverage metrics
 - CSV and Markdown export
 
+The market awareness layer adds:
+
+- Observed price records
+- Purchase records
+- Sale records
+- Auction records with Won/Lost/Passed status
+- Local market summary averages and counts
+- Historical observed-price context for acquisition impact
+- Photo Vault reference identifiers on market records
+- CSV and Markdown export
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -150,6 +166,7 @@ Supported statuses:
 - Do not add OCR, image recognition, scraping, or market-price automation as part of this engine.
 - Keep this engine deterministic and testable.
 - Do not modify `data/collection.json` from analysis workflows.
+- Do not treat Market Awareness as live pricing; it is local personal market memory only.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -157,7 +174,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 277 tests OK for the v1.7 Photo Vault release line.
+- `.\run_tests.bat`: 285 tests OK for the v1.8 Market Awareness release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -167,6 +184,7 @@ Supported statuses:
 - Local GUI smoke for v1.5 also could not run because this Python/Tcl install cannot find `init.tcl`; imports and non-GUI impact/listing/dashboard checks passed.
 - Local GUI smoke for v1.6 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, tracker reports, and non-GUI dashboard/impact checks passed.
 - Local GUI smoke for v1.7 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, photo vault lookups, and non-GUI dashboard coverage checks passed.
+- Local GUI smoke for v1.8 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -183,11 +201,12 @@ Supported statuses:
 - Acquisition Impact Engine is deterministic planning guidance only; it does not modify collection data or use market pricing, rarity guides, scraping, OCR, or Numista expansion.
 - Series Tracker definitions identify supported series; they do not contain fabricated master mintage checklists. Completion is based on actual owned dates and missing years inside observed owned spans.
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
+- Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v1.8 Market Awareness Layer planning.
+1. Begin v1.9 Smart Shopping Assistant planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.7`
+* Current release version: `v1.8`
 * Current Git branch: `main`
 * Last updated date: 2026-06-17
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.7`
-* Summary of what was included: Photo Vault for metadata-only photo records, collection/candidate/reference linking, certification lookup, deterministic search, exports, and dashboard photo coverage metrics.
+* Most recent Git tag: `v1.8`
+* Summary of what was included: Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard market summary metrics, acquisition historical context, photo-reference links, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -26,7 +26,8 @@
 * `v1.4` acceptance audit passed on 2026-06-16; tag `v1.4` points to `7cc5a7cc4b0e99a01e7515b89d11089461ea097d`.
 * `v1.5` acceptance audit passed on 2026-06-16; tag `v1.5` points to `080b70b106e19de0739fab172993846999edb2bd`.
 * `v1.6` acceptance audit passed on 2026-06-17; tag `v1.6` points to `09b201cb0a5f394c957af48081e10e7f200b8533`.
-* `v1.7` acceptance audit passed on 2026-06-17; tag `v1.7` pending final verification.
+* `v1.7` acceptance audit passed on 2026-06-17; tag `v1.7` points to `b650a141e1061979506f19402360239d69f68073`.
+* `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` pending final verification.
 
 ## Completed Features
 
@@ -70,6 +71,7 @@
 * Smarter Acquisition Intelligence: deterministic impact simulation that measures collection impact, quality score delta, completion delta, WANT_LIST impact, and upgrade impact for candidate purchases without modifying collection data.
 * Series Tracker: deterministic supported-series progress reports for owned dates, missing dates, completion percentage, WANT_LIST targets, upgrade counts, priority score, CSV/Markdown export, Dashboard Top Series panel, and Acquisition Impact series metrics.
 * Photo Vault: metadata-only photo record engine for collection, candidate, reference, auction, and sold photos with collection-item linking, candidate linking, certification-number lookup, deterministic search, coverage metrics, and CSV/Markdown export.
+* Market Awareness Layer: local-only tracking for observed prices, purchases, sales, and auction outcomes with dashboard market summary, acquisition historical context, photo-reference links, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -83,7 +85,7 @@
 
 ## Active Roadmap
 
-1. Begin v1.8 Market Awareness Layer planning
+1. Begin v1.9 Smart Shopping Assistant planning
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -107,7 +109,7 @@
 
 ## Next Priority Task
 
-Begin v1.8 Market Awareness Layer planning.
+Begin v1.9 Smart Shopping Assistant planning.
 
 ## Project Architecture
 
@@ -122,6 +124,7 @@ Begin v1.8 Market Awareness Layer planning.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
 * Photo Vault system: `photo_vault.py` stores metadata-only `PhotoRecord` objects, links photos to collection items and candidates, supports reference/auction/sold photo types, certification-number lookup, deterministic search, coverage metrics, expected folder mapping, and CSV/Markdown exports.
+* Market Awareness system: `market_awareness.py` stores local-only observed price, purchase, sale, and auction records, generates summaries, exposes historical observed-price context for acquisition impact, supports photo-reference identifiers, and exports CSV/Markdown reports.
 * Collection Dashboard system: `collection_dashboard.py` generates actionable dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown exports.
 * Collection Quality system: `collection_quality.py` generates explainable quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown exports. Collection Dashboard displays its top-level quality output.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
@@ -158,6 +161,11 @@ Begin v1.8 Market Awareness Layer planning.
 ## Recent Changes
 
 ### 2026-06-17
+
+* Implemented v1.8 Market Awareness Layer: local observed price, purchase, sale, and auction records; market summary reporting; dashboard market metrics; acquisition historical observed-price context; photo-reference identifiers; and CSV/Markdown export.
+* Implementation commit: pending.
+* Full test suite passed: 285 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.8 imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
 
 * Implemented v1.7 Photo Vault: metadata-only photo records, collection/candidate/reference linking, certification lookup, deterministic search, collection photo coverage metrics, dashboard photo coverage display, expected folder mapping, and CSV/Markdown export.
 * Implementation commit: `0b961d9`

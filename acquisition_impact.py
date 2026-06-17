@@ -9,6 +9,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
 from coin_collection import CoinItem
 from focused_collection_intelligence import CandidateItem, MatchStatus
+from market_awareness import MarketAwarenessEngine
 from series_tracker import SeriesTracker
 
 
@@ -35,6 +36,8 @@ class AcquisitionImpactReport:
     series_priority_before: int = 0
     series_priority_after: int = 0
     series_priority_delta: int = 0
+    market_context_summary: str = ""
+    historical_observed_costs: List[float] = field(default_factory=list)
     recommendation_reasoning: List[str] = field(default_factory=list)
     acquisition_decision: Optional[AcquisitionDecision] = None
     quality_before_report: Optional[CollectionQualityReport] = None
@@ -61,6 +64,8 @@ class AcquisitionImpactReport:
             "series_priority_before": self.series_priority_before,
             "series_priority_after": self.series_priority_after,
             "series_priority_delta": self.series_priority_delta,
+            "market_context_summary": self.market_context_summary,
+            "historical_observed_costs": list(self.historical_observed_costs),
             "recommendation_reasoning": list(self.recommendation_reasoning),
         }
 
@@ -68,9 +73,15 @@ class AcquisitionImpactReport:
 class AcquisitionImpactEngine:
     """Measure how a candidate would improve collection quality and focus."""
 
-    def __init__(self, collection_items: Iterable[Any], want_list_intents: Optional[Iterable[Any]] = None):
+    def __init__(
+        self,
+        collection_items: Iterable[Any],
+        want_list_intents: Optional[Iterable[Any]] = None,
+        market_awareness_engine: Optional[MarketAwarenessEngine] = None,
+    ):
         self.collection_items = list(collection_items or [])
         self.want_list_intents = list(want_list_intents or [])
+        self.market_awareness_engine = market_awareness_engine or MarketAwarenessEngine()
 
     def evaluate(self, candidate: CandidateItem) -> AcquisitionImpactReport:
         acquisition = AcquisitionWorkflow(self.collection_items, self.want_list_intents).evaluate(candidate)
@@ -112,6 +123,10 @@ class AcquisitionImpactEngine:
             upgrade_after,
             want_delta,
         )
+        market_context = self.market_awareness_engine.historical_context_for_candidate(
+            candidate,
+            candidate.asking_price or 0.0,
+        )
 
         return AcquisitionImpactReport(
             impact_score=score,
@@ -133,6 +148,8 @@ class AcquisitionImpactEngine:
             series_priority_before=series_priority_before,
             series_priority_after=series_priority_after,
             series_priority_delta=series_priority_after - series_priority_before,
+            market_context_summary=market_context.context_summary,
+            historical_observed_costs=market_context.observed_costs,
             recommendation_reasoning=self._reasoning(
                 acquisition,
                 quality_delta,

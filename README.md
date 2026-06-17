@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.7`
+Current version: `v1.8`
 
-Latest tagged release: `v1.7`
+Latest tagged release: `v1.8`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -44,6 +44,7 @@ The app is especially tuned for Adam-specific priorities:
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
 - Series Tracker: tracks supported collecting goals, owned dates, missing dates, WANT_LIST targets, upgrade counts, and series priority.
 - Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, and exports.
+- Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -107,7 +108,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.7 photo-vault development suite passed with `277 tests OK`.
+The v1.8 market-awareness development suite passed with `285 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -127,7 +128,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.4` | `7cc5a7cc4b0e99a01e7515b89d11089461ea097d` | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
 | `v1.5` | `080b70b106e19de0739fab172993846999edb2bd` | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
 | `v1.6` | `09b201cb0a5f394c957af48081e10e7f200b8533` | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
-| `v1.7` | Pending tag verification | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
+| `v1.7` | `b650a141e1061979506f19402360239d69f68073` | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
+| `v1.8` | Pending tag verification | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -141,6 +143,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use acquisition impact output from Listing Analyzer when you need to know how much a candidate improves the collection, not just whether it is buyable.
 - Use Series Tracker output when you want to know which supported series are closest to completion and which dates matter next.
 - Use Photo Vault output when you want to link and search photo metadata for collection items, candidates, references, auction wins, and sold items.
+- Use Market Awareness output when you want to track what you observed, paid, sold, or bid locally without relying on live pricing.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -164,7 +167,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.8 Market Awareness Layer planning.
+- Begin v1.9 Smart Shopping Assistant planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -239,6 +242,7 @@ Export support is intentionally report-specific:
 - Collection Quality Engine: CSV and Markdown export.
 - Series Tracker: CSV and Markdown export.
 - Photo Vault: CSV and Markdown export.
+- Market Awareness Layer: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
@@ -418,6 +422,37 @@ Known limitations:
 - The vault does not move files automatically.
 - The vault does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Photo records are metadata objects; persistence can be added later if needed.
+
+## Market Awareness Layer
+
+The Market Awareness Layer is personal market memory, not live pricing. It records what was observed, purchased, sold, or bid on locally so future purchase decisions can be compared against the collector's own history.
+
+Tracked records:
+
+- Observed prices: item, country, denomination, year, grade, observed price, shipping, total observed cost, source, date, notes, and linked photo references.
+- Purchases: item, purchase price, shipping, total cost, seller/source, date, notes, and linked photo references.
+- Sales: item, sale price, fees, net proceeds, buyer/source, date, notes, and linked photo references.
+- Auctions: item, bid amount, winning bid, Won/Lost/Passed result, source, date, notes, and linked photo references.
+
+Dashboard integration:
+
+- Purchases tracked
+- Sales tracked
+- Observations tracked
+- Auctions tracked
+- Average observed price
+- Recent local market activity
+
+Acquisition Impact integration:
+
+- Candidate analysis can show local historical observed-price context such as below, within, or above the recent observed range.
+- This context is informational and does not replace the deterministic acquisition recommendation rules.
+
+Known limitations:
+
+- No scraping, URL fetching, market APIs, live pricing, market prediction, OCR, image recognition, or Numista lookup.
+- Market records are in-memory/local data structures unless a future persistence layer is added.
+- Historical context depends entirely on records the collector has entered or loaded locally.
 
 ## Data Safety
 
