@@ -157,7 +157,7 @@ Begin v1.7 Photo Vault planning.
 ### 2026-06-17
 
 * Implemented v1.6 Series Tracker: supported series definitions, owned/missing date reports, completion percentages, WANT_LIST and upgrade integration, priority scores, CSV/Markdown export, Dashboard Top Series panel, and Acquisition Impact series priority metrics.
-* Implementation commit: pending implementation commit hash.
+* Implementation commit: `8c4b58b`
 * Full test suite passed: 269 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.6 imports, tracker reports, and non-GUI dashboard/impact checks passed.
 
