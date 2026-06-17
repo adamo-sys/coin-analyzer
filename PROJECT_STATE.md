@@ -160,7 +160,7 @@ Begin v1.8 Market Awareness Layer planning.
 ### 2026-06-17
 
 * Implemented v1.7 Photo Vault: metadata-only photo records, collection/candidate/reference linking, certification lookup, deterministic search, collection photo coverage metrics, dashboard photo coverage display, expected folder mapping, and CSV/Markdown export.
-* Implementation commit: pending implementation commit hash.
+* Implementation commit: `0b961d9`
 * Full test suite passed: 277 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.7 imports, photo vault lookups, and non-GUI dashboard coverage checks passed.
 
