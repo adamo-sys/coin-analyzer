@@ -126,7 +126,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `RELEASE_HISTORY.md`
-- Commit hash: pending implementation commit hash.
+- Implementation commit hash: `da1c37f`
 
 #### `[x]` Perform v1.2 post-release usability documentation audit
 

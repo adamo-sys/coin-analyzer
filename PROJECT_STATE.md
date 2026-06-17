@@ -148,7 +148,7 @@ Begin v1.4 Collection Scoring Engine planning.
 ### 2026-06-16
 
 * Implemented v1.3 Collection Dashboard: Tools -> Collection Dashboard, reusable structured dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown export.
-* Commit: pending implementation commit hash.
+* Implementation commit: `da1c37f`
 * Full test suite passed: 238 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; import smoke passed and full non-GUI regression suite passed.
 
