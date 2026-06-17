@@ -154,7 +154,7 @@ Begin v1.6 Photo Vault planning.
 ### 2026-06-16
 
 * Implemented v1.5 Smarter Acquisition Intelligence: Acquisition Impact Engine, deterministic add/replace simulation, quality/completion/WANT_LIST/upgrade deltas, impact score, recommendation reasoning, Listing Analyzer display integration, and Dashboard top potential collection improvements panel.
-* Implementation commit: pending implementation commit hash.
+* Implementation commit: `549665a`
 * Full test suite passed: 260 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.5 imports and non-GUI impact/listing/dashboard checks passed.
 
