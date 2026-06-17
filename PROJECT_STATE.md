@@ -163,7 +163,7 @@ Begin v1.9 Smart Shopping Assistant planning.
 ### 2026-06-17
 
 * Implemented v1.8 Market Awareness Layer: local observed price, purchase, sale, and auction records; market summary reporting; dashboard market metrics; acquisition historical observed-price context; photo-reference identifiers; and CSV/Markdown export.
-* Implementation commit: pending.
+* Implementation commit: `5a73332`
 * Full test suite passed: 285 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.8 imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
 
