@@ -151,7 +151,7 @@ Begin v1.5 Smarter Acquisition Intelligence planning.
 ### 2026-06-16
 
 * Implemented v1.4 Collection Quality Engine: explainable overall quality score, category scores, strengths, weaknesses, recommended actions, supporting metrics, CSV/Markdown export, and Collection Dashboard integration.
-* Implementation commit: pending implementation commit hash.
+* Implementation commit: `4df68f2`
 * Full test suite passed: 251 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; quality/dashboard/GUI module imports passed and full non-GUI regression suite passed.
 
