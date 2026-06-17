@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.6`
+Current version: `v1.7`
 
-Latest tagged release: `v1.6`
+Latest tagged release: `v1.7`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -43,6 +43,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
 - Series Tracker: tracks supported collecting goals, owned dates, missing dates, WANT_LIST targets, upgrade counts, and series priority.
+- Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, and exports.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -106,7 +107,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.6 series-tracker development suite passed with `269 tests OK`.
+The v1.7 photo-vault development suite passed with `277 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -125,7 +126,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.3` | `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e` | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
 | `v1.4` | `7cc5a7cc4b0e99a01e7515b89d11089461ea097d` | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
 | `v1.5` | `080b70b106e19de0739fab172993846999edb2bd` | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
-| `v1.6` | Pending tag verification | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
+| `v1.6` | `09b201cb0a5f394c957af48081e10e7f200b8533` | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
+| `v1.7` | Pending tag verification | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -138,6 +140,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Collection Quality Engine outputs inside Collection Dashboard when you want explainable quality scores, strengths, weaknesses, and ranked improvement actions.
 - Use acquisition impact output from Listing Analyzer when you need to know how much a candidate improves the collection, not just whether it is buyable.
 - Use Series Tracker output when you want to know which supported series are closest to completion and which dates matter next.
+- Use Photo Vault output when you want to link and search photo metadata for collection items, candidates, references, auction wins, and sold items.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -161,7 +164,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.7 Photo Vault planning.
+- Begin v1.8 Market Awareness Layer planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -235,6 +238,7 @@ Export support is intentionally report-specific:
 - Collection Dashboard: CSV and Markdown export.
 - Collection Quality Engine: CSV and Markdown export.
 - Series Tracker: CSV and Markdown export.
+- Photo Vault: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
@@ -363,6 +367,57 @@ Known limitations:
 - Completion uses actual owned dates and missing years inside the observed owned date span.
 - Sparse series with only one owned date may not show missing dates until the observed span expands.
 - No market pricing, rarity guides, OCR, scraping, or Numista expansion.
+
+## Photo Vault
+
+The Photo Vault is a metadata-only photo organization layer. It links local photo paths to collection items, candidate purchases, reference images, auction records, and sold examples.
+
+Supported photo types:
+
+- Collection Photo
+- Candidate Photo
+- Reference Photo
+- Auction Photo
+- Sold Photo
+
+Recommended folders:
+
+- `coin_photos/collection`
+- `coin_photos/candidates`
+- `coin_photos/references`
+- `coin_photos/auction_wins`
+- `coin_photos/sold`
+
+Photo records can store:
+
+- File path
+- Photo type
+- Linked collection item ID
+- Linked candidate ID
+- Linked coin name
+- Created date
+- Notes
+- Optional ICCS, PCGS, or NGC certification number
+
+Search supports:
+
+- Certification number
+- File name
+- Coin name
+- Notes
+
+Dashboard coverage metrics:
+
+- Items with photos
+- Items without photos
+- Collection photo coverage percentage
+- Certified coins with photos percentage
+
+Known limitations:
+
+- The vault does not move files automatically.
+- The vault does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
+- Photo records are metadata objects; persistence can be added later if needed.
 
 ## Data Safety
 

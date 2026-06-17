@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from collection_intelligence import CollectionIntelligenceEngine, SILVER_DENOMINATION_TERMS
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
+from photo_vault import PhotoCoverageSummary, PhotoRecord, PhotoVault
 from series_tracker import SeriesReport, SeriesTracker
 
 
@@ -60,6 +61,7 @@ class CollectionSnapshot:
 class CollectionDashboardData:
     snapshot: CollectionSnapshot
     quality_report: Optional[CollectionQualityReport] = None
+    photo_coverage: Optional[PhotoCoverageSummary] = None
     series_tracker_reports: List[SeriesReport] = field(default_factory=list)
     top_potential_collection_improvements: List[DashboardItem] = field(default_factory=list)
     top_series_focus: List[DashboardItem] = field(default_factory=list)
@@ -74,9 +76,15 @@ class CollectionDashboardData:
 class CollectionDashboard:
     """Generate an actionable collector-facing dashboard."""
 
-    def __init__(self, items: Iterable[Any], staged_want_list_intents: Optional[Iterable[Any]] = None):
+    def __init__(
+        self,
+        items: Iterable[Any],
+        staged_want_list_intents: Optional[Iterable[Any]] = None,
+        photo_records: Optional[Iterable[PhotoRecord]] = None,
+    ):
         self.items = list(items or [])
         self.staged_want_list_intents = list(staged_want_list_intents or [])
+        self.photo_records = list(photo_records or [])
         self.intelligence = CollectionIntelligenceEngine(self.items)
 
     def generate_dashboard(self) -> CollectionDashboardData:
@@ -110,10 +118,15 @@ class CollectionDashboard:
             self.items,
             self.staged_want_list_intents,
         ).generate_reports()
+        photo_coverage = PhotoVault(
+            self.photo_records,
+            self.items,
+        ).coverage_summary()
 
         return CollectionDashboardData(
             snapshot=snapshot,
             quality_report=quality_report,
+            photo_coverage=photo_coverage,
             series_tracker_reports=series_reports,
             top_potential_collection_improvements=self._quality_improvement_panel(quality_report),
             top_series_focus=self._series_focus_panel(series_reports),
@@ -162,6 +175,16 @@ class CollectionDashboard:
                     )
             else:
                 lines.append("- No recommended actions generated.")
+        if data.photo_coverage:
+            lines.extend([
+                "",
+                "## Photo Coverage",
+                "",
+                f"- Collection photo coverage: {data.photo_coverage.photo_coverage_percentage:.1f}%",
+                f"- Items with photos: {data.photo_coverage.items_with_photos}",
+                f"- Items without photos: {data.photo_coverage.items_without_photos}",
+                f"- Certified coins with photos: {data.photo_coverage.certified_photo_coverage_percentage:.1f}%",
+            ])
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
         lines.extend(self._format_items("Top Series", data.top_series_focus))
@@ -210,6 +233,9 @@ class CollectionDashboard:
                             action.priority_score,
                             action.expected_impact,
                         ])
+                if data.photo_coverage:
+                    for key, value in data.photo_coverage.to_dict().items():
+                        writer.writerow(["Photo Coverage", key, value, "", ""])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
                 self._write_items(writer, "Top Series", data.top_series_focus)

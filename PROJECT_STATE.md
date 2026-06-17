@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.6`
+* Current release version: `v1.7`
 * Current Git branch: `main`
 * Last updated date: 2026-06-17
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.6`
-* Summary of what was included: Series Tracker for supported collecting goals, owned/missing dates, WANT_LIST targets, upgrade counts, priority ranking, Dashboard integration, and Acquisition Impact series metrics.
+* Most recent Git tag: `v1.7`
+* Summary of what was included: Photo Vault for metadata-only photo records, collection/candidate/reference linking, certification lookup, deterministic search, exports, and dashboard photo coverage metrics.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -25,7 +25,8 @@
 * `v1.3` acceptance audit passed on 2026-06-16; tag `v1.3` points to `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e`.
 * `v1.4` acceptance audit passed on 2026-06-16; tag `v1.4` points to `7cc5a7cc4b0e99a01e7515b89d11089461ea097d`.
 * `v1.5` acceptance audit passed on 2026-06-16; tag `v1.5` points to `080b70b106e19de0739fab172993846999edb2bd`.
-* `v1.6` acceptance audit passed on 2026-06-17; tag `v1.6` pending final verification.
+* `v1.6` acceptance audit passed on 2026-06-17; tag `v1.6` points to `09b201cb0a5f394c957af48081e10e7f200b8533`.
+* `v1.7` acceptance audit passed on 2026-06-17; tag `v1.7` pending final verification.
 
 ## Completed Features
 
@@ -68,6 +69,7 @@
 * Collection Quality Engine: deterministic scoring engine that explains overall quality, completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions using only available collection data.
 * Smarter Acquisition Intelligence: deterministic impact simulation that measures collection impact, quality score delta, completion delta, WANT_LIST impact, and upgrade impact for candidate purchases without modifying collection data.
 * Series Tracker: deterministic supported-series progress reports for owned dates, missing dates, completion percentage, WANT_LIST targets, upgrade counts, priority score, CSV/Markdown export, Dashboard Top Series panel, and Acquisition Impact series metrics.
+* Photo Vault: metadata-only photo record engine for collection, candidate, reference, auction, and sold photos with collection-item linking, candidate linking, certification-number lookup, deterministic search, coverage metrics, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -81,7 +83,7 @@
 
 ## Active Roadmap
 
-1. Begin v1.7 Photo Vault planning
+1. Begin v1.8 Market Awareness Layer planning
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -105,7 +107,7 @@
 
 ## Next Priority Task
 
-Begin v1.7 Photo Vault planning.
+Begin v1.8 Market Awareness Layer planning.
 
 ## Project Architecture
 
@@ -119,6 +121,7 @@ Begin v1.7 Photo Vault planning.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
+* Photo Vault system: `photo_vault.py` stores metadata-only `PhotoRecord` objects, links photos to collection items and candidates, supports reference/auction/sold photo types, certification-number lookup, deterministic search, coverage metrics, expected folder mapping, and CSV/Markdown exports.
 * Collection Dashboard system: `collection_dashboard.py` generates actionable dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown exports.
 * Collection Quality system: `collection_quality.py` generates explainable quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown exports. Collection Dashboard displays its top-level quality output.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
@@ -155,6 +158,11 @@ Begin v1.7 Photo Vault planning.
 ## Recent Changes
 
 ### 2026-06-17
+
+* Implemented v1.7 Photo Vault: metadata-only photo records, collection/candidate/reference linking, certification lookup, deterministic search, collection photo coverage metrics, dashboard photo coverage display, expected folder mapping, and CSV/Markdown export.
+* Implementation commit: pending implementation commit hash.
+* Full test suite passed: 277 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.7 imports, photo vault lookups, and non-GUI dashboard coverage checks passed.
 
 * Implemented v1.6 Series Tracker: supported series definitions, owned/missing date reports, completion percentages, WANT_LIST and upgrade integration, priority scores, CSV/Markdown export, Dashboard Top Series panel, and Acquisition Impact series priority metrics.
 * Implementation commit: `8c4b58b`
