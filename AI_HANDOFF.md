@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-06-16
+- Date: 2026-06-17
 - Branch: `main`
-- Current project state file reports release version: `v1.5`
-- Current active task completed: v1.5 Smarter Acquisition Intelligence
+- Current project state file reports release version: `v1.6`
+- Current active task completed: v1.6 Series Tracker
 
 ## What Changed
 
@@ -43,6 +43,11 @@
 - Tools -> Listing Analyzer displays acquisition impact output in its existing text report.
 - Collection Dashboard now exposes Top Potential Collection Improvements from the quality report.
 - Added `test_acquisition_impact.py` covering duplicates, upgrades, WANT_LIST targets, gap fillers, major Newfoundland targets, random world base-metal, quality/completion deltas, dashboard integration, and Listing Analyzer integration.
+- Added `series_definitions.py` with extendable definitions for supported Newfoundland and Canadian series.
+- Added `series_tracker.py` with series reports, owned/missing dates, completion percentages, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and CSV/Markdown export.
+- Collection Dashboard now exposes Top Series using Series Tracker output.
+- Acquisition Impact now exposes series name and series priority before/after/delta.
+- Added `test_series_tracker.py` covering definitions, completion, missing dates, WANT_LIST, upgrades, priority, dashboard integration, acquisition impact integration, and exports.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -105,6 +110,17 @@ The acquisition impact engine adds:
 - Upgrade opportunity impact
 - Recommendation reasoning for Listing Analyzer output
 
+The series tracker adds:
+
+- Supported series definitions outside business logic
+- Owned date and missing date tracking
+- Completion percentage from actual observed collection data
+- WANT_LIST target highlighting
+- Upgrade count integration
+- Series priority score
+- Dashboard Top Series panel
+- Acquisition Impact series priority metrics
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -128,7 +144,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 260 tests OK for the v1.5 acquisition impact release line.
+- `.\run_tests.bat`: 269 tests OK for the v1.6 Series Tracker release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -136,6 +152,7 @@ Supported statuses:
 - Local GUI smoke for v1.3 also could not run because this Python/Tcl install cannot find `init.tcl`; dashboard and GUI module imports passed.
 - Local GUI smoke for v1.4 also could not run because this Python/Tcl install cannot find `init.tcl`; quality/dashboard/GUI module imports passed.
 - Local GUI smoke for v1.5 also could not run because this Python/Tcl install cannot find `init.tcl`; imports and non-GUI impact/listing/dashboard checks passed.
+- Local GUI smoke for v1.6 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, tracker reports, and non-GUI dashboard/impact checks passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -150,11 +167,12 @@ Supported statuses:
 - Collection Dashboard does not estimate unknown values and depends on available collection fields for certified counts and collection evolution.
 - Collection Quality Engine uses deterministic internal scoring only; it does not use rarity guides, market pricing, population reports, OCR, scraping, or Numista expansion.
 - Acquisition Impact Engine is deterministic planning guidance only; it does not modify collection data or use market pricing, rarity guides, scraping, OCR, or Numista expansion.
+- Series Tracker definitions identify supported series; they do not contain fabricated master mintage checklists. Completion is based on actual owned dates and missing years inside observed owned spans.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v1.6 Photo Vault planning.
+1. Begin v1.7 Photo Vault planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

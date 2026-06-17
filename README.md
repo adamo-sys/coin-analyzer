@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.5`
+Current version: `v1.6`
 
-Latest tagged release: `v1.5`
+Latest tagged release: `v1.6`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -42,6 +42,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
+- Series Tracker: tracks supported collecting goals, owned dates, missing dates, WANT_LIST targets, upgrade counts, and series priority.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -105,7 +106,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.5 acquisition-impact development suite passed with `260 tests OK`.
+The v1.6 series-tracker development suite passed with `269 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -123,7 +124,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.2` | `db001da4187af5a2bd2350bd956b2876007f7587` | Listing Analyzer for offline pasted listing evaluation. |
 | `v1.3` | `dfbea9bd93e617e3b3a0067d56e15b3d14c69c1e` | Collection Dashboard for actionable collection priorities, gaps, upgrades, WANT_LIST opportunities, and exports. |
 | `v1.4` | `7cc5a7cc4b0e99a01e7515b89d11089461ea097d` | Collection Quality Engine for explainable strengths, weaknesses, category scores, and recommended actions. |
-| `v1.5` | Pending tag verification | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
+| `v1.5` | `080b70b106e19de0739fab172993846999edb2bd` | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
+| `v1.6` | Pending tag verification | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -135,6 +137,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
 - Use Collection Quality Engine outputs inside Collection Dashboard when you want explainable quality scores, strengths, weaknesses, and ranked improvement actions.
 - Use acquisition impact output from Listing Analyzer when you need to know how much a candidate improves the collection, not just whether it is buyable.
+- Use Series Tracker output when you want to know which supported series are closest to completion and which dates matter next.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 
@@ -158,7 +161,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.6 Photo Vault planning.
+- Begin v1.7 Photo Vault planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -231,6 +234,7 @@ Export support is intentionally report-specific:
 - Upgrade Advisor: CSV export.
 - Collection Dashboard: CSV and Markdown export.
 - Collection Quality Engine: CSV and Markdown export.
+- Series Tracker: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
@@ -319,6 +323,46 @@ Known limitations:
 - No market pricing, rarity guides, population reports, web scraping, OCR, or Numista expansion.
 - Impact simulation is deterministic planning guidance and does not modify collection data.
 - Upgrade scenarios assume the candidate replaces the weaker matching example for impact measurement.
+
+## Series Tracker
+
+The Series Tracker shows progress within supported collecting goals using local collection and staged WANT_LIST data.
+
+Supported series:
+
+- Newfoundland 5 Cents
+- Newfoundland 10 Cents
+- Newfoundland 20 Cents
+- Newfoundland 50 Cents
+- Newfoundland 1 Cent
+- Canadian Large Cents
+- Canadian Small Cents
+- Canadian Silver Dollars
+
+Series outputs:
+
+- Series name
+- Owned dates
+- Missing dates
+- Completion percentage
+- WANT_LIST count
+- Upgrade count
+- Priority score
+
+Priority scoring considers:
+
+- Near-completion opportunities
+- WANT_LIST matches
+- Duplicate-based upgrade opportunities
+- Collection-quality impact signals
+- Adam-specific priority weight built into the series definition
+
+Known limitations:
+
+- Definitions identify supported series; they do not include fabricated master mintage checklists.
+- Completion uses actual owned dates and missing years inside the observed owned date span.
+- Sparse series with only one owned date may not show missing dates until the observed span expands.
+- No market pricing, rarity guides, OCR, scraping, or Numista expansion.
 
 ## Data Safety
 

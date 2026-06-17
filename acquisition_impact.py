@@ -9,6 +9,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
 from coin_collection import CoinItem
 from focused_collection_intelligence import CandidateItem, MatchStatus
+from series_tracker import SeriesTracker
 
 
 @dataclass
@@ -30,6 +31,10 @@ class AcquisitionImpactReport:
     want_list_completed_delta: int
     want_list_completed_before: int
     want_list_completed_after: int
+    series_name: str = ""
+    series_priority_before: int = 0
+    series_priority_after: int = 0
+    series_priority_delta: int = 0
     recommendation_reasoning: List[str] = field(default_factory=list)
     acquisition_decision: Optional[AcquisitionDecision] = None
     quality_before_report: Optional[CollectionQualityReport] = None
@@ -52,6 +57,10 @@ class AcquisitionImpactReport:
             "want_list_completed_delta": self.want_list_completed_delta,
             "want_list_completed_before": self.want_list_completed_before,
             "want_list_completed_after": self.want_list_completed_after,
+            "series_name": self.series_name,
+            "series_priority_before": self.series_priority_before,
+            "series_priority_after": self.series_priority_after,
+            "series_priority_delta": self.series_priority_delta,
             "recommendation_reasoning": list(self.recommendation_reasoning),
         }
 
@@ -81,9 +90,19 @@ class AcquisitionImpactEngine:
         upgrade_after = self._upgrade_count(simulated_items)
         want_before = self._want_completed_count(self.collection_items)
         want_after = self._want_completed_count(simulated_items)
+        before_series = SeriesTracker(
+            self.collection_items,
+            self.want_list_intents,
+        ).find_report_for_candidate(candidate)
+        after_series = SeriesTracker(
+            simulated_items,
+            self.want_list_intents,
+        ).find_report_for_candidate(candidate)
         quality_delta = after_quality.overall_quality_score - before_quality.overall_quality_score
         completion_delta = round(completion_after - completion_before, 1)
         want_delta = want_after - want_before
+        series_priority_before = before_series.priority_score if before_series else 0
+        series_priority_after = after_series.priority_score if after_series else 0
 
         score = self._impact_score(
             acquisition,
@@ -110,6 +129,10 @@ class AcquisitionImpactEngine:
             want_list_completed_delta=want_delta,
             want_list_completed_before=want_before,
             want_list_completed_after=want_after,
+            series_name=(after_series or before_series).series_name if (after_series or before_series) else "",
+            series_priority_before=series_priority_before,
+            series_priority_after=series_priority_after,
+            series_priority_delta=series_priority_after - series_priority_before,
             recommendation_reasoning=self._reasoning(
                 acquisition,
                 quality_delta,

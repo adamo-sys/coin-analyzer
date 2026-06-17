@@ -71,9 +71,10 @@ Work through this queue in priority order. Handle only one task at a time.
 39. `[x]` Build v1.3 Collection Dashboard release line
 40. `[x]` Build v1.4 Collection Quality Engine
 41. `[x]` Build v1.5 Smarter Acquisition Intelligence
-42. `[ ]` Begin v1.6 Photo Vault planning
-43. `[ ]` Improve Buy Advisor validation messages
-44. `[ ]` Add autocomplete for country/denomination
+42. `[x]` Build v1.6 Series Tracker
+43. `[ ]` Begin v1.7 Photo Vault planning
+44. `[ ]` Improve Buy Advisor validation messages
+45. `[ ]` Add autocomplete for country/denomination
 
 ## Adam-Specific Collection Priorities
 
@@ -113,6 +114,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
    - Recommend highest-impact purchases
 
 ## Project Changelog
+
+### 2026-06-17
+
+#### `[x]` Build v1.6 Series Tracker
+
+- Date completed: 2026-06-17
+- Files modified:
+  - `series_definitions.py` (new file)
+  - `series_tracker.py` (new file)
+  - `test_series_tracker.py` (new file)
+  - `collection_dashboard.py`
+  - `acquisition_impact.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Implementation commit hash: pending implementation commit hash.
 
 ### 2026-06-16
 

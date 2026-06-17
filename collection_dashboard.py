@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from collection_intelligence import CollectionIntelligenceEngine, SILVER_DENOMINATION_TERMS
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
+from series_tracker import SeriesReport, SeriesTracker
 
 
 @dataclass
@@ -59,7 +60,9 @@ class CollectionSnapshot:
 class CollectionDashboardData:
     snapshot: CollectionSnapshot
     quality_report: Optional[CollectionQualityReport] = None
+    series_tracker_reports: List[SeriesReport] = field(default_factory=list)
     top_potential_collection_improvements: List[DashboardItem] = field(default_factory=list)
+    top_series_focus: List[DashboardItem] = field(default_factory=list)
     top_collection_priorities: List[DashboardItem] = field(default_factory=list)
     best_upgrade_opportunities: List[DashboardItem] = field(default_factory=list)
     want_list_priorities: List[DashboardItem] = field(default_factory=list)
@@ -103,11 +106,17 @@ class CollectionDashboard:
             self.items,
             self.staged_want_list_intents,
         ).generate_report()
+        series_reports = SeriesTracker(
+            self.items,
+            self.staged_want_list_intents,
+        ).generate_reports()
 
         return CollectionDashboardData(
             snapshot=snapshot,
             quality_report=quality_report,
+            series_tracker_reports=series_reports,
             top_potential_collection_improvements=self._quality_improvement_panel(quality_report),
+            top_series_focus=self._series_focus_panel(series_reports),
             top_collection_priorities=self._top_priorities(want_targets, series_completion, upgrades),
             best_upgrade_opportunities=self._upgrade_panel(upgrades),
             want_list_priorities=self._want_list_panel(want_targets),
@@ -155,6 +164,7 @@ class CollectionDashboard:
                 lines.append("- No recommended actions generated.")
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
+        lines.extend(self._format_items("Top Series", data.top_series_focus))
         lines.extend(self._format_items("Best Upgrade Opportunities", data.best_upgrade_opportunities))
         lines.extend(self._format_items("WANT_LIST Priorities", data.want_list_priorities))
         lines.extend(self._format_items("Collection Gaps", data.collection_gaps))
@@ -202,6 +212,7 @@ class CollectionDashboard:
                         ])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
+                self._write_items(writer, "Top Series", data.top_series_focus)
                 self._write_items(writer, "Best Upgrade Opportunities", data.best_upgrade_opportunities)
                 self._write_items(writer, "WANT_LIST Priorities", data.want_list_priorities)
                 self._write_items(writer, "Collection Gaps", data.collection_gaps)
@@ -264,6 +275,22 @@ class CollectionDashboard:
                 detail=action.why_it_matters,
                 priority=action.priority_score,
                 action=action.expected_impact,
+            ))
+        return rows
+
+    def _series_focus_panel(self, series_reports: List[SeriesReport]) -> List[DashboardItem]:
+        rows = []
+        for report in sorted(series_reports, key=lambda row: (-row.priority_score, -row.completion_percentage, row.series_name))[:8]:
+            detail = (
+                f"{report.completion_percentage:.1f}% complete; "
+                f"owned {report.owned_count}; missing {report.missing_count}; "
+                f"WANT_LIST {report.want_list_count}; upgrades {report.upgrade_count}"
+            )
+            rows.append(DashboardItem(
+                title=report.series_name,
+                detail=detail,
+                priority=report.priority_score,
+                action="Review missing dates and priority targets for this series.",
             ))
         return rows
 
