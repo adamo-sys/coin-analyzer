@@ -136,6 +136,9 @@ Begin v1.3 Collection Dashboard release planning and audit the existing dashboar
   3. Run tests if available.
   4. Commit changes.
   5. Include the commit hash in this file's Recent Changes section.
+* Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
+* A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
+* Never leave a completed version untagged.
 
 ## Recent Changes
 

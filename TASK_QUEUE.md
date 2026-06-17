@@ -24,6 +24,9 @@ Work through this queue in priority order. Handle only one task at a time.
    - Run tests if available.
    - Commit changes.
    - Include the commit hash in `PROJECT_STATE.md` Recent Changes.
+9. Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
+10. A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
+11. Never leave a completed version untagged.
 
 ## Queue
 

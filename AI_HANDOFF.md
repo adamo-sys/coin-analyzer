@@ -81,6 +81,9 @@ Supported statuses:
 - Keep this engine deterministic and testable.
 - Do not modify `data/collection.json` from analysis workflows.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
+- Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
+- A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
+- Never leave a completed version untagged.
 
 ## Test Status
 
