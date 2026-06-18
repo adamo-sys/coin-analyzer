@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.1`
-- Current active task completed: v2.1 Persistence Layer
+- Current project state file reports release version: `v2.2`
+- Current active task completed: v2.2 Data Safety and Backup Hardening
 
 ## What Changed
 
@@ -71,6 +71,11 @@
 - Persistence covers Shared Session Context metadata, last workbook path, WANT_LIST path/source, Market Awareness records, Photo Vault records, Smart Shopping candidates, app preferences, warnings, and errors.
 - Saving over existing state and clearing saved state create timestamped backups under `collection_data/app_state/backups/`.
 - Added `test_persistence_manager.py` covering empty state, session context, market/photo/shopping round-trips, corrupt JSON, missing workbook warnings, clear, backup, import/export, and invalid schema.
+- Added `backup_manager.py` with BackupManager, BackupManifest, DataSafetyValidator, DataSafetyReport, backup package creation/verification/listing/restore, safe pre-restore backup behavior, and Collector Export Bundle generation.
+- Added Tools -> Data Safety Check, Create Backup Package, List Backups, and Restore Backup.
+- Backup packages include app state when available, release metadata, release notes, and JSON/Markdown manifests with checksums.
+- Data Safety Check validates app-state existence/schema, workbook/WANT_LIST paths, loadable market/photo/shopping records, missing photo references, and backup directory availability.
+- Added `test_backup_manager.py` covering backup creation, manifest creation, verification, listing, restore validation, pre-restore backup creation, partial restore, corrupt backup handling, missing app state/workbook/photo references, PASS/WARNING/FAIL reports, and export bundle generation.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -194,6 +199,14 @@ The persistence layer adds:
 - Timestamped backups under `collection_data/app_state/backups/`
 - Round-tripping for SessionContext metadata, LegacyWantListIntent rows, Market Awareness records, PhotoRecord rows, ShoppingCandidate rows, and app preferences
 
+The data safety and backup layer adds:
+
+- BackupManager for local zip backup packages
+- BackupManifest with included, excluded, missing files, warnings, restore notes, sizes, and SHA-256 checksums
+- DataSafetyValidator and DataSafetyReport for PASS/WARNING/FAIL validation
+- Safe restore of known app-state paths with pre-restore backup
+- Collector Export Bundle with health report, shopping recommendations, market summary, series summary, photo coverage summary, and manifest
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -214,6 +227,7 @@ Supported statuses:
 - Smart Shopping Assistant must reuse Acquisition Workflow and Acquisition Impact for decision source and scoring context; do not duplicate owned/duplicate/upgrade classification logic.
 - Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
+- Backup/restore must validate before restore, create pre-restore backups, and avoid silently overwriting collection workbooks or production collection ownership data.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -221,7 +235,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 321 tests OK for the v2.1 Persistence Layer release line.
+- `.\run_tests.bat`: 335 tests OK for the v2.2 Data Safety and Backup Hardening release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -235,6 +249,7 @@ Supported statuses:
 - Local GUI smoke for v1.9 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Local GUI smoke for v2.0 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, consolidated report generation, exports, targeted integration tests, and full non-GUI regression suite passed.
 - Local GUI smoke for v2.1 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, persistence round-trips, schema validation, backups, targeted integration tests, and full non-GUI regression suite passed.
+- Local GUI smoke for v2.2 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, backup package checks, restore checks, data-safety reports, export bundles, targeted integration tests, and full non-GUI regression suite passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -255,11 +270,12 @@ Supported statuses:
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
 - Persistence stores local JSON state only; no cloud sync, database server, credentials, scraping, APIs, or workbook mutation.
+- Backup packages are local zip files only; keep off-machine backups separately and back up collection workbooks intentionally.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Perform post-v2.1 release packaging and backup verification.
+1. Perform post-v2.2 release packaging and backup verification.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

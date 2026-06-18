@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.1`
+* Current release version: `v2.2`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.1`
-* Summary of what was included: Persistence Layer for local JSON app state, session metadata, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
+* Most recent Git tag: `v2.2`
+* Summary of what was included: Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, data validation reports, and export bundles.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -30,7 +30,8 @@
 * `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` points to `425fb2597b95e410e4c9c49465dd8b12e080ace3`.
 * `v1.9` acceptance audit passed on 2026-06-18; tag `v1.9` points to `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb`.
 * `v2.0` acceptance audit passed on 2026-06-18; tag `v2.0` points to `a661b06c846bdd0d5342ce892c350832c8907974`.
-* `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` verified during release.
+* `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` points to `bd4897fbee4f8306b69fb369a2e81768631fb865`.
+* `v2.2` acceptance audit passed on 2026-06-18; tag `v2.2` verified during release.
 
 ## Completed Features
 
@@ -78,6 +79,7 @@
 * Smart Shopping Assistant: ranked purchasing recommendation workflow that combines listing/manual opportunities, WANT_LIST targets, acquisition workflow, acquisition impact, quality deltas, series completion, upgrade impact, local market context, and photo references into STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW guidance.
 * Collector Operating System: unified Collector Home and Collection Health Report that consolidate collection snapshot, best next purchase, highest-impact opportunity, top WANT_LIST target, closest supported series, quality score, market activity, photo coverage, strengths, weaknesses, priorities, recommended actions, persistence findings, and CSV/Markdown exports.
 * Persistence Layer: local JSON app-state manager that saves, loads, clears, validates, backs up, imports, and exports Shared Session Context metadata, workbook/WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, and app preferences.
+* Data Safety and Backup Hardening: local backup packages with JSON/Markdown manifests, checksum verification, backup listing, safe restore with pre-restore backup, Data Safety reports, and Collector Export Bundles.
 
 ## Known Bugs
 
@@ -91,7 +93,7 @@
 
 ## Active Roadmap
 
-1. Perform post-v2.1 release packaging and backup verification
+1. Perform post-v2.2 release packaging and backup verification
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -115,7 +117,7 @@
 
 ## Next Priority Task
 
-Perform post-v2.1 release packaging and backup verification.
+Perform post-v2.2 release packaging and backup verification.
 
 ## Project Architecture
 
@@ -127,6 +129,7 @@ Perform post-v2.1 release packaging and backup verification.
 * Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * Persistence Layer system: `persistence_manager.py` stores local app state as JSON under `collection_data/app_state/`, validates schema, creates timestamped backups before overwrite/clear, handles corrupt JSON and missing referenced files gracefully, and restores session metadata, market records, photo records, shopping candidates, and app preferences.
+* Data Safety and Backup system: `backup_manager.py` creates and verifies local backup packages, writes human-readable manifests, lists backups, restores known safe app-state files with pre-restore backup, validates app-state and referenced paths, and creates Collector Export Bundles.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -170,6 +173,11 @@ Perform post-v2.1 release packaging and backup verification.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.2 Data Safety and Backup Hardening: BackupManager, BackupManifest, DataSafetyValidator, DataSafetyReport, backup package creation/verification/listing/restore, pre-restore backups, collector export bundle, Tools menu entries, and data-safety documentation.
+* Implementation commit: pending
+* Full test suite passed: pending.
+* GUI smoke note: pending.
 
 * Implemented v2.0 Collector Operating System: Collector Home, Collection Health Report, consolidated workflow guidance, persistence audit findings, dashboard/quality/series/shopping/market/photo integration, Tools menu entries, and CSV/Markdown export.
 * Implementation commit: `11b4f6e`

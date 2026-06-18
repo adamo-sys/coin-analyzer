@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.1`
+Current version: `v2.2`
 
-Latest tagged release: `v2.1`
+Latest tagged release: `v2.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -48,6 +48,7 @@ The app is especially tuned for Adam-specific priorities:
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
+- Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, data validation reports, and collector export bundles.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -113,7 +114,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.1 Persistence Layer development suite passed with `321 tests OK`.
+The v2.2 Data Safety and Backup Hardening development suite passed with `335 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -137,13 +138,15 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
 | `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
 | `v2.0` | `a661b06c846bdd0d5342ce892c350832c8907974` | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
-| `v2.1` | See verified tag `v2.1` | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
+| `v2.1` | `bd4897fbee4f8306b69fb369a2e81768631fb865` | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
+| `v2.2` | See verified tag `v2.2` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
 ## Which Tool To Use
 
 - Use Collector Home when you want the unified starting point for what to focus on next.
+- Use Data Safety Check before shutdowns, imports, release work, or restore attempts.
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
@@ -178,7 +181,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Perform post-v2.1 release packaging and backup verification.
+- Perform post-v2.2 release packaging and backup verification.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -197,6 +200,7 @@ Future candidates:
 - Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
+- Backup packages are local zip files; they are not cloud sync, remote backup, or disaster recovery by themselves.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
@@ -253,6 +257,61 @@ What does not persist:
 - Production collection ownership data beyond the existing `data/collection.json` system.
 
 If a referenced workbook is missing, the app reports a warning and allows manual reload.
+
+## Data Safety and Backup Hardening
+
+Use these Tools menu items to validate and protect local app data:
+
+- Data Safety Check
+- Create Backup Package
+- List Backups
+- Restore Backup
+
+Backup packages are local `.zip` files stored by default under:
+
+- `backups/packages/`
+
+Backup package contents can include:
+
+- App state JSON
+- Market Awareness records inside app state
+- Photo Vault records inside app state
+- Smart Shopping candidates inside app state
+- Release history and release notes
+- Backup manifest JSON
+- Backup manifest Markdown
+
+Restore behavior:
+
+- Backup packages are verified before restore.
+- Restore creates a pre-restore backup first.
+- Restore only writes known safe app-state paths by default.
+- Existing files are not silently overwritten.
+- Collection workbooks are not modified automatically.
+
+Data Safety Check validates:
+
+- App state JSON exists and is readable.
+- App state JSON schema is valid.
+- Referenced collection workbook and WANT_LIST paths exist when present.
+- Market, photo, and shopping records can load.
+- Referenced photo paths exist.
+- Backup directory exists.
+
+Collector Export Bundle:
+
+- Collection Health Report
+- Shopping recommendations
+- Market Awareness summary
+- Series summary
+- Photo coverage summary
+- Backup manifest
+
+Known limitations:
+
+- Local backup packages do not replace off-machine backups.
+- Collection workbook copying is not automatic; keep workbook backups separately.
+- No cloud sync, user accounts, live pricing, scraping, OCR, image recognition, or database server.
 
 ## Listing Analyzer
 

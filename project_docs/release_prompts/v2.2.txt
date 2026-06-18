@@ -1,0 +1,341 @@
+Read AI_HANDOFF.md, PROJECT_STATE.md, TASK_QUEUE.md, README.md, RELEASE_HISTORY.md, docs/BACKUP.md, docs/releases/v2.0.md, and v2.1 Persistence Layer documentation.
+
+Begin v2.2 development.
+
+Roadmap Context:
+
+v2.0 = Collector Operating System
+v2.1 = Persistence Layer
+v2.2 = Data Safety and Backup Hardening
+
+GOAL:
+Build Data Safety and Backup Hardening.
+
+Purpose:
+Make the app safer to use by improving backup, restore, validation, and data-integrity workflows.
+
+The collector should know:
+
+* What data exists
+* What data is backed up
+* What data is missing
+* Whether app state is valid
+* Whether collection workbook paths are valid
+* Whether recovery is possible
+
+Do not add:
+
+* OCR
+* image recognition
+* scraping
+* APIs
+* live pricing
+* market prediction
+* Numista integration
+* cloud sync
+* user accounts
+* database server
+* major UI redesign
+
+---
+
+1. BACKUP MANAGER
+
+---
+
+Create:
+
+BackupManager
+
+Support:
+
+* create backup package
+* verify backup package
+* list available backups
+* restore from backup package
+* backup metadata report
+
+Backup package should include, when available:
+
+* app state JSON
+* market records
+* photo records
+* shopping candidates
+* release notes / release history
+* backup manifest
+
+Do not automatically modify or overwrite the collection workbook.
+
+If collection workbook is included, do so only by explicit path reference or copied backup file if safe.
+
+---
+
+2. BACKUP MANIFEST
+
+---
+
+Create:
+
+BackupManifest
+
+Include:
+
+* backup created timestamp
+* app version
+* included files
+* excluded files
+* missing files
+* warnings
+* checksum/hash where practical
+* restore notes
+
+Manifest should be human-readable.
+
+Preferred format:
+
+JSON
+
+Optional companion:
+
+Markdown summary
+
+---
+
+3. RESTORE WORKFLOW
+
+---
+
+Support restore from backup package.
+
+Rules:
+
+* Validate before restore
+* Do not overwrite current files without backup
+* Create pre-restore backup
+* Report exactly what was restored
+* Report skipped files
+* Handle partial restore gracefully
+
+No silent destructive behavior.
+
+---
+
+4. VALIDATION ENGINE
+
+---
+
+Create:
+
+DataSafetyValidator
+
+Validate:
+
+* app state JSON exists
+* app state JSON is valid
+* collection workbook path exists
+* WANT_LIST source path exists if applicable
+* market records can load
+* photo records can load
+* shopping candidates can load
+* referenced photo paths exist
+* backup directory exists
+
+Return:
+
+DataSafetyReport
+
+Include:
+
+* PASS / WARNING / FAIL
+* issues
+* recommended actions
+
+---
+
+5. EXPORT BUNDLE
+
+---
+
+Create a “Collector Export Bundle.”
+
+Include:
+
+* Collection Health Report
+* Shopping recommendations
+* Market Awareness summary
+* Series summary
+* Photo coverage summary
+* Backup manifest
+
+Support:
+
+* Markdown bundle
+* CSV bundle where practical
+
+This is reporting/export only.
+
+---
+
+6. GUI INTEGRATION
+
+---
+
+Add lightweight menu entries:
+
+Tools -> Data Safety Check
+Tools -> Create Backup Package
+Tools -> List Backups
+Tools -> Restore Backup
+
+Keep UI simple.
+
+No redesign.
+
+If GUI automation is blocked by local Tcl/Tk, test imports and non-GUI workflows.
+
+---
+
+7. TESTING
+
+---
+
+Add tests for:
+
+* backup package creation
+* backup manifest creation
+* backup package verification
+* backup listing
+* restore validation
+* pre-restore backup creation
+* partial restore handling
+* corrupt backup handling
+* missing app state
+* missing collection workbook path
+* missing photo references
+* data safety PASS
+* data safety WARNING
+* data safety FAIL
+* export bundle generation
+
+Run:
+
+* Backup Manager tests
+* Persistence tests
+* Collector Operating System tests
+* Market Awareness tests
+* Photo Vault tests
+* Smart Shopping Assistant tests
+* Full suite
+
+---
+
+8. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/BACKUP.md
+
+Document:
+
+* backup package contents
+* restore behavior
+* what is not backed up
+* validation checks
+* known limitations
+
+---
+
+9. ACCEPTANCE AUDIT
+
+---
+
+Perform focused v2.2 acceptance audit.
+
+Verify:
+
+* BackupManager imports cleanly
+* DataSafetyValidator imports cleanly
+* backup package creation works
+* backup manifest works
+* backup verification works
+* backup listing works
+* restore validation works
+* pre-restore backup works
+* corrupt backup handled gracefully
+* missing file references handled gracefully
+* data safety report works
+* export bundle works
+* GUI menu imports cleanly
+* existing v2.1/v2.0 tools still work
+* full suite passes
+
+Rules:
+
+* Fix defects only
+* no OCR
+* no image recognition
+* no scraping
+* no APIs
+* no live pricing
+* no cloud sync
+* no database server
+* no major UI redesign
+
+Report:
+
+* PASS or HOLD
+* files changed
+* tests run
+* remaining limitations
+* whether v2.2 is safe to tag
+
+---
+
+10. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag v2.2
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* HEAD hash
+* v2.2 tag hash
+* push result
+* verification result
+* working tree status
+
+---
+
+## DEFINITION OF DONE
+
+The collector can:
+
+* validate local app data
+* create a backup package
+* verify backup contents
+* restore safely
+* understand what is missing or unsafe
+
+without manually inspecting files and folders.

@@ -22,6 +22,7 @@ from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
+from backup_manager import BackupManager, DataSafetyValidator
 from collection_dashboard import CollectionDashboard
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
@@ -41,6 +42,7 @@ class CoinCollectionGUI:
         self.app = CoinCollectionApp()
         self.session_context = SessionContext()
         self.persistence_manager = PersistenceManager()
+        self.backup_manager = BackupManager(persistence_manager=self.persistence_manager)
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
         self.shopping_candidates = []
@@ -85,6 +87,11 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Clear Session State", command=self.clear_saved_session_state)
         tools_menu.add_command(label="Export Session State", command=self.export_session_state)
         tools_menu.add_command(label="Import Session State", command=self.import_session_state)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Data Safety Check", command=self.open_data_safety_check)
+        tools_menu.add_command(label="Create Backup Package", command=self.create_backup_package)
+        tools_menu.add_command(label="List Backups", command=self.list_backup_packages)
+        tools_menu.add_command(label="Restore Backup", command=self.restore_backup_package)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Home", command=self.open_collector_home)
         tools_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
@@ -448,6 +455,89 @@ Total Unique Dates: {total_unique_dates}
         self.shopping_candidates = list(state.shopping_candidates)
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
+
+    def open_data_safety_check(self):
+        """Show local app data safety validation report."""
+        report = DataSafetyValidator(self.persistence_manager, self.backup_manager.backup_dir).validate()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Data Safety Check")
+        dialog.geometry("850x650")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        ttk.Button(main_frame, text="Close", command=dialog.destroy).pack(anchor=tk.W, pady=(10, 0))
+
+    def create_backup_package(self):
+        """Create a local backup package."""
+        result = self.backup_manager.create_backup_package()
+        if result.success:
+            detail = f"Backup package created:\n{result.package_path}"
+            if result.warnings:
+                detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in result.warnings[:8])
+            messagebox.showinfo("Backup Package Created", detail)
+        else:
+            messagebox.showerror("Backup Error", "\n".join(result.errors))
+
+    def list_backup_packages(self):
+        """List available local backup packages."""
+        backups = self.backup_manager.list_available_backups()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Available Backups")
+        dialog.geometry("850x500")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        if backups:
+            for backup in backups:
+                text.insert(
+                    tk.END,
+                    f"{backup['name']}\n  Path: {backup['path']}\n  Size: {backup['size_bytes']} bytes\n  Modified: {backup['modified_at']}\n\n"
+                )
+        else:
+            text.insert(tk.END, "No backup packages found.")
+        text.config(state=tk.DISABLED)
+
+        ttk.Button(main_frame, text="Close", command=dialog.destroy).pack(anchor=tk.W, pady=(10, 0))
+
+    def restore_backup_package(self):
+        """Restore app state from a selected backup package."""
+        file_path = filedialog.askopenfilename(
+            title="Select Backup Package",
+            filetypes=[("Zip files", "*.zip"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+        verified = self.backup_manager.verify_backup_package(file_path)
+        if not verified.success:
+            messagebox.showerror("Backup Verification Failed", "\n".join(verified.errors))
+            return
+        if not messagebox.askyesno(
+            "Restore Backup",
+            "Restore app-state files from this backup?\n\nA pre-restore backup will be created first."
+        ):
+            return
+        result = self.backup_manager.restore_from_backup_package(file_path, overwrite=True)
+        if result.success:
+            load_result = self.persistence_manager.load_state()
+            if load_result.success:
+                self._apply_loaded_app_state(load_result.state)
+            detail = f"Restored files: {len(result.restored_files)}\nSkipped files: {len(result.skipped_files)}"
+            if result.pre_restore_backup_path:
+                detail += f"\nPre-restore backup: {result.pre_restore_backup_path}"
+            messagebox.showinfo("Restore Complete", detail)
+        else:
+            messagebox.showerror("Restore Error", "\n".join(result.errors))
     
     def upload_image(self):
         """Upload coin image."""

@@ -1,45 +1,45 @@
 # Backup Guide
 
-Use this guide to preserve the v2.1 repository, release documentation, collection data, app state, and legacy workbook sources.
+Use this guide to preserve the v2.2 repository, release documentation, collection data, app state, backup packages, and legacy workbook sources.
 
 ## Repository Backup
 
 From the repository root:
 
 ```powershell
-git bundle create coin-analyzer-v2.1.bundle --all
+git bundle create coin-analyzer-v2.2.bundle --all
 ```
 
 Verify the bundle:
 
 ```powershell
-git bundle verify coin-analyzer-v2.1.bundle
+git bundle verify coin-analyzer-v2.2.bundle
 ```
 
 Restore from the bundle into a new folder:
 
 ```powershell
-git clone coin-analyzer-v2.1.bundle coin-analyzer-restore
+git clone coin-analyzer-v2.2.bundle coin-analyzer-restore
 ```
 
 ## Release Backup Recommendations
 
 Keep copies of:
 
-- `coin-analyzer-v2.1.bundle`
+- `coin-analyzer-v2.2.bundle`
 - `README.md`
 - `RELEASE_HISTORY.md`
 - `PROJECT_STATE.md`
 - `TASK_QUEUE.md`
 - `AI_HANDOFF.md`
-- `docs/releases/v2.1.md`
+- `docs/releases/v2.2.md`
 - `docs/BACKUP.md`
 - Any screenshots added under `docs/screenshots/`
 
 Optional checksum:
 
 ```powershell
-Get-FileHash coin-analyzer-v2.1.bundle -Algorithm SHA256
+Get-FileHash coin-analyzer-v2.2.bundle -Algorithm SHA256
 ```
 
 ## Collection Data Backup
@@ -52,7 +52,7 @@ Back up production collection data before imports, audits, or release work:
 
 Recommended practice:
 
-- Keep a dated copy, such as `collection-2026-06-18-v2.1.json`.
+- Keep a dated copy, such as `collection-2026-06-18-v2.2.json`.
 - Store one backup outside the repository.
 - Do not use test fixtures as collection backups.
 
@@ -71,6 +71,51 @@ Recommended practice:
 - Use Tools -> Export Session State to create an extra JSON copy before major release work.
 - Keep state backups with repository and collection-data backups.
 - Do not store credentials or private cloud tokens in app-state fields.
+
+## Backup Packages
+
+v2.2 can create local backup packages with Tools -> Create Backup Package.
+
+Default package location:
+
+- `backups/packages/`
+
+Backup packages include, when available:
+
+- `collection_data/app_state/app_state.json`
+- Market Awareness records inside app state
+- Photo Vault records inside app state
+- Smart Shopping candidates inside app state
+- `README.md`
+- `RELEASE_HISTORY.md`
+- `PROJECT_STATE.md`
+- `TASK_QUEUE.md`
+- `AI_HANDOFF.md`
+- `docs/BACKUP.md`
+- `docs/releases/*.md`
+- `backup_manifest.json`
+- `backup_manifest.md`
+
+Manifests include:
+
+- Created timestamp
+- App version
+- Included files
+- Excluded files
+- Missing files
+- Warnings
+- SHA-256 checksums where practical
+- Restore notes
+
+Restore behavior:
+
+- Verify backup package before restore.
+- Create a pre-restore backup before writing files.
+- Restore known safe app-state files only by default.
+- Report restored files and skipped files.
+- Do not silently overwrite collection workbooks.
+
+Use Tools -> Data Safety Check before and after restore operations.
 
 ## Legacy Workbook Backup
 
