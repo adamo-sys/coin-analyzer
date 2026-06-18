@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.4`
-- Current active task completed: v2.4 Mobile Companion Prototype
+- Current project state file reports release version: `v2.4.1`
+- Current active task completed: v2.4.1 Critical Collection Backup Hardening
 
 ## Official Post-v2.2 Roadmap
 
@@ -96,6 +96,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Persistence Manager now stores recent mobile candidates and recent mobile recommendations in the existing local JSON app-state model.
 - Added `test_mobile_companion.py` covering minimal entry, concise reports, workflow scenarios, provider abstractions, phone simulation, persistence, dashboard integration, and exports.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
+- Enhanced `backup_manager.py` so backup packages include `data/collection.json` by default and copy the persisted collection workbook path when available.
+- Added explicit manifest recovery flags: `collection_json_backed_up`, `workbook_backed_up`, and `app_state_backed_up`.
+- Added `CollectionRecoveryReport` and Tools -> Collection Recovery Report to show recoverable ownership records, workbook copies, app state, market records, photo metadata, and shopping candidates.
+- Enhanced Data Safety validation for collection JSON existence, latest verified backup coverage, persisted workbook existence, and workbook backup availability.
+- Expanded `test_backup_manager.py` coverage for collection JSON backup, missing collection JSON, workbook backup success, missing workbook warnings, manifest flags, recovery reports, and validator coverage.
 
 ## Engine Scope
 
@@ -221,9 +226,10 @@ The persistence layer adds:
 The data safety and backup layer adds:
 
 - BackupManager for local zip backup packages
-- BackupManifest with included, excluded, missing files, warnings, restore notes, sizes, and SHA-256 checksums
+- BackupManifest with collection JSON/workbook/app-state recovery flags, included, excluded, missing files, warnings, restore notes, sizes, and SHA-256 checksums
 - DataSafetyValidator and DataSafetyReport for PASS/WARNING/FAIL validation
-- Safe restore of known app-state paths with pre-restore backup
+- CollectionRecoveryReport for recoverable and not-recoverable collection ownership data
+- Safe restore of known app-state paths and `data/collection.json` with pre-restore backup
 - Collector Export Bundle with health report, shopping recommendations, market summary, series summary, photo coverage summary, and manifest
 
 The mobile readiness layer adds:
@@ -265,7 +271,7 @@ Supported statuses:
 - Smart Shopping Assistant must reuse Acquisition Workflow and Acquisition Impact for decision source and scoring context; do not duplicate owned/duplicate/upgrade classification logic.
 - Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
-- Backup/restore must validate before restore, create pre-restore backups, and avoid silently overwriting collection workbooks or production collection ownership data.
+- Backup/restore must validate before restore, create pre-restore backups, include `data/collection.json` in backup packages when available, copy but never modify collection workbooks, and avoid silently overwriting collection workbooks or production collection ownership data.
 - Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
 - Mobile Companion must remain a local desktop prototype; do not add native mobile code, web app code, API server code, OCR, image recognition, scraping, live pricing, cloud sync, or a new database.
 - Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
@@ -276,8 +282,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 361 tests OK for the v2.4 Mobile Companion Prototype release line.
-- Coverage note: total passing tests increased from 344 to 361; existing regression suites remained green.
+- `.\run_tests.bat`: 368 tests OK for the v2.4.1 Critical Collection Backup Hardening release line.
+- Coverage note: total passing tests increased from 361 to 368; existing regression suites remained green.
+- Targeted Backup/Persistence tests: 33 tests OK.
 - Targeted Mobile Companion tests: 17 tests OK.
 - Targeted Mobile Readiness tests: 9 tests OK.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
@@ -314,7 +321,8 @@ Supported statuses:
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
 - Persistence stores local JSON state only; no cloud sync, database server, credentials, scraping, APIs, or workbook mutation.
-- Backup packages are local zip files only; keep off-machine backups separately and back up collection workbooks intentionally.
+- Backup packages are local zip files only; keep off-machine backups separately and continue storing collection workbooks in known backed-up locations.
+- Workbook copy coverage depends on the persisted workbook path saved in app state. If the workbook path is missing or stale, backup continues and reports a warning.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps

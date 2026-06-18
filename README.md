@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.4`
+Current version: `v2.4.1`
 
-Latest tagged release: `v2.4`
+Latest tagged release: `v2.4.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -48,7 +48,7 @@ The app is especially tuned for Adam-specific priorities:
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
-- Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, data validation reports, and collector export bundles.
+- Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
 - Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
 - Mobile Companion Prototype: local desktop prototype for a single candidate -> analysis -> recommendation dealer-table workflow using existing collector engines.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
@@ -116,7 +116,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.4 Mobile Companion Prototype development suite passed with `361 tests OK`.
+The v2.4.1 Critical Collection Backup Hardening suite passed with `368 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -144,6 +144,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 | `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation report, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
+| `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -283,6 +284,7 @@ If a referenced workbook is missing, the app reports a warning and allows manual
 Use these Tools menu items to validate and protect local app data:
 
 - Data Safety Check
+- Collection Recovery Report
 - Create Backup Package
 - List Backups
 - Restore Backup
@@ -293,6 +295,8 @@ Backup packages are local `.zip` files stored by default under:
 
 Backup package contents can include:
 
+- `data/collection.json`
+- Persisted collection workbook copy under `collection_workbook/`
 - App state JSON
 - Market Awareness records inside app state
 - Photo Vault records inside app state
@@ -301,22 +305,38 @@ Backup package contents can include:
 - Backup manifest JSON
 - Backup manifest Markdown
 
+Backup manifests explicitly report:
+
+- `collection_json_backed_up`: YES or NO
+- `workbook_backed_up`: YES or NO
+- `app_state_backed_up`: YES or NO
+- Missing files and warnings
+
 Restore behavior:
 
 - Backup packages are verified before restore.
 - Restore creates a pre-restore backup first.
-- Restore only writes known safe app-state paths by default.
+- Restore only writes known safe app-state paths and `data/collection.json` by default.
 - Existing files are not silently overwritten.
 - Collection workbooks are not modified automatically.
 
 Data Safety Check validates:
 
+- `data/collection.json` exists.
+- The latest verified backup includes `data/collection.json`.
 - App state JSON exists and is readable.
 - App state JSON schema is valid.
 - Referenced collection workbook and WANT_LIST paths exist when present.
+- Persisted workbook backup coverage when a workbook path is available.
 - Market, photo, and shopping records can load.
 - Referenced photo paths exist.
 - Backup directory exists.
+
+Collection Recovery Report shows:
+
+- Whether `data/collection.json`, the persisted workbook, and app state are backed up.
+- Which ownership records, workbook copies, app state, market records, photo metadata, and shopping candidates are recoverable.
+- Missing files, warnings, and next backup actions.
 
 Collector Export Bundle:
 
@@ -330,7 +350,7 @@ Collector Export Bundle:
 Known limitations:
 
 - Local backup packages do not replace off-machine backups.
-- Collection workbook copying is not automatic; keep workbook backups separately.
+- Collection workbook copying depends on a saved persisted workbook path; keep workbook backups separately too.
 - No cloud sync, user accounts, live pricing, scraping, OCR, image recognition, or database server.
 
 ## Listing Analyzer

@@ -22,6 +22,7 @@
 | `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 | `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation reports, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
+| `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
 
 ## Notes
 
