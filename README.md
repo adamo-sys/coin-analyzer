@@ -137,7 +137,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
 | `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
 | `v2.0` | `a661b06c846bdd0d5342ce892c350832c8907974` | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
-| `v2.1` | Pending tag verification | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
+| `v2.1` | See verified tag `v2.1` | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 

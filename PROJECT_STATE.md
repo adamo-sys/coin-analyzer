@@ -30,7 +30,7 @@
 * `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` points to `425fb2597b95e410e4c9c49465dd8b12e080ace3`.
 * `v1.9` acceptance audit passed on 2026-06-18; tag `v1.9` points to `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb`.
 * `v2.0` acceptance audit passed on 2026-06-18; tag `v2.0` points to `a661b06c846bdd0d5342ce892c350832c8907974`.
-* `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` pending final verification.
+* `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` verified during release.
 
 ## Completed Features
 
@@ -177,9 +177,9 @@ Perform post-v2.1 release packaging and backup verification.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.0 imports, consolidated report generation, exports, targeted integration tests, and full non-GUI regression suite passed.
 
 * Implemented v2.1 Persistence Layer: local JSON app state, save/load/clear/validate/backup/import/export operations, session metadata restoration, market/photo/shopping/app-preference round-tripping, Tools menu integration, and state folder documentation.
-* Implementation commit: pending
-* Full test suite passed: pending.
-* GUI smoke note: pending.
+* Implementation commit: `95ef0c0`
+* Full test suite passed: 321 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.1 imports, persistence round-trips, validation, backups, targeted integration tests, and full non-GUI regression suite passed.
 
 * Implemented v1.9 Smart Shopping Assistant: reusable ranked opportunity engine, shopping candidate model, best next purchase output, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW recommendation statuses, local market context, WANT_LIST and upgrade prioritization, dashboard shopping panel, Tools -> Smart Shopping Assistant GUI workflow, and CSV/Markdown export.
 * Implementation commit: `efe7a1b`
