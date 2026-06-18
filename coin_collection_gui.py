@@ -23,6 +23,7 @@ from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
 from collection_dashboard import CollectionDashboard
+from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
@@ -73,6 +74,8 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Load Collection Context", command=self.load_collection_context)
         tools_menu.add_command(label="Clear Session Context", command=self.clear_session_context)
         tools_menu.add_separator()
+        tools_menu.add_command(label="Collector Home", command=self.open_collector_home)
+        tools_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
         tools_menu.add_command(label="Collection Dashboard", command=self.open_collection_dashboard)
         tools_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         tools_menu.add_separator()
@@ -865,6 +868,122 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showinfo("Success", f"Collection dashboard Markdown exported to {file_path}")
             else:
                 messagebox.showerror("Error", "Failed to export collection dashboard Markdown")
+
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_collector_home(self):
+        """Open unified Collector Home dialog."""
+        home = CollectorHome(
+            self._collection_items(),
+            self._active_want_list_intents(),
+        )
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collector Home")
+        dialog.geometry("900x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            main_frame,
+            text=self.session_context.format_status_line(),
+            padding=(0, 0, 0, 8),
+        ).pack(fill=tk.X)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, home.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Home CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if home.export_csv(file_path):
+                messagebox.showinfo("Success", f"Collector Home CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export Collector Home CSV")
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Home Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if home.export_markdown(file_path):
+                messagebox.showinfo("Success", f"Collector Home Markdown exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export Collector Home Markdown")
+
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_collection_health_report(self):
+        """Open consolidated Collection Health Report dialog."""
+        report = CollectionHealthReportEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+        )
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Health Report")
+        dialog.geometry("900x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            main_frame,
+            text=self.session_context.format_status_line(),
+            padding=(0, 0, 0, 8),
+        ).pack(fill=tk.X)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Health Report CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if report.export_csv(file_path):
+                messagebox.showinfo("Success", f"Collection Health Report CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export Collection Health Report CSV")
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collection Health Report Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if report.export_markdown(file_path):
+                messagebox.showinfo("Success", f"Collection Health Report Markdown exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export Collection Health Report Markdown")
 
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
