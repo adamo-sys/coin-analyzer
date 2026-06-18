@@ -175,9 +175,9 @@ Perform post-v2.2 release packaging and backup verification.
 ### 2026-06-18
 
 * Implemented v2.2 Data Safety and Backup Hardening: BackupManager, BackupManifest, DataSafetyValidator, DataSafetyReport, backup package creation/verification/listing/restore, pre-restore backups, collector export bundle, Tools menu entries, and data-safety documentation.
-* Implementation commit: pending
-* Full test suite passed: pending.
-* GUI smoke note: pending.
+* Implementation commit: `e70fc4c`
+* Full test suite passed: 335 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.2 imports, backup package checks, restore checks, data-safety reports, export bundles, targeted integration tests, and full non-GUI regression suite passed.
 
 * Implemented v2.0 Collector Operating System: Collector Home, Collection Health Report, consolidated workflow guidance, persistence audit findings, dashboard/quality/series/shopping/market/photo integration, Tools menu entries, and CSV/Markdown export.
 * Implementation commit: `11b4f6e`
