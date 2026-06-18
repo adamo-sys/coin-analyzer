@@ -166,7 +166,7 @@ Begin v2.0 Collector Operating System planning.
 ### 2026-06-18
 
 * Implemented v1.9 Smart Shopping Assistant: reusable ranked opportunity engine, shopping candidate model, best next purchase output, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW recommendation statuses, local market context, WANT_LIST and upgrade prioritization, dashboard shopping panel, Tools -> Smart Shopping Assistant GUI workflow, and CSV/Markdown export.
-* Implementation commit: pending.
+* Implementation commit: `efe7a1b`
 * Full test suite passed: 300 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.9 imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
 
