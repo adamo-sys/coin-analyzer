@@ -89,6 +89,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Import Session State", command=self.import_session_state)
         tools_menu.add_separator()
         tools_menu.add_command(label="Data Safety Check", command=self.open_data_safety_check)
+        tools_menu.add_command(label="Collection Recovery Report", command=self.open_collection_recovery_report)
         tools_menu.add_command(label="Create Backup Package", command=self.create_backup_package)
         tools_menu.add_command(label="List Backups", command=self.list_backup_packages)
         tools_menu.add_command(label="Restore Backup", command=self.restore_backup_package)
@@ -462,6 +463,24 @@ Total Unique Dates: {total_unique_dates}
 
         dialog = tk.Toplevel(self.root)
         dialog.title("Data Safety Check")
+        dialog.geometry("850x650")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        ttk.Button(main_frame, text="Close", command=dialog.destroy).pack(anchor=tk.W, pady=(10, 0))
+
+    def open_collection_recovery_report(self):
+        """Show what collection data is recoverable from the latest backup package."""
+        report = self.backup_manager.collection_recovery_report()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Recovery Report")
         dialog.geometry("850x650")
 
         main_frame = ttk.Frame(dialog, padding="10")

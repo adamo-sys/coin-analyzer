@@ -25,9 +25,19 @@ from series_tracker import SeriesTracker
 from smart_shopping_assistant import ShoppingCandidate, SmartShoppingAssistant
 
 
-APP_VERSION = "2.4"
+APP_VERSION = "2.4.1"
 MANIFEST_NAME = "backup_manifest.json"
 MANIFEST_MARKDOWN_NAME = "backup_manifest.md"
+DEFAULT_COLLECTION_JSON_PATH = os.path.join("data", "collection.json")
+
+
+def _yes_no(value: Any) -> str:
+    if isinstance(value, str):
+        normalized = value.strip().upper()
+        if normalized in {"YES", "NO"}:
+            return normalized
+        return "YES" if normalized in {"TRUE", "1"} else "NO"
+    return "YES" if bool(value) else "NO"
 
 
 def _now_stamp() -> str:
@@ -66,6 +76,9 @@ class BackupFileRecord:
 class BackupManifest:
     backup_created_at: str
     app_version: str = APP_VERSION
+    collection_json_backed_up: str = "NO"
+    workbook_backed_up: str = "NO"
+    app_state_backed_up: str = "NO"
     included_files: List[BackupFileRecord] = field(default_factory=list)
     excluded_files: List[str] = field(default_factory=list)
     missing_files: List[str] = field(default_factory=list)
@@ -76,6 +89,9 @@ class BackupManifest:
         return {
             "backup_created_at": self.backup_created_at,
             "app_version": self.app_version,
+            "collection_json_backed_up": _yes_no(self.collection_json_backed_up),
+            "workbook_backed_up": _yes_no(self.workbook_backed_up),
+            "app_state_backed_up": _yes_no(self.app_state_backed_up),
             "included_files": [record.to_dict() for record in self.included_files],
             "excluded_files": list(self.excluded_files),
             "missing_files": list(self.missing_files),
@@ -88,6 +104,9 @@ class BackupManifest:
         return cls(
             backup_created_at=str(payload.get("backup_created_at") or ""),
             app_version=str(payload.get("app_version") or APP_VERSION),
+            collection_json_backed_up=_yes_no(payload.get("collection_json_backed_up", "NO")),
+            workbook_backed_up=_yes_no(payload.get("workbook_backed_up", "NO")),
+            app_state_backed_up=_yes_no(payload.get("app_state_backed_up", "NO")),
             included_files=[
                 BackupFileRecord(
                     source_path=str(row.get("source_path") or ""),
@@ -109,6 +128,12 @@ class BackupManifest:
             "",
             f"- Created: {self.backup_created_at}",
             f"- App version: {self.app_version}",
+            "",
+            "## Recovery Coverage",
+            "",
+            f"- collection_json_backed_up: {_yes_no(self.collection_json_backed_up)}",
+            f"- workbook_backed_up: {_yes_no(self.workbook_backed_up)}",
+            f"- app_state_backed_up: {_yes_no(self.app_state_backed_up)}",
             "",
             "## Included Files",
             "",
@@ -140,6 +165,58 @@ class BackupResult:
     pre_restore_backup_path: str = ""
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CollectionRecoveryReport:
+    status: str
+    package_path: str = ""
+    collection_json_backed_up: str = "NO"
+    workbook_backed_up: str = "NO"
+    app_state_backed_up: str = "NO"
+    recoverable: List[str] = field(default_factory=list)
+    not_recoverable: List[str] = field(default_factory=list)
+    missing_files: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "status": self.status,
+            "package_path": self.package_path,
+            "collection_json_backed_up": _yes_no(self.collection_json_backed_up),
+            "workbook_backed_up": _yes_no(self.workbook_backed_up),
+            "app_state_backed_up": _yes_no(self.app_state_backed_up),
+            "recoverable": list(self.recoverable),
+            "not_recoverable": list(self.not_recoverable),
+            "missing_files": list(self.missing_files),
+            "warnings": list(self.warnings),
+            "recommendations": list(self.recommendations),
+        }
+
+    def format_markdown(self) -> str:
+        lines = [
+            "# Collection Recovery Report",
+            "",
+            f"- Status: {self.status}",
+            f"- Package: {self.package_path or 'No verified backup package'}",
+            f"- collection_json_backed_up: {_yes_no(self.collection_json_backed_up)}",
+            f"- workbook_backed_up: {_yes_no(self.workbook_backed_up)}",
+            f"- app_state_backed_up: {_yes_no(self.app_state_backed_up)}",
+            "",
+            "## Recoverable",
+            "",
+        ]
+        lines.extend(f"- {item}" for item in self.recoverable) if self.recoverable else lines.append("- None confirmed")
+        lines.extend(["", "## Not Recoverable", ""])
+        lines.extend(f"- {item}" for item in self.not_recoverable) if self.not_recoverable else lines.append("- None identified")
+        lines.extend(["", "## Missing Files", ""])
+        lines.extend(f"- {item}" for item in self.missing_files) if self.missing_files else lines.append("- None")
+        lines.extend(["", "## Warnings", ""])
+        lines.extend(f"- {item}" for item in self.warnings) if self.warnings else lines.append("- None")
+        lines.extend(["", "## Recommendations", ""])
+        lines.extend(f"- {item}" for item in self.recommendations) if self.recommendations else lines.append("- Continue regular backup packages and off-machine copies.")
+        return "\n".join(lines) + "\n"
 
 
 @dataclass
@@ -192,13 +269,23 @@ class DataSafetyValidator:
         self,
         persistence_manager: Optional[PersistenceManager] = None,
         backup_dir: str = os.path.join("backups", "packages"),
+        collection_json_path: str = DEFAULT_COLLECTION_JSON_PATH,
     ):
         self.persistence_manager = persistence_manager or PersistenceManager()
         self.backup_dir = backup_dir
+        self.collection_json_path = collection_json_path
 
     def validate(self) -> DataSafetyReport:
         issues: List[DataSafetyIssue] = []
         state_result = self.persistence_manager.load_state()
+        loaded_state = state_result.state or AppState()
+        if not os.path.exists(self.collection_json_path):
+            issues.append(DataSafetyIssue(
+                "FAIL",
+                "Collection JSON",
+                f"Production collection JSON is missing: {self.collection_json_path}",
+                "Restore data/collection.json from a verified backup or repository backup.",
+            ))
         if not os.path.exists(self.persistence_manager.state_path):
             issues.append(DataSafetyIssue(
                 "WARNING",
@@ -214,7 +301,7 @@ class DataSafetyValidator:
                 "Repair, import, or clear the saved state file.",
             ))
         else:
-            issues.extend(self._validate_loaded_state(state_result.state or AppState()))
+            issues.extend(self._validate_loaded_state(loaded_state))
 
         if not os.path.isdir(self.backup_dir):
             issues.append(DataSafetyIssue(
@@ -223,6 +310,8 @@ class DataSafetyValidator:
                 f"Backup directory is missing: {self.backup_dir}",
                 "Create a backup package to initialize backup storage.",
             ))
+        else:
+            issues.extend(self._validate_backup_coverage(loaded_state))
 
         status = "PASS"
         if any(issue.severity == "FAIL" for issue in issues):
@@ -265,6 +354,67 @@ class DataSafetyValidator:
                 actions.append(issue.recommended_action)
         return actions
 
+    def _validate_backup_coverage(self, state: AppState) -> List[DataSafetyIssue]:
+        issues: List[DataSafetyIssue] = []
+        manifest = self._latest_verified_manifest()
+        if not manifest:
+            issues.append(DataSafetyIssue(
+                "WARNING",
+                "Backups",
+                "No verified backup package found.",
+                "Create a backup package and verify it before ending the session.",
+            ))
+            return issues
+        if _yes_no(manifest.collection_json_backed_up) != "YES":
+            issues.append(DataSafetyIssue(
+                "WARNING",
+                "Collection JSON Backup",
+                "Latest verified backup package does not include data/collection.json.",
+                "Create a new backup package with v2.4.1 or later.",
+            ))
+        workbook_path = state.collection_workbook_path
+        if workbook_path:
+            if not os.path.exists(workbook_path):
+                issues.append(DataSafetyIssue(
+                    "WARNING",
+                    "Collection Workbook",
+                    f"Persisted workbook path is missing: {workbook_path}",
+                    "Save the workbook in a known location and reload collection context.",
+                ))
+            elif _yes_no(manifest.workbook_backed_up) != "YES":
+                issues.append(DataSafetyIssue(
+                    "WARNING",
+                    "Collection Workbook Backup",
+                    "Latest verified backup package does not include the persisted collection workbook.",
+                    "Create a new backup package after saving session state.",
+                ))
+        if _yes_no(manifest.app_state_backed_up) != "YES":
+            issues.append(DataSafetyIssue(
+                "WARNING",
+                "App State Backup",
+                "Latest verified backup package does not include app state.",
+                "Use Tools -> Save Session State, then create a backup package.",
+            ))
+        return issues
+
+    def _latest_verified_manifest(self) -> Optional[BackupManifest]:
+        packages = []
+        if not os.path.isdir(self.backup_dir):
+            return None
+        for name in os.listdir(self.backup_dir):
+            path = os.path.join(self.backup_dir, name)
+            if name.lower().endswith(".zip") and os.path.isfile(path):
+                packages.append(path)
+        for path in sorted(packages, key=os.path.getmtime, reverse=True):
+            result = BackupManager(
+                backup_dir=self.backup_dir,
+                persistence_manager=self.persistence_manager,
+                collection_json_path=self.collection_json_path,
+            ).verify_backup_package(path)
+            if result.success and result.manifest:
+                return result.manifest
+        return None
+
 
 class BackupManager:
     """Create, verify, list, restore, and report local backup packages."""
@@ -273,15 +423,17 @@ class BackupManager:
         self,
         backup_dir: str = os.path.join("backups", "packages"),
         persistence_manager: Optional[PersistenceManager] = None,
+        collection_json_path: str = DEFAULT_COLLECTION_JSON_PATH,
     ):
         self.backup_dir = backup_dir
         self.persistence_manager = persistence_manager or PersistenceManager()
+        self.collection_json_path = collection_json_path
 
     def create_backup_package(
         self,
         package_path: Optional[str] = None,
         include_workbook_path: str = "",
-        copy_workbook: bool = False,
+        copy_workbook: bool = True,
     ) -> BackupResult:
         """Create a zip package containing safe local app/report files."""
 
@@ -299,8 +451,11 @@ class BackupManager:
                 "Collection workbook is not modified by restore.",
             ],
         )
+        state_result = self.persistence_manager.load_state()
+        loaded_state = state_result.state or AppState()
         candidates = [
             (self.persistence_manager.state_path, "collection_data/app_state/app_state.json"),
+            (self.collection_json_path, "data/collection.json"),
             ("RELEASE_HISTORY.md", "release/RELEASE_HISTORY.md"),
             ("README.md", "release/README.md"),
             ("PROJECT_STATE.md", "release/PROJECT_STATE.md"),
@@ -314,12 +469,15 @@ class BackupManager:
                 if name.endswith(".md"):
                     candidates.append((os.path.join(release_dir, name), f"release/docs/releases/{name}"))
 
-        if include_workbook_path:
+        workbook_path = include_workbook_path or loaded_state.collection_workbook_path
+        if workbook_path:
             if copy_workbook:
-                candidates.append((include_workbook_path, f"collection_workbook/{os.path.basename(include_workbook_path)}"))
+                candidates.append((workbook_path, f"collection_workbook/{os.path.basename(workbook_path)}"))
             else:
-                manifest.excluded_files.append(include_workbook_path)
+                manifest.excluded_files.append(workbook_path)
                 manifest.warnings.append("Collection workbook path recorded but workbook was not copied.")
+        else:
+            manifest.warnings.append("No persisted collection workbook path found; workbook was not backed up.")
         try:
             with zipfile.ZipFile(package_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 for source, archive_name in candidates:
@@ -334,6 +492,13 @@ class BackupManager:
                         manifest.included_files.append(record)
                     else:
                         manifest.missing_files.append(source)
+                        if archive_name == "data/collection.json":
+                            manifest.warnings.append("Production collection JSON was not found and was not backed up.")
+                        elif archive_name.startswith("collection_workbook/"):
+                            manifest.warnings.append(f"Collection workbook was not found and was not backed up: {source}")
+                manifest.collection_json_backed_up = _yes_no(any(record.archive_path == "data/collection.json" for record in manifest.included_files))
+                manifest.workbook_backed_up = _yes_no(any(record.archive_path.startswith("collection_workbook/") for record in manifest.included_files))
+                manifest.app_state_backed_up = _yes_no(any(record.archive_path == "collection_data/app_state/app_state.json" for record in manifest.included_files))
                 archive.writestr(MANIFEST_NAME, json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False) + "\n")
                 archive.writestr(MANIFEST_MARKDOWN_NAME, manifest.format_markdown())
             return BackupResult(True, "Backup package created", package_path=package_path, manifest=manifest, warnings=list(manifest.warnings))
@@ -365,6 +530,67 @@ class BackupManager:
                 return BackupResult(True, "Backup verified", package_path=package_path, manifest=manifest, warnings=list(manifest.warnings))
         except Exception as exc:
             return BackupResult(False, "Backup verification failed", package_path=package_path, errors=[str(exc)])
+
+    def collection_recovery_report(self, package_path: str = "") -> CollectionRecoveryReport:
+        """Summarize what core collection data can be recovered from a backup."""
+
+        target = package_path or self._latest_backup_path()
+        if not target:
+            return CollectionRecoveryReport(
+                status="FAIL",
+                warnings=["No backup package found."],
+                recommendations=["Create a backup package before ending the session."],
+            )
+        verified = self.verify_backup_package(target)
+        if not verified.success or not verified.manifest:
+            return CollectionRecoveryReport(
+                status="FAIL",
+                package_path=target,
+                warnings=list(verified.errors),
+                recommendations=["Create a fresh backup package and verify it."],
+            )
+        manifest = verified.manifest
+        recoverable: List[str] = []
+        not_recoverable: List[str] = []
+        recommendations: List[str] = []
+        if _yes_no(manifest.collection_json_backed_up) == "YES":
+            recoverable.append("data/collection.json ownership records")
+        else:
+            not_recoverable.append("data/collection.json ownership records")
+            recommendations.append("Create a v2.4.1 backup package that includes data/collection.json.")
+        if _yes_no(manifest.workbook_backed_up) == "YES":
+            recoverable.append("collection workbook copy")
+        else:
+            not_recoverable.append("collection workbook copy")
+            recommendations.append("Save session state with the workbook path, then create a backup package.")
+        if _yes_no(manifest.app_state_backed_up) == "YES":
+            recoverable.extend([
+                "app state",
+                "market records stored in app state",
+                "photo metadata stored in app state",
+                "shopping candidates stored in app state",
+            ])
+        else:
+            not_recoverable.append("app state, market records, photo metadata, and shopping candidates")
+            recommendations.append("Use Tools -> Save Session State before creating the next backup package.")
+        not_recoverable.extend(f"Missing file: {path}" for path in manifest.missing_files)
+        status = "PASS"
+        if _yes_no(manifest.collection_json_backed_up) != "YES":
+            status = "FAIL"
+        elif not_recoverable:
+            status = "WARNING"
+        return CollectionRecoveryReport(
+            status=status,
+            package_path=target,
+            collection_json_backed_up=manifest.collection_json_backed_up,
+            workbook_backed_up=manifest.workbook_backed_up,
+            app_state_backed_up=manifest.app_state_backed_up,
+            recoverable=recoverable,
+            not_recoverable=not_recoverable,
+            missing_files=list(manifest.missing_files),
+            warnings=list(manifest.warnings),
+            recommendations=recommendations or ["Keep this backup package and maintain off-machine copies."],
+        )
 
     def list_available_backups(self) -> List[Dict[str, Any]]:
         """List backup zip packages in the configured backup directory."""
@@ -401,7 +627,7 @@ class BackupManager:
         if not verified.success:
             return verified
         manifest = verified.manifest or BackupManifest(_now_iso())
-        allowed_prefixes = ("collection_data/app_state/",)
+        allowed_prefixes = ("collection_data/app_state/", "data/collection.json")
         restore_records = [
             record for record in manifest.included_files
             if record.archive_path.startswith(allowed_prefixes)
@@ -417,7 +643,7 @@ class BackupManager:
                 for record in restore_records:
                     target = os.path.abspath(os.path.join(restore_root, record.archive_path))
                     root = os.path.abspath(restore_root)
-                    if not target.startswith(root):
+                    if os.path.commonpath([root, target]) != root:
                         skipped.append(record.archive_path)
                         continue
                     if os.path.exists(target) and not overwrite:
@@ -439,6 +665,12 @@ class BackupManager:
             )
         except Exception as exc:
             return BackupResult(False, "Restore failed", package_path=package_path, manifest=manifest, restored_files=restored, skipped_files=skipped, pre_restore_backup_path=pre_restore.package_path, errors=[str(exc)])
+
+    def _latest_backup_path(self) -> str:
+        backups = self.list_available_backups()
+        if not backups:
+            return ""
+        return max(backups, key=lambda row: row["modified_at"])["path"]
 
     def export_collector_bundle(
         self,
