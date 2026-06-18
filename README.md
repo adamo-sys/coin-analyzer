@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.0`
+Current version: `v2.1`
 
-Latest tagged release: `v2.0`
+Latest tagged release: `v2.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -47,6 +47,7 @@ The app is especially tuned for Adam-specific priorities:
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
+- Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -112,7 +113,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.0 Collector Operating System development suite passed with `309 tests OK`.
+The v2.1 Persistence Layer development suite passed with `321 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -135,7 +136,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.7` | `b650a141e1061979506f19402360239d69f68073` | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
 | `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
 | `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
-| `v2.0` | Pending tag verification | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
+| `v2.0` | `a661b06c846bdd0d5342ce892c350832c8907974` | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
+| `v2.1` | Pending tag verification | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -176,7 +178,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Perform post-v2.0 release packaging and backup verification.
+- Perform post-v2.1 release packaging and backup verification.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -194,7 +196,7 @@ Future candidates:
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
 - Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
-- Shared Session Context is per app session only; it is not persisted after closing the application.
+- Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
@@ -211,6 +213,46 @@ Tools that can reuse the shared WANT_LIST context include:
 - Portfolio Import Preview and Want List Preview where appropriate
 
 If no context is loaded, tools fall back to their existing behavior and show unavailable or not-loaded status instead of failing.
+
+## Persistence Layer
+
+Use these Tools menu items to preserve local app state between sessions:
+
+- Save Session State
+- Load Session State
+- Clear Session State
+- Export Session State
+- Import Session State
+
+Default storage:
+
+- `collection_data/app_state/app_state.json`
+- `collection_data/app_state/backups/`
+
+Persisted data:
+
+- Shared Session Context metadata
+- Last-used collection workbook path
+- Last-used WANT_LIST path/source
+- Market Awareness records
+- Photo Vault records
+- Smart Shopping candidates
+- Basic app preferences/settings
+- Warnings and errors useful for restore diagnostics
+
+Backup behavior:
+
+- Saving over an existing state file creates a timestamped backup first.
+- Clearing saved state also creates a backup before removing the active state file.
+- Export and import use JSON and validate the schema before accepting imported state.
+
+What does not persist:
+
+- Credentials, cloud sync, user accounts, web sessions, live market data, or scraped listing content.
+- The collection workbook itself; the state stores paths and reloads context when the referenced workbook still exists.
+- Production collection ownership data beyond the existing `data/collection.json` system.
+
+If a referenced workbook is missing, the app reports a warning and allows manual reload.
 
 ## Listing Analyzer
 

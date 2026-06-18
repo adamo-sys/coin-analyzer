@@ -1,45 +1,45 @@
 # Backup Guide
 
-Use this guide to preserve the v2.0 repository, release documentation, collection data, and legacy workbook sources.
+Use this guide to preserve the v2.1 repository, release documentation, collection data, app state, and legacy workbook sources.
 
 ## Repository Backup
 
 From the repository root:
 
 ```powershell
-git bundle create coin-analyzer-v2.0.bundle --all
+git bundle create coin-analyzer-v2.1.bundle --all
 ```
 
 Verify the bundle:
 
 ```powershell
-git bundle verify coin-analyzer-v2.0.bundle
+git bundle verify coin-analyzer-v2.1.bundle
 ```
 
 Restore from the bundle into a new folder:
 
 ```powershell
-git clone coin-analyzer-v2.0.bundle coin-analyzer-restore
+git clone coin-analyzer-v2.1.bundle coin-analyzer-restore
 ```
 
 ## Release Backup Recommendations
 
 Keep copies of:
 
-- `coin-analyzer-v2.0.bundle`
+- `coin-analyzer-v2.1.bundle`
 - `README.md`
 - `RELEASE_HISTORY.md`
 - `PROJECT_STATE.md`
 - `TASK_QUEUE.md`
 - `AI_HANDOFF.md`
-- `docs/releases/v2.0.md`
+- `docs/releases/v2.1.md`
 - `docs/BACKUP.md`
 - Any screenshots added under `docs/screenshots/`
 
 Optional checksum:
 
 ```powershell
-Get-FileHash coin-analyzer-v2.0.bundle -Algorithm SHA256
+Get-FileHash coin-analyzer-v2.1.bundle -Algorithm SHA256
 ```
 
 ## Collection Data Backup
@@ -52,9 +52,25 @@ Back up production collection data before imports, audits, or release work:
 
 Recommended practice:
 
-- Keep a dated copy, such as `collection-2026-06-18-v2.0.json`.
+- Keep a dated copy, such as `collection-2026-06-18-v2.1.json`.
 - Store one backup outside the repository.
 - Do not use test fixtures as collection backups.
+
+## App State Backup
+
+v2.1 stores local app runtime state in:
+
+- `collection_data/app_state/app_state.json`
+- `collection_data/app_state/backups/`
+
+This state can include workbook paths, WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, app preferences, warnings, and errors.
+
+Recommended practice:
+
+- Use Tools -> Save Session State before ending a collection-planning session.
+- Use Tools -> Export Session State to create an extra JSON copy before major release work.
+- Keep state backups with repository and collection-data backups.
+- Do not store credentials or private cloud tokens in app-state fields.
 
 ## Legacy Workbook Backup
 

@@ -24,6 +24,8 @@ from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
 from collection_dashboard import CollectionDashboard
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
+from market_awareness import MarketAwarenessEngine
+from persistence_manager import PersistenceManager
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
@@ -38,6 +40,11 @@ class CoinCollectionGUI:
         # Initialize backend
         self.app = CoinCollectionApp()
         self.session_context = SessionContext()
+        self.persistence_manager = PersistenceManager()
+        self.market_awareness_engine = MarketAwarenessEngine()
+        self.photo_records = []
+        self.shopping_candidates = []
+        self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
         # Initialize optional identifier
@@ -73,6 +80,11 @@ class CoinCollectionGUI:
         menubar.add_cascade(label="Tools", menu=tools_menu)
         tools_menu.add_command(label="Load Collection Context", command=self.load_collection_context)
         tools_menu.add_command(label="Clear Session Context", command=self.clear_session_context)
+        tools_menu.add_command(label="Save Session State", command=self.save_session_state)
+        tools_menu.add_command(label="Load Session State", command=self.load_session_state)
+        tools_menu.add_command(label="Clear Session State", command=self.clear_saved_session_state)
+        tools_menu.add_command(label="Export Session State", command=self.export_session_state)
+        tools_menu.add_command(label="Import Session State", command=self.import_session_state)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Home", command=self.open_collector_home)
         tools_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
@@ -327,6 +339,115 @@ Total Unique Dates: {total_unique_dates}
         self.session_context.clear()
         self.refresh_session_status()
         messagebox.showinfo("Session Context", "Session context cleared.")
+
+    def save_session_state(self):
+        """Persist current session state to local JSON."""
+        state = self.persistence_manager.create_state(
+            session_context=self.session_context,
+            market_awareness_engine=self.market_awareness_engine,
+            photo_records=self.photo_records,
+            shopping_candidates=self.shopping_candidates,
+            app_preferences=self.app_preferences,
+        )
+        result = self.persistence_manager.save_state(state)
+        if result.success:
+            detail = f"Session state saved to {result.path}"
+            if result.backup_path:
+                detail += f"\nBackup created: {result.backup_path}"
+            if result.warnings:
+                detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in result.warnings[:5])
+            self.app_preferences["last_state_saved_at"] = state.saved_at
+            self.refresh_session_status()
+            messagebox.showinfo("Session State Saved", detail)
+        else:
+            messagebox.showerror("Session State Error", "\n".join(result.errors))
+
+    def load_session_state(self):
+        """Load previously saved local app state."""
+        result = self.persistence_manager.load_state()
+        if not result.success:
+            messagebox.showerror("Session State Error", "\n".join(result.errors))
+            return
+        self._apply_loaded_app_state(result.state)
+        detail = result.status
+        if result.path:
+            detail += f"\n{result.path}"
+        if result.warnings:
+            detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in result.warnings[:8])
+        messagebox.showinfo("Session State Loaded", detail)
+
+    def clear_saved_session_state(self):
+        """Clear saved app state and reset runtime-only persisted context."""
+        result = self.persistence_manager.clear_state()
+        self.session_context.clear()
+        self.market_awareness_engine = MarketAwarenessEngine()
+        self.photo_records = []
+        self.shopping_candidates = []
+        self.app_preferences = {}
+        self.refresh_session_status()
+        if result.success:
+            detail = result.status
+            if result.backup_path:
+                detail += f"\nBackup created: {result.backup_path}"
+            messagebox.showinfo("Session State Cleared", detail)
+        else:
+            messagebox.showerror("Session State Error", "\n".join(result.errors))
+
+    def export_session_state(self):
+        """Export current app state to a selected JSON file."""
+        file_path = filedialog.asksaveasfilename(
+            title="Export Session State JSON",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+        state = self.persistence_manager.create_state(
+            session_context=self.session_context,
+            market_awareness_engine=self.market_awareness_engine,
+            photo_records=self.photo_records,
+            shopping_candidates=self.shopping_candidates,
+            app_preferences=self.app_preferences,
+        )
+        result = self.persistence_manager.export_state(file_path, state)
+        if result.success:
+            messagebox.showinfo("Session State Exported", f"Session state exported to {file_path}")
+        else:
+            messagebox.showerror("Session State Error", "\n".join(result.errors))
+
+    def import_session_state(self):
+        """Import app state from a selected JSON file."""
+        file_path = filedialog.askopenfilename(
+            title="Import Session State JSON",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        if not file_path:
+            return
+        result = self.persistence_manager.import_state(file_path)
+        if not result.success:
+            messagebox.showerror("Session State Error", "\n".join(result.errors))
+            return
+        self._apply_loaded_app_state(result.state)
+        detail = f"Session state imported from {file_path}"
+        if result.warnings:
+            detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in result.warnings[:8])
+        messagebox.showinfo("Session State Imported", detail)
+
+    def _apply_loaded_app_state(self, state):
+        """Apply loaded app state to runtime objects without modifying collection data."""
+        if not state:
+            return
+        self.session_context = state.session_context or SessionContext()
+        if state.collection_workbook_path and os.path.exists(state.collection_workbook_path):
+            self.session_context.load_workbook_context(state.collection_workbook_path, self._collection_items())
+        elif state.collection_workbook_path:
+            self.session_context.errors = [f"Workbook not found: {state.collection_workbook_path}"]
+            self.session_context.load_status = "Saved workbook path missing"
+        self.market_awareness_engine = state.market_awareness
+        self.photo_records = list(state.photo_records)
+        self.shopping_candidates = list(state.shopping_candidates)
+        self.app_preferences = dict(state.app_preferences)
+        self.refresh_session_status()
     
     def upload_image(self):
         """Upload coin image."""
@@ -820,6 +941,9 @@ Total Unique Dates: {total_unique_dates}
         dashboard = CollectionDashboard(
             self._collection_items(),
             self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            market_awareness_engine=self.market_awareness_engine,
+            shopping_candidates=self.shopping_candidates,
         )
 
         dialog = tk.Toplevel(self.root)
@@ -878,6 +1002,9 @@ Total Unique Dates: {total_unique_dates}
         home = CollectorHome(
             self._collection_items(),
             self._active_want_list_intents(),
+            self.shopping_candidates,
+            market_awareness_engine=self.market_awareness_engine,
+            photo_records=self.photo_records,
         )
 
         dialog = tk.Toplevel(self.root)
@@ -936,6 +1063,9 @@ Total Unique Dates: {total_unique_dates}
         report = CollectionHealthReportEngine(
             self._collection_items(),
             self._active_want_list_intents(),
+            self.shopping_candidates,
+            market_awareness_engine=self.market_awareness_engine,
+            photo_records=self.photo_records,
         )
 
         dialog = tk.Toplevel(self.root)
@@ -2014,6 +2144,7 @@ Total Unique Dates: {total_unique_dates}
                     self._active_want_list_intents(),
                 )
                 result = analyzer.analyze(listing)
+                self.shopping_candidates.append(ShoppingCandidate.from_listing(listing))
                 result_text.delete("1.0", tk.END)
                 result_text.insert(tk.END, format_listing_result(result))
             except ValueError:
@@ -2033,6 +2164,7 @@ Total Unique Dates: {total_unique_dates}
         assistant = SmartShoppingAssistant(
             self._collection_items(),
             self._active_want_list_intents(),
+            self.market_awareness_engine,
         )
         current_report = {"report": None}
 
@@ -2048,6 +2180,14 @@ Total Unique Dates: {total_unique_dates}
         ).pack(anchor=tk.W)
         opportunities_text = tk.Text(input_frame, height=8, wrap=tk.WORD)
         opportunities_text.pack(fill=tk.X, pady=(6, 0))
+        if self.shopping_candidates:
+            opportunities_text.insert(
+                tk.END,
+                "\n".join(
+                    f"{candidate.item_name} | {candidate.asking_price} | {candidate.shipping} | {candidate.source or candidate.recommendation_source}"
+                    for candidate in self.shopping_candidates
+                )
+            )
 
         ttk.Label(
             input_frame,
@@ -2089,6 +2229,7 @@ Total Unique Dates: {total_unique_dates}
         def analyze():
             try:
                 candidates = parse_candidates()
+                self.shopping_candidates = candidates
                 report = assistant.generate_report(candidates, include_want_list_targets=True, limit=10)
                 current_report["report"] = report
                 result_text.delete("1.0", tk.END)

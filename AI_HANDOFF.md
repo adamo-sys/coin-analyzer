@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.0`
-- Current active task completed: v2.0 Collector Operating System
+- Current project state file reports release version: `v2.1`
+- Current active task completed: v2.1 Persistence Layer
 
 ## What Changed
 
@@ -66,6 +66,11 @@
 - Collection Health Report combines dashboard summary, quality summary, series summary, Smart Shopping priorities, market summary, strengths, weaknesses, recommended actions, and persistence findings.
 - Added Tools -> Collector Home and Tools -> Collection Health Report in `coin_collection_gui.py`.
 - Added `test_collector_operating_system.py` covering summary generation, shopping integration, end-to-end workflow guidance, export consistency, persistence findings, empty collection behavior, and photo/market context.
+- Added `persistence_manager.py` with JSON-backed app state save, load, clear, validate, backup, import, and export.
+- Added Tools -> Save Session State, Load Session State, Clear Session State, Export Session State, and Import Session State.
+- Persistence covers Shared Session Context metadata, last workbook path, WANT_LIST path/source, Market Awareness records, Photo Vault records, Smart Shopping candidates, app preferences, warnings, and errors.
+- Saving over existing state and clearing saved state create timestamped backups under `collection_data/app_state/backups/`.
+- Added `test_persistence_manager.py` covering empty state, session context, market/photo/shopping round-trips, corrupt JSON, missing workbook warnings, clear, backup, import/export, and invalid schema.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -180,6 +185,15 @@ The collector operating system adds:
 - Tools -> Collector Home and Tools -> Collection Health Report
 - CSV and Markdown export
 
+The persistence layer adds:
+
+- PersistenceManager for local JSON app-state storage
+- AppState and PersistenceResult structured outputs
+- Save, load, clear, validate, backup, import, and export operations
+- Default state file at `collection_data/app_state/app_state.json`
+- Timestamped backups under `collection_data/app_state/backups/`
+- Round-tripping for SessionContext metadata, LegacyWantListIntent rows, Market Awareness records, PhotoRecord rows, ShoppingCandidate rows, and app preferences
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -199,6 +213,7 @@ Supported statuses:
 - Do not treat Market Awareness as live pricing; it is local personal market memory only.
 - Smart Shopping Assistant must reuse Acquisition Workflow and Acquisition Impact for decision source and scoring context; do not duplicate owned/duplicate/upgrade classification logic.
 - Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
+- Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -206,7 +221,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 309 tests OK for the v2.0 Collector Operating System release line.
+- `.\run_tests.bat`: 321 tests OK for the v2.1 Persistence Layer release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -219,13 +234,14 @@ Supported statuses:
 - Local GUI smoke for v1.8 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Local GUI smoke for v1.9 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Local GUI smoke for v2.0 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, consolidated report generation, exports, targeted integration tests, and full non-GUI regression suite passed.
+- Local GUI smoke for v2.1 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, persistence round-trips, schema validation, backups, targeted integration tests, and full non-GUI regression suite passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
 
 - Fuzzy matching is deterministic and intentionally basic.
 - Variety matching depends on existing text fields such as reference, title, notes, and comments.
-- Shared Session Context is per app session only; it does not persist loaded workbook or WANT_LIST state after closing the app.
+- Shared Session Context metadata can be saved to local app state. Restoring workbook-backed previews still requires the referenced workbook to exist.
 - Buy Advisor still keeps its legacy collection-intelligence boost scoring separate from duplicate/upgrade classification to preserve current user-visible behavior.
 - Acquisition workflow max rational price is rule-based internal guidance only; it is not market pricing.
 - Listing Analyzer parsing is intentionally basic and requires manual review for ambiguous listing titles.
@@ -237,12 +253,13 @@ Supported statuses:
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
-- Collector Home and Collection Health Report are consolidation layers only; they do not persist market/photo/shopping state or modify collection records.
+- Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
+- Persistence stores local JSON state only; no cloud sync, database server, credentials, scraping, APIs, or workbook mutation.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Perform post-v2.0 release packaging and backup verification.
+1. Perform post-v2.1 release packaging and backup verification.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

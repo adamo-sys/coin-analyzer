@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.0`
+* Current release version: `v2.1`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.0`
-* Summary of what was included: Collector Operating System consolidation with Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo integration, and CSV/Markdown export.
+* Most recent Git tag: `v2.1`
+* Summary of what was included: Persistence Layer for local JSON app state, session metadata, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -29,7 +29,8 @@
 * `v1.7` acceptance audit passed on 2026-06-17; tag `v1.7` points to `b650a141e1061979506f19402360239d69f68073`.
 * `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` points to `425fb2597b95e410e4c9c49465dd8b12e080ace3`.
 * `v1.9` acceptance audit passed on 2026-06-18; tag `v1.9` points to `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb`.
-* `v2.0` acceptance audit passed on 2026-06-18; tag `v2.0` pending final verification.
+* `v2.0` acceptance audit passed on 2026-06-18; tag `v2.0` points to `a661b06c846bdd0d5342ce892c350832c8907974`.
+* `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` pending final verification.
 
 ## Completed Features
 
@@ -76,6 +77,7 @@
 * Market Awareness Layer: local-only tracking for observed prices, purchases, sales, and auction outcomes with dashboard market summary, acquisition historical context, photo-reference links, and CSV/Markdown export.
 * Smart Shopping Assistant: ranked purchasing recommendation workflow that combines listing/manual opportunities, WANT_LIST targets, acquisition workflow, acquisition impact, quality deltas, series completion, upgrade impact, local market context, and photo references into STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW guidance.
 * Collector Operating System: unified Collector Home and Collection Health Report that consolidate collection snapshot, best next purchase, highest-impact opportunity, top WANT_LIST target, closest supported series, quality score, market activity, photo coverage, strengths, weaknesses, priorities, recommended actions, persistence findings, and CSV/Markdown exports.
+* Persistence Layer: local JSON app-state manager that saves, loads, clears, validates, backs up, imports, and exports Shared Session Context metadata, workbook/WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, and app preferences.
 
 ## Known Bugs
 
@@ -89,7 +91,7 @@
 
 ## Active Roadmap
 
-1. Perform post-v2.0 release packaging and backup verification
+1. Perform post-v2.1 release packaging and backup verification
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -113,7 +115,7 @@
 
 ## Next Priority Task
 
-Perform post-v2.0 release packaging and backup verification.
+Perform post-v2.1 release packaging and backup verification.
 
 ## Project Architecture
 
@@ -124,6 +126,7 @@ Perform post-v2.0 release packaging and backup verification.
 * Focused Collection Intelligence system: `focused_collection_intelligence.py` provides reusable manual candidate classification for the Do I Own This workflow, staged WANT_LIST context awareness, Buy Advisor duplicate/upgrade detection, and Upgrade Advisor match/upgrade decisions, including fuzzy matching, grade comparison, duplicate/upgrade detection, want-list matching, gap detection, recommendation, confidence, reasons, and warning flags.
 * Acquisition Workflow system: `acquisition_workflow.py` consumes focused Collection Intelligence results and asking price to produce deterministic acquisition guidance. Buy Advisor stores the workflow result as supporting structured context while preserving existing user-visible verdict behavior; Do I Own This shows acquisition guidance only when asking price is entered.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
+* Persistence Layer system: `persistence_manager.py` stores local app state as JSON under `collection_data/app_state/`, validates schema, creates timestamped backups before overwrite/clear, handles corrupt JSON and missing referenced files gracefully, and restores session metadata, market records, photo records, shopping candidates, and app preferences.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -172,6 +175,11 @@ Perform post-v2.0 release packaging and backup verification.
 * Implementation commit: `11b4f6e`
 * Full test suite passed: 309 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.0 imports, consolidated report generation, exports, targeted integration tests, and full non-GUI regression suite passed.
+
+* Implemented v2.1 Persistence Layer: local JSON app state, save/load/clear/validate/backup/import/export operations, session metadata restoration, market/photo/shopping/app-preference round-tripping, Tools menu integration, and state folder documentation.
+* Implementation commit: pending
+* Full test suite passed: pending.
+* GUI smoke note: pending.
 
 * Implemented v1.9 Smart Shopping Assistant: reusable ranked opportunity engine, shopping candidate model, best next purchase output, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW recommendation statuses, local market context, WANT_LIST and upgrade prioritization, dashboard shopping panel, Tools -> Smart Shopping Assistant GUI workflow, and CSV/Markdown export.
 * Implementation commit: `efe7a1b`

@@ -78,7 +78,8 @@ Work through this queue in priority order. Handle only one task at a time.
 46. `[ ]` Add autocomplete for country/denomination
 47. `[x]` Build v1.9 Smart Shopping Assistant
 48. `[x]` Build v2.0 Collector Operating System
-49. `[ ]` Perform post-v2.0 release packaging and backup verification
+49. `[x]` Build v2.1 Persistence Layer
+50. `[ ]` Perform post-v2.1 release packaging and backup verification
 
 ## Adam-Specific Collection Priorities
 
@@ -120,6 +121,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.1 Persistence Layer
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `persistence_manager.py` (new file)
+  - `test_persistence_manager.py` (new file)
+  - `collection_data/app_state/README.md` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/BACKUP.md`
+  - `docs/releases/v2.1.md` (new file)
+- Implementation commit hash: pending
 
 #### `[x]` Build v2.0 Collector Operating System
 
