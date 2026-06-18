@@ -23,6 +23,7 @@
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 | `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation reports, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
 | `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
+| `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
 
 ## Notes
 

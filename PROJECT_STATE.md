@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.4.1`
+* Current release version: `v2.4.2`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.4.1`
-* Summary of what was included: Critical Collection Backup Hardening with automatic `data/collection.json` backup coverage, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation.
+* Most recent Git tag: `v2.4.2`
+* Summary of what was included: Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, GUI report, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -35,6 +35,7 @@
 * `v2.3` acceptance audit passed on 2026-06-18; tag `v2.3` verified during release.
 * `v2.4` acceptance audit passed on 2026-06-18; tag `v2.4` verified during release.
 * `v2.4.1` acceptance audit passed on 2026-06-18; tag `v2.4.1` verified during release.
+* `v2.4.2` acceptance audit passed on 2026-06-18; tag `v2.4.2` verified during release.
 
 ## Completed Features
 
@@ -84,6 +85,7 @@
 * Persistence Layer: local JSON app-state manager that saves, loads, clears, validates, backs up, imports, and exports Shared Session Context metadata, workbook/WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, and app preferences.
 * Data Safety and Backup Hardening: local backup packages with JSON/Markdown manifests, checksum verification, backup listing, safe restore with pre-restore backup, Data Safety reports, and Collector Export Bundles.
 * Critical Collection Backup Hardening: backup packages now include `data/collection.json` by default, copy the persisted workbook path when available, expose recovery coverage flags in manifests, generate Collection Recovery Reports, and validate whether core ownership records are recoverable.
+* Collection Integrity Audit: read-only integrity engine and Tools menu report for duplicate ownership records, missing/invalid ownership data, orphan photo references, orphan market records, certification issues, invalid persisted paths, backup readiness, integrity score, recommendations, and CSV/Markdown export.
 * Mobile Readiness: deterministic readiness audit layer that documents desktop dependency blockers, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow steps, mobile readiness scoring, and CSV/Markdown export without building a mobile app or API.
 * Mobile Companion Prototype: local desktop prototype for minimal candidate entry, quick recommendation output, phone workflow simulation, provider abstraction points, dashboard mobile summary, persistence of recent mobile candidates/recommendations, and CSV/Markdown export without building a mobile app.
 
@@ -148,6 +150,7 @@ Build v2.5 Photo-Assisted Entry.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * Persistence Layer system: `persistence_manager.py` stores local app state as JSON under `collection_data/app_state/`, validates schema, creates timestamped backups before overwrite/clear, handles corrupt JSON and missing referenced files gracefully, and restores session metadata, market records, photo records, shopping candidates, and app preferences.
 * Data Safety and Backup system: `backup_manager.py` creates and verifies local backup packages, writes human-readable manifests, includes `data/collection.json` and persisted workbook copies when available, lists backups, restores known safe app-state and collection JSON files with pre-restore backup, validates app-state, backup coverage, collection JSON, workbook paths, and referenced paths, generates Collection Recovery Reports, and creates Collector Export Bundles.
+* Collection Integrity system: `collection_integrity.py` audits collection data quality without modifying records, including duplicate ownership detection, missing and invalid fields, photo integrity, market record integrity, certification integrity, shopping candidate references, persistence paths, backup readiness, integrity scoring, and CSV/Markdown exports.
 * Mobile Readiness system: `mobile_readiness.py` generates a deterministic Mobile Readiness Report, Mobile Readiness Score, desktop dependency audit, service boundary review, mobile input readiness findings, documentation-only API mapping, dealer-table phone workflow audit, and CSV/Markdown exports.
 * Mobile Companion system: `mobile_companion.py` provides `MobileCandidateEntry`, `MobileAnalysisReport`, `MobileCompanionWorkflow`, desktop `StorageProvider`/`PhotoProvider`/`ExportProvider` abstractions, `PhoneWorkflowSimulation`, `PhoneWorkflowReport`, and CSV/Markdown exports while reusing Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping Assistant, Photo Vault metadata, and Persistence Manager.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
@@ -193,6 +196,12 @@ Build v2.5 Photo-Assisted Entry.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.4.2 Collection Integrity Audit: CollectionIntegrityAudit, CollectionIntegrityReport, integrity score, duplicate/missing/invalid ownership checks, photo/market/certification summaries, backup readiness integration, Tools -> Collection Integrity Audit, and CSV/Markdown export.
+* Implementation commit: `bbb7314`
+* Full test suite passed: 382 tests OK.
+* Coverage note: total passing tests increased from 368 to 382; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.4.2 imports, integrity report generation, exports, backup readiness checks, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.4.1 Critical Collection Backup Hardening: default `data/collection.json` backup coverage, persisted workbook copy support, explicit manifest recovery flags, Collection Recovery Report, Data Safety backup-coverage validation, Tools -> Collection Recovery Report, and recovery documentation.
 * Implementation commit: `a9ca10c`

@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.4.1`
+Current version: `v2.4.2`
 
-Latest tagged release: `v2.4.1`
+Latest tagged release: `v2.4.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -49,6 +49,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
+- Collection Integrity Audit: read-only data trust report for duplicates, missing fields, invalid values, broken photo/market/certification references, backup readiness, and integrity scoring.
 - Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
 - Mobile Companion Prototype: local desktop prototype for a single candidate -> analysis -> recommendation dealer-table workflow using existing collector engines.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
@@ -116,7 +117,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.4.1 Critical Collection Backup Hardening suite passed with `368 tests OK`.
+The v2.4.2 Collection Integrity Audit suite passed with `382 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -145,6 +146,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 | `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation report, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
 | `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
+| `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -152,6 +154,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 
 - Use Collector Home when you want the unified starting point for what to focus on next.
 - Use Data Safety Check before shutdowns, imports, release work, or restore attempts.
+- Use Collection Integrity Audit before trusting Dashboard, Shopping Assistant, Series Tracker, Quality Engine, Acquisition Impact, Collection Health Report, or Mobile Companion output after major data changes.
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
@@ -352,6 +355,41 @@ Known limitations:
 - Local backup packages do not replace off-machine backups.
 - Collection workbook copying depends on a saved persisted workbook path; keep workbook backups separately too.
 - No cloud sync, user accounts, live pricing, scraping, OCR, image recognition, or database server.
+
+## Collection Integrity Audit
+
+Use Tools -> Collection Integrity Audit when you want to answer:
+
+- Can I trust my collection data?
+- Are there duplicate ownership records?
+- Are dates, grades, countries, denominations, or years missing or invalid?
+- Are photo, market, certification, shopping, persistence, or backup references broken?
+
+The audit is read-only. It does not edit, delete, merge, normalize, or import records.
+
+Report output includes:
+
+- Integrity Score
+- Category scores for ownership data, photos, market records, certifications, persistence, and backups
+- Findings
+- Warnings
+- Recommendations
+- Photo Integrity Summary
+- Market Integrity Summary
+- Certification Integrity Summary
+- Backup readiness status
+
+Export support:
+
+- Markdown
+- CSV
+
+Known limitations:
+
+- Duplicate detection is probable and should be reviewed manually.
+- Certification checks depend on available metadata fields.
+- Photo and market reference checks can only validate local paths and IDs already stored in app state.
+- The audit does not repair data automatically.
 
 ## Listing Analyzer
 

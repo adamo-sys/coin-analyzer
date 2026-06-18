@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.4.1`
-- Current active task completed: v2.4.1 Critical Collection Backup Hardening
+- Current project state file reports release version: `v2.4.2`
+- Current active task completed: v2.4.2 Collection Integrity Audit
 
 ## Official Post-v2.2 Roadmap
 
@@ -101,6 +101,10 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Added `CollectionRecoveryReport` and Tools -> Collection Recovery Report to show recoverable ownership records, workbook copies, app state, market records, photo metadata, and shopping candidates.
 - Enhanced Data Safety validation for collection JSON existence, latest verified backup coverage, persisted workbook existence, and workbook backup availability.
 - Expanded `test_backup_manager.py` coverage for collection JSON backup, missing collection JSON, workbook backup success, missing workbook warnings, manifest flags, recovery reports, and validator coverage.
+- Added `collection_integrity.py` with CollectionIntegrityAudit, CollectionIntegrityReport, CollectionIntegrityScore, PhotoIntegritySummary, MarketIntegritySummary, and CertificationIntegritySummary.
+- Added Tools -> Collection Integrity Audit with read-only report display and Markdown/CSV export.
+- Collection Integrity Audit checks duplicate ownership records, missing dates, missing grades, invalid countries, invalid denominations, invalid years, orphan photo references, orphan market records, duplicate market observations, certification issues, shopping photo references, persistence paths, and backup readiness.
+- Added `test_collection_integrity.py` covering integrity report generation, duplicate detection, missing fields, invalid values, orphan photos, orphan market records, certification issues, scoring, exports, and backup readiness integration.
 
 ## Engine Scope
 
@@ -232,6 +236,15 @@ The data safety and backup layer adds:
 - Safe restore of known app-state paths and `data/collection.json` with pre-restore backup
 - Collector Export Bundle with health report, shopping recommendations, market summary, series summary, photo coverage summary, and manifest
 
+The collection integrity layer adds:
+
+- CollectionIntegrityAudit for read-only trust checks across collection records and related local metadata
+- CollectionIntegrityReport with integrity score, findings, warnings, recommendations, and Markdown/CSV export
+- Duplicate ownership detection by country, denomination, and year
+- Missing/invalid ownership field checks
+- Photo, market, certification, shopping-candidate, persistence, and backup-readiness checks
+- Tools -> Collection Integrity Audit
+
 The mobile readiness layer adds:
 
 - MobileReadinessReport for future mobile planning without building a mobile app
@@ -272,6 +285,7 @@ Supported statuses:
 - Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
 - Backup/restore must validate before restore, create pre-restore backups, include `data/collection.json` in backup packages when available, copy but never modify collection workbooks, and avoid silently overwriting collection workbooks or production collection ownership data.
+- Collection Integrity Audit must remain report-only; it must not automatically edit, delete, normalize, or merge collection records.
 - Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
 - Mobile Companion must remain a local desktop prototype; do not add native mobile code, web app code, API server code, OCR, image recognition, scraping, live pricing, cloud sync, or a new database.
 - Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
@@ -282,8 +296,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 368 tests OK for the v2.4.1 Critical Collection Backup Hardening release line.
-- Coverage note: total passing tests increased from 361 to 368; existing regression suites remained green.
+- `.\run_tests.bat`: 382 tests OK for the v2.4.2 Collection Integrity Audit release line.
+- Coverage note: total passing tests increased from 368 to 382; existing regression suites remained green.
+- Targeted Collection Integrity tests: 14 tests OK.
 - Targeted Backup/Persistence tests: 33 tests OK.
 - Targeted Mobile Companion tests: 17 tests OK.
 - Targeted Mobile Readiness tests: 9 tests OK.

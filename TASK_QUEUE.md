@@ -83,12 +83,13 @@ Work through this queue in priority order. Handle only one task at a time.
 51. `[x]` Build v2.3 Mobile Readiness
 52. `[x]` Build v2.4 Mobile Companion Prototype
 53. `[x]` Build v2.4.1 Critical Collection Backup Hardening
-54. `[ ]` Build v2.5 Photo-Assisted Entry
-55. `[ ]` Build v2.6 OCR Experiments
-56. `[ ]` Build v3.0 Collector Companion
-57. `[ ]` Improve Buy Advisor validation messages
-58. `[ ]` Add autocomplete for country/denomination
-59. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+54. `[x]` Build v2.4.2 Collection Integrity Audit
+55. `[ ]` Build v2.5 Photo-Assisted Entry
+56. `[ ]` Build v2.6 OCR Experiments
+57. `[ ]` Build v3.0 Collector Companion
+58. `[ ]` Improve Buy Advisor validation messages
+59. `[ ]` Add autocomplete for country/denomination
+60. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
 ## Official Post-v2.2 Roadmap
 
@@ -140,6 +141,22 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.4.2 Collection Integrity Audit
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `collection_integrity.py` (new file)
+  - `test_collection_integrity.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.4.2.md` (new file)
+- Implementation commit hash: `bbb7314`
+- Test coverage: total passing tests increased from 368 to 382; existing regression suites remained green.
 
 #### `[x]` Build v2.4.1 Critical Collection Backup Hardening
 
