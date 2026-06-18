@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.3`
-- Current active task completed: v2.3 Mobile Readiness
+- Current project state file reports release version: `v2.4`
+- Current active task completed: v2.4 Mobile Companion Prototype
 
 ## Official Post-v2.2 Roadmap
 
@@ -90,6 +90,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Added `test_mobile_readiness.py` covering report generation, score calculation, desktop blockers, service boundary review, mobile input readiness, future endpoint mapping, phone workflow audit, serialization, and export support.
 - Documented v2.3 Mobile Readiness in README, PROJECT_STATE, TASK_QUEUE, RELEASE_HISTORY, and release notes.
 - Locked the official post-v2.2 roadmap in PROJECT_STATE, TASK_QUEUE, AI_HANDOFF, and README: v2.3 Mobile Readiness, v2.4 Mobile Companion Prototype, v2.5 Photo-Assisted Entry, v2.6 OCR Experiments, and v3.0 Collector Companion.
+- Added `mobile_companion.py` with MobileCandidateEntry, MobileAnalysisReport, MobileCompanionWorkflow, desktop StorageProvider/PhotoProvider/ExportProvider abstractions, PhoneWorkflowSimulation, PhoneWorkflowReport, and CSV/Markdown export.
+- Mobile Companion reuses Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping Assistant, Photo Vault metadata, and Persistence Manager instead of duplicating recommendation logic.
+- Collection Dashboard can optionally surface the last mobile recommendation, last mobile candidate, and top mobile opportunity.
+- Persistence Manager now stores recent mobile candidates and recent mobile recommendations in the existing local JSON app-state model.
+- Added `test_mobile_companion.py` covering minimal entry, concise reports, workflow scenarios, provider abstractions, phone simulation, persistence, dashboard integration, and exports.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -231,6 +236,15 @@ The mobile readiness layer adds:
 - Dealer-table phone workflow audit for reaching BUY/PASS guidance from a candidate coin and asking price
 - Mobile Readiness Score across architecture, workflow, persistence, exports, and inputs
 
+The mobile companion layer adds:
+
+- MobileCandidateEntry for title, asking price, shipping, notes, URL, photo reference ID, and source
+- MobileAnalysisReport for concise recommendation, impact score, quality delta, series delta, WANT_LIST status, top reason, summary, warnings, and max rational price
+- MobileCompanionWorkflow for candidate -> analysis -> recommendation using existing engines
+- Desktop StorageProvider, PhotoProvider, and ExportProvider abstraction points
+- PhoneWorkflowSimulation and PhoneWorkflowReport for coin-shop dealer-table workflow checks
+- Dashboard mobile summary and app-state persistence for recent mobile activity
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -253,6 +267,8 @@ Supported statuses:
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
 - Backup/restore must validate before restore, create pre-restore backups, and avoid silently overwriting collection workbooks or production collection ownership data.
 - Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
+- Mobile Companion must remain a local desktop prototype; do not add native mobile code, web app code, API server code, OCR, image recognition, scraping, live pricing, cloud sync, or a new database.
+- Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -260,7 +276,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 344 tests OK for the v2.3 Mobile Readiness release line.
+- `.\run_tests.bat`: 361 tests OK for the v2.4 Mobile Companion Prototype release line.
+- Coverage note: total passing tests increased from 344 to 361; existing regression suites remained green.
+- Targeted Mobile Companion tests: 17 tests OK.
 - Targeted Mobile Readiness tests: 9 tests OK.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
@@ -301,8 +319,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Perform post-v2.2 release packaging and backup verification.
-2. Improve Buy Advisor validation messages.
-3. Add GUI autocomplete for country and denomination.
-4. Decide whether Listing Analyzer should eventually export its result.
-5. Expand normalization fixtures for listing-title parsing edge cases.
+1. Build v2.5 Photo-Assisted Entry.
+2. Build v2.6 OCR Experiments.
+3. Build v3.0 Collector Companion.
+4. Improve Buy Advisor validation messages.
+5. Add GUI autocomplete for country and denomination.

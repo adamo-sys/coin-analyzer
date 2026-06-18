@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from collection_intelligence import CollectionIntelligenceEngine, SILVER_DENOMINATION_TERMS
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
 from market_awareness import MarketAwarenessEngine, MarketAwarenessReport
+from mobile_companion import MobileAnalysisReport
 from photo_vault import PhotoCoverageSummary, PhotoRecord, PhotoVault
 from series_tracker import SeriesReport, SeriesTracker
 from smart_shopping_assistant import ShoppingCandidate, ShoppingRecommendationReport, SmartShoppingAssistant
@@ -75,6 +76,9 @@ class CollectionDashboardData:
     collection_gaps: List[DashboardItem] = field(default_factory=list)
     series_completion: List[SeriesCompletion] = field(default_factory=list)
     collection_evolution: List[DashboardItem] = field(default_factory=list)
+    mobile_companion_recommendation: Optional[DashboardItem] = None
+    last_mobile_candidate: Optional[DashboardItem] = None
+    top_mobile_opportunity: Optional[DashboardItem] = None
 
 
 class CollectionDashboard:
@@ -87,12 +91,14 @@ class CollectionDashboard:
         photo_records: Optional[Iterable[PhotoRecord]] = None,
         market_awareness_engine: Optional[MarketAwarenessEngine] = None,
         shopping_candidates: Optional[Iterable[ShoppingCandidate]] = None,
+        mobile_analysis_reports: Optional[Iterable[MobileAnalysisReport]] = None,
     ):
         self.items = list(items or [])
         self.staged_want_list_intents = list(staged_want_list_intents or [])
         self.photo_records = list(photo_records or [])
         self.market_awareness_engine = market_awareness_engine or MarketAwarenessEngine()
         self.shopping_candidates = list(shopping_candidates or [])
+        self.mobile_analysis_reports = list(mobile_analysis_reports or [])
         self.intelligence = CollectionIntelligenceEngine(self.items)
 
     def generate_dashboard(self) -> CollectionDashboardData:
@@ -154,6 +160,9 @@ class CollectionDashboard:
             collection_gaps=self._gap_panel(gap_report["series_rows"]),
             series_completion=series_completion,
             collection_evolution=self._collection_evolution(),
+            mobile_companion_recommendation=self._last_mobile_recommendation(),
+            last_mobile_candidate=self._last_mobile_candidate(),
+            top_mobile_opportunity=self._top_mobile_opportunity(),
         )
 
     def format_markdown(self) -> str:
@@ -239,6 +248,16 @@ class CollectionDashboard:
                     lines.append(f"- {row.rank}. {row.item_name}: {row.recommendation_status} (score {row.opportunity_score})")
             else:
                 lines.append("- No shopping opportunities available.")
+        mobile_items = [
+            item for item in [
+                data.mobile_companion_recommendation,
+                data.last_mobile_candidate,
+                data.top_mobile_opportunity,
+            ]
+            if item
+        ]
+        if mobile_items:
+            lines.extend(self._format_items("Mobile Companion", mobile_items))
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
         lines.extend(self._format_items("Top Series", data.top_series_focus))
@@ -313,6 +332,13 @@ class CollectionDashboard:
                             row.opportunity_score,
                             f"Impact {row.impact_score}; market {row.market_context}",
                         ])
+                for item in [
+                    data.mobile_companion_recommendation,
+                    data.last_mobile_candidate,
+                    data.top_mobile_opportunity,
+                ]:
+                    if item:
+                        writer.writerow(["Mobile Companion", item.title, item.detail, item.priority, item.action])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
                 self._write_items(writer, "Top Series", data.top_series_focus)
@@ -358,6 +384,39 @@ class CollectionDashboard:
                 action="Consider keeping best grade and replacing lower-grade duplicates.",
             ))
         return sorted(priorities, key=lambda item: (-item.priority, item.title))[:8]
+
+    def _last_mobile_recommendation(self) -> Optional[DashboardItem]:
+        if not self.mobile_analysis_reports:
+            return None
+        report = self.mobile_analysis_reports[-1]
+        return DashboardItem(
+            title=f"Last mobile recommendation: {report.recommendation}",
+            detail=report.recommendation_summary,
+            priority=report.impact_score,
+            action="Review the mobile companion analysis before purchasing.",
+        )
+
+    def _last_mobile_candidate(self) -> Optional[DashboardItem]:
+        if not self.mobile_analysis_reports:
+            return None
+        report = self.mobile_analysis_reports[-1]
+        return DashboardItem(
+            title=report.candidate.item_title,
+            detail=f"Total cost ${report.total_cost:.2f}; WANT_LIST {report.want_list_status}",
+            priority=report.impact_score,
+            action="Use Mobile Companion for quick dealer-table follow-up.",
+        )
+
+    def _top_mobile_opportunity(self) -> Optional[DashboardItem]:
+        if not self.mobile_analysis_reports:
+            return None
+        report = max(self.mobile_analysis_reports, key=lambda row: row.impact_score)
+        return DashboardItem(
+            title=f"Top mobile opportunity: {report.candidate.item_title}",
+            detail=f"{report.recommendation}; impact {report.impact_score}; {report.top_reason}",
+            priority=report.impact_score,
+            action="Compare against current shopping priorities.",
+        )
 
     def _upgrade_panel(self, upgrades) -> List[DashboardItem]:
         rows = []

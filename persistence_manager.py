@@ -23,6 +23,7 @@ from market_awareness import (
     PurchaseRecord,
     SaleRecord,
 )
+from mobile_companion import MobileAnalysisReport, MobileCandidateEntry
 from photo_vault import PhotoRecord
 from session_context import (
     LoadedCollectionContext,
@@ -33,7 +34,7 @@ from session_context import (
 from smart_shopping_assistant import ShoppingCandidate
 
 
-APP_STATE_VERSION = "2.1"
+APP_STATE_VERSION = "2.4"
 DEFAULT_STATE_DIR = os.path.join("collection_data", "app_state")
 DEFAULT_STATE_FILENAME = "app_state.json"
 
@@ -63,6 +64,8 @@ class AppState:
     market_awareness: MarketAwarenessEngine = field(default_factory=MarketAwarenessEngine)
     photo_records: List[PhotoRecord] = field(default_factory=list)
     shopping_candidates: List[ShoppingCandidate] = field(default_factory=list)
+    recent_mobile_candidates: List[MobileCandidateEntry] = field(default_factory=list)
+    recent_mobile_recommendations: List[MobileAnalysisReport] = field(default_factory=list)
     app_preferences: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -86,6 +89,14 @@ class AppState:
             "shopping_candidates": [
                 PersistenceManager.shopping_candidate_to_dict(candidate)
                 for candidate in self.shopping_candidates
+            ],
+            "recent_mobile_candidates": [
+                candidate.to_dict()
+                for candidate in self.recent_mobile_candidates
+            ],
+            "recent_mobile_recommendations": [
+                recommendation.to_dict()
+                for recommendation in self.recent_mobile_recommendations
             ],
             "app_preferences": dict(self.app_preferences),
             "warnings": list(self.warnings),
@@ -217,7 +228,7 @@ class PersistenceManager:
         market = payload.get("market_records", {})
         if market and not isinstance(market, dict):
             errors.append("market_records must be an object")
-        for key in ["photo_records", "shopping_candidates", "warnings", "errors"]:
+        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "warnings", "errors"]:
             if key in payload and not isinstance(payload.get(key), list):
                 errors.append(f"{key} must be a list")
         for key in ["collection_workbook_path", "want_list_path"]:
@@ -233,6 +244,8 @@ class PersistenceManager:
         market_awareness_engine: Optional[MarketAwarenessEngine] = None,
         photo_records: Optional[Iterable[PhotoRecord]] = None,
         shopping_candidates: Optional[Iterable[ShoppingCandidate]] = None,
+        recent_mobile_candidates: Optional[Iterable[MobileCandidateEntry]] = None,
+        recent_mobile_recommendations: Optional[Iterable[MobileAnalysisReport]] = None,
         app_preferences: Optional[Dict[str, Any]] = None,
     ) -> AppState:
         """Build AppState from current runtime objects."""
@@ -249,6 +262,8 @@ class PersistenceManager:
             market_awareness=market_awareness_engine or MarketAwarenessEngine(),
             photo_records=list(photo_records or []),
             shopping_candidates=list(shopping_candidates or []),
+            recent_mobile_candidates=list(recent_mobile_candidates or []),
+            recent_mobile_recommendations=list(recent_mobile_recommendations or []),
             app_preferences=dict(app_preferences or {}),
             warnings=list(getattr(session, "warnings", []) or []),
             errors=list(getattr(session, "errors", []) or []),
@@ -290,6 +305,8 @@ class PersistenceManager:
             ),
             photo_records=[PersistenceManager.photo_record_from_dict(row) for row in payload.get("photo_records", [])],
             shopping_candidates=[PersistenceManager.shopping_candidate_from_dict(row) for row in payload.get("shopping_candidates", [])],
+            recent_mobile_candidates=[MobileCandidateEntry.from_dict(row) for row in payload.get("recent_mobile_candidates", [])],
+            recent_mobile_recommendations=[MobileAnalysisReport.from_dict(row) for row in payload.get("recent_mobile_recommendations", [])],
             app_preferences=dict(payload.get("app_preferences") or {}),
             warnings=list(payload.get("warnings") or []),
             errors=list(payload.get("errors") or []),

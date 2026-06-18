@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.3`
+* Current release version: `v2.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.3`
-* Summary of what was included: Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness scoring, and CSV/Markdown export.
+* Most recent Git tag: `v2.4`
+* Summary of what was included: Mobile Companion Prototype with minimal candidate entry, concise recommendation reports, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -33,6 +33,7 @@
 * `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` points to `bd4897fbee4f8306b69fb369a2e81768631fb865`.
 * `v2.2` acceptance audit passed on 2026-06-18; tag `v2.2` points to `d84aa40334a6c3f859a996006bfe8005074ea6a4`.
 * `v2.3` acceptance audit passed on 2026-06-18; tag `v2.3` verified during release.
+* `v2.4` acceptance audit passed on 2026-06-18; tag `v2.4` verified during release.
 
 ## Completed Features
 
@@ -82,6 +83,7 @@
 * Persistence Layer: local JSON app-state manager that saves, loads, clears, validates, backs up, imports, and exports Shared Session Context metadata, workbook/WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, and app preferences.
 * Data Safety and Backup Hardening: local backup packages with JSON/Markdown manifests, checksum verification, backup listing, safe restore with pre-restore backup, Data Safety reports, and Collector Export Bundles.
 * Mobile Readiness: deterministic readiness audit layer that documents desktop dependency blockers, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow steps, mobile readiness scoring, and CSV/Markdown export without building a mobile app or API.
+* Mobile Companion Prototype: local desktop prototype for minimal candidate entry, quick recommendation output, phone workflow simulation, provider abstraction points, dashboard mobile summary, persistence of recent mobile candidates/recommendations, and CSV/Markdown export without building a mobile app.
 
 ## Known Bugs
 
@@ -131,7 +133,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Improve Buy Advisor validation messages.
+Build v2.5 Photo-Assisted Entry.
 
 ## Project Architecture
 
@@ -145,6 +147,7 @@ Improve Buy Advisor validation messages.
 * Persistence Layer system: `persistence_manager.py` stores local app state as JSON under `collection_data/app_state/`, validates schema, creates timestamped backups before overwrite/clear, handles corrupt JSON and missing referenced files gracefully, and restores session metadata, market records, photo records, shopping candidates, and app preferences.
 * Data Safety and Backup system: `backup_manager.py` creates and verifies local backup packages, writes human-readable manifests, lists backups, restores known safe app-state files with pre-restore backup, validates app-state and referenced paths, and creates Collector Export Bundles.
 * Mobile Readiness system: `mobile_readiness.py` generates a deterministic Mobile Readiness Report, Mobile Readiness Score, desktop dependency audit, service boundary review, mobile input readiness findings, documentation-only API mapping, dealer-table phone workflow audit, and CSV/Markdown exports.
+* Mobile Companion system: `mobile_companion.py` provides `MobileCandidateEntry`, `MobileAnalysisReport`, `MobileCompanionWorkflow`, desktop `StorageProvider`/`PhotoProvider`/`ExportProvider` abstractions, `PhoneWorkflowSimulation`, `PhoneWorkflowReport`, and CSV/Markdown exports while reusing Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping Assistant, Photo Vault metadata, and Persistence Manager.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -188,6 +191,12 @@ Improve Buy Advisor validation messages.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.4 Mobile Companion Prototype: MobileCandidateEntry, MobileAnalysisReport, MobileCompanionWorkflow, desktop provider abstractions, PhoneWorkflowSimulation, PhoneWorkflowReport, dashboard mobile summary, persistence of recent mobile candidates/recommendations, CSV/Markdown export, and v2.4 release documentation.
+* Implementation commit: pending
+* Full test suite passed: 361 tests OK.
+* Coverage note: total passing tests increased from 344 to 361; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.4 imports, workflow reports, persistence round-trips, dashboard integration, exports, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.3 Mobile Readiness: MobileReadinessAuditor, MobileReadinessReport, MobileReadinessScore, desktop dependency audit, service boundary review, mobile input analysis, documentation-only future endpoint mapping, dealer-table phone workflow audit, CSV/Markdown export, and v2.3 release documentation.
 * Implementation commit: `539472b`

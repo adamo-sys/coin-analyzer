@@ -21,6 +21,7 @@
 | `v2.1` | `bd4897fbee4f8306b69fb369a2e81768631fb865` | Persistence Layer for local JSON app state, session metadata, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
 | `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
+| `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation reports, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
 
 ## Notes
 

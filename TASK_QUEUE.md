@@ -81,7 +81,7 @@ Work through this queue in priority order. Handle only one task at a time.
 49. `[x]` Build v2.1 Persistence Layer
 50. `[x]` Build v2.2 Data Safety and Backup Hardening
 51. `[x]` Build v2.3 Mobile Readiness
-52. `[ ]` Build v2.4 Mobile Companion Prototype
+52. `[x]` Build v2.4 Mobile Companion Prototype
 53. `[ ]` Build v2.5 Photo-Assisted Entry
 54. `[ ]` Build v2.6 OCR Experiments
 55. `[ ]` Build v3.0 Collector Companion
@@ -139,6 +139,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.4 Mobile Companion Prototype
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `mobile_companion.py` (new file)
+  - `test_mobile_companion.py` (new file)
+  - `collection_dashboard.py`
+  - `persistence_manager.py`
+  - `backup_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.4.md` (new file)
+- Implementation commit hash: pending
+- Test coverage: total passing tests increased from 344 to 361; existing regression suites remained green.
 
 #### `[x]` Build v2.3 Mobile Readiness
 

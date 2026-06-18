@@ -25,7 +25,7 @@ from series_tracker import SeriesTracker
 from smart_shopping_assistant import ShoppingCandidate, SmartShoppingAssistant
 
 
-APP_VERSION = "2.2"
+APP_VERSION = "2.4"
 MANIFEST_NAME = "backup_manifest.json"
 MANIFEST_MARKDOWN_NAME = "backup_manifest.md"
 

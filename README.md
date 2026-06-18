@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.3`
+Current version: `v2.4`
 
-Latest tagged release: `v2.3`
+Latest tagged release: `v2.4`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -50,6 +50,7 @@ The app is especially tuned for Adam-specific priorities:
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, data validation reports, and collector export bundles.
 - Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
+- Mobile Companion Prototype: local desktop prototype for a single candidate -> analysis -> recommendation dealer-table workflow using existing collector engines.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -115,7 +116,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.3 Mobile Readiness development suite passed with `344 tests OK`.
+The v2.4 Mobile Companion Prototype development suite passed with `361 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -142,6 +143,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.1` | `bd4897fbee4f8306b69fb369a2e81768631fb865` | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
 | `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
 | `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
+| `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation report, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -163,6 +165,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 - Use Mobile Readiness Report output when planning future mobile architecture; it is an audit artifact, not a mobile app.
+- Use Mobile Companion Prototype output when simulating a quick dealer-table candidate decision from minimal input.
 
 These tools overlap intentionally. Listing Analyzer is the fastest entry point for pasted listings; it reuses the same underlying Collection Intelligence and Acquisition Workflow instead of replacing them.
 
@@ -216,6 +219,7 @@ Future candidates:
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
 - Backup packages are local zip files; they are not cloud sync, remote backup, or disaster recovery by themselves.
 - Mobile Readiness is documentation and architecture scoring only; no mobile UI or API server exists yet.
+- Mobile Companion Prototype is still local desktop workflow logic, not a mobile app or web app.
 - Future mobile work requires storage-provider, file-picker, export-destination, and photo URI abstractions.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
@@ -424,6 +428,24 @@ Current mobile blockers:
 - No API server, mobile storage adapter, or mobile UI exists yet.
 
 Future mobile work should start with storage-provider, file-picker, export-destination, and photo URI abstractions before any mobile interface is attempted.
+
+## Mobile Companion Prototype
+
+v2.4 proves a mobile-style collector workflow without building a mobile app. The workflow is intentionally simple:
+
+Candidate
+Analyze
+Recommendation
+
+`mobile_companion.py` provides:
+
+- `MobileCandidateEntry` for minimal dealer-table input: item title, asking price, shipping, notes, URL, photo reference ID, and source.
+- `MobileCompanionWorkflow` for a single local recommendation path that reuses Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping Assistant, Photo Vault metadata, and Persistence Manager.
+- `MobileAnalysisReport` with recommendation, impact score, quality delta, series delta, WANT_LIST status, top reason, concise summary, warnings, and max rational price.
+- `PhoneWorkflowSimulation` for deterministic coin-shop workflow checks.
+- Desktop provider abstractions for storage, photo metadata lookup, and local CSV/Markdown export.
+
+Mobile Companion is not a native mobile app, web app, API server, OCR workflow, image recognition workflow, scraper, live pricing system, cloud sync layer, or new database.
 
 ## Collection Dashboard
 
