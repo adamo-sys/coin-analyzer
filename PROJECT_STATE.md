@@ -178,7 +178,7 @@ Improve Buy Advisor validation messages.
 ### 2026-06-18
 
 * Implemented v2.3 Mobile Readiness: MobileReadinessAuditor, MobileReadinessReport, MobileReadinessScore, desktop dependency audit, service boundary review, mobile input analysis, documentation-only future endpoint mapping, dealer-table phone workflow audit, CSV/Markdown export, and v2.3 release documentation.
-* Implementation commit: pending
+* Implementation commit: `539472b`
 * Full test suite passed: 344 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.3 imports, readiness report generation, exports, targeted tests, and full non-GUI regression suite passed.
 

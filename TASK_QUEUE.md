@@ -139,7 +139,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `RELEASE_HISTORY.md`
   - `docs/releases/v2.2.md`
   - `docs/releases/v2.3.md` (new file)
-- Implementation commit hash: pending
+- Implementation commit hash: `539472b`
 
 #### `[x]` Build v2.2 Data Safety and Backup Hardening
 
