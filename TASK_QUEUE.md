@@ -155,7 +155,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `RELEASE_HISTORY.md`
   - `docs/releases/v2.4.md` (new file)
-- Implementation commit hash: pending
+- Implementation commit hash: `8de41c7`
 - Test coverage: total passing tests increased from 344 to 361; existing regression suites remained green.
 
 #### `[x]` Build v2.3 Mobile Readiness

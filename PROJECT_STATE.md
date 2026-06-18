@@ -193,7 +193,7 @@ Build v2.5 Photo-Assisted Entry.
 ### 2026-06-18
 
 * Implemented v2.4 Mobile Companion Prototype: MobileCandidateEntry, MobileAnalysisReport, MobileCompanionWorkflow, desktop provider abstractions, PhoneWorkflowSimulation, PhoneWorkflowReport, dashboard mobile summary, persistence of recent mobile candidates/recommendations, CSV/Markdown export, and v2.4 release documentation.
-* Implementation commit: pending
+* Implementation commit: `8de41c7`
 * Full test suite passed: 361 tests OK.
 * Coverage note: total passing tests increased from 344 to 361; existing regression suites remained green.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.4 imports, workflow reports, persistence round-trips, dashboard integration, exports, targeted tests, and full non-GUI regression suite passed.
