@@ -1,0 +1,55 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+
+Roadmap Decision:
+
+Lock the following roadmap as the official post-v2.2 roadmap.
+
+v2.3 = Mobile Readiness
+v2.4 = Mobile Companion Prototype
+v2.5 = Photo-Assisted Entry
+v2.6 = OCR Experiments
+v3.0 = Collector Companion
+
+Clarifications:
+
+v2.3 is NOT a mobile app.
+
+v2.3 is a readiness and architecture milestone focused on:
+
+* desktop dependency audit
+* service layer boundary review
+* mobile-friendly input workflows
+* API readiness mapping
+* phone workflow audit
+
+Do not implement v2.3.
+
+Do not modify application code.
+
+Do not modify tests.
+
+Do not create tags.
+
+Update only:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Commit:
+
+Lock post-v2.2 roadmap
+
+Report:
+
+* Files changed
+* Commit hash
+* Working tree status
+* Confirmation roadmap is recorded in all source-of-truth documents

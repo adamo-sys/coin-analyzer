@@ -1,0 +1,263 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v2.2.md
+
+Begin v2.3 development.
+
+Roadmap Context:
+
+v2.0 = Collector Operating System
+v2.1 = Persistence Layer
+v2.2 = Data Safety and Backup Hardening
+v2.3 = Mobile Readiness
+
+GOAL:
+
+Prepare the Collector Operating System for eventual mobile usage.
+
+This is NOT a mobile app release.
+
+This is NOT a web app release.
+
+This is NOT an OCR release.
+
+This is a readiness, architecture, workflow, and dependency audit release.
+
+---
+
+1. DESKTOP DEPENDENCY AUDIT
+
+---
+
+Audit:
+
+* Tkinter dependencies
+* file dialogs
+* workbook loading
+* export workflows
+* photo workflows
+* persistence workflows
+
+Identify:
+
+* desktop-only behavior
+* mobile blockers
+* future abstraction points
+
+Generate:
+
+MobileReadinessReport
+
+---
+
+2. SERVICE LAYER REVIEW
+
+---
+
+Review:
+
+* Collection Intelligence
+* Listing Analyzer
+* Smart Shopping Assistant
+* Collection Dashboard
+* Collection Health Report
+* Persistence Layer
+* Backup Manager
+
+Identify:
+
+* business logic
+* presentation logic
+* service boundaries
+
+Reduce coupling where safe.
+
+Do not rewrite architecture.
+
+---
+
+3. MOBILE INPUT READINESS
+
+---
+
+Audit current workflows.
+
+Verify support for:
+
+* manual candidate entry
+* pasted listing text
+* pasted URLs
+* photo references
+* persisted context
+
+Identify mobile friction.
+
+---
+
+4. API READINESS MAPPING
+
+---
+
+Document:
+
+Future candidate endpoints.
+
+Examples:
+
+* analyze_candidate
+* collection_health
+* shopping_recommendations
+* dashboard_summary
+
+Documentation only.
+
+Do not build APIs.
+
+---
+
+5. PHONE WORKFLOW AUDIT
+
+---
+
+Evaluate:
+
+Coin show workflow
+
+User standing at a dealer table.
+
+User has:
+
+* phone
+* candidate coin
+* asking price
+
+Determine:
+
+How many steps required to reach BUY/PASS recommendation.
+
+Recommend improvements.
+
+---
+
+6. MOBILE READINESS SCORE
+
+---
+
+Create:
+
+MobileReadinessScore
+
+Categories:
+
+* architecture
+* workflow
+* persistence
+* exports
+* inputs
+
+Provide:
+
+* score
+* strengths
+* blockers
+* recommendations
+
+---
+
+7. TESTING
+
+---
+
+Add tests for:
+
+* MobileReadinessReport
+* MobileReadinessScore
+* Service boundary analysis
+* Existing regression coverage
+
+Run:
+
+* v2.3 tests
+* Collector Operating System tests
+* Persistence tests
+* Backup tests
+* Full suite
+
+---
+
+8. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+
+Document:
+
+* mobile readiness findings
+* blockers
+* future mobile roadmap
+
+---
+
+9. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* Mobile Readiness imports cleanly
+* Reports generate correctly
+* Scores generate correctly
+* Documentation complete
+* Existing tools still work
+* Full suite passes
+
+Fix only defects.
+
+No new features after audit begins.
+
+---
+
+10. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v2.3
+
+Follow:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* HEAD hash
+* v2.3 tag hash
+* push verification
+* working tree status
+
+DEFINITION OF DONE:
+
+The project has a documented and tested path toward future mobile usage without building a mobile app.

@@ -1,0 +1,424 @@
+Roadmap Context:
+
+Completed Releases
+
+v1.0 = Production Release
+v1.1 = Shared Session Context
+v1.2 = Listing Analyzer
+v1.3 = Collection Dashboard
+v1.4 = Collection Quality Engine
+v1.5 = Acquisition Impact Engine
+v1.6 = Series Tracker
+v1.7 = Photo Vault
+v1.8 = Market Awareness Layer
+v1.9 = Smart Shopping Assistant
+
+v2.0 = Collector Operating System
+v2.1 = Persistence Layer
+v2.2 = Data Safety and Backup Hardening
+v2.3 = Mobile Readiness
+
+Current Release
+
+v2.4 = Mobile Companion Prototype
+
+Planned Roadmap
+
+v2.5 = Photo-Assisted Entry
+v2.6 = OCR Experiments
+v2.7 = Mobile Companion Beta
+v3.0 = Collector Companion
+
+Roadmap Rules
+
+* Do not implement roadmap items beyond v2.4.
+* Do not pull features forward from future releases.
+* Record roadmap status updates in:
+
+  * PROJECT_STATE.md
+  * TASK_QUEUE.md
+  * AI_HANDOFF.md
+* Preserve roadmap ordering unless audit findings justify a change.
+
+
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v2.3.md
+* mobile_readiness.py documentation and reports
+
+Begin v2.4 development.
+
+Roadmap Context:
+
+v2.0 = Collector Operating System
+v2.1 = Persistence Layer
+v2.2 = Data Safety and Backup Hardening
+v2.3 = Mobile Readiness
+
+v2.4 = Mobile Companion Prototype
+v2.5 = Photo-Assisted Entry
+v2.6 = OCR Experiments
+v3.0 = Collector Companion
+
+---
+
+## GOAL
+
+Build Mobile Companion Prototype.
+
+IMPORTANT:
+
+This is NOT:
+
+* a native mobile app
+* an iPhone app
+* an Android app
+* a web service
+* an API server
+* OCR
+* image recognition
+
+This is a prototype workflow proving that the Collector Operating System can support mobile-style usage.
+
+Purpose:
+
+Answer:
+
+"Can a collector standing at a dealer table get a BUY/PASS recommendation in under 30 seconds?"
+
+---
+
+1. MOBILE COMPANION WORKFLOW
+
+---
+
+Create:
+
+MobileCompanionWorkflow
+
+Goal:
+
+Single streamlined workflow:
+
+Candidate
+↓
+Analyze
+↓
+Recommendation
+
+without navigating multiple tools.
+
+Reuse:
+
+* Collection Intelligence
+* Smart Shopping Assistant
+* Acquisition Impact
+* Collection Dashboard
+* Collection Health Report
+* Persistence Layer
+
+Do not duplicate logic.
+
+---
+
+2. MOBILE CANDIDATE ENTRY
+
+---
+
+Create:
+
+MobileCandidateEntry
+
+Support:
+
+* item title
+* asking price
+* shipping
+* notes
+* URL
+* photo reference ID
+* source
+
+Input should be minimal.
+
+Optimize for speed.
+
+---
+
+3. MOBILE ANALYSIS REPORT
+
+---
+
+Create:
+
+MobileAnalysisReport
+
+Output:
+
+* BUY/PASS/NEGOTIATE/WATCH/REVIEW
+* Impact Score
+* Quality Delta
+* Series Delta
+* WANT_LIST status
+* Top reason
+* Recommendation summary
+
+Keep report concise.
+
+Collector should be able to read result quickly.
+
+---
+
+4. PROVIDER ABSTRACTIONS
+
+---
+
+Implement lightweight abstractions identified by v2.3.
+
+Create:
+
+StorageProvider
+PhotoProvider
+ExportProvider
+
+Purpose:
+
+Decouple workflows from desktop-only assumptions.
+
+Do not build actual mobile providers.
+
+Do not build cloud sync.
+
+Provide default desktop implementation.
+
+---
+
+5. PHONE WORKFLOW SIMULATION
+
+---
+
+Create:
+
+PhoneWorkflowSimulation
+
+Scenario:
+
+Collector at coin shop.
+
+Inputs:
+
+* title
+* price
+* notes
+
+Outputs:
+
+* recommendation
+* rationale
+* impact
+
+Measure:
+
+* required steps
+* workflow complexity
+
+Generate:
+
+PhoneWorkflowReport
+
+---
+
+6. MOBILE READINESS IMPROVEMENTS
+
+---
+
+Use findings from v2.3.
+
+Reduce friction where safe.
+
+Focus on:
+
+* fewer clicks
+* fewer required fields
+* fewer workflow transitions
+
+Do not redesign application UI.
+
+---
+
+7. DASHBOARD INTEGRATION
+
+---
+
+Allow Dashboard to surface:
+
+* Mobile Companion recommendation
+* Last analyzed mobile candidate
+* Top mobile opportunity
+
+Reuse existing dashboard structure.
+
+---
+
+8. PERSISTENCE INTEGRATION
+
+---
+
+Persist:
+
+* recent mobile candidates
+* recent mobile recommendations
+
+Use existing Persistence Layer.
+
+Do not introduce new storage systems.
+
+---
+
+9. EXPORT SUPPORT
+
+---
+
+Support:
+
+* CSV
+* Markdown
+
+For:
+
+* Mobile Analysis Report
+* Phone Workflow Report
+
+---
+
+10. TESTING
+
+---
+
+Add tests for:
+
+* Mobile Companion Workflow
+* Mobile Candidate Entry
+* Mobile Analysis Report
+* Provider abstractions
+* Phone Workflow Simulation
+* Persistence integration
+* Dashboard integration
+* Export support
+
+Run:
+
+* Mobile Companion tests
+* Smart Shopping Assistant tests
+* Persistence tests
+* Backup tests
+* Collector Operating System tests
+* Full suite
+
+---
+
+11. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v2.4.md
+
+Document:
+
+* Mobile Companion concept
+* Phone workflow
+* Provider abstractions
+* Known limitations
+
+---
+
+12. ACCEPTANCE AUDIT
+
+---
+
+Perform focused v2.4 acceptance audit.
+
+Verify:
+
+* MobileCompanionWorkflow imports cleanly
+* MobileCandidateEntry works
+* MobileAnalysisReport works
+* Provider abstractions work
+* PhoneWorkflowSimulation works
+* Dashboard integration works
+* Persistence integration works
+* Export support works
+* Existing tools still work
+* Full suite passes
+
+Rules:
+
+* Fix defects only after audit begins
+* No OCR
+* No image recognition
+* No scraping
+* No APIs
+* No live pricing
+* No cloud sync
+* No mobile app
+* No web app
+
+Report:
+
+* PASS or HOLD
+* Files changed
+* Tests run
+* Remaining limitations
+* Whether v2.4 is safe to tag
+
+---
+
+13. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v2.4
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* HEAD hash
+* v2.4 tag hash
+* Push result
+* Verification result
+* Working tree status
+
+---
+
+## DEFINITION OF DONE
+
+The collector can simulate a mobile collecting workflow and obtain a meaningful recommendation quickly using the existing Collector Operating System.
+
+v2.4 should prove that the platform is ready for future mobile experiences without building an actual mobile application.
