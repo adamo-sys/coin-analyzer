@@ -15,7 +15,8 @@
 | `v1.5` | `080b70b106e19de0739fab172993846999edb2bd` | Smarter Acquisition Intelligence with deterministic impact simulation, acquisition impact score, and listing/dashboard impact output. |
 | `v1.6` | `09b201cb0a5f394c957af48081e10e7f200b8533` | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
 | `v1.7` | `b650a141e1061979506f19402360239d69f68073` | Photo Vault for metadata-only photo records, linking, certification lookup, search, coverage metrics, and exports. |
-| `v1.8` | Pending tag verification | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition historical context, photo-reference links, and exports. |
+| `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition historical context, photo-reference links, and exports. |
+| `v1.9` | Pending tag verification | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, local market context, dashboard shopping summaries, and exports. |
 
 ## Notes
 

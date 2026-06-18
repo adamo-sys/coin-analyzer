@@ -76,7 +76,8 @@ Work through this queue in priority order. Handle only one task at a time.
 44. `[x]` Build v1.8 Market Awareness Layer
 45. `[ ]` Improve Buy Advisor validation messages
 46. `[ ]` Add autocomplete for country/denomination
-47. `[ ]` Begin v1.9 Smart Shopping Assistant planning
+47. `[x]` Build v1.9 Smart Shopping Assistant
+48. `[ ]` Begin v2.0 Collector Operating System planning
 
 ## Adam-Specific Collection Priorities
 
@@ -116,6 +117,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
    - Recommend highest-impact purchases
 
 ## Project Changelog
+
+### 2026-06-18
+
+#### `[x]` Build v1.9 Smart Shopping Assistant
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `smart_shopping_assistant.py` (new file)
+  - `test_smart_shopping_assistant.py` (new file)
+  - `collection_dashboard.py`
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+- Implementation commit hash: pending
 
 ### 2026-06-17
 

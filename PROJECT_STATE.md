@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v1.8`
+* Current release version: `v1.9`
 * Current Git branch: `main`
-* Last updated date: 2026-06-17
+* Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v1.8`
-* Summary of what was included: Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard market summary metrics, acquisition historical context, photo-reference links, and CSV/Markdown export.
+* Most recent Git tag: `v1.9`
+* Summary of what was included: Smart Shopping Assistant for ranked purchase opportunities, best next purchase, WANT_LIST prioritization, impact-aware recommendation statuses, local market context, dashboard shopping summaries, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -27,7 +27,8 @@
 * `v1.5` acceptance audit passed on 2026-06-16; tag `v1.5` points to `080b70b106e19de0739fab172993846999edb2bd`.
 * `v1.6` acceptance audit passed on 2026-06-17; tag `v1.6` points to `09b201cb0a5f394c957af48081e10e7f200b8533`.
 * `v1.7` acceptance audit passed on 2026-06-17; tag `v1.7` points to `b650a141e1061979506f19402360239d69f68073`.
-* `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` pending final verification.
+* `v1.8` acceptance audit passed on 2026-06-17; tag `v1.8` points to `425fb2597b95e410e4c9c49465dd8b12e080ace3`.
+* `v1.9` acceptance audit passed on 2026-06-18; tag `v1.9` pending final verification.
 
 ## Completed Features
 
@@ -72,6 +73,7 @@
 * Series Tracker: deterministic supported-series progress reports for owned dates, missing dates, completion percentage, WANT_LIST targets, upgrade counts, priority score, CSV/Markdown export, Dashboard Top Series panel, and Acquisition Impact series metrics.
 * Photo Vault: metadata-only photo record engine for collection, candidate, reference, auction, and sold photos with collection-item linking, candidate linking, certification-number lookup, deterministic search, coverage metrics, and CSV/Markdown export.
 * Market Awareness Layer: local-only tracking for observed prices, purchases, sales, and auction outcomes with dashboard market summary, acquisition historical context, photo-reference links, and CSV/Markdown export.
+* Smart Shopping Assistant: ranked purchasing recommendation workflow that combines listing/manual opportunities, WANT_LIST targets, acquisition workflow, acquisition impact, quality deltas, series completion, upgrade impact, local market context, and photo references into STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW guidance.
 
 ## Known Bugs
 
@@ -85,7 +87,7 @@
 
 ## Active Roadmap
 
-1. Begin v1.9 Smart Shopping Assistant planning
+1. Begin v2.0 Collector Operating System planning
 2. Improve Buy Advisor validation messages
 3. Add autocomplete for country/denomination
 4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
@@ -109,7 +111,7 @@
 
 ## Next Priority Task
 
-Begin v1.9 Smart Shopping Assistant planning.
+Begin v2.0 Collector Operating System planning.
 
 ## Project Architecture
 
@@ -125,6 +127,7 @@ Begin v1.9 Smart Shopping Assistant planning.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
 * Photo Vault system: `photo_vault.py` stores metadata-only `PhotoRecord` objects, links photos to collection items and candidates, supports reference/auction/sold photo types, certification-number lookup, deterministic search, coverage metrics, expected folder mapping, and CSV/Markdown exports.
 * Market Awareness system: `market_awareness.py` stores local-only observed price, purchase, sale, and auction records, generates summaries, exposes historical observed-price context for acquisition impact, supports photo-reference identifiers, and exports CSV/Markdown reports.
+* Smart Shopping Assistant system: `smart_shopping_assistant.py` ranks shopping opportunities by reusing Listing Analyzer parsing, Acquisition Workflow decisions, Acquisition Impact scoring, staged WANT_LIST context, local Market Awareness observations, and optional photo-reference identifiers.
 * Collection Dashboard system: `collection_dashboard.py` generates actionable dashboard data, snapshot counts, top priorities, upgrade opportunities, WANT_LIST priorities, collection gaps, series completion, basic collection evolution, and CSV/Markdown exports.
 * Collection Quality system: `collection_quality.py` generates explainable quality reports, category scores, strengths, weaknesses, recommended actions, supporting metrics, and CSV/Markdown exports. Collection Dashboard displays its top-level quality output.
 * CSV import system: `CoinCollection.import_from_csv()` imports simple CSV files; `numista_importer.py` imports Numista Excel exports; `csv_exporter.py` exports analyzer results with Numista search URLs.
@@ -159,6 +162,13 @@ Begin v1.9 Smart Shopping Assistant planning.
 * Never leave a completed version untagged.
 
 ## Recent Changes
+
+### 2026-06-18
+
+* Implemented v1.9 Smart Shopping Assistant: reusable ranked opportunity engine, shopping candidate model, best next purchase output, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW recommendation statuses, local market context, WANT_LIST and upgrade prioritization, dashboard shopping panel, Tools -> Smart Shopping Assistant GUI workflow, and CSV/Markdown export.
+* Implementation commit: pending.
+* Full test suite passed: 300 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v1.9 imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
 
 ### 2026-06-17
 

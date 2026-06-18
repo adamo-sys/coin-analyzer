@@ -9,6 +9,7 @@ from collection_quality import CollectionQualityEngine, CollectionQualityReport
 from market_awareness import MarketAwarenessEngine, MarketAwarenessReport
 from photo_vault import PhotoCoverageSummary, PhotoRecord, PhotoVault
 from series_tracker import SeriesReport, SeriesTracker
+from smart_shopping_assistant import ShoppingCandidate, ShoppingRecommendationReport, SmartShoppingAssistant
 
 
 @dataclass
@@ -64,6 +65,7 @@ class CollectionDashboardData:
     quality_report: Optional[CollectionQualityReport] = None
     photo_coverage: Optional[PhotoCoverageSummary] = None
     market_report: Optional[MarketAwarenessReport] = None
+    shopping_report: Optional[ShoppingRecommendationReport] = None
     series_tracker_reports: List[SeriesReport] = field(default_factory=list)
     top_potential_collection_improvements: List[DashboardItem] = field(default_factory=list)
     top_series_focus: List[DashboardItem] = field(default_factory=list)
@@ -84,11 +86,13 @@ class CollectionDashboard:
         staged_want_list_intents: Optional[Iterable[Any]] = None,
         photo_records: Optional[Iterable[PhotoRecord]] = None,
         market_awareness_engine: Optional[MarketAwarenessEngine] = None,
+        shopping_candidates: Optional[Iterable[ShoppingCandidate]] = None,
     ):
         self.items = list(items or [])
         self.staged_want_list_intents = list(staged_want_list_intents or [])
         self.photo_records = list(photo_records or [])
         self.market_awareness_engine = market_awareness_engine or MarketAwarenessEngine()
+        self.shopping_candidates = list(shopping_candidates or [])
         self.intelligence = CollectionIntelligenceEngine(self.items)
 
     def generate_dashboard(self) -> CollectionDashboardData:
@@ -127,12 +131,20 @@ class CollectionDashboard:
             self.items,
         ).coverage_summary()
         market_report = self.market_awareness_engine.generate_report()
+        shopping_report = None
+        if self.shopping_candidates:
+            shopping_report = SmartShoppingAssistant(
+                self.items,
+                self.staged_want_list_intents,
+                self.market_awareness_engine,
+            ).generate_report(self.shopping_candidates, include_want_list_targets=False, limit=5)
 
         return CollectionDashboardData(
             snapshot=snapshot,
             quality_report=quality_report,
             photo_coverage=photo_coverage,
             market_report=market_report,
+            shopping_report=shopping_report,
             series_tracker_reports=series_reports,
             top_potential_collection_improvements=self._quality_improvement_panel(quality_report),
             top_series_focus=self._series_focus_panel(series_reports),
@@ -210,6 +222,23 @@ class CollectionDashboard:
                 lines.extend(f"- {activity}" for activity in data.market_report.recent_activity[:5])
             else:
                 lines.append("- No market activity recorded.")
+        if data.shopping_report:
+            lines.extend(["", "## Smart Shopping Assistant", ""])
+            if data.shopping_report.best_next_purchase:
+                top = data.shopping_report.best_next_purchase
+                lines.extend([
+                    f"- Best next purchase: {top.item_name}",
+                    f"- Recommendation: {top.recommendation_status}",
+                    f"- Opportunity score: {top.opportunity_score}",
+                    f"- Impact score: {top.impact_score}",
+                    "",
+                    "### Top 5 Opportunities",
+                    "",
+                ])
+                for row in data.shopping_report.recommendations[:5]:
+                    lines.append(f"- {row.rank}. {row.item_name}: {row.recommendation_status} (score {row.opportunity_score})")
+            else:
+                lines.append("- No shopping opportunities available.")
         lines.extend(self._format_items("Top Collection Priorities", data.top_collection_priorities))
         lines.extend(self._format_items("Top Potential Collection Improvements", data.top_potential_collection_improvements))
         lines.extend(self._format_items("Top Series", data.top_series_focus))
@@ -266,6 +295,24 @@ class CollectionDashboard:
                         writer.writerow(["Market Awareness", key, value, "", ""])
                     for activity in data.market_report.recent_activity[:10]:
                         writer.writerow(["Market Recent Activity", activity, "", "", ""])
+                if data.shopping_report:
+                    if data.shopping_report.best_next_purchase:
+                        top = data.shopping_report.best_next_purchase
+                        writer.writerow([
+                            "Smart Shopping Best Next Purchase",
+                            top.item_name,
+                            top.recommendation_status,
+                            top.opportunity_score,
+                            f"Impact {top.impact_score}; quality {top.quality_delta:+d}; series {top.series_delta:+g}%",
+                        ])
+                    for row in data.shopping_report.recommendations[:5]:
+                        writer.writerow([
+                            "Smart Shopping Top Opportunity",
+                            row.item_name,
+                            row.recommendation_status,
+                            row.opportunity_score,
+                            f"Impact {row.impact_score}; market {row.market_context}",
+                        ])
                 self._write_items(writer, "Top Collection Priorities", data.top_collection_priorities)
                 self._write_items(writer, "Top Potential Collection Improvements", data.top_potential_collection_improvements)
                 self._write_items(writer, "Top Series", data.top_series_focus)

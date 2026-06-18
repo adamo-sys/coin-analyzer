@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.8`
+Current version: `v1.9`
 
-Latest tagged release: `v1.8`
+Latest tagged release: `v1.9`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -45,6 +45,7 @@ The app is especially tuned for Adam-specific priorities:
 - Series Tracker: tracks supported collecting goals, owned dates, missing dates, WANT_LIST targets, upgrade counts, and series priority.
 - Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, and exports.
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
+- Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -60,13 +61,14 @@ The app is especially tuned for Adam-specific priorities:
 1. Launch Coin Analyzer.
 2. Load or review the local collection.
 3. Use Tools -> Load Collection Context to select the legacy workbook once for the session.
-4. Open Tools -> Listing Analyzer.
-5. Paste listing title, optional URL, asking price, shipping, seller notes, and description.
-6. Review ownership status, duplicate risk, upgrade status, WANT_LIST status, collection impact, max rational price, recommendation, confidence, reasons, and warnings.
-7. If the listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
-8. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
-9. Open Tools -> Collection Dashboard to review what to focus on next without manually running every report.
-10. Export reports when needed for collection planning or records.
+4. Open Tools -> Smart Shopping Assistant to compare multiple opportunities at once.
+5. Enter candidate listings or rely on loaded WANT_LIST context.
+6. Review Best Next Purchase, ranked opportunities, recommendation status, impact score, quality delta, series completion delta, and local market context.
+7. For a single pasted listing, use Tools -> Listing Analyzer.
+8. If a listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
+9. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
+10. Open Tools -> Collection Dashboard to review what to focus on next without manually running every report.
+11. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -108,7 +110,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.8 market-awareness development suite passed with `285 tests OK`.
+The v1.9 smart-shopping development suite passed with `300 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -129,13 +131,15 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.5` | `080b70b106e19de0739fab172993846999edb2bd` | Smarter Acquisition Intelligence with deterministic acquisition impact simulation and listing/dashboard integration. |
 | `v1.6` | `09b201cb0a5f394c957af48081e10e7f200b8533` | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
 | `v1.7` | `b650a141e1061979506f19402360239d69f68073` | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
-| `v1.8` | Pending tag verification | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
+| `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
+| `v1.9` | Pending tag verification | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
 ## Which Tool To Use
 
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
+- Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
@@ -167,7 +171,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v1.9 Smart Shopping Assistant planning.
+- Begin v2.0 Collector Operating System planning.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -243,6 +247,7 @@ Export support is intentionally report-specific:
 - Series Tracker: CSV and Markdown export.
 - Photo Vault: CSV and Markdown export.
 - Market Awareness Layer: CSV and Markdown export.
+- Smart Shopping Assistant: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
 
@@ -453,6 +458,50 @@ Known limitations:
 - No scraping, URL fetching, market APIs, live pricing, market prediction, OCR, image recognition, or Numista lookup.
 - Market records are in-memory/local data structures unless a future persistence layer is added.
 - Historical context depends entirely on records the collector has entered or loaded locally.
+
+## Smart Shopping Assistant
+
+The Smart Shopping Assistant combines existing collection intelligence systems into one ranked purchase-opportunity workflow. It is designed to answer what to buy next, which opportunities deserve attention, which are overpriced relative to local observations, and which purchases improve the collection most.
+
+Inputs:
+
+- Manual shopping candidates
+- Listing Analyzer candidates
+- Staged WANT_LIST targets
+- Local Market Awareness observations
+- Existing acquisition candidates
+
+Ranking methodology:
+
+- Acquisition Impact Score
+- Quality score delta
+- Series completion delta
+- WANT_LIST priority
+- Upgrade opportunity impact
+- Local historical market context
+- Existing Acquisition Workflow recommendation
+
+Recommendation statuses:
+
+- STRONG BUY
+- BUY
+- NEGOTIATE
+- WATCH
+- PASS
+- REVIEW
+
+Dashboard integration:
+
+- Best Next Purchase
+- Top 5 Opportunities
+- Highest Impact Candidate
+- Highest Priority WANT_LIST Target
+
+Known limitations:
+
+- No scraping, URL fetching, market APIs, live pricing, market forecasting, OCR, image recognition, or Numista lookup.
+- Ranking is deterministic planning guidance from local data and provided opportunities only.
+- Smart Shopping Assistant does not modify collection data.
 
 ## Data Safety
 

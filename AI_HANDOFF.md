@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-06-17
+- Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v1.8`
-- Current active task completed: v1.8 Market Awareness Layer
+- Current project state file reports release version: `v1.9`
+- Current active task completed: v1.9 Smart Shopping Assistant
 
 ## What Changed
 
@@ -56,6 +56,11 @@
 - Acquisition Impact can now expose local historical observed-price context for a candidate without changing recommendation thresholds or using live pricing.
 - Market records can preserve linked Photo Vault reference identifiers without moving files.
 - Added `test_market_awareness.py` covering record creation, auction tracking, dashboard integration, acquisition context, export support, and photo-reference IDs.
+- Added `smart_shopping_assistant.py` with `ShoppingCandidate`, `ShoppingRecommendation`, `ShoppingRecommendationReport`, and `SmartShoppingAssistant`.
+- Smart Shopping Assistant ranks manual opportunities, Listing Analyzer candidates, staged WANT_LIST targets, and local Market Awareness observations using Acquisition Workflow and Acquisition Impact outputs.
+- Collection Dashboard now accepts optional shopping candidates and displays Best Next Purchase and Top Opportunities.
+- Added Tools -> Smart Shopping Assistant in `coin_collection_gui.py` with multiline manual opportunity entry and CSV/Markdown export.
+- Added `test_smart_shopping_assistant.py` covering candidate ranking, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW paths, WANT_LIST and upgrade prioritization, market context, dashboard integration, exports, Shared Session Context, listing conversion, and photo-reference IDs.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -150,6 +155,18 @@ The market awareness layer adds:
 - Photo Vault reference identifiers on market records
 - CSV and Markdown export
 
+The smart shopping assistant adds:
+
+- ShoppingCandidate inputs for manual opportunities, Listing Analyzer candidates, WANT_LIST targets, and Market Awareness observations
+- Ranked ShoppingRecommendation output
+- Best Next Purchase
+- Highest Impact Candidate
+- Highest Priority WANT_LIST Target
+- STRONG BUY, BUY, NEGOTIATE, WATCH, PASS, and REVIEW statuses
+- Local market-context reasoning without scraping or forecasting
+- Dashboard shopping summary panel
+- CSV and Markdown export
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -167,6 +184,7 @@ Supported statuses:
 - Keep this engine deterministic and testable.
 - Do not modify `data/collection.json` from analysis workflows.
 - Do not treat Market Awareness as live pricing; it is local personal market memory only.
+- Smart Shopping Assistant must reuse Acquisition Workflow and Acquisition Impact for decision source and scoring context; do not duplicate owned/duplicate/upgrade classification logic.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -174,7 +192,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 285 tests OK for the v1.8 Market Awareness release line.
+- `.\run_tests.bat`: 300 tests OK for the v1.9 Smart Shopping Assistant release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -185,6 +203,7 @@ Supported statuses:
 - Local GUI smoke for v1.6 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, tracker reports, and non-GUI dashboard/impact checks passed.
 - Local GUI smoke for v1.7 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, photo vault lookups, and non-GUI dashboard coverage checks passed.
 - Local GUI smoke for v1.8 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
+- Local GUI smoke for v1.9 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -202,11 +221,12 @@ Supported statuses:
 - Series Tracker definitions identify supported series; they do not contain fabricated master mintage checklists. Completion is based on actual owned dates and missing years inside observed owned spans.
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
+- Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v1.9 Smart Shopping Assistant planning.
+1. Begin v2.0 Collector Operating System planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

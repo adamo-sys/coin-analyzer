@@ -23,6 +23,7 @@ from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
 from collection_dashboard import CollectionDashboard
+from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
 class CoinCollectionGUI:
@@ -82,6 +83,7 @@ class CoinCollectionGUI:
         tools_menu.add_separator()
         tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
         tools_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
+        tools_menu.add_command(label="Smart Shopping Assistant", command=self.open_smart_shopping_assistant)
         tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
     def import_collection_csv(self):
@@ -1901,6 +1903,115 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showerror("Listing Analyzer Error", f"Listing analysis failed: {str(e)}")
 
         ttk.Button(button_frame, text="Analyze Listing", command=analyze_listing).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_smart_shopping_assistant(self):
+        """Open ranked Smart Shopping Assistant workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Smart Shopping Assistant")
+        dialog.geometry("900x760")
+
+        assistant = SmartShoppingAssistant(
+            self._collection_items(),
+            self._active_want_list_intents(),
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Shopping Opportunities", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            input_frame,
+            text="Enter one opportunity per line: title | price | shipping | source",
+        ).pack(anchor=tk.W)
+        opportunities_text = tk.Text(input_frame, height=8, wrap=tk.WORD)
+        opportunities_text.pack(fill=tk.X, pady=(6, 0))
+
+        ttk.Label(
+            input_frame,
+            text=self.session_context.format_status_line(),
+            wraplength=760,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Ranked Recommendations", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def parse_candidates():
+            candidates = []
+            for line in opportunities_text.get("1.0", tk.END).splitlines():
+                if not line.strip():
+                    continue
+                parts = [part.strip() for part in line.split("|")]
+                title = parts[0] if parts else ""
+                price = parse_money(parts[1]) if len(parts) > 1 else 0.0
+                shipping = parse_money(parts[2]) if len(parts) > 2 else 0.0
+                source = parts[3] if len(parts) > 3 else "Manual"
+                candidates.append(ShoppingCandidate(
+                    item_name=title,
+                    source=source,
+                    asking_price=price,
+                    shipping=shipping,
+                    recommendation_source="Smart Shopping Manual",
+                ))
+            return candidates
+
+        def analyze():
+            try:
+                candidates = parse_candidates()
+                report = assistant.generate_report(candidates, include_want_list_targets=True, limit=10)
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, assistant.format_markdown(report))
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Smart Shopping Error", f"Shopping analysis failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Smart Shopping CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if assistant.export_csv(file_path, current_report["report"]):
+                messagebox.showinfo("Success", f"Smart shopping CSV exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export smart shopping CSV")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Smart Shopping Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            if assistant.export_markdown(file_path, current_report["report"]):
+                messagebox.showinfo("Success", f"Smart shopping Markdown exported to {file_path}")
+            else:
+                messagebox.showerror("Error", "Failed to export smart shopping Markdown")
+
+        ttk.Button(button_frame, text="Analyze Opportunities", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_upgrade_advisor(self):
