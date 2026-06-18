@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v1.9`
-- Current active task completed: v1.9 Smart Shopping Assistant
+- Current project state file reports release version: `v2.0`
+- Current active task completed: v2.0 Collector Operating System
 
 ## What Changed
 
@@ -61,6 +61,11 @@
 - Collection Dashboard now accepts optional shopping candidates and displays Best Next Purchase and Top Opportunities.
 - Added Tools -> Smart Shopping Assistant in `coin_collection_gui.py` with multiline manual opportunity entry and CSV/Markdown export.
 - Added `test_smart_shopping_assistant.py` covering candidate ranking, STRONG BUY/BUY/NEGOTIATE/WATCH/PASS/REVIEW paths, WANT_LIST and upgrade prioritization, market context, dashboard integration, exports, Shared Session Context, listing conversion, and photo-reference IDs.
+- Added `collector_operating_system.py` with Collector Home and Collection Health Report consolidation.
+- Collector Home composes existing dashboard, quality, series, smart shopping, market, and photo coverage output into a unified starting point.
+- Collection Health Report combines dashboard summary, quality summary, series summary, Smart Shopping priorities, market summary, strengths, weaknesses, recommended actions, and persistence findings.
+- Added Tools -> Collector Home and Tools -> Collection Health Report in `coin_collection_gui.py`.
+- Added `test_collector_operating_system.py` covering summary generation, shopping integration, end-to-end workflow guidance, export consistency, persistence findings, empty collection behavior, and photo/market context.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -167,6 +172,14 @@ The smart shopping assistant adds:
 - Dashboard shopping summary panel
 - CSV and Markdown export
 
+The collector operating system adds:
+
+- CollectorHome for a unified collector-facing entry point
+- CollectionHealthReportEngine for strengths, weaknesses, priorities, actions, series, shopping, market, and persistence reporting
+- Deterministic persistence findings for collection JSON, Shared Session Context, Market Awareness, Photo Vault, Series Definitions, and Shopping Assistant candidates
+- Tools -> Collector Home and Tools -> Collection Health Report
+- CSV and Markdown export
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -185,6 +198,7 @@ Supported statuses:
 - Do not modify `data/collection.json` from analysis workflows.
 - Do not treat Market Awareness as live pricing; it is local personal market memory only.
 - Smart Shopping Assistant must reuse Acquisition Workflow and Acquisition Impact for decision source and scoring context; do not duplicate owned/duplicate/upgrade classification logic.
+- Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -192,7 +206,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 300 tests OK for the v1.9 Smart Shopping Assistant release line.
+- `.\run_tests.bat`: 309 tests OK for the v2.0 Collector Operating System release line.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.
@@ -204,6 +218,7 @@ Supported statuses:
 - Local GUI smoke for v1.7 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, photo vault lookups, and non-GUI dashboard coverage checks passed.
 - Local GUI smoke for v1.8 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, market context checks, exports, dashboard integration, and full non-GUI regression suite passed.
 - Local GUI smoke for v1.9 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, ranking checks, exports, dashboard integration, and full non-GUI regression suite passed.
+- Local GUI smoke for v2.0 also could not run because this Python/Tcl install cannot find `init.tcl`; imports, consolidated report generation, exports, targeted integration tests, and full non-GUI regression suite passed.
 - Direct multi-module `py -m unittest ...` commands may still hit the intermittent Windows launcher issue; use `run_tests.bat` as the project runner.
 
 ## Known Limitations
@@ -222,11 +237,12 @@ Supported statuses:
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
+- Collector Home and Collection Health Report are consolidation layers only; they do not persist market/photo/shopping state or modify collection records.
 - GUI workflows still have limited automated coverage.
 
 ## Recommended Next Steps
 
-1. Begin v2.0 Collector Operating System planning.
+1. Perform post-v2.0 release packaging and backup verification.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Decide whether Listing Analyzer should eventually export its result.

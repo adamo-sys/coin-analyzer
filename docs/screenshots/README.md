@@ -1,12 +1,14 @@
 # Screenshot Guide
 
-This folder is reserved for v1.0 documentation screenshots. Do not redesign the UI for screenshots; capture the current stable application state.
+This folder is reserved for release documentation screenshots. Do not redesign the UI for screenshots; capture the current stable application state.
 
 ## Recommended Screenshots
 
 | Suggested file | View to capture | Notes |
 | --- | --- | --- |
 | `main-application.png` | Main application | Show the loaded collection list and primary navigation. |
+| `collector-home.png` | Tools -> Collector Home | Show collection summary, best next purchase, quality score, market activity, and workflow steps. |
+| `collection-health-report.png` | Tools -> Collection Health Report | Show strengths, weaknesses, priorities, recommended actions, and persistence findings. |
 | `collector-decision-center.png` | Collector Decision Center | Capture the collector-facing decision workflow if available in the current UI wording. |
 | `do-i-own-this.png` | Tools -> Do I Own This? | Show candidate fields, WANT_LIST status, collection impact, recommendation, and warnings. |
 | `buy-advisor.png` | Tools -> Buy Advisor | Show purchase recommendation output without exposing sensitive collection notes. |
@@ -18,5 +20,5 @@ This folder is reserved for v1.0 documentation screenshots. Do not redesign the 
 
 - Use a copy of collection data if screenshots could reveal private notes, purchase prices, or personally identifying paths.
 - Prefer a standard desktop window size with readable text.
-- Avoid screenshots of experimental image/OCR workflows for the v1.0 package unless they are clearly labeled as experimental.
+- Avoid screenshots of experimental image/OCR workflows unless they are clearly labeled as experimental.
 - Keep filenames lowercase with hyphens so README links remain stable.

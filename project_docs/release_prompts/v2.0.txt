@@ -1,0 +1,421 @@
+Read AI_HANDOFF.md, PROJECT_STATE.md, TASK_QUEUE.md, README.md, RELEASE_HISTORY.md, all v1.x release documentation, and all existing engine documentation.
+
+Begin v2.0 development.
+
+Roadmap Context:
+
+v1.0 = Production Release
+v1.1 = Shared Session Context
+v1.2 = Listing Analyzer
+v1.3 = Collection Dashboard
+v1.4 = Collection Quality Engine
+v1.5 = Smarter Acquisition Intelligence
+v1.6 = Series Tracker
+v1.7 = Photo Vault
+v1.8 = Market Awareness Layer
+v1.9 = Smart Shopping Assistant
+
+v2.0 = Collector Operating System
+
+---
+
+## GOAL
+
+Build Collector Operating System v2.0.
+
+This is NOT a major feature expansion release.
+
+This is a consolidation, integration, usability, persistence, audit, and release-hardening milestone.
+
+Purpose:
+
+Transform the collection of tools into a unified collector workflow.
+
+The collector should be able to answer:
+
+* What do I own?
+* What am I missing?
+* What should I buy next?
+* Why should I buy it?
+* How does it improve my collection?
+* What series should I focus on?
+* What opportunities are highest priority?
+
+without manually jumping between multiple tools.
+
+---
+
+1. COLLECTOR HOME
+
+---
+
+Create:
+
+CollectorHome
+
+Purpose:
+
+Unified entry point into the application.
+
+Display:
+
+* Collection Summary
+* Best Next Purchase
+* Highest Impact Opportunity
+* Top WANT_LIST Target
+* Series Closest To Completion
+* Collection Quality Score
+* Recent Market Activity
+* Photo Coverage
+
+Use existing engines.
+
+Do not duplicate logic.
+
+---
+
+2. WORKFLOW CONSOLIDATION
+
+---
+
+Review all major workflows:
+
+* Collection Intelligence
+* Listing Analyzer
+* Dashboard
+* Quality Engine
+* Acquisition Impact
+* Series Tracker
+* Market Awareness
+* Smart Shopping Assistant
+* Photo Vault
+
+Reduce duplicated navigation.
+
+Reduce unnecessary clicks.
+
+Create a clear collector workflow.
+
+---
+
+3. DATA PERSISTENCE AUDIT
+
+---
+
+Audit:
+
+* Shared Session Context
+* Market Awareness
+* Photo Vault
+* Series Tracker support data
+* Shopping Assistant support data
+
+Verify what survives application restart.
+
+Document findings.
+
+Fix persistence defects where appropriate.
+
+Do not redesign storage architecture.
+
+---
+
+4. EXPORT CONSOLIDATION
+
+---
+
+Audit exports.
+
+Verify consistency across:
+
+* Dashboard
+* Quality Engine
+* Series Tracker
+* Market Awareness
+* Shopping Assistant
+* Photo Vault
+
+Ensure:
+
+* CSV exports work
+* Markdown exports work
+* Output structure is consistent
+
+---
+
+5. COLLECTION HEALTH REPORT
+
+---
+
+Create:
+
+CollectionHealthReport
+
+Combine:
+
+* Dashboard summary
+* Quality summary
+* Series summary
+* Shopping recommendations
+* Market summary
+
+Provide:
+
+* Strengths
+* Weaknesses
+* Priorities
+* Recommended actions
+
+Reuse existing engines.
+
+---
+
+6. END-TO-END COLLECTOR WORKFLOW
+
+---
+
+Verify complete workflow:
+
+Candidate
+↓
+Listing Analyzer
+↓
+Acquisition Impact
+↓
+Shopping Assistant
+↓
+Photo Vault
+↓
+Market Awareness
+↓
+Dashboard
+↓
+Health Report
+
+Ensure workflow functions coherently.
+
+---
+
+7. TECHNICAL DEBT REVIEW
+
+---
+
+Review:
+
+* duplicated logic
+* obsolete helpers
+* dead code
+* stale documentation
+* stale roadmap references
+
+Remove only if safe.
+
+Preserve behavior.
+
+---
+
+8. GUI REVIEW
+
+---
+
+Audit:
+
+* Menu structure
+* Tool naming
+* Navigation clarity
+
+Improve usability where practical.
+
+Do not redesign the entire UI.
+
+---
+
+9. TESTING
+
+---
+
+Add tests for:
+
+* Collector Home
+* Collection Health Report
+* Workflow integration
+* Export consistency
+* Persistence verification
+* Dashboard integration
+* Shopping Assistant integration
+
+Run:
+
+* All v2.0 tests
+* All integration tests
+* All regression tests
+* Full suite
+
+Target:
+
+No failing tests.
+
+---
+
+10. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+
+Document:
+
+* Collector Operating System concept
+* Collector Home
+* Collection Health Report
+* Workflow architecture
+* Known limitations
+
+---
+
+11. V2.0 ACCEPTANCE AUDIT
+
+---
+
+Perform the largest audit in project history.
+
+Verify:
+
+* App launch
+* Shared Session Context
+* Collection Intelligence
+* Listing Analyzer
+* Collection Dashboard
+* Collection Quality Engine
+* Acquisition Impact Engine
+* Series Tracker
+* Photo Vault
+* Market Awareness
+* Smart Shopping Assistant
+* Collector Home
+* Collection Health Report
+* Export functionality
+* Data persistence expectations
+* Full test suite
+
+Targeted scenarios:
+
+* Better-grade replacement
+* Same-grade duplicate
+* Lower-grade candidate
+* Newfoundland upgrade
+* Canadian silver upgrade
+* 1859 Large Cent upgrade
+* WANT_LIST target
+* Market observation candidate
+* Smart Shopping recommendation
+* Photo-linked candidate
+* Random world base-metal non-upgrade
+
+Rules:
+
+* Fix only defects found during audit.
+* No feature expansion after audit begins.
+* No scraping.
+* No APIs.
+* No OCR.
+* No image recognition.
+* No Numista integration.
+* No market forecasting.
+
+Report:
+
+* PASS or HOLD
+* Files changed
+* Tests run
+* Remaining limitations
+* Release readiness
+
+---
+
+12. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v2.0
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Tasks:
+
+1. Confirm working tree clean
+2. Report current HEAD
+3. Create tag v2.0
+4. Push main
+5. Push tag
+6. Verify local tag
+7. Verify remote tag
+8. Verify origin/main matches local HEAD
+
+Report:
+
+* HEAD hash
+* v2.0 tag hash
+* Push result
+* Verification result
+* Working tree status
+
+---
+
+13. POST-RELEASE PACKAGING
+
+---
+
+After successful v2.0 release:
+
+Verify:
+
+* README current
+* Release history current
+* Screenshots current
+* Backup documentation current
+* Prompt library current
+
+Create:
+
+v2.0 release notes
+
+---
+
+## DEFINITION OF DONE
+
+A collector can:
+
+* Track collection
+* Track series
+* Track photos
+* Track market observations
+* Analyze purchases
+* Measure collection quality
+* Measure acquisition impact
+* Prioritize opportunities
+* Generate reports
+
+from a coherent, integrated workflow.
+
+v2.0 should represent a stable Collector Operating System rather than another feature release.

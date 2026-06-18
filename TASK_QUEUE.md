@@ -77,7 +77,8 @@ Work through this queue in priority order. Handle only one task at a time.
 45. `[ ]` Improve Buy Advisor validation messages
 46. `[ ]` Add autocomplete for country/denomination
 47. `[x]` Build v1.9 Smart Shopping Assistant
-48. `[ ]` Begin v2.0 Collector Operating System planning
+48. `[x]` Build v2.0 Collector Operating System
+49. `[ ]` Perform post-v2.0 release packaging and backup verification
 
 ## Adam-Specific Collection Priorities
 
@@ -119,6 +120,22 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.0 Collector Operating System
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `collector_operating_system.py` (new file)
+  - `test_collector_operating_system.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.0.md` (new file)
+  - `project_docs/release_prompts/v2.0.txt`
+- Implementation commit hash: `11b4f6e`
 
 #### `[x]` Build v1.9 Smart Shopping Assistant
 

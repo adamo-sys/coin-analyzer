@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v1.9`
+Current version: `v2.0`
 
-Latest tagged release: `v1.9`
+Latest tagged release: `v2.0`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -46,6 +46,7 @@ The app is especially tuned for Adam-specific priorities:
 - Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, and exports.
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
+- Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -61,14 +62,15 @@ The app is especially tuned for Adam-specific priorities:
 1. Launch Coin Analyzer.
 2. Load or review the local collection.
 3. Use Tools -> Load Collection Context to select the legacy workbook once for the session.
-4. Open Tools -> Smart Shopping Assistant to compare multiple opportunities at once.
-5. Enter candidate listings or rely on loaded WANT_LIST context.
-6. Review Best Next Purchase, ranked opportunities, recommendation status, impact score, quality delta, series completion delta, and local market context.
-7. For a single pasted listing, use Tools -> Listing Analyzer.
-8. If a listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
-9. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
-10. Open Tools -> Collection Dashboard to review what to focus on next without manually running every report.
-11. Export reports when needed for collection planning or records.
+4. Open Tools -> Collector Home for the unified overview.
+5. Review Best Next Purchase, Highest Impact Opportunity, Top WANT_LIST Target, Series Closest To Completion, quality score, market activity, and photo coverage.
+6. Open Tools -> Smart Shopping Assistant to compare multiple opportunities at once.
+7. Enter candidate listings or rely on loaded WANT_LIST context.
+8. For a single pasted listing, use Tools -> Listing Analyzer.
+9. If a listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
+10. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
+11. Open Tools -> Collection Health Report when you want strengths, weaknesses, priorities, recommended actions, and persistence expectations in one report.
+12. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -110,7 +112,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v1.9 smart-shopping development suite passed with `300 tests OK`.
+The v2.0 Collector Operating System development suite passed with `309 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -132,12 +134,15 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.6` | `09b201cb0a5f394c957af48081e10e7f200b8533` | Series Tracker for supported collecting goals, completion, missing dates, WANT_LIST targets, upgrades, and priority rankings. |
 | `v1.7` | `b650a141e1061979506f19402360239d69f68073` | Photo Vault for metadata-only photo organization, linking, certification lookup, coverage metrics, and exports. |
 | `v1.8` | `425fb2597b95e410e4c9c49465dd8b12e080ace3` | Market Awareness Layer for local observed prices, purchases, sales, auction outcomes, dashboard summaries, acquisition context, and exports. |
-| `v1.9` | Pending tag verification | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
+| `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
+| `v2.0` | Pending tag verification | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
 ## Which Tool To Use
 
+- Use Collector Home when you want the unified starting point for what to focus on next.
+- Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
@@ -171,7 +176,7 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Begin v2.0 Collector Operating System planning.
+- Perform post-v2.0 release packaging and backup verification.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
@@ -248,8 +253,39 @@ Export support is intentionally report-specific:
 - Photo Vault: CSV and Markdown export.
 - Market Awareness Layer: CSV and Markdown export.
 - Smart Shopping Assistant: CSV and Markdown export.
+- Collector Home: CSV and Markdown export.
+- Collection Health Report: CSV and Markdown export.
 
 Listing Analyzer is currently a read-only on-screen workflow and does not export its result yet.
+
+## Collector Operating System
+
+Collector Operating System v2.0 consolidates the app's planning tools into a unified read-only workflow.
+
+Tools:
+
+- Collector Home: quick entry point for collection summary, best next purchase, highest-impact opportunity, top WANT_LIST target, closest supported series, quality score, recent market activity, photo coverage, and suggested workflow steps.
+- Collection Health Report: consolidated report combining dashboard snapshot, quality report, series reports, Smart Shopping recommendations, market summary, strengths, weaknesses, priorities, recommended actions, and persistence findings.
+
+Workflow intent:
+
+1. Review Collector Home.
+2. Evaluate specific opportunities in Listing Analyzer.
+3. Compare opportunities in Smart Shopping Assistant.
+4. Reference Photo Vault and Market Awareness context.
+5. Use Dashboard and Collection Health Report for planning and recordkeeping.
+
+Persistence expectations:
+
+- Collection JSON and series definitions survive restart.
+- Shared Session Context, market records, photo records, and shopping candidates are runtime/local supplied structures unless future persistence is added.
+- No collection data is modified by Collector Home or Collection Health Report.
+
+Known limitations:
+
+- Collector Home and Collection Health Report are consolidation/reporting layers, not new decision engines.
+- Market, photo, and shopping persistence remains intentionally lightweight in v2.0.
+- No OCR, image recognition, scraping, pricing APIs, market forecasting, or Numista expansion.
 
 ## Collection Dashboard
 
