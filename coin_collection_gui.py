@@ -25,6 +25,7 @@ from listing_analyzer import ListingAnalyzer, ListingCandidate
 from backup_manager import BackupManager, DataSafetyValidator
 from collection_dashboard import CollectionDashboard
 from collection_integrity import CollectionIntegrityAudit
+from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import PersistenceManager
@@ -44,6 +45,7 @@ class CoinCollectionGUI:
         self.session_context = SessionContext()
         self.persistence_manager = PersistenceManager()
         self.backup_manager = BackupManager(persistence_manager=self.persistence_manager)
+        self.snapshot_manager = CollectionSnapshotManager()
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
         self.shopping_candidates = []
@@ -92,6 +94,8 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Data Safety Check", command=self.open_data_safety_check)
         tools_menu.add_command(label="Collection Recovery Report", command=self.open_collection_recovery_report)
         tools_menu.add_command(label="Collection Integrity Audit", command=self.open_collection_integrity_audit)
+        tools_menu.add_command(label="Create Snapshot", command=self.create_collection_snapshot)
+        tools_menu.add_command(label="Snapshot Report", command=self.open_snapshot_report)
         tools_menu.add_command(label="Create Backup Package", command=self.create_backup_package)
         tools_menu.add_command(label="List Backups", command=self.list_backup_packages)
         tools_menu.add_command(label="Restore Backup", command=self.restore_backup_package)
@@ -544,6 +548,74 @@ Total Unique Dates: {total_unique_dates}
             if file_path:
                 report.export_csv(file_path)
                 messagebox.showinfo("Export Complete", f"Collection integrity report exported:\n{file_path}")
+
+    def create_collection_snapshot(self):
+        """Create and persist a point-in-time collection snapshot."""
+        snapshot = self.snapshot_manager.create_snapshot(
+            self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            market_awareness_engine=self.market_awareness_engine,
+            shopping_candidates=self.shopping_candidates,
+        )
+        self.snapshot_manager.save_snapshot(snapshot)
+        messagebox.showinfo(
+            "Snapshot Created",
+            f"Snapshot saved:\n{snapshot.snapshot_timestamp}\n\nOwned items: {snapshot.collection_size}\nQuality: {snapshot.quality_score}\nIntegrity: {snapshot.integrity_score}"
+        )
+
+    def open_snapshot_report(self):
+        """Show collection evolution from saved snapshots."""
+        snapshots = self.snapshot_manager.load_snapshots()
+        current = self.snapshot_manager.create_snapshot(
+            self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            market_awareness_engine=self.market_awareness_engine,
+            shopping_candidates=self.shopping_candidates,
+        )
+        previous = snapshots[-1] if snapshots else None
+        first = snapshots[0] if snapshots else current
+        report = self.snapshot_manager.compare_snapshots(current, previous, first)
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Snapshot Report")
+        dialog.geometry("900x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: self.export_snapshot_report(report, "markdown")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: self.export_snapshot_report(report, "csv")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def export_snapshot_report(self, report, export_type):
+        """Export the current snapshot report."""
+        if export_type == "markdown":
+            file_path = filedialog.asksaveasfilename(
+                title="Export Snapshot Report Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if file_path:
+                report.export_markdown(file_path)
+                messagebox.showinfo("Export Complete", f"Snapshot report exported:\n{file_path}")
+        else:
+            file_path = filedialog.asksaveasfilename(
+                title="Export Snapshot Report CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if file_path:
+                report.export_csv(file_path)
+                messagebox.showinfo("Export Complete", f"Snapshot report exported:\n{file_path}")
 
     def create_backup_package(self):
         """Create a local backup package."""

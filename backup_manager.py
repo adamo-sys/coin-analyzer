@@ -29,6 +29,7 @@ APP_VERSION = "2.4.1"
 MANIFEST_NAME = "backup_manifest.json"
 MANIFEST_MARKDOWN_NAME = "backup_manifest.md"
 DEFAULT_COLLECTION_JSON_PATH = os.path.join("data", "collection.json")
+DEFAULT_SNAPSHOT_PATH = os.path.join("collection_data", "app_state", "collection_snapshots.json")
 
 
 def _yes_no(value: Any) -> str:
@@ -453,6 +454,7 @@ class BackupManager:
         )
         state_result = self.persistence_manager.load_state()
         loaded_state = state_result.state or AppState()
+        snapshot_path = os.path.join(self.persistence_manager.state_dir, "collection_snapshots.json")
         candidates = [
             (self.persistence_manager.state_path, "collection_data/app_state/app_state.json"),
             (self.collection_json_path, "data/collection.json"),
@@ -463,6 +465,8 @@ class BackupManager:
             ("AI_HANDOFF.md", "release/AI_HANDOFF.md"),
             ("docs/BACKUP.md", "release/docs/BACKUP.md"),
         ]
+        if os.path.exists(snapshot_path):
+            candidates.append((snapshot_path, "collection_data/app_state/collection_snapshots.json"))
         release_dir = os.path.join("docs", "releases")
         if os.path.isdir(release_dir):
             for name in sorted(os.listdir(release_dir)):
