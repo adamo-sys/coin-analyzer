@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.4.2`
+Current version: `v2.4.3`
 
-Latest tagged release: `v2.4.2`
+Latest tagged release: `v2.4.3`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -50,6 +50,7 @@ The app is especially tuned for Adam-specific priorities:
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
 - Collection Integrity Audit: read-only data trust report for duplicates, missing fields, invalid values, broken photo/market/certification references, backup readiness, and integrity scoring.
+- Collection Snapshot System: point-in-time snapshots and comparison reports for collection growth, quality, integrity, photo coverage, series progress, market records, and shopping candidates.
 - Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
 - Mobile Companion Prototype: local desktop prototype for a single candidate -> analysis -> recommendation dealer-table workflow using existing collector engines.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
@@ -117,7 +118,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.4.2 Collection Integrity Audit suite passed with `382 tests OK`.
+The v2.4.3 Collection Snapshot System suite passed with `391 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -147,6 +148,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.4` | See verified tag `v2.4` | Mobile Companion Prototype with minimal candidate entry, concise recommendation report, provider abstractions, phone workflow simulation, dashboard summary, persistence, and exports. |
 | `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
 | `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
+| `v2.4.3` | See verified tag `v2.4.3` | Collection Snapshot System with persistent snapshots, collection growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -155,6 +157,8 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Collector Home when you want the unified starting point for what to focus on next.
 - Use Data Safety Check before shutdowns, imports, release work, or restore attempts.
 - Use Collection Integrity Audit before trusting Dashboard, Shopping Assistant, Series Tracker, Quality Engine, Acquisition Impact, Collection Health Report, or Mobile Companion output after major data changes.
+- Use Create Snapshot after major collection sessions, imports, photo cleanup, market record updates, or shopping candidate reviews.
+- Use Snapshot Report to compare current collection state against the previous saved snapshot.
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
@@ -390,6 +394,55 @@ Known limitations:
 - Certification checks depend on available metadata fields.
 - Photo and market reference checks can only validate local paths and IDs already stored in app state.
 - The audit does not repair data automatically.
+
+## Collection Snapshot System
+
+Use these Tools menu items to measure collection evolution:
+
+- Create Snapshot
+- Snapshot Report
+
+Snapshots are stored locally at:
+
+- `collection_data/app_state/collection_snapshots.json`
+
+Stored metrics include:
+
+- Snapshot timestamp
+- Collection size
+- Quality score
+- Integrity score
+- Photo coverage percentage
+- Supported-series completion metrics
+- Market record count
+- Shopping candidate count
+
+Snapshot Report shows:
+
+- Current snapshot
+- Previous snapshot
+- Growth since previous snapshot
+- Growth since first snapshot
+- Quality score delta
+- Integrity score delta
+- Photo coverage delta
+- Supported-series completion deltas
+- Newly completed supported series when detected
+
+Export support:
+
+- Markdown
+- CSV
+
+Backup behavior:
+
+- Backup packages include `collection_data/app_state/collection_snapshots.json` when snapshots exist.
+
+Known limitations:
+
+- Snapshots compare stored local metrics only; they do not forecast trends.
+- Series progress is limited to supported `SeriesTracker` definitions.
+- Snapshot reports do not modify collection records.
 
 ## Listing Analyzer
 

@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.4.2`
-- Current active task completed: v2.4.2 Collection Integrity Audit
+- Current project state file reports release version: `v2.4.3`
+- Current active task completed: v2.4.3 Collection Snapshot System
 
 ## Official Post-v2.2 Roadmap
 
@@ -105,6 +105,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Added Tools -> Collection Integrity Audit with read-only report display and Markdown/CSV export.
 - Collection Integrity Audit checks duplicate ownership records, missing dates, missing grades, invalid countries, invalid denominations, invalid years, orphan photo references, orphan market records, duplicate market observations, certification issues, shopping photo references, persistence paths, and backup readiness.
 - Added `test_collection_integrity.py` covering integrity report generation, duplicate detection, missing fields, invalid values, orphan photos, orphan market records, certification issues, scoring, exports, and backup readiness integration.
+- Added `collection_snapshot.py` with CollectionSnapshot, CollectionSnapshotManager, CollectionSnapshotReport, GrowthSummary, and SeriesProgressDelta.
+- Added Tools -> Create Snapshot and Tools -> Snapshot Report with Markdown/CSV export.
+- Snapshot storage uses `collection_data/app_state/collection_snapshots.json`; backup packages include that file when present.
+- Collection snapshots capture collection size, quality score, integrity score, photo coverage, supported-series completion metrics, market record count, and shopping candidate count.
+- Added `test_collection_snapshot.py` covering creation, persistence, comparison, growth, quality/integrity/photo/series deltas, exports, and backup eligibility.
 
 ## Engine Scope
 
@@ -245,6 +250,16 @@ The collection integrity layer adds:
 - Photo, market, certification, shopping-candidate, persistence, and backup-readiness checks
 - Tools -> Collection Integrity Audit
 
+The collection snapshot layer adds:
+
+- CollectionSnapshot for point-in-time metrics
+- CollectionSnapshotManager for create, save, load, and compare operations
+- CollectionSnapshotReport for current/previous/first snapshot comparison
+- GrowthSummary and SeriesProgressDelta outputs
+- Persistent local snapshot storage under `collection_data/app_state/collection_snapshots.json`
+- Tools -> Create Snapshot and Tools -> Snapshot Report
+- CSV and Markdown export
+
 The mobile readiness layer adds:
 
 - MobileReadinessReport for future mobile planning without building a mobile app
@@ -286,6 +301,7 @@ Supported statuses:
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
 - Backup/restore must validate before restore, create pre-restore backups, include `data/collection.json` in backup packages when available, copy but never modify collection workbooks, and avoid silently overwriting collection workbooks or production collection ownership data.
 - Collection Integrity Audit must remain report-only; it must not automatically edit, delete, normalize, or merge collection records.
+- Collection Snapshot System must remain historical/reporting-only; it must not modify collection records, infer future trends, or change recommendation logic.
 - Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
 - Mobile Companion must remain a local desktop prototype; do not add native mobile code, web app code, API server code, OCR, image recognition, scraping, live pricing, cloud sync, or a new database.
 - Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
@@ -296,8 +312,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 382 tests OK for the v2.4.2 Collection Integrity Audit release line.
-- Coverage note: total passing tests increased from 368 to 382; existing regression suites remained green.
+- `.\run_tests.bat`: 391 tests OK for the v2.4.3 Collection Snapshot System release line.
+- Coverage note: total passing tests increased from 382 to 391; existing regression suites remained green.
+- Targeted Collection Snapshot tests: 9 tests OK.
 - Targeted Collection Integrity tests: 14 tests OK.
 - Targeted Backup/Persistence tests: 33 tests OK.
 - Targeted Mobile Companion tests: 17 tests OK.
