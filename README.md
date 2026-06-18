@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.2`
+Current version: `v2.3`
 
-Latest tagged release: `v2.2`
+Latest tagged release: `v2.3`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -49,6 +49,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, data validation reports, and collector export bundles.
+- Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -114,7 +115,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.2 Data Safety and Backup Hardening development suite passed with `335 tests OK`.
+The v2.3 Mobile Readiness development suite passed with `344 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -139,7 +140,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, dashboard summaries, and exports. |
 | `v2.0` | `a661b06c846bdd0d5342ce892c350832c8907974` | Collector Operating System with unified Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo consolidation, and exports. |
 | `v2.1` | `bd4897fbee4f8306b69fb369a2e81768631fb865` | Persistence Layer for local JSON session state, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
-| `v2.2` | See verified tag `v2.2` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
+| `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
+| `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -160,6 +162,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Market Awareness output when you want to track what you observed, paid, sold, or bid locally without relying on live pricing.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
+- Use Mobile Readiness Report output when planning future mobile architecture; it is an audit artifact, not a mobile app.
 
 These tools overlap intentionally. Listing Analyzer is the fastest entry point for pasted listings; it reuses the same underlying Collection Intelligence and Acquisition Workflow instead of replacing them.
 
@@ -181,9 +184,10 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 Near-term maintenance candidates:
 
-- Perform post-v2.2 release packaging and backup verification.
 - Improve Buy Advisor validation messages.
 - Add GUI autocomplete for country and denomination entry.
+- Consider storage/file-picker/photo URI adapters before mobile implementation.
+- Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
 
@@ -201,6 +205,8 @@ Future candidates:
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
 - Backup packages are local zip files; they are not cloud sync, remote backup, or disaster recovery by themselves.
+- Mobile Readiness is documentation and architecture scoring only; no mobile UI or API server exists yet.
+- Future mobile work requires storage-provider, file-picker, export-destination, and photo URI abstractions.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
@@ -387,6 +393,27 @@ Known limitations:
 - Collector Home and Collection Health Report are consolidation/reporting layers, not new decision engines.
 - Market, photo, and shopping persistence remains intentionally lightweight in v2.0.
 - No OCR, image recognition, scraping, pricing APIs, market forecasting, or Numista expansion.
+
+## Mobile Readiness
+
+v2.3 documents the path toward future mobile use without building a mobile app. `mobile_readiness.py` generates a structured Mobile Readiness Report with:
+
+- Desktop dependency audit for Tkinter, file dialogs, workbook loading, exports, photo paths, and persistence paths.
+- Service boundary review for Collection Intelligence, Listing Analyzer, Smart Shopping Assistant, Collection Dashboard, Collection Health Report, Persistence Layer, and Backup Manager.
+- Mobile input readiness for manual candidate entry, pasted listing text, pasted URLs, photo references, and persisted context.
+- Documentation-only future endpoint mapping for `analyze_candidate`, `collection_health`, `shopping_recommendations`, and `dashboard_summary`.
+- Dealer-table phone workflow audit for reaching BUY/PASS guidance from a candidate coin and asking price.
+- Mobile Readiness Score across architecture, workflow, persistence, exports, and inputs.
+- CSV and Markdown export.
+
+Current mobile blockers:
+
+- Tkinter is desktop-only.
+- File dialogs and local filesystem paths are embedded in GUI workflows.
+- Photo Vault uses local paths rather than portable photo URIs.
+- No API server, mobile storage adapter, or mobile UI exists yet.
+
+Future mobile work should start with storage-provider, file-picker, export-destination, and photo URI abstractions before any mobile interface is attempted.
 
 ## Collection Dashboard
 

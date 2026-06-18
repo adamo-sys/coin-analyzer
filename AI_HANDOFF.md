@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.2`
-- Current active task completed: v2.2 Data Safety and Backup Hardening
+- Current project state file reports release version: `v2.3`
+- Current active task completed: v2.3 Mobile Readiness
 
 ## What Changed
 
@@ -76,6 +76,9 @@
 - Backup packages include app state when available, release metadata, release notes, and JSON/Markdown manifests with checksums.
 - Data Safety Check validates app-state existence/schema, workbook/WANT_LIST paths, loadable market/photo/shopping records, missing photo references, and backup directory availability.
 - Added `test_backup_manager.py` covering backup creation, manifest creation, verification, listing, restore validation, pre-restore backup creation, partial restore, corrupt backup handling, missing app state/workbook/photo references, PASS/WARNING/FAIL reports, and export bundle generation.
+- Added `mobile_readiness.py` with MobileReadinessAuditor, MobileReadinessReport, MobileReadinessScore, desktop dependency findings, service boundary findings, mobile input findings, documentation-only API mappings, dealer-table phone workflow steps, and CSV/Markdown export.
+- Added `test_mobile_readiness.py` covering report generation, score calculation, desktop blockers, service boundary review, mobile input readiness, future endpoint mapping, phone workflow audit, serialization, and export support.
+- Documented v2.3 Mobile Readiness in README, PROJECT_STATE, TASK_QUEUE, RELEASE_HISTORY, and release notes.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope
@@ -207,6 +210,16 @@ The data safety and backup layer adds:
 - Safe restore of known app-state paths with pre-restore backup
 - Collector Export Bundle with health report, shopping recommendations, market summary, series summary, photo coverage summary, and manifest
 
+The mobile readiness layer adds:
+
+- MobileReadinessReport for future mobile planning without building a mobile app
+- Desktop dependency audit for Tkinter, file dialogs, workbook loading, exports, photo workflows, and persistence workflows
+- Service boundary review for Collection Intelligence, Listing Analyzer, Smart Shopping Assistant, Collection Dashboard, Collection Health Report, Persistence Layer, and Backup Manager
+- Mobile input readiness findings for manual candidate entry, pasted listing text, pasted URLs, photo references, and persisted context
+- Documentation-only API mapping for `analyze_candidate`, `collection_health`, `shopping_recommendations`, and `dashboard_summary`
+- Dealer-table phone workflow audit for reaching BUY/PASS guidance from a candidate coin and asking price
+- Mobile Readiness Score across architecture, workflow, persistence, exports, and inputs
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -228,6 +241,7 @@ Supported statuses:
 - Collector Operating System must compose existing engines and reports; do not create a second decision source for ownership, upgrades, acquisition impact, shopping, quality, series, market, or photo coverage.
 - Persistence must not modify collection workbook contents or production `data/collection.json`; it stores app runtime state and paths only.
 - Backup/restore must validate before restore, create pre-restore backups, and avoid silently overwriting collection workbooks or production collection ownership data.
+- Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -235,7 +249,8 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 335 tests OK for the v2.2 Data Safety and Backup Hardening release line.
+- `.\run_tests.bat`: 344 tests OK for the v2.3 Mobile Readiness release line.
+- Targeted Mobile Readiness tests: 9 tests OK.
 - GUI smoke for Do I Own This, Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and Portfolio Import Preview passed.
 - Export smoke for collection CSV, gap CSV, want-list CSV/Markdown, portfolio preview CSV, and WANT_LIST preview CSV passed.
 - Tag metadata verified through `v1.2`; `v1.2` points to `db001da4187af5a2bd2350bd956b2876007f7587`.

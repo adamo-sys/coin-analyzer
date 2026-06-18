@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.2`
+* Current release version: `v2.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.2`
-* Summary of what was included: Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, data validation reports, and export bundles.
+* Most recent Git tag: `v2.3`
+* Summary of what was included: Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness scoring, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -31,7 +31,8 @@
 * `v1.9` acceptance audit passed on 2026-06-18; tag `v1.9` points to `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb`.
 * `v2.0` acceptance audit passed on 2026-06-18; tag `v2.0` points to `a661b06c846bdd0d5342ce892c350832c8907974`.
 * `v2.1` acceptance audit passed on 2026-06-18; tag `v2.1` points to `bd4897fbee4f8306b69fb369a2e81768631fb865`.
-* `v2.2` acceptance audit passed on 2026-06-18; tag `v2.2` verified during release.
+* `v2.2` acceptance audit passed on 2026-06-18; tag `v2.2` points to `d84aa40334a6c3f859a996006bfe8005074ea6a4`.
+* `v2.3` acceptance audit passed on 2026-06-18; tag `v2.3` verified during release.
 
 ## Completed Features
 
@@ -80,6 +81,7 @@
 * Collector Operating System: unified Collector Home and Collection Health Report that consolidate collection snapshot, best next purchase, highest-impact opportunity, top WANT_LIST target, closest supported series, quality score, market activity, photo coverage, strengths, weaknesses, priorities, recommended actions, persistence findings, and CSV/Markdown exports.
 * Persistence Layer: local JSON app-state manager that saves, loads, clears, validates, backs up, imports, and exports Shared Session Context metadata, workbook/WANT_LIST paths, Market Awareness records, Photo Vault records, Smart Shopping candidates, and app preferences.
 * Data Safety and Backup Hardening: local backup packages with JSON/Markdown manifests, checksum verification, backup listing, safe restore with pre-restore backup, Data Safety reports, and Collector Export Bundles.
+* Mobile Readiness: deterministic readiness audit layer that documents desktop dependency blockers, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow steps, mobile readiness scoring, and CSV/Markdown export without building a mobile app or API.
 
 ## Known Bugs
 
@@ -93,16 +95,16 @@
 
 ## Active Roadmap
 
-1. Perform post-v2.2 release packaging and backup verification
-2. Improve Buy Advisor validation messages
-3. Add autocomplete for country/denomination
-4. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
-5. Expand normalization fixtures for country, denomination, and variety edge cases
-6. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
-7. Add image preview in collection list
-8. Add batch editing
-9. Add undo/redo
-10. Add backup/restore
+1. Improve Buy Advisor validation messages
+2. Add autocomplete for country/denomination
+3. Consider storage-provider, file-picker, export-destination, and photo URI adapters before mobile implementation
+4. Consider a compact dealer-table candidate workflow after mobile storage abstractions exist
+5. Decide whether acquisition workflow guidance should become visible in Buy Advisor reports
+6. Expand normalization fixtures for country, denomination, and variety edge cases
+7. Build Auction Evaluator implementation from `AUCTION_EVALUATOR_SPEC.md`
+8. Add image preview in collection list
+9. Add batch editing
+10. Add undo/redo
 11. Evaluate SQLite storage for larger collections
 
 ## Adam-Specific Collection Priorities
@@ -117,7 +119,7 @@
 
 ## Next Priority Task
 
-Perform post-v2.2 release packaging and backup verification.
+Improve Buy Advisor validation messages.
 
 ## Project Architecture
 
@@ -130,6 +132,7 @@ Perform post-v2.2 release packaging and backup verification.
 * Shared Session Context system: `session_context.py` stores the session workbook path, staged collection preview counts, staged WANT_LIST intents, load timestamp, warnings, and errors for reuse by GUI tools while keeping fallbacks intact.
 * Persistence Layer system: `persistence_manager.py` stores local app state as JSON under `collection_data/app_state/`, validates schema, creates timestamped backups before overwrite/clear, handles corrupt JSON and missing referenced files gracefully, and restores session metadata, market records, photo records, shopping candidates, and app preferences.
 * Data Safety and Backup system: `backup_manager.py` creates and verifies local backup packages, writes human-readable manifests, lists backups, restores known safe app-state files with pre-restore backup, validates app-state and referenced paths, and creates Collector Export Bundles.
+* Mobile Readiness system: `mobile_readiness.py` generates a deterministic Mobile Readiness Report, Mobile Readiness Score, desktop dependency audit, service boundary review, mobile input readiness findings, documentation-only API mapping, dealer-table phone workflow audit, and CSV/Markdown exports.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -173,6 +176,11 @@ Perform post-v2.2 release packaging and backup verification.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.3 Mobile Readiness: MobileReadinessAuditor, MobileReadinessReport, MobileReadinessScore, desktop dependency audit, service boundary review, mobile input analysis, documentation-only future endpoint mapping, dealer-table phone workflow audit, CSV/Markdown export, and v2.3 release documentation.
+* Implementation commit: pending
+* Full test suite passed: 344 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.3 imports, readiness report generation, exports, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.2 Data Safety and Backup Hardening: BackupManager, BackupManifest, DataSafetyValidator, DataSafetyReport, backup package creation/verification/listing/restore, pre-restore backups, collector export bundle, Tools menu entries, and data-safety documentation.
 * Implementation commit: `e70fc4c`

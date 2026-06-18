@@ -80,7 +80,10 @@ Work through this queue in priority order. Handle only one task at a time.
 48. `[x]` Build v2.0 Collector Operating System
 49. `[x]` Build v2.1 Persistence Layer
 50. `[x]` Build v2.2 Data Safety and Backup Hardening
-51. `[ ]` Perform post-v2.2 release packaging and backup verification
+51. `[x]` Build v2.3 Mobile Readiness
+52. `[ ]` Improve Buy Advisor validation messages
+53. `[ ]` Add autocomplete for country/denomination
+54. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
 ## Adam-Specific Collection Priorities
 
@@ -122,6 +125,21 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.3 Mobile Readiness
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `mobile_readiness.py` (new file)
+  - `test_mobile_readiness.py` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.2.md`
+  - `docs/releases/v2.3.md` (new file)
+- Implementation commit hash: pending
 
 #### `[x]` Build v2.2 Data Safety and Backup Hardening
 

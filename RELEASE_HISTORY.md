@@ -19,7 +19,8 @@
 | `v1.9` | `bf7e33648e6d150ffa7193cdddbbe493cb50c7fb` | Smart Shopping Assistant for ranked purchase opportunities, Best Next Purchase, impact-aware recommendation statuses, local market context, dashboard shopping summaries, and exports. |
 | `v2.0` | `a661b06c846bdd0d5342ce892c350832c8907974` | Collector Operating System consolidation with Collector Home, Collection Health Report, workflow guidance, persistence audit, dashboard/quality/series/shopping/market/photo integration, and exports. |
 | `v2.1` | `bd4897fbee4f8306b69fb369a2e81768631fb865` | Persistence Layer for local JSON app state, session metadata, workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export. |
-| `v2.2` | See verified tag `v2.2` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
+| `v2.2` | `d84aa40334a6c3f859a996006bfe8005074ea6a4` | Data Safety and Backup Hardening with backup packages, manifests, verification, safe restore, validation reports, and export bundles. |
+| `v2.3` | See verified tag `v2.3` | Mobile Readiness audit with desktop dependency findings, service boundary review, mobile input analysis, future endpoint mapping, phone workflow audit, readiness score, and exports. |
 
 ## Notes
 
