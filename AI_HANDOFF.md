@@ -7,6 +7,16 @@
 - Current project state file reports release version: `v2.3`
 - Current active task completed: v2.3 Mobile Readiness
 
+## Official Post-v2.2 Roadmap
+
+1. `v2.3` Mobile Readiness
+2. `v2.4` Mobile Companion Prototype
+3. `v2.5` Photo-Assisted Entry
+4. `v2.6` OCR Experiments
+5. `v3.0` Collector Companion
+
+Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+
 ## What Changed
 
 - Added `focused_collection_intelligence.py` with reusable deterministic candidate classification.
@@ -79,6 +89,7 @@
 - Added `mobile_readiness.py` with MobileReadinessAuditor, MobileReadinessReport, MobileReadinessScore, desktop dependency findings, service boundary findings, mobile input findings, documentation-only API mappings, dealer-table phone workflow steps, and CSV/Markdown export.
 - Added `test_mobile_readiness.py` covering report generation, score calculation, desktop blockers, service boundary review, mobile input readiness, future endpoint mapping, phone workflow audit, serialization, and export support.
 - Documented v2.3 Mobile Readiness in README, PROJECT_STATE, TASK_QUEUE, RELEASE_HISTORY, and release notes.
+- Locked the official post-v2.2 roadmap in PROJECT_STATE, TASK_QUEUE, AI_HANDOFF, and README: v2.3 Mobile Readiness, v2.4 Mobile Companion Prototype, v2.5 Photo-Assisted Entry, v2.6 OCR Experiments, and v3.0 Collector Companion.
 - Updated `PROJECT_STATE.md` and `TASK_QUEUE.md` as source-of-truth files.
 
 ## Engine Scope

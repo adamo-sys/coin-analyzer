@@ -95,6 +95,18 @@
 
 ## Active Roadmap
 
+Official post-v2.2 roadmap:
+
+1. `v2.3` Mobile Readiness
+2. `v2.4` Mobile Companion Prototype
+3. `v2.5` Photo-Assisted Entry
+4. `v2.6` OCR Experiments
+5. `v3.0` Collector Companion
+
+Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+
+Near-term maintenance candidates:
+
 1. Improve Buy Advisor validation messages
 2. Add autocomplete for country/denomination
 3. Consider storage-provider, file-picker, export-destination, and photo URI adapters before mobile implementation
@@ -181,6 +193,8 @@ Improve Buy Advisor validation messages.
 * Implementation commit: `539472b`
 * Full test suite passed: 344 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.3 imports, readiness report generation, exports, targeted tests, and full non-GUI regression suite passed.
+
+* Locked the official post-v2.2 roadmap: v2.3 Mobile Readiness, v2.4 Mobile Companion Prototype, v2.5 Photo-Assisted Entry, v2.6 OCR Experiments, and v3.0 Collector Companion. Clarified that v2.3 is a readiness and architecture milestone only, not a mobile app.
 
 * Implemented v2.2 Data Safety and Backup Hardening: BackupManager, BackupManifest, DataSafetyValidator, DataSafetyReport, backup package creation/verification/listing/restore, pre-restore backups, collector export bundle, Tools menu entries, and data-safety documentation.
 * Implementation commit: `e70fc4c`

@@ -81,9 +81,23 @@ Work through this queue in priority order. Handle only one task at a time.
 49. `[x]` Build v2.1 Persistence Layer
 50. `[x]` Build v2.2 Data Safety and Backup Hardening
 51. `[x]` Build v2.3 Mobile Readiness
-52. `[ ]` Improve Buy Advisor validation messages
-53. `[ ]` Add autocomplete for country/denomination
-54. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+52. `[ ]` Build v2.4 Mobile Companion Prototype
+53. `[ ]` Build v2.5 Photo-Assisted Entry
+54. `[ ]` Build v2.6 OCR Experiments
+55. `[ ]` Build v3.0 Collector Companion
+56. `[ ]` Improve Buy Advisor validation messages
+57. `[ ]` Add autocomplete for country/denomination
+58. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+
+## Official Post-v2.2 Roadmap
+
+1. `v2.3` Mobile Readiness
+2. `v2.4` Mobile Companion Prototype
+3. `v2.5` Photo-Assisted Entry
+4. `v2.6` OCR Experiments
+5. `v3.0` Collector Companion
+
+Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
 ## Adam-Specific Collection Priorities
 
@@ -140,6 +154,22 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v2.2.md`
   - `docs/releases/v2.3.md` (new file)
 - Implementation commit hash: `539472b`
+
+#### `[x]` Lock post-v2.2 roadmap
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+- Roadmap locked:
+  - `v2.3` Mobile Readiness
+  - `v2.4` Mobile Companion Prototype
+  - `v2.5` Photo-Assisted Entry
+  - `v2.6` OCR Experiments
+  - `v3.0` Collector Companion
+- Clarification: `v2.3` is a readiness and architecture milestone only, not a mobile app.
 
 #### `[x]` Build v2.2 Data Safety and Backup Hardening
 

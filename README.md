@@ -182,6 +182,16 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
+Official post-v2.2 roadmap:
+
+- `v2.3` Mobile Readiness
+- `v2.4` Mobile Companion Prototype
+- `v2.5` Photo-Assisted Entry
+- `v2.6` OCR Experiments
+- `v3.0` Collector Companion
+
+`v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+
 Near-term maintenance candidates:
 
 - Improve Buy Advisor validation messages.
