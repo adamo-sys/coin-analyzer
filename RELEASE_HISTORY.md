@@ -28,6 +28,7 @@
 | `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools menu workflow, and CSV/Markdown review export. |
 | `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with Photo Vault integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery messaging, Tools menu workflow, and CSV/Markdown export. |
 | `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with recommendation confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer and Smart Shopping display integration, and CSV/Markdown export. |
+| `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible years/denominations/countries/note prefixes/certification numbers, deterministic confidence, manual-review requirement, app-state persistence, Tools menu workflow, and CSV/Markdown export. |
 
 ## Notes
 

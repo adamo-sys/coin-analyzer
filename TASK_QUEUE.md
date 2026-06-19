@@ -88,7 +88,7 @@ Work through this queue in priority order. Handle only one task at a time.
 56. `[x]` Build v2.5 Photo-Assisted Entry
 57. `[x]` Build v2.5.1 Photo Vault Hardening
 58. `[x]` Build v2.5.2 Shopping Explainability
-59. `[ ]` Build v2.6 OCR Experiments
+59. `[x]` Build v2.6 OCR Experiments
 60. `[ ]` Build v3.0 Collector Companion
 61. `[ ]` Improve Buy Advisor validation messages
 62. `[ ]` Add autocomplete for country/denomination
@@ -144,6 +144,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-19
+
+#### `[x]` Build v2.6 OCR Experiments
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `ocr_experiment.py` (new file)
+  - `test_ocr_experiment.py` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.6.md` (new file)
+- Implementation commit hash: `f569393`
+- Test coverage: total passing tests increased from 422 to 433; existing regression suites remained green.
 
 #### `[x]` Build v2.5.2 Shopping Explainability
 

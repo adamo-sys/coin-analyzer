@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-06-18
+- Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.5.2`
-- Current active task completed: v2.5.2 Shopping Explainability
+- Current project state file reports release version: `v2.6`
+- Current active task completed: v2.6 OCR Experiments
 
 ## Official Post-v2.2 Roadmap
 
@@ -125,6 +125,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Smart Shopping Assistant markdown now includes compact "Why" blocks.
 - Listing Analyzer GUI output now shows confidence, primary reasons, and supporting reasons.
 - Added `test_shopping_explainability.py` covering BUY, PASS, WATCH, confidence, impact, ownership, WANT_LIST, exports, Listing Analyzer explanations, Smart Shopping markdown, and behavior preservation.
+- Added `ocr_experiment.py` with OCRResult, OCRConfidence, OCRSuggestionReport, and OCRExperiment.
+- Added Tools -> OCR Experiment for advisory-only OCR text extraction, suggestion display, and CSV/Markdown export.
+- OCR Experiments extract possible years, denominations, countries, note prefixes, and certification numbers from OCR text while always requiring manual review.
+- Persistence Manager now stores OCR results and OCR reports in local app state.
+- Added `test_ocr_experiment.py` covering OCR result creation, deterministic confidence, suggestion extraction, missing-image warnings, persistence, exports, Photo-Assisted Entry/Photo Vault/Mobile Companion integration helpers, and no collection mutation.
 
 ## Engine Scope
 
@@ -318,6 +323,14 @@ The shopping explainability layer adds:
 - ShoppingExplanationEngine for existing Smart Shopping, Listing Analyzer, and Acquisition Workflow outputs
 - Smart Shopping and Listing Analyzer display integration without changing recommendation outcomes
 
+The OCR experiment layer adds:
+
+- OCRResult for raw OCR text, image path, engine metadata, timestamp, and warnings
+- OCRConfidence for deterministic High, Medium, and Low confidence labels
+- OCRSuggestionReport for possible years, denominations, countries, note prefixes, certification numbers, warnings, manual-review status, and CSV/Markdown export
+- OCRExperiment for optional local OCR execution, raw-text suggestion extraction, and helper integrations with PhotoCandidate, PhotoRecord, and MobileCandidateEntry
+- Tools -> OCR Experiment for displaying raw OCR output, extracted suggestions, confidence, and warnings
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -348,6 +361,7 @@ Supported statuses:
 - Photo-Assisted Entry must reuse Photo Vault, Mobile Companion, and existing acquisition engines; do not create a second recommendation source.
 - Photo Vault Audit must remain report-only. Do not automatically move, delete, rename, repair, OCR, classify, inspect, or grade image files.
 - Shopping Explainability must remain explanation-only. Do not change recommendation thresholds, rankings, prices, duplicate logic, ownership logic, or acquisition-impact calculations.
+- OCR Experiments must remain advisory-only. Do not let OCR modify collection records, create ownership entries, update grades, change recommendations, auto-buy, alter shopping rankings, or bypass manual review.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -355,8 +369,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 422 tests OK for the v2.5.2 Shopping Explainability release line.
-- Coverage note: total passing tests increased from 410 to 422; existing regression suites remained green.
+- `.\run_tests.bat`: 433 tests OK for the v2.6 OCR Experiments release line.
+- Coverage note: total passing tests increased from 422 to 433; existing regression suites remained green.
+- Targeted OCR Experiment tests: 11 tests OK.
 - Targeted Shopping Explainability tests: 12 tests OK.
 - Targeted Photo Vault tests: 18 tests OK.
 - Targeted Backup tests: 22 tests OK.
@@ -399,6 +414,7 @@ Supported statuses:
 - Photo-Assisted Entry stores photo paths and metadata only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Photo Vault Audit stores and reports metadata only. Backup packages preserve photo metadata in app state but do not copy arbitrary photo folders.
 - Shopping Explainability is a translation/reporting layer only; it does not modify recommendation outcomes or use AI confidence.
+- OCR Experiments are advisory-only and manual-review-only. Local OCR runtime availability may vary; missing OCR runtime or missing images should produce warnings, not crashes.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
@@ -409,8 +425,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v2.6 OCR Experiments.
-2. Build v3.0 Collector Companion.
-3. Improve photo URI/file-picker abstractions before a true companion UI.
-4. Improve Buy Advisor validation messages.
-5. Add GUI autocomplete for country and denomination.
+1. Prepare v3.0 Collector Companion planning.
+2. Improve photo URI/file-picker abstractions before a true companion UI.
+3. Improve Buy Advisor validation messages.
+4. Add GUI autocomplete for country and denomination.
+5. Keep OCR advisory-only unless a future release explicitly expands the reviewed workflow.

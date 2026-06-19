@@ -1,12 +1,12 @@
 # Coin Analyzer
 
-Current version: `v2.5.2`
+Current version: `v2.6`
 
-Latest tagged release: `v2.5.2`
+Latest tagged release: `v2.6`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
-The project is focused on practical collector decisions. A collector can enter a candidate coin or banknote and receive ownership status, duplicate detection, upgrade analysis, WANT_LIST status, an acquisition recommendation, and max rational price guidance without web scraping, live pricing APIs, OCR expansion, or automatic image recognition decisions.
+The project is focused on practical collector decisions. A collector can enter a candidate coin or banknote and receive ownership status, duplicate detection, upgrade analysis, WANT_LIST status, an acquisition recommendation, and max rational price guidance without web scraping, live pricing APIs, automatic collection updates from OCR, or automatic image recognition decisions.
 
 ## Project Overview
 
@@ -47,6 +47,7 @@ The app is especially tuned for Adam-specific priorities:
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Shopping Explainability: explains existing BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations with confidence, primary reasons, supporting reasons, impact summaries, warnings, and collector notes.
+- OCR Experiments: advisory-only OCR suggestion reports for candidate photos, with raw text, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, persistence, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -79,7 +80,8 @@ The app is especially tuned for Adam-specific priorities:
 10. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
 11. Open Tools -> Collection Health Report when you want strengths, weaknesses, priorities, recommended actions, and persistence expectations in one report.
 12. For a coin-in-hand review, open Tools -> Photo-Assisted Entry, attach front/reverse/reference photo paths, enter manual details, and generate a review report.
-13. Export reports when needed for collection planning or records.
+13. If you want advisory text extraction from a photo, open Tools -> OCR Experiment and manually review the suggestion report before using any result.
+14. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -121,7 +123,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.5.2 Shopping Explainability suite passed with `422 tests OK`.
+The v2.6 OCR Experiments suite passed with `433 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -155,6 +157,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, and CSV/Markdown review export. |
 | `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery integration, and CSV/Markdown export. |
 | `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer/Smart Shopping display integration, and CSV/Markdown export. |
+| `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible field suggestions, deterministic confidence, manual-review requirement, persistence, Tools menu workflow, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -170,6 +173,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Shopping Explainability output when you want to understand why a recommendation was BUY, PASS, WATCH, NEGOTIATE, or REVIEW.
+- Use OCR Experiment when you want advisory text extraction from a photo; manually verify every suggestion before using it.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
@@ -661,6 +665,43 @@ Limitations:
 - Explainability does not create a new recommendation engine.
 - It does not change recommendation outcomes, thresholds, prices, or rankings.
 - Confidence is deterministic rule output, not AI confidence.
+
+## OCR Experiments
+
+v2.6 adds an advisory OCR experiment workflow for collector-supplied image paths.
+
+`ocr_experiment.py` provides:
+
+- `OCRResult` for raw OCR text, source image path, engine metadata, timestamp, and warnings.
+- `OCRConfidence` for deterministic High, Medium, and Low confidence labels.
+- `OCRSuggestionReport` for possible years, denominations, countries, note prefixes, certification numbers, warnings, manual-review status, and CSV/Markdown export.
+- `OCRExperiment` for optional local OCR execution or deterministic raw-text suggestion extraction in tests and manual workflows.
+
+Tools -> OCR Experiment can:
+
+- Select an image path.
+- Accept pasted OCR text for review or deterministic testing.
+- Display raw OCR output, extracted suggestions, confidence, and warnings.
+- Export the suggestion report to Markdown or CSV.
+
+Guardrails:
+
+- OCR output is advisory only.
+- Manual review is always required.
+- OCR never creates or edits collection records.
+- OCR never updates ownership, grades, recommendations, shopping rankings, or purchase decisions.
+- OCR does not scrape, call pricing APIs, identify coins by image, or grade images.
+
+Persistence:
+
+- OCR results and reports can be stored in local app state through the existing Persistence Layer.
+- App-state backups preserve OCR metadata, not arbitrary photo folders.
+
+Known limitations:
+
+- Local OCR depends on the user's installed OCR runtime. If unavailable, the workflow reports a warning and continues safely.
+- Suggestion extraction is deterministic text parsing, not proof of attribution.
+- Ambiguous or incomplete OCR text requires manual verification.
 
 ## Collection Dashboard
 
