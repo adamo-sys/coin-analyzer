@@ -29,6 +29,7 @@ from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import PersistenceManager
+from photo_assisted_entry import PhotoAssistedEntry
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
@@ -48,6 +49,7 @@ class CoinCollectionGUI:
         self.snapshot_manager = CollectionSnapshotManager()
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
+        self.photo_candidates = []
         self.shopping_candidates = []
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
@@ -112,6 +114,7 @@ class CoinCollectionGUI:
         tools_menu.add_separator()
         tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
         tools_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
+        tools_menu.add_command(label="Photo-Assisted Entry", command=self.open_photo_assisted_entry)
         tools_menu.add_command(label="Smart Shopping Assistant", command=self.open_smart_shopping_assistant)
         tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
@@ -361,6 +364,7 @@ Total Unique Dates: {total_unique_dates}
             market_awareness_engine=self.market_awareness_engine,
             photo_records=self.photo_records,
             shopping_candidates=self.shopping_candidates,
+            photo_candidates=self.photo_candidates,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.save_state(state)
@@ -396,6 +400,7 @@ Total Unique Dates: {total_unique_dates}
         self.session_context.clear()
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
+        self.photo_candidates = []
         self.shopping_candidates = []
         self.app_preferences = {}
         self.refresh_session_status()
@@ -421,6 +426,7 @@ Total Unique Dates: {total_unique_dates}
             market_awareness_engine=self.market_awareness_engine,
             photo_records=self.photo_records,
             shopping_candidates=self.shopping_candidates,
+            photo_candidates=self.photo_candidates,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.export_state(file_path, state)
@@ -459,6 +465,7 @@ Total Unique Dates: {total_unique_dates}
             self.session_context.load_status = "Saved workbook path missing"
         self.market_awareness_engine = state.market_awareness
         self.photo_records = list(state.photo_records)
+        self.photo_candidates = list(getattr(state, "photo_candidates", []) or [])
         self.shopping_candidates = list(state.shopping_candidates)
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
@@ -2386,6 +2393,128 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showerror("Listing Analyzer Error", f"Listing analysis failed: {str(e)}")
 
         ttk.Button(button_frame, text="Analyze Listing", command=analyze_listing).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_photo_assisted_entry(self):
+        """Open metadata-only photo-assisted candidate workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Photo-Assisted Entry")
+        dialog.geometry("820x760")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Photo Candidate", padding="10")
+        form_frame.pack(fill=tk.X, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        title_var = tk.StringVar()
+        front_var = tk.StringVar()
+        reverse_var = tk.StringVar()
+        reference_var = tk.StringVar()
+        price_var = tk.StringVar()
+        source_var = tk.StringVar(value="Photo-Assisted Entry")
+
+        def browse_photo(target_var):
+            path = filedialog.askopenfilename(
+                title="Select Photo Reference",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if path:
+                target_var.set(path)
+
+        fields = [
+            ("Title:", title_var, None),
+            ("Front Photo:", front_var, browse_photo),
+            ("Reverse Photo:", reverse_var, browse_photo),
+            ("Reference Photos (;):", reference_var, None),
+            ("Asking Price:", price_var, None),
+            ("Source:", source_var, None),
+        ]
+        for row, (label, variable, browse) in enumerate(fields):
+            ttk.Label(form_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+            entry = ttk.Entry(form_frame, textvariable=variable)
+            entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+            if browse:
+                ttk.Button(form_frame, text="Browse", command=lambda var=variable: browse_photo(var)).grid(
+                    row=row, column=2, sticky=tk.W, padx=(6, 0), pady=4
+                )
+
+        ttk.Label(form_frame, text="Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
+        notes_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
+        notes_text.grid(row=len(fields), column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        result_frame = ttk.LabelFrame(main_frame, text="Photo Review", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def parse_money(value):
+            cleaned = value.strip().replace("$", "").replace(",", "")
+            if not cleaned:
+                return 0.0
+            return float(cleaned)
+
+        def analyze_photo_candidate():
+            try:
+                engine = PhotoAssistedEntry(
+                    self._collection_items(),
+                    self._active_want_list_intents(),
+                    photo_records=self.photo_records,
+                    market_awareness_engine=self.market_awareness_engine,
+                )
+                candidate = engine.create_candidate(
+                    title=title_var.get(),
+                    front_photo=front_var.get(),
+                    reverse_photo=reverse_var.get(),
+                    reference_photos=[part.strip() for part in reference_var.get().split(";") if part.strip()],
+                    notes=notes_text.get("1.0", tk.END).strip(),
+                    asking_price=parse_money(price_var.get()),
+                    source=source_var.get(),
+                )
+                report = engine.analyze_candidate(candidate)
+                current_report["report"] = report
+                self.photo_candidates.append(candidate)
+                self.photo_records = list(engine.photo_vault.records)
+                self.shopping_candidates.append(candidate.to_shopping_candidate())
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Please enter a numeric asking price.")
+            except Exception as e:
+                messagebox.showerror("Photo-Assisted Entry Error", f"Photo-assisted analysis failed: {str(e)}")
+
+        def export_photo_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Analyze a photo candidate before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Photo Review",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Photo review exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", "Could not export the photo review report.")
+
+        ttk.Button(button_frame, text="Analyze Photo Candidate", command=analyze_photo_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_photo_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_photo_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_smart_shopping_assistant(self):
