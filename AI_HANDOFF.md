@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.4.3`
-- Current active task completed: v2.4.3 Collection Snapshot System
+- Current project state file reports release version: `v2.5`
+- Current active task completed: v2.5 Photo-Assisted Entry
 
 ## Official Post-v2.2 Roadmap
 
@@ -110,6 +110,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Snapshot storage uses `collection_data/app_state/collection_snapshots.json`; backup packages include that file when present.
 - Collection snapshots capture collection size, quality score, integrity score, photo coverage, supported-series completion metrics, market record count, and shopping candidate count.
 - Added `test_collection_snapshot.py` covering creation, persistence, comparison, growth, quality/integrity/photo/series deltas, exports, and backup eligibility.
+- Added `photo_assisted_entry.py` with PhotoCandidate, PhotoAssistedEntry, and PhotoReviewReport.
+- Added Tools -> Photo-Assisted Entry for metadata-only front/reverse/reference photo candidate review.
+- Photo-Assisted Entry links candidate photos through Photo Vault metadata, converts candidates into Mobile Companion/Smart Shopping inputs, and reuses existing recommendation engines.
+- Persistence Manager now stores photo candidate metadata in local app state.
+- Added `test_photo_assisted_entry.py` covering candidate creation, photo linking, Photo Vault integration, Mobile Companion integration, persistence, backup metadata behavior, and exports.
 
 ## Engine Scope
 
@@ -279,6 +284,14 @@ The mobile companion layer adds:
 - PhoneWorkflowSimulation and PhoneWorkflowReport for coin-shop dealer-table workflow checks
 - Dashboard mobile summary and app-state persistence for recent mobile activity
 
+The photo-assisted entry layer adds:
+
+- PhotoCandidate for title, front photo, reverse photo, reference photo paths, notes, asking price, source, timestamp, candidate ID, and workflow state
+- PhotoAssistedEntry for creating candidates, linking photo paths through Photo Vault metadata, and routing analysis through Mobile Companion
+- PhotoReviewReport for attached photos, candidate details, recommendation context, warnings, and CSV/Markdown export
+- App-state persistence for photo candidate metadata
+- Metadata-only backup compatibility through existing app-state backup packages
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -305,6 +318,8 @@ Supported statuses:
 - Mobile Readiness must remain audit/documentation/scoring only; do not build a mobile app, web app, API server, OCR flow, scraper, live pricing, or Numista integration under this release line.
 - Mobile Companion must remain a local desktop prototype; do not add native mobile code, web app code, API server code, OCR, image recognition, scraping, live pricing, cloud sync, or a new database.
 - Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
+- Photo-Assisted Entry must remain metadata-only. Do not move, copy, inspect, OCR, classify, or grade photo files.
+- Photo-Assisted Entry must reuse Photo Vault, Mobile Companion, and existing acquisition engines; do not create a second recommendation source.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -312,8 +327,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 391 tests OK for the v2.4.3 Collection Snapshot System release line.
-- Coverage note: total passing tests increased from 382 to 391; existing regression suites remained green.
+- `.\run_tests.bat`: 399 tests OK for the v2.5 Photo-Assisted Entry release line.
+- Coverage note: total passing tests increased from 391 to 399; existing regression suites remained green.
+- Targeted Photo-Assisted Entry tests: 8 tests OK.
 - Targeted Collection Snapshot tests: 9 tests OK.
 - Targeted Collection Integrity tests: 14 tests OK.
 - Targeted Backup/Persistence tests: 33 tests OK.
@@ -349,6 +365,7 @@ Supported statuses:
 - Acquisition Impact Engine is deterministic planning guidance only; it does not modify collection data or use market pricing, rarity guides, scraping, OCR, or Numista expansion.
 - Series Tracker definitions identify supported series; they do not contain fabricated master mintage checklists. Completion is based on actual owned dates and missing years inside observed owned spans.
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
+- Photo-Assisted Entry stores photo paths and metadata only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
@@ -359,8 +376,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v2.5 Photo-Assisted Entry.
-2. Build v2.6 OCR Experiments.
-3. Build v3.0 Collector Companion.
+1. Build v2.6 OCR Experiments.
+2. Build v3.0 Collector Companion.
+3. Improve photo URI/file-picker abstractions before a true companion UI.
 4. Improve Buy Advisor validation messages.
 5. Add GUI autocomplete for country and denomination.

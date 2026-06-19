@@ -85,7 +85,7 @@ Work through this queue in priority order. Handle only one task at a time.
 53. `[x]` Build v2.4.1 Critical Collection Backup Hardening
 54. `[x]` Build v2.4.2 Collection Integrity Audit
 55. `[x]` Build v2.4.3 Collection Snapshot System
-56. `[ ]` Build v2.5 Photo-Assisted Entry
+56. `[x]` Build v2.5 Photo-Assisted Entry
 57. `[ ]` Build v2.6 OCR Experiments
 58. `[ ]` Build v3.0 Collector Companion
 59. `[ ]` Improve Buy Advisor validation messages
@@ -142,6 +142,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.5 Photo-Assisted Entry
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `photo_assisted_entry.py` (new file)
+  - `test_photo_assisted_entry.py` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.5.md` (new file)
+- Implementation commit hash: `fd817b6`
+- Test coverage: total passing tests increased from 391 to 399; existing regression suites remained green.
 
 #### `[x]` Build v2.4.3 Collection Snapshot System
 

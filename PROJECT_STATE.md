@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.4.3`
+* Current release version: `v2.5`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.4.3`
-* Summary of what was included: Collection Snapshot System with point-in-time collection snapshots, persistent snapshot storage, growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export.
+* Most recent Git tag: `v2.5`
+* Summary of what was included: Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools -> Photo-Assisted Entry, and CSV/Markdown review export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -37,6 +37,7 @@
 * `v2.4.1` acceptance audit passed on 2026-06-18; tag `v2.4.1` verified during release.
 * `v2.4.2` acceptance audit passed on 2026-06-18; tag `v2.4.2` verified during release.
 * `v2.4.3` acceptance audit passed on 2026-06-18; tag `v2.4.3` verified during release.
+* `v2.5` acceptance audit passed on 2026-06-18; tag `v2.5` verified during release.
 
 ## Completed Features
 
@@ -90,6 +91,7 @@
 * Collection Snapshot System: point-in-time snapshot engine and Tools menu workflows for measuring collection growth, quality score change, integrity score change, photo coverage change, supported-series completion progress, market record counts, shopping candidate counts, and CSV/Markdown export.
 * Mobile Readiness: deterministic readiness audit layer that documents desktop dependency blockers, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow steps, mobile readiness scoring, and CSV/Markdown export without building a mobile app or API.
 * Mobile Companion Prototype: local desktop prototype for minimal candidate entry, quick recommendation output, phone workflow simulation, provider abstraction points, dashboard mobile summary, persistence of recent mobile candidates/recommendations, and CSV/Markdown export without building a mobile app.
+* Photo-Assisted Entry: metadata-only photo reference workflow for front, reverse, and reference photos attached to manually reviewed candidates, with Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools -> Photo-Assisted Entry, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -139,7 +141,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v2.5 Photo-Assisted Entry.
+Build v2.6 OCR Experiments.
 
 ## Project Architecture
 
@@ -156,6 +158,7 @@ Build v2.5 Photo-Assisted Entry.
 * Collection Snapshot system: `collection_snapshot.py` creates persistent point-in-time snapshots under `collection_data/app_state/collection_snapshots.json`, compares current and previous snapshots, reports growth, quality, integrity, photo coverage, series completion, market, and shopping deltas, and exports CSV/Markdown reports. Backup packages include the snapshot file when present.
 * Mobile Readiness system: `mobile_readiness.py` generates a deterministic Mobile Readiness Report, Mobile Readiness Score, desktop dependency audit, service boundary review, mobile input readiness findings, documentation-only API mapping, dealer-table phone workflow audit, and CSV/Markdown exports.
 * Mobile Companion system: `mobile_companion.py` provides `MobileCandidateEntry`, `MobileAnalysisReport`, `MobileCompanionWorkflow`, desktop `StorageProvider`/`PhotoProvider`/`ExportProvider` abstractions, `PhoneWorkflowSimulation`, `PhoneWorkflowReport`, and CSV/Markdown exports while reusing Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping Assistant, Photo Vault metadata, and Persistence Manager.
+* Photo-Assisted Entry system: `photo_assisted_entry.py` provides `PhotoCandidate`, `PhotoAssistedEntry`, and `PhotoReviewReport` for metadata-only front/reverse/reference photo candidate workflows. It links photo paths through Photo Vault metadata, routes recommendations through Mobile Companion and existing acquisition engines, stores candidate metadata in app state, and exports review reports without copying, moving, reading, OCRing, classifying, or grading images.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -199,6 +202,12 @@ Build v2.5 Photo-Assisted Entry.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.5 Photo-Assisted Entry: PhotoCandidate, PhotoAssistedEntry, PhotoReviewReport, Tools -> Photo-Assisted Entry, Photo Vault candidate/reference linking, Mobile Companion recommendation reuse, persisted photo candidate metadata, backup-compatible metadata-only behavior, and CSV/Markdown export.
+* Implementation commit: `fd817b6`
+* Full test suite passed: 399 tests OK.
+* Coverage note: total passing tests increased from 391 to 399; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.5 imports, photo candidate creation, Photo Vault linking, Mobile Companion integration, persistence, backup compatibility, exports, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.4.3 Collection Snapshot System: CollectionSnapshot, CollectionSnapshotManager, CollectionSnapshotReport, GrowthSummary, series progress deltas, persistent snapshot storage, Tools -> Create Snapshot, Tools -> Snapshot Report, backup eligibility, and CSV/Markdown export.
 * Implementation commit: `044dd50`

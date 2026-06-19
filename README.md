@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.4.3`
+Current version: `v2.5`
 
-Latest tagged release: `v2.4.3`
+Latest tagged release: `v2.5`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -53,6 +53,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Snapshot System: point-in-time snapshots and comparison reports for collection growth, quality, integrity, photo coverage, series progress, market records, and shopping candidates.
 - Mobile Readiness: deterministic audit report for desktop dependencies, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow, and readiness scoring.
 - Mobile Companion Prototype: local desktop prototype for a single candidate -> analysis -> recommendation dealer-table workflow using existing collector engines.
+- Photo-Assisted Entry: metadata-only photo reference workflow for attaching front, reverse, and reference photos to acquisition candidates before manual review and recommendation.
 - Do I Own This?: lightweight GUI workflow for manual candidate analysis with optional WANT_LIST context and asking-price guidance.
 - Acquisition Workflow: deterministic BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance with max rational price output.
 - Buy Advisor: rule-based purchase recommendation support with collection-intelligence context while preserving duplicate and price-analysis behavior.
@@ -76,7 +77,8 @@ The app is especially tuned for Adam-specific priorities:
 9. If a listing needs manual confirmation, compare it with Do I Own This, Buy Advisor, or Upgrade Advisor before purchasing.
 10. Reuse the same shared context in Want List Generator, Portfolio Import Preview, and related tools without repeatedly selecting the workbook.
 11. Open Tools -> Collection Health Report when you want strengths, weaknesses, priorities, recommended actions, and persistence expectations in one report.
-12. Export reports when needed for collection planning or records.
+12. For a coin-in-hand review, open Tools -> Photo-Assisted Entry, attach front/reverse/reference photo paths, enter manual details, and generate a review report.
+13. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -118,7 +120,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.4.3 Collection Snapshot System suite passed with `391 tests OK`.
+The v2.5 Photo-Assisted Entry suite passed with `399 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -149,6 +151,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.4.1` | See verified tag `v2.4.1` | Critical Collection Backup Hardening with automatic collection JSON backup, persisted workbook copy support, recovery manifest flags, Collection Recovery Report, and enhanced Data Safety validation. |
 | `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
 | `v2.4.3` | See verified tag `v2.4.3` | Collection Snapshot System with persistent snapshots, collection growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export. |
+| `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, and CSV/Markdown review export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -161,6 +164,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Snapshot Report to compare current collection state against the previous saved snapshot.
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
+- Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
@@ -229,6 +233,7 @@ Future candidates:
 - Mobile Readiness is documentation and architecture scoring only; no mobile UI or API server exists yet.
 - Mobile Companion Prototype is still local desktop workflow logic, not a mobile app or web app.
 - Future mobile work requires storage-provider, file-picker, export-destination, and photo URI abstractions.
+- Photo-Assisted Entry stores photo paths and metadata only. It does not copy, move, inspect, OCR, classify, or grade images.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
@@ -557,6 +562,37 @@ Recommendation
 - Desktop provider abstractions for storage, photo metadata lookup, and local CSV/Markdown export.
 
 Mobile Companion is not a native mobile app, web app, API server, OCR workflow, image recognition workflow, scraper, live pricing system, cloud sync layer, or new database.
+
+## Photo-Assisted Entry
+
+v2.5 reduces candidate-entry friction by letting the collector attach photo references before manual review. It is evidence management, not image interpretation.
+
+Workflow:
+
+Photo
+Candidate Entry
+Manual Review
+Collection Intelligence
+Recommendation
+
+`photo_assisted_entry.py` provides:
+
+- `PhotoCandidate` for title, front photo, reverse photo, reference photo paths, notes, asking price, source, timestamp, and workflow state.
+- `PhotoAssistedEntry` for creating candidates, linking photo paths through Photo Vault metadata, and routing the candidate through Mobile Companion and the existing acquisition engines.
+- `PhotoReviewReport` for attached photos, candidate details, recommendation context, warnings, and CSV/Markdown export.
+
+Photo-Assisted Entry integrates with:
+
+- Photo Vault for metadata-only candidate/reference photo links.
+- Mobile Companion for concise BUY/PASS/WATCH/NEGOTIATE/REVIEW guidance.
+- Persistence Layer for saved photo candidate metadata.
+- Backup packages through app-state metadata only.
+
+Limitations:
+
+- Photos are not moved, copied, read, OCRed, classified, or graded.
+- Missing photo paths are reported as warnings.
+- Backup packages preserve photo candidate metadata, not arbitrary photo folders.
 
 ## Collection Dashboard
 
