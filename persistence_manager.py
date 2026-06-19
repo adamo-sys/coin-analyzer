@@ -71,6 +71,8 @@ class AppState:
     photo_candidates: List[PhotoCandidate] = field(default_factory=list)
     ocr_results: List[OCRResult] = field(default_factory=list)
     ocr_reports: List[OCRSuggestionReport] = field(default_factory=list)
+    workflow_statuses: List[Dict[str, Any]] = field(default_factory=list)
+    workflow_summaries: List[Dict[str, Any]] = field(default_factory=list)
     app_preferences: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -115,6 +117,8 @@ class AppState:
                 report.to_dict()
                 for report in self.ocr_reports
             ],
+            "workflow_statuses": [dict(status) for status in self.workflow_statuses],
+            "workflow_summaries": [dict(summary) for summary in self.workflow_summaries],
             "app_preferences": dict(self.app_preferences),
             "warnings": list(self.warnings),
             "errors": list(self.errors),
@@ -245,7 +249,7 @@ class PersistenceManager:
         market = payload.get("market_records", {})
         if market and not isinstance(market, dict):
             errors.append("market_records must be an object")
-        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "warnings", "errors"]:
+        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "workflow_statuses", "workflow_summaries", "warnings", "errors"]:
             if key in payload and not isinstance(payload.get(key), list):
                 errors.append(f"{key} must be a list")
         for key in ["collection_workbook_path", "want_list_path"]:
@@ -266,6 +270,8 @@ class PersistenceManager:
         photo_candidates: Optional[Iterable[PhotoCandidate]] = None,
         ocr_results: Optional[Iterable[OCRResult]] = None,
         ocr_reports: Optional[Iterable[OCRSuggestionReport]] = None,
+        workflow_statuses: Optional[Iterable[Dict[str, Any]]] = None,
+        workflow_summaries: Optional[Iterable[Dict[str, Any]]] = None,
         app_preferences: Optional[Dict[str, Any]] = None,
     ) -> AppState:
         """Build AppState from current runtime objects."""
@@ -287,6 +293,8 @@ class PersistenceManager:
             photo_candidates=list(photo_candidates or []),
             ocr_results=list(ocr_results or []),
             ocr_reports=list(ocr_reports or []),
+            workflow_statuses=[dict(status) for status in workflow_statuses or []],
+            workflow_summaries=[dict(summary) for summary in workflow_summaries or []],
             app_preferences=dict(app_preferences or {}),
             warnings=list(getattr(session, "warnings", []) or []),
             errors=list(getattr(session, "errors", []) or []),
@@ -333,6 +341,8 @@ class PersistenceManager:
             photo_candidates=[PhotoCandidate.from_dict(row) for row in payload.get("photo_candidates", [])],
             ocr_results=[OCRResult.from_dict(row) for row in payload.get("ocr_results", [])],
             ocr_reports=[OCRSuggestionReport.from_dict(row) for row in payload.get("ocr_reports", [])],
+            workflow_statuses=[dict(row) for row in payload.get("workflow_statuses", [])],
+            workflow_summaries=[dict(row) for row in payload.get("workflow_summaries", [])],
             app_preferences=dict(payload.get("app_preferences") or {}),
             warnings=list(payload.get("warnings") or []),
             errors=list(payload.get("errors") or []),

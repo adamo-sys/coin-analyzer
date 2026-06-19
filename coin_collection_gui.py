@@ -27,11 +27,12 @@ from collection_dashboard import CollectionDashboard
 from collection_integrity import CollectionIntegrityAudit
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
+from collector_workflows import CollectorWorkflowEngine
 from market_awareness import MarketAwarenessEngine
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
 from persistence_manager import PersistenceManager
-from photo_assisted_entry import PhotoAssistedEntry
+from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
@@ -57,6 +58,8 @@ class CoinCollectionGUI:
         self.ocr_results = []
         self.ocr_reports = []
         self.shopping_candidates = []
+        self.workflow_statuses = []
+        self.workflow_summaries = []
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
@@ -111,7 +114,9 @@ class CoinCollectionGUI:
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Home", command=self.open_collector_home)
         tools_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
+        tools_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
         tools_menu.add_command(label="Collection Dashboard", command=self.open_collection_dashboard)
+        tools_menu.add_command(label="Collection Review Workflow", command=self.open_collection_review_workflow)
         tools_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
@@ -120,6 +125,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_separator()
         tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
+        tools_menu.add_command(label="Acquisition Workflow", command=self.open_acquisition_workflow)
         tools_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
         tools_menu.add_command(label="Photo-Assisted Entry", command=self.open_photo_assisted_entry)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
@@ -375,6 +381,8 @@ Total Unique Dates: {total_unique_dates}
             photo_candidates=self.photo_candidates,
             ocr_results=self.ocr_results,
             ocr_reports=self.ocr_reports,
+            workflow_statuses=self.workflow_statuses,
+            workflow_summaries=self.workflow_summaries,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.save_state(state)
@@ -414,6 +422,8 @@ Total Unique Dates: {total_unique_dates}
         self.ocr_results = []
         self.ocr_reports = []
         self.shopping_candidates = []
+        self.workflow_statuses = []
+        self.workflow_summaries = []
         self.app_preferences = {}
         self.refresh_session_status()
         if result.success:
@@ -441,6 +451,8 @@ Total Unique Dates: {total_unique_dates}
             photo_candidates=self.photo_candidates,
             ocr_results=self.ocr_results,
             ocr_reports=self.ocr_reports,
+            workflow_statuses=self.workflow_statuses,
+            workflow_summaries=self.workflow_summaries,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.export_state(file_path, state)
@@ -483,6 +495,8 @@ Total Unique Dates: {total_unique_dates}
         self.ocr_results = list(getattr(state, "ocr_results", []) or [])
         self.ocr_reports = list(getattr(state, "ocr_reports", []) or [])
         self.shopping_candidates = list(state.shopping_candidates)
+        self.workflow_statuses = list(getattr(state, "workflow_statuses", []) or [])
+        self.workflow_summaries = list(getattr(state, "workflow_summaries", []) or [])
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
 
@@ -2678,6 +2692,163 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_ocr_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_ocr_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def _workflow_engine(self):
+        """Create a workflow orchestrator from current runtime state."""
+        return CollectorWorkflowEngine(
+            collection_items=self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            photo_candidates=self.photo_candidates,
+            shopping_candidates=self.shopping_candidates,
+            ocr_reports=self.ocr_reports,
+            market_awareness_engine=self.market_awareness_engine,
+            snapshot_manager=self.snapshot_manager,
+        )
+
+    def _remember_workflow_report(self, report):
+        """Persist lightweight workflow state in runtime state for later save."""
+        summary = getattr(report, "summary", None)
+        if not summary:
+            return
+        self.workflow_summaries.append(summary.to_dict())
+        self.workflow_statuses.extend(status.to_dict() for status in summary.statuses)
+
+    def _show_workflow_report(self, title, report):
+        """Show a workflow report with export buttons."""
+        self._remember_workflow_report(report)
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.geometry("900x760")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def export_report(export_type):
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title=f"Export {title}",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"{title} exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", f"Could not export {title}.")
+
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_acquisition_workflow(self):
+        """Open guided Photo -> OCR -> Validation -> Recommendation workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Acquisition Workflow")
+        dialog.geometry("820x700")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        form_frame = ttk.LabelFrame(main_frame, text="Candidate", padding="10")
+        form_frame.pack(fill=tk.X, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        title_var = tk.StringVar()
+        front_var = tk.StringVar()
+        reverse_var = tk.StringVar()
+        price_var = tk.StringVar()
+        source_var = tk.StringVar(value="Acquisition Workflow")
+
+        def browse_photo(target_var):
+            path = filedialog.askopenfilename(
+                title="Select Photo Reference",
+                filetypes=[("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"), ("All files", "*.*")],
+            )
+            if path:
+                target_var.set(path)
+
+        fields = [
+            ("Title:", title_var, None),
+            ("Front Photo:", front_var, browse_photo),
+            ("Reverse Photo:", reverse_var, browse_photo),
+            ("Asking Price:", price_var, None),
+            ("Source:", source_var, None),
+        ]
+        for row, (label, variable, browse) in enumerate(fields):
+            ttk.Label(form_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+            ttk.Entry(form_frame, textvariable=variable).grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+            if browse:
+                ttk.Button(form_frame, text="Browse", command=lambda var=variable: browse_photo(var)).grid(row=row, column=2, padx=(6, 0), pady=4)
+
+        ttk.Label(form_frame, text="Notes:").grid(row=len(fields), column=0, sticky=(tk.W, tk.N), pady=4)
+        notes_text = tk.Text(form_frame, height=3, wrap=tk.WORD)
+        notes_text.grid(row=len(fields), column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        ttk.Label(form_frame, text="Raw OCR Text:").grid(row=len(fields) + 1, column=0, sticky=(tk.W, tk.N), pady=4)
+        ocr_text = tk.Text(form_frame, height=4, wrap=tk.WORD)
+        ocr_text.grid(row=len(fields) + 1, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def run_workflow():
+            try:
+                candidate = PhotoCandidate(
+                    title=title_var.get(),
+                    front_photo=front_var.get(),
+                    reverse_photo=reverse_var.get(),
+                    notes=notes_text.get("1.0", tk.END).strip(),
+                    asking_price=parse_money(price_var.get()),
+                    source=source_var.get(),
+                )
+                report = self._workflow_engine().acquisition_workflow(candidate, raw_ocr_text=ocr_text.get("1.0", tk.END).strip())
+                self.photo_candidates.append(candidate)
+                if report.ocr_report:
+                    self.ocr_reports.append(report.ocr_report)
+                    self.ocr_results.append(report.ocr_report.result)
+                if report.photo_review_report:
+                    self.photo_records.extend(report.photo_review_report.attached_photos)
+                self.shopping_candidates.append(candidate.to_shopping_candidate())
+                dialog.destroy()
+                self._show_workflow_report("Acquisition Workflow", report)
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Please enter a numeric asking price.")
+            except Exception as e:
+                messagebox.showerror("Acquisition Workflow Error", f"Workflow failed: {str(e)}")
+
+        ttk.Button(button_frame, text="Run Workflow", command=run_workflow).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_collection_review_workflow(self):
+        """Open guided Dashboard -> Quality -> Integrity -> Snapshot workflow."""
+        try:
+            report = self._workflow_engine().collection_review_workflow()
+            self._show_workflow_report("Collection Review Workflow", report)
+        except Exception as e:
+            messagebox.showerror("Collection Review Workflow Error", f"Workflow failed: {str(e)}")
+
+    def open_daily_collector_summary(self):
+        """Open daily collector summary workflow."""
+        try:
+            report = self._workflow_engine().daily_summary()
+            self._show_workflow_report("Daily Collector Summary", report)
+        except Exception as e:
+            messagebox.showerror("Daily Collector Summary Error", f"Workflow failed: {str(e)}")
 
     def open_smart_shopping_assistant(self):
         """Open ranked Smart Shopping Assistant workflow."""
