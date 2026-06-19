@@ -10,6 +10,7 @@ from collection_snapshot import CollectionSnapshotManager
 from collector_companion_readiness import (
     CollectorCompanionReadinessAuditor,
     CollectorCompanionReadinessReport,
+    CollectorCompanionStatus,
     ExportConsistencyReport,
     ReportConsistencyReport,
     V3ReadinessChecklistItem,
@@ -177,6 +178,86 @@ class TestCollectorCompanionReadiness(unittest.TestCase):
         ]:
             self.assertIn(label, source)
         self.assertIn("Collector Companion Readiness", source)
+
+    def test_collector_companion_status_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            status = self.make_auditor(temp_dir).companion_status()
+
+            self.assertIsInstance(status, CollectorCompanionStatus)
+            self.assertEqual(status.status, "READY")
+            self.assertEqual(status.collection_management, "READY")
+            self.assertEqual(status.acquisition_workflow, "READY")
+            self.assertEqual(status.ocr_workflow, "READY")
+            self.assertEqual(status.integrity_workflow, "READY")
+            self.assertEqual(status.backup_workflow, "READY")
+            self.assertEqual(status.dashboard_workflow, "READY")
+            self.assertIn("Collector Companion Status", status.format_markdown())
+
+    def test_collector_companion_status_serialization(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            status = self.make_auditor(temp_dir).companion_status()
+            restored = CollectorCompanionStatus.from_dict(status.to_dict())
+
+            self.assertEqual(restored.status, status.status)
+            self.assertEqual(restored.dashboard_workflow, "READY")
+            self.assertTrue(restored.justification)
+            self.assertTrue(restored.limitations)
+
+    def test_collector_companion_status_export_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            status = self.make_auditor(temp_dir).companion_status()
+            csv_path = os.path.join(temp_dir, "companion_status.csv")
+            md_path = os.path.join(temp_dir, "companion_status.md")
+
+            self.assertTrue(status.export_csv(csv_path))
+            self.assertTrue(status.export_markdown(md_path))
+            with open(csv_path, "r", encoding="utf-8") as handle:
+                self.assertIn("Workflow", handle.read())
+            with open(md_path, "r", encoding="utf-8") as handle:
+                self.assertIn("Status: READY", handle.read())
+
+    def test_full_companion_system_imports_cleanly(self):
+        from acquisition_workflow import AcquisitionWorkflow
+        from backup_manager import BackupManager
+        from collection_dashboard import CollectionDashboard
+        from collection_integrity import CollectionIntegrityAudit
+        from collection_quality import CollectionQualityEngine
+        from collection_snapshot import CollectionSnapshotManager
+        from collector_home_dashboard import CollectorHomeDashboard
+        from collector_operating_system import CollectorHome, CollectionHealthReportEngine
+        from collector_workflows import CollectorWorkflowEngine
+        from listing_analyzer import ListingAnalyzer
+        from ocr_experiment import OCRExperiment
+        from ocr_validation import OCRValidationEngine
+        from persistence_manager import PersistenceManager
+        from photo_assisted_entry import PhotoAssistedEntry
+        from photo_vault import PhotoVault
+        from series_tracker import SeriesTracker
+        from shopping_explainability import ShoppingExplanationEngine
+        from smart_shopping_assistant import SmartShoppingAssistant
+
+        imports = [
+            AcquisitionWorkflow,
+            BackupManager,
+            CollectionDashboard,
+            CollectionIntegrityAudit,
+            CollectionQualityEngine,
+            CollectionSnapshotManager,
+            CollectorHomeDashboard,
+            CollectorHome,
+            CollectionHealthReportEngine,
+            CollectorWorkflowEngine,
+            ListingAnalyzer,
+            OCRExperiment,
+            OCRValidationEngine,
+            PersistenceManager,
+            PhotoAssistedEntry,
+            PhotoVault,
+            SeriesTracker,
+            ShoppingExplanationEngine,
+            SmartShoppingAssistant,
+        ]
+        self.assertEqual(len(imports), 19)
 
 
 if __name__ == "__main__":

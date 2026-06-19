@@ -314,6 +314,112 @@ class CollectorCompanionReadinessReport:
         return True
 
 
+@dataclass
+class CollectorCompanionStatus:
+    """Concise v3.0 product status derived from existing readiness audits."""
+
+    status: str
+    collection_management: str
+    acquisition_workflow: str
+    ocr_workflow: str
+    integrity_workflow: str
+    backup_workflow: str
+    dashboard_workflow: str
+    justification: List[str] = field(default_factory=list)
+    limitations: List[str] = field(default_factory=list)
+    generated_at: str = ""
+
+    def __post_init__(self) -> None:
+        self.status = str(self.status or NEEDS_WORK).strip().upper()
+        self.collection_management = str(self.collection_management or NEEDS_WORK).strip().upper()
+        self.acquisition_workflow = str(self.acquisition_workflow or NEEDS_WORK).strip().upper()
+        self.ocr_workflow = str(self.ocr_workflow or NEEDS_WORK).strip().upper()
+        self.integrity_workflow = str(self.integrity_workflow or NEEDS_WORK).strip().upper()
+        self.backup_workflow = str(self.backup_workflow or NEEDS_WORK).strip().upper()
+        self.dashboard_workflow = str(self.dashboard_workflow or NEEDS_WORK).strip().upper()
+        self.justification = _dedupe(self.justification)
+        self.limitations = _dedupe(self.limitations)
+        self.generated_at = self.generated_at or _now_iso()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "status": self.status,
+            "collection_management": self.collection_management,
+            "acquisition_workflow": self.acquisition_workflow,
+            "ocr_workflow": self.ocr_workflow,
+            "integrity_workflow": self.integrity_workflow,
+            "backup_workflow": self.backup_workflow,
+            "dashboard_workflow": self.dashboard_workflow,
+            "justification": list(self.justification),
+            "limitations": list(self.limitations),
+            "generated_at": self.generated_at,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "CollectorCompanionStatus":
+        return cls(
+            status=str(payload.get("status") or NEEDS_WORK),
+            collection_management=str(payload.get("collection_management") or NEEDS_WORK),
+            acquisition_workflow=str(payload.get("acquisition_workflow") or NEEDS_WORK),
+            ocr_workflow=str(payload.get("ocr_workflow") or NEEDS_WORK),
+            integrity_workflow=str(payload.get("integrity_workflow") or NEEDS_WORK),
+            backup_workflow=str(payload.get("backup_workflow") or NEEDS_WORK),
+            dashboard_workflow=str(payload.get("dashboard_workflow") or NEEDS_WORK),
+            justification=list(payload.get("justification", [])),
+            limitations=list(payload.get("limitations", [])),
+            generated_at=str(payload.get("generated_at") or ""),
+        )
+
+    def format_markdown(self) -> str:
+        lines = [
+            "# Collector Companion Status",
+            "",
+            f"- Status: {self.status}",
+            f"- Generated: {self.generated_at}",
+            "",
+            "## Workflow Status",
+            "",
+            f"- Collection Management: {self.collection_management}",
+            f"- Acquisition Workflow: {self.acquisition_workflow}",
+            f"- OCR Workflow: {self.ocr_workflow}",
+            f"- Integrity Workflow: {self.integrity_workflow}",
+            f"- Backup Workflow: {self.backup_workflow}",
+            f"- Dashboard Workflow: {self.dashboard_workflow}",
+            "",
+            "## Justification",
+            "",
+        ]
+        lines.extend(f"- {item}" for item in self.justification) if self.justification else lines.append("- No justification recorded.")
+        lines.extend(["", "## Final Limitations", ""])
+        lines.extend(f"- {item}" for item in self.limitations) if self.limitations else lines.append("- No final limitations recorded.")
+        return "\n".join(lines) + "\n"
+
+    def export_markdown(self, output_path: str) -> bool:
+        with open(output_path, "w", encoding="utf-8") as handle:
+            handle.write(self.format_markdown())
+        return True
+
+    def export_csv(self, output_path: str) -> bool:
+        with open(output_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["section", "name", "status", "detail"])
+            writer.writeheader()
+            writer.writerow({"section": "Status", "name": "Overall", "status": self.status, "detail": self.generated_at})
+            for name, value in [
+                ("Collection Management", self.collection_management),
+                ("Acquisition Workflow", self.acquisition_workflow),
+                ("OCR Workflow", self.ocr_workflow),
+                ("Integrity Workflow", self.integrity_workflow),
+                ("Backup Workflow", self.backup_workflow),
+                ("Dashboard Workflow", self.dashboard_workflow),
+            ]:
+                writer.writerow({"section": "Workflow", "name": name, "status": value, "detail": ""})
+            for item in self.justification:
+                writer.writerow({"section": "Justification", "name": "", "status": "", "detail": item})
+            for item in self.limitations:
+                writer.writerow({"section": "Limitation", "name": "", "status": "", "detail": item})
+        return True
+
+
 class CollectorCompanionReadinessAuditor:
     """Generate v3.0 readiness reports from existing systems."""
 
@@ -374,6 +480,36 @@ class CollectorCompanionReadinessAuditor:
             export_consistency=export_report,
             report_consistency=report_consistency,
             workflow_audit=workflow_audit,
+        )
+
+    def companion_status(self) -> CollectorCompanionStatus:
+        report = self.generate_report()
+        checklist = {item.name: item.ready for item in report.checklist}
+        required_ready = all(item.ready for item in report.checklist if item.required)
+        workflow_ready = report.workflow_audit.status == READY if report.workflow_audit else False
+        status = READY if report.status == READY and required_ready and workflow_ready else NEEDS_WORK
+        limitations = list(report.workflow_audit.friction_points if report.workflow_audit else [])
+        limitations.extend(
+            finding.message
+            for finding in report.findings
+            if finding.severity in {HomeStatusSeverity.WARNING.value, HomeStatusSeverity.ACTION_REQUIRED.value}
+        )
+        return CollectorCompanionStatus(
+            status=status,
+            collection_management=READY if checklist.get("Series Tracker") and checklist.get("Snapshot System") else NEEDS_WORK,
+            acquisition_workflow=READY if workflow_ready else NEEDS_WORK,
+            ocr_workflow=READY if checklist.get("OCR Workflow") else NEEDS_WORK,
+            integrity_workflow=READY if checklist.get("Integrity Audit") else NEEDS_WORK,
+            backup_workflow=READY if checklist.get("Backup System") else NEEDS_WORK,
+            dashboard_workflow=READY if checklist.get("Collector Home Dashboard") else NEEDS_WORK,
+            justification=[
+                "Readiness checklist passed for required v3.0 systems.",
+                "End-to-end workflow audit generated without release-blocking defects.",
+                "Report and export consistency audits remain green.",
+            ] if status == READY else [
+                "One or more required v3.0 readiness checks need attention.",
+            ],
+            limitations=limitations,
         )
 
     def audit_exports(self) -> ExportConsistencyReport:
