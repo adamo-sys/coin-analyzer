@@ -4,8 +4,8 @@
 
 - Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.9`
-- Current active task completed: v2.9 Collector Companion Release Candidate
+- Current project state file reports release version: `v3.0`
+- Current active task completed: v3.0 Collector Companion
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -144,6 +144,7 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 - Persistence Manager now stores generated home reports and acknowledged home action identifiers in local app state.
 - Added `test_collector_home_dashboard.py` covering report generation, daily action ranking, severity, backup status, integrity status, OCR review status, photo coverage, snapshot trend, top opportunities, exports, persistence compatibility, and fallback behavior.
 - Added `collector_companion_readiness.py` with CollectorCompanionReadinessAuditor, CollectorCompanionReadinessReport, ExportConsistencyReport, ReportConsistencyReport, WorkflowAuditReport, and V3ReadinessChecklistItem.
+- Added `CollectorCompanionStatus` as the v3.0 READY/NEEDS_WORK product status derived from the existing readiness auditor.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -408,8 +409,8 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 471 tests OK for the v2.9 Collector Companion Release Candidate release line.
-- Coverage note: total passing tests increased from 463 to 471; existing regression suites remained green.
+- `.\run_tests.bat`: 475 tests OK for the v3.0 Collector Companion release line.
+- Coverage note: total passing tests increased from 471 to 475; existing regression suites remained green.
 - Targeted Collector Workflow tests: 7 tests OK.
 - Targeted OCR Validation tests: 11 tests OK.
 - Targeted OCR Experiment tests: 11 tests OK.
@@ -459,7 +460,7 @@ Supported statuses:
 - OCR Validation detects ambiguity and conflicts but does not resolve attribution; collector review is still required for all OCR-derived values.
 - Workflow Integration coordinates existing systems and stores lightweight summaries/statuses only; it does not make final collector decisions or write collection ownership records.
 - Collector Home Dashboard surfaces existing status/report outputs only; it does not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
-- Collector Companion Readiness is an audit/reporting layer only; it does not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
+- Collector Companion Readiness and Status are audit/reporting layers only; they do not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -470,8 +471,8 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Prepare v3.0 Collector Companion planning.
-2. Improve photo URI/file-picker abstractions before a true companion UI.
-3. Improve Buy Advisor validation messages.
-4. Add GUI autocomplete for country and denomination.
+1. Post-v3.0 maintenance and collector usability polish.
+2. Improve Buy Advisor validation messages.
+3. Add GUI autocomplete for country and denomination.
+4. Improve photo URI/file-picker abstractions before a true companion UI.
 5. Keep OCR advisory-only unless a future release explicitly expands the reviewed workflow.

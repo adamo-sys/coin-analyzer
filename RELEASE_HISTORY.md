@@ -33,6 +33,7 @@
 | `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
 | `v2.8` | See verified tag `v2.8` | Collector Home Dashboard with Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked daily actions, top opportunities, persistence, Tools menu entry, and CSV/Markdown export. |
 | `v2.9` | See verified tag `v2.9` | Collector Companion Release Candidate with menu cleanup, readiness checklist, report/export consistency audits, workflow audit, persistence, Tools/Help entries, and CSV/Markdown export. |
+| `v3.0` | See verified tag `v3.0` | Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass. |
 
 ## Notes
 

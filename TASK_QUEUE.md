@@ -93,7 +93,7 @@ Work through this queue in priority order. Handle only one task at a time.
 61. `[x]` Build v2.7 Workflow Integration
 62. `[x]` Build v2.8 Collector Home Dashboard
 63. `[x]` Build v2.9 Collector Companion Release Candidate
-64. `[ ]` Build v3.0 Collector Companion
+64. `[x]` Build v3.0 Collector Companion
 65. `[ ]` Improve Buy Advisor validation messages
 66. `[ ]` Add autocomplete for country/denomination
 67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
@@ -147,6 +147,21 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-19
+
+#### `[x]` Build v3.0 Collector Companion
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `collector_companion_readiness.py`
+  - `test_collector_companion_readiness.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.0.md` (new file)
+- Implementation commit hash: `935e3c7`
+- Test coverage: total passing tests increased from 471 to 475; existing regression suites remained green.
 
 #### `[x]` Build v2.9 Collector Companion Release Candidate
 
