@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.5.1`
-- Current active task completed: v2.5.1 Photo Vault Hardening
+- Current project state file reports release version: `v2.5.2`
+- Current active task completed: v2.5.2 Shopping Explainability
 
 ## Official Post-v2.2 Roadmap
 
@@ -120,6 +120,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Photo Vault Audit detects missing photo files, duplicate references, unlinked records, invalid extensions, unsupported paths, collection items without photos, candidates without photos, and certified/slabbed items without photos.
 - Data Safety validation now surfaces Photo Vault audit warnings for duplicate, unlinked, invalid, unsupported, and candidate-missing-photo metadata.
 - Collection Recovery Report now states that app-state backups preserve photo metadata, while photo files themselves are not copied automatically.
+- Added `shopping_explainability.py` with RecommendationConfidence, RecommendationExplanation, ExplainableRecommendationReport, and ShoppingExplanationEngine.
+- Shopping Explainability explains existing BUY/PASS/WATCH/NEGOTIATE/REVIEW outputs without changing recommendation outcomes.
+- Smart Shopping Assistant markdown now includes compact "Why" blocks.
+- Listing Analyzer GUI output now shows confidence, primary reasons, and supporting reasons.
+- Added `test_shopping_explainability.py` covering BUY, PASS, WATCH, confidence, impact, ownership, WANT_LIST, exports, Listing Analyzer explanations, Smart Shopping markdown, and behavior preservation.
 
 ## Engine Scope
 
@@ -305,6 +310,14 @@ The photo vault hardening layer adds:
 - Tools -> Photo Vault Audit with Markdown and CSV export
 - Data Safety and Collection Recovery messaging for photo metadata backup limitations
 
+The shopping explainability layer adds:
+
+- RecommendationConfidence for deterministic High, Medium, and Low confidence labels
+- RecommendationExplanation for primary reasons, supporting reasons, impact summary, warnings, and collector notes
+- ExplainableRecommendationReport with Markdown and CSV export
+- ShoppingExplanationEngine for existing Smart Shopping, Listing Analyzer, and Acquisition Workflow outputs
+- Smart Shopping and Listing Analyzer display integration without changing recommendation outcomes
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -334,6 +347,7 @@ Supported statuses:
 - Photo-Assisted Entry must remain metadata-only. Do not move, copy, inspect, OCR, classify, or grade photo files.
 - Photo-Assisted Entry must reuse Photo Vault, Mobile Companion, and existing acquisition engines; do not create a second recommendation source.
 - Photo Vault Audit must remain report-only. Do not automatically move, delete, rename, repair, OCR, classify, inspect, or grade image files.
+- Shopping Explainability must remain explanation-only. Do not change recommendation thresholds, rankings, prices, duplicate logic, ownership logic, or acquisition-impact calculations.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -341,8 +355,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 410 tests OK for the v2.5.1 Photo Vault Hardening release line.
-- Coverage note: total passing tests increased from 399 to 410; existing regression suites remained green.
+- `.\run_tests.bat`: 422 tests OK for the v2.5.2 Shopping Explainability release line.
+- Coverage note: total passing tests increased from 410 to 422; existing regression suites remained green.
+- Targeted Shopping Explainability tests: 12 tests OK.
 - Targeted Photo Vault tests: 18 tests OK.
 - Targeted Backup tests: 22 tests OK.
 - Targeted Photo-Assisted Entry tests: 8 tests OK.
@@ -383,6 +398,7 @@ Supported statuses:
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Photo-Assisted Entry stores photo paths and metadata only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Photo Vault Audit stores and reports metadata only. Backup packages preserve photo metadata in app state but do not copy arbitrary photo folders.
+- Shopping Explainability is a translation/reporting layer only; it does not modify recommendation outcomes or use AI confidence.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.

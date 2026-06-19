@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.5.1`
+Current version: `v2.5.2`
 
-Latest tagged release: `v2.5.1`
+Latest tagged release: `v2.5.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -46,6 +46,7 @@ The app is especially tuned for Adam-specific priorities:
 - Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, integrity audit, and exports.
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
+- Shopping Explainability: explains existing BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations with confidence, primary reasons, supporting reasons, impact summaries, warnings, and collector notes.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -120,7 +121,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.5.1 Photo Vault Hardening suite passed with `410 tests OK`.
+The v2.5.2 Shopping Explainability suite passed with `422 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -153,6 +154,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.4.3` | See verified tag `v2.4.3` | Collection Snapshot System with persistent snapshots, collection growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export. |
 | `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, and CSV/Markdown review export. |
 | `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery integration, and CSV/Markdown export. |
+| `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer/Smart Shopping display integration, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -167,6 +169,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
+- Use Shopping Explainability output when you want to understand why a recommendation was BUY, PASS, WATCH, NEGOTIATE, or REVIEW.
 - Use Do I Own This? when manually checking a candidate coin or banknote without listing context.
 - Use Buy Advisor when you already know the candidate details and want the legacy buy report format with pricing, priority, liquidity, and collection-intelligence factors.
 - Use Collection Dashboard when you want the fastest overview of collection size, strengths, gaps, upgrade opportunities, WANT_LIST priorities, and next focus areas.
@@ -204,6 +207,7 @@ Official post-v2.2 roadmap:
 - `v2.3` Mobile Readiness
 - `v2.4` Mobile Companion Prototype
 - `v2.5` Photo-Assisted Entry
+- `v2.5.2` Shopping Explainability
 - `v2.6` OCR Experiments
 - `v3.0` Collector Companion
 
@@ -632,6 +636,31 @@ Exports:
 
 - Markdown
 - CSV
+
+## Shopping Explainability
+
+v2.5.2 explains existing recommendations without changing them.
+
+`shopping_explainability.py` provides:
+
+- `RecommendationConfidence` with deterministic High, Medium, and Low labels.
+- `RecommendationExplanation` with primary reasons, supporting reasons, impact summary, warnings, and collector notes.
+- `ExplainableRecommendationReport` with Markdown and CSV export.
+- `ShoppingExplanationEngine` for Smart Shopping recommendations, Listing Analyzer results, and Acquisition Workflow decisions.
+
+Explanation examples:
+
+- BUY: explicit WANT_LIST target, collection gap, positive acquisition impact, acceptable asking price.
+- PASS: same-grade duplicate, lower-grade duplicate, no meaningful collection impact, poor asking price.
+- WATCH: interesting target, missing price, price above max rational price, needs more information.
+- NEGOTIATE: relevant target but asking price is above max rational price.
+- REVIEW: low confidence, ambiguous classification, attribution or certification needs manual review.
+
+Limitations:
+
+- Explainability does not create a new recommendation engine.
+- It does not change recommendation outcomes, thresholds, prices, or rankings.
+- Confidence is deterministic rule output, not AI confidence.
 
 ## Collection Dashboard
 
