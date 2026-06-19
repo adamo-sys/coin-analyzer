@@ -6,7 +6,8 @@ import unittest
 
 from coin_collection import CoinItem
 from collection_dashboard import CollectionDashboard
-from photo_vault import PhotoRecord, PhotoVault
+from photo_assisted_entry import PhotoCandidate
+from photo_vault import PhotoRecord, PhotoVault, PhotoVaultIntegrityAudit
 
 
 def make_item(item_id, country, denomination, year, grade, **overrides):
@@ -162,6 +163,101 @@ class TestPhotoVault(unittest.TestCase):
                 self.assertIn("XSZ431", handle.read())
             with open(md_path, "r", encoding="utf-8") as handle:
                 self.assertIn("# Photo Vault", handle.read())
+
+    def test_missing_photo_reference_detection(self):
+        report = PhotoVaultIntegrityAudit([
+            PhotoRecord("missing_photo.jpg", "Collection Photo", linked_collection_item_id="nfld_1945_5c"),
+        ], [self.collection_item]).run()
+
+        self.assertEqual(report.missing_photo_references, 1)
+        self.assertTrue(any(issue.issue_type == "Missing Photo Reference" for issue in report.findings))
+
+    def test_duplicate_photo_reference_detection(self):
+        records = [
+            PhotoRecord("same.jpg", "Collection Photo", linked_collection_item_id="nfld_1945_5c"),
+            PhotoRecord("same.jpg", "Candidate Photo", linked_candidate_id="candidate-1"),
+        ]
+
+        report = PhotoVaultIntegrityAudit(records, [self.collection_item]).run()
+
+        self.assertEqual(report.duplicate_photo_references, 1)
+        self.assertTrue(any(issue.issue_type == "Duplicate Photo Reference" for issue in report.findings))
+
+    def test_unlinked_photo_detection(self):
+        report = PhotoVaultIntegrityAudit([
+            PhotoRecord("unlinked.jpg", "Reference Photo"),
+        ]).run()
+
+        self.assertTrue(any(issue.issue_type == "Unlinked Photo Record" for issue in report.findings))
+
+    def test_collection_item_without_photo_detection(self):
+        report = PhotoVaultIntegrityAudit([], [self.collection_item, self.raw_item]).run()
+
+        self.assertEqual(report.collection_photo_coverage_percentage, 0.0)
+        self.assertTrue(any(issue.issue_type == "Collection Item Without Photo" for issue in report.findings))
+
+    def test_certified_item_without_photo_detection(self):
+        report = PhotoVaultIntegrityAudit([], [self.collection_item]).run()
+
+        self.assertEqual(report.certified_item_photo_coverage_percentage, 0.0)
+        self.assertTrue(any(issue.issue_type == "Certified Item Without Photo" for issue in report.findings))
+
+    def test_candidate_photo_coverage(self):
+        candidates = [
+            PhotoCandidate("Newfoundland 50 cents 1904", front_photo="front.jpg"),
+            PhotoCandidate("Canada 1 cent 1859"),
+        ]
+
+        report = PhotoVaultIntegrityAudit([], photo_candidates=candidates).run()
+
+        self.assertEqual(report.candidate_photo_coverage_percentage, 50.0)
+        self.assertTrue(any(issue.issue_type == "Candidate Without Photo" for issue in report.findings))
+        self.assertTrue(any(issue.issue_type == "Missing Reverse Photo" for issue in report.findings))
+
+    def test_invalid_extension_detection(self):
+        report = PhotoVaultIntegrityAudit([
+            PhotoRecord("photo.txt", "Candidate Photo", linked_candidate_id="candidate-1"),
+        ]).run()
+
+        self.assertTrue(any(issue.issue_type == "Invalid File Extension" for issue in report.findings))
+
+    def test_unsupported_path_detection(self):
+        report = PhotoVaultIntegrityAudit([
+            PhotoRecord("https://example.com/photo.jpg", "Candidate Photo", linked_candidate_id="candidate-1"),
+        ]).run()
+
+        self.assertTrue(any(issue.issue_type == "Unsupported File Path" for issue in report.findings))
+
+    def test_search_by_filename_certification_and_type(self):
+        vault = PhotoVault([
+            PhotoRecord(
+                "coin_photos/collection/Newfoundland/1945_5c_slab.jpg",
+                "Collection Photo",
+                linked_coin_name="1945 Newfoundland 5 cents AU55",
+                notes="Slab image",
+                iccs_number="XSZ431",
+            )
+        ])
+
+        self.assertEqual(len(vault.search("1945_5c_slab")), 1)
+        self.assertEqual(len(vault.search("Collection Photo")), 1)
+        self.assertEqual(len(vault.find_by_certification_number("xsz431")), 1)
+
+    def test_photo_coverage_export_generation(self):
+        report = PhotoVaultIntegrityAudit([
+            PhotoRecord("missing.jpg", "Candidate Photo", linked_candidate_id="candidate-1"),
+        ]).run()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, "photo_audit.csv")
+            md_path = os.path.join(temp_dir, "photo_audit.md")
+
+            self.assertTrue(report.export_csv(csv_path))
+            self.assertTrue(report.export_markdown(md_path))
+            with open(csv_path, "r", encoding="utf-8") as handle:
+                self.assertIn("issue_type", handle.read())
+            with open(md_path, "r", encoding="utf-8") as handle:
+                self.assertIn("# Photo Vault Audit", handle.read())
 
 
 if __name__ == "__main__":

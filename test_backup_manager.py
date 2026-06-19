@@ -10,6 +10,7 @@ from backup_manager import BackupManager, BackupManifest, CollectionRecoveryRepo
 from coin_collection import CoinItem
 from market_awareness import MarketAwarenessEngine, ObservedPriceRecord
 from persistence_manager import AppState, PersistenceManager
+from photo_assisted_entry import PhotoCandidate
 from photo_vault import PhotoRecord
 from smart_shopping_assistant import ShoppingCandidate
 
@@ -183,6 +184,25 @@ class TestBackupManager(unittest.TestCase):
             self.assertEqual(report.status, "WARNING")
             self.assertTrue(any(issue.area == "Photo Vault" for issue in report.issues))
 
+    def test_photo_vault_audit_warnings_in_data_safety(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            persistence, backup, collection_json = make_managers(temp_dir)
+            write_collection_json(collection_json)
+            os.makedirs(backup.backup_dir, exist_ok=True)
+            persistence.save_state(AppState(
+                photo_records=[
+                    PhotoRecord("duplicate.jpg", "Candidate Photo", linked_candidate_id="one"),
+                    PhotoRecord("duplicate.jpg", "Candidate Photo", linked_candidate_id="two"),
+                ],
+                photo_candidates=[PhotoCandidate("Candidate without photo")],
+            ))
+
+            report = DataSafetyValidator(persistence, backup.backup_dir, collection_json).validate()
+
+            self.assertEqual(report.status, "WARNING")
+            self.assertTrue(any("Duplicate Photo Reference" in issue.message for issue in report.issues))
+            self.assertTrue(any("Candidate Without Photo" in issue.message for issue in report.issues))
+
     def test_data_safety_pass(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             persistence, backup, collection_json = make_managers(temp_dir)
@@ -262,7 +282,11 @@ class TestBackupManager(unittest.TestCase):
             workbook_path = os.path.join(temp_dir, "Adam_Collection_MASTER_Filled.xlsx")
             with open(workbook_path, "wb") as handle:
                 handle.write(b"workbook bytes")
-            persistence.save_state(AppState(collection_workbook_path=workbook_path))
+            persistence.save_state(AppState(
+                collection_workbook_path=workbook_path,
+                photo_records=[PhotoRecord("coin_photos/collection/nf.jpg", "Collection Photo")],
+                photo_candidates=[PhotoCandidate("Newfoundland 50 cents 1904", front_photo="front.jpg")],
+            ))
 
             result = backup.create_backup_package()
 
@@ -316,6 +340,9 @@ class TestBackupManager(unittest.TestCase):
             self.assertEqual(report.status, "PASS")
             self.assertEqual(report.collection_json_backed_up, "YES")
             self.assertTrue(any("ownership" in item for item in report.recoverable))
+            self.assertIn("photo metadata stored in app state", report.recoverable)
+            self.assertIn("photo candidate metadata stored in app state", report.recoverable)
+            self.assertTrue(any("Photo files copied: NO" in warning for warning in report.warnings))
 
     def test_validator_warns_when_latest_backup_lacks_collection_json(self):
         with tempfile.TemporaryDirectory() as temp_dir:

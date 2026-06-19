@@ -20,7 +20,7 @@ from collection_dashboard import CollectionDashboard
 from collector_operating_system import CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import AppState, PersistenceManager
-from photo_vault import PhotoRecord, PhotoVault
+from photo_vault import PhotoRecord, PhotoVault, PhotoVaultIntegrityAudit
 from series_tracker import SeriesTracker
 from smart_shopping_assistant import ShoppingCandidate, SmartShoppingAssistant
 
@@ -343,6 +343,24 @@ class DataSafetyValidator:
                     f"Referenced photo path is missing: {record.file_path}",
                     "Move the photo back or update the photo record path.",
                 ))
+        photo_report = PhotoVaultIntegrityAudit(
+            state.photo_records,
+            photo_candidates=getattr(state, "photo_candidates", []) or [],
+        ).run()
+        for finding in photo_report.findings:
+            if finding.issue_type in {
+                "Duplicate Photo Reference",
+                "Unlinked Photo Record",
+                "Invalid File Extension",
+                "Unsupported File Path",
+                "Candidate Without Photo",
+            }:
+                issues.append(DataSafetyIssue(
+                    "WARNING" if finding.severity != "INFO" else "WARNING",
+                    "Photo Vault",
+                    f"{finding.issue_type}: {finding.reference or finding.photo_path}",
+                    finding.recommendation,
+                ))
         return issues
 
     @staticmethod
@@ -557,6 +575,7 @@ class BackupManager:
         recoverable: List[str] = []
         not_recoverable: List[str] = []
         recommendations: List[str] = []
+        warnings = list(manifest.warnings)
         if _yes_no(manifest.collection_json_backed_up) == "YES":
             recoverable.append("data/collection.json ownership records")
         else:
@@ -572,8 +591,11 @@ class BackupManager:
                 "app state",
                 "market records stored in app state",
                 "photo metadata stored in app state",
+                "photo candidate metadata stored in app state",
                 "shopping candidates stored in app state",
             ])
+            warnings.append("Photo files copied: NO; backup packages preserve photo metadata but do not copy arbitrary photo folders.")
+            recommendations.append("Keep photo folders in regular external backups; app backup packages preserve metadata only.")
         else:
             not_recoverable.append("app state, market records, photo metadata, and shopping candidates")
             recommendations.append("Use Tools -> Save Session State before creating the next backup package.")
@@ -592,7 +614,7 @@ class BackupManager:
             recoverable=recoverable,
             not_recoverable=not_recoverable,
             missing_files=list(manifest.missing_files),
-            warnings=list(manifest.warnings),
+            warnings=warnings,
             recommendations=recommendations or ["Keep this backup package and maintain off-machine copies."],
         )
 

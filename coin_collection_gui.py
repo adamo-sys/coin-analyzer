@@ -30,6 +30,7 @@ from collector_operating_system import CollectorHome, CollectionHealthReportEngi
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import PersistenceManager
 from photo_assisted_entry import PhotoAssistedEntry
+from photo_vault import PhotoVaultIntegrityAudit
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
@@ -96,6 +97,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Data Safety Check", command=self.open_data_safety_check)
         tools_menu.add_command(label="Collection Recovery Report", command=self.open_collection_recovery_report)
         tools_menu.add_command(label="Collection Integrity Audit", command=self.open_collection_integrity_audit)
+        tools_menu.add_command(label="Photo Vault Audit", command=self.open_photo_vault_audit)
         tools_menu.add_command(label="Create Snapshot", command=self.create_collection_snapshot)
         tools_menu.add_command(label="Snapshot Report", command=self.open_snapshot_report)
         tools_menu.add_command(label="Create Backup Package", command=self.create_backup_package)
@@ -534,6 +536,49 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=lambda: self.export_collection_integrity_report(report, "markdown")).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export CSV", command=lambda: self.export_collection_integrity_report(report, "csv")).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_photo_vault_audit(self):
+        """Show a read-only audit of Photo Vault metadata reliability."""
+        report = PhotoVaultIntegrityAudit(
+            self.photo_records,
+            self._collection_items(),
+            photo_candidates=self.photo_candidates,
+        ).run()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Photo Vault Audit")
+        dialog.geometry("900x700")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: self.export_photo_vault_audit(report, "markdown")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: self.export_photo_vault_audit(report, "csv")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def export_photo_vault_audit(self, report, export_type):
+        """Export the Photo Vault audit report."""
+        extension = ".md" if export_type == "markdown" else ".csv"
+        filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+        file_path = filedialog.asksaveasfilename(
+            title="Export Photo Vault Audit",
+            defaultextension=extension,
+            filetypes=filetypes + [("All files", "*.*")],
+        )
+        if not file_path:
+            return
+        ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+        if ok:
+            messagebox.showinfo("Export Complete", f"Photo Vault audit exported to {file_path}")
+        else:
+            messagebox.showerror("Export Failed", "Could not export the Photo Vault audit.")
 
     def export_collection_integrity_report(self, report, export_type):
         """Export the current collection integrity report."""
