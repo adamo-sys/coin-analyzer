@@ -24,6 +24,7 @@ from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
 from backup_manager import BackupManager, DataSafetyValidator
 from collection_dashboard import CollectionDashboard
+from collector_home_dashboard import CollectorHomeDashboard
 from collection_integrity import CollectionIntegrityAudit
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
@@ -60,6 +61,8 @@ class CoinCollectionGUI:
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
+        self.home_reports = []
+        self.acknowledged_home_actions = []
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
@@ -112,6 +115,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="List Backups", command=self.list_backup_packages)
         tools_menu.add_command(label="Restore Backup", command=self.restore_backup_package)
         tools_menu.add_separator()
+        tools_menu.add_command(label="Collector Home Dashboard", command=self.open_collector_home_dashboard)
         tools_menu.add_command(label="Collector Home", command=self.open_collector_home)
         tools_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
         tools_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
@@ -383,6 +387,8 @@ Total Unique Dates: {total_unique_dates}
             ocr_reports=self.ocr_reports,
             workflow_statuses=self.workflow_statuses,
             workflow_summaries=self.workflow_summaries,
+            home_reports=self.home_reports,
+            acknowledged_home_actions=self.acknowledged_home_actions,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.save_state(state)
@@ -424,6 +430,8 @@ Total Unique Dates: {total_unique_dates}
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
+        self.home_reports = []
+        self.acknowledged_home_actions = []
         self.app_preferences = {}
         self.refresh_session_status()
         if result.success:
@@ -453,6 +461,8 @@ Total Unique Dates: {total_unique_dates}
             ocr_reports=self.ocr_reports,
             workflow_statuses=self.workflow_statuses,
             workflow_summaries=self.workflow_summaries,
+            home_reports=self.home_reports,
+            acknowledged_home_actions=self.acknowledged_home_actions,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.export_state(file_path, state)
@@ -497,6 +507,8 @@ Total Unique Dates: {total_unique_dates}
         self.shopping_candidates = list(state.shopping_candidates)
         self.workflow_statuses = list(getattr(state, "workflow_statuses", []) or [])
         self.workflow_summaries = list(getattr(state, "workflow_summaries", []) or [])
+        self.home_reports = list(getattr(state, "home_reports", []) or [])
+        self.acknowledged_home_actions = list(getattr(state, "acknowledged_home_actions", []) or [])
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
 
@@ -2706,6 +2718,22 @@ Total Unique Dates: {total_unique_dates}
             snapshot_manager=self.snapshot_manager,
         )
 
+    def _home_dashboard(self):
+        """Create the unified home dashboard from current runtime state."""
+        return CollectorHomeDashboard(
+            collection_items=self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            photo_candidates=self.photo_candidates,
+            shopping_candidates=self.shopping_candidates,
+            ocr_reports=self.ocr_reports,
+            market_awareness_engine=self.market_awareness_engine,
+            snapshot_manager=self.snapshot_manager,
+            backup_manager=self.backup_manager,
+            workflow_statuses=self.workflow_statuses,
+            acknowledged_action_ids=self.acknowledged_home_actions,
+        )
+
     def _remember_workflow_report(self, report):
         """Persist lightweight workflow state in runtime state for later save."""
         summary = getattr(report, "summary", None)
@@ -2747,6 +2775,50 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showinfo("Export Complete", f"{title} exported to {file_path}")
             else:
                 messagebox.showerror("Export Failed", f"Could not export {title}.")
+
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_collector_home_dashboard(self):
+        """Open unified Collector Home Dashboard."""
+        try:
+            report = self._home_dashboard().generate_report()
+            self.home_reports.append(report.to_dict())
+        except Exception as e:
+            messagebox.showerror("Collector Home Dashboard Error", f"Dashboard failed: {str(e)}")
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collector Home Dashboard")
+        dialog.geometry("920x760")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_markdown())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def export_report(export_type):
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Home Dashboard",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Collector Home Dashboard exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", "Could not export Collector Home Dashboard.")
 
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))

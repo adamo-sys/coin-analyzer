@@ -36,7 +36,7 @@ from session_context import (
 from smart_shopping_assistant import ShoppingCandidate
 
 
-APP_STATE_VERSION = "2.6"
+APP_STATE_VERSION = "2.8"
 DEFAULT_STATE_DIR = os.path.join("collection_data", "app_state")
 DEFAULT_STATE_FILENAME = "app_state.json"
 
@@ -73,6 +73,8 @@ class AppState:
     ocr_reports: List[OCRSuggestionReport] = field(default_factory=list)
     workflow_statuses: List[Dict[str, Any]] = field(default_factory=list)
     workflow_summaries: List[Dict[str, Any]] = field(default_factory=list)
+    home_reports: List[Dict[str, Any]] = field(default_factory=list)
+    acknowledged_home_actions: List[str] = field(default_factory=list)
     app_preferences: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -119,6 +121,8 @@ class AppState:
             ],
             "workflow_statuses": [dict(status) for status in self.workflow_statuses],
             "workflow_summaries": [dict(summary) for summary in self.workflow_summaries],
+            "home_reports": [dict(report) for report in self.home_reports],
+            "acknowledged_home_actions": list(self.acknowledged_home_actions),
             "app_preferences": dict(self.app_preferences),
             "warnings": list(self.warnings),
             "errors": list(self.errors),
@@ -249,7 +253,7 @@ class PersistenceManager:
         market = payload.get("market_records", {})
         if market and not isinstance(market, dict):
             errors.append("market_records must be an object")
-        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "workflow_statuses", "workflow_summaries", "warnings", "errors"]:
+        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "workflow_statuses", "workflow_summaries", "home_reports", "acknowledged_home_actions", "warnings", "errors"]:
             if key in payload and not isinstance(payload.get(key), list):
                 errors.append(f"{key} must be a list")
         for key in ["collection_workbook_path", "want_list_path"]:
@@ -272,6 +276,8 @@ class PersistenceManager:
         ocr_reports: Optional[Iterable[OCRSuggestionReport]] = None,
         workflow_statuses: Optional[Iterable[Dict[str, Any]]] = None,
         workflow_summaries: Optional[Iterable[Dict[str, Any]]] = None,
+        home_reports: Optional[Iterable[Dict[str, Any]]] = None,
+        acknowledged_home_actions: Optional[Iterable[str]] = None,
         app_preferences: Optional[Dict[str, Any]] = None,
     ) -> AppState:
         """Build AppState from current runtime objects."""
@@ -295,6 +301,8 @@ class PersistenceManager:
             ocr_reports=list(ocr_reports or []),
             workflow_statuses=[dict(status) for status in workflow_statuses or []],
             workflow_summaries=[dict(summary) for summary in workflow_summaries or []],
+            home_reports=[dict(report) for report in home_reports or []],
+            acknowledged_home_actions=[str(action_id) for action_id in acknowledged_home_actions or []],
             app_preferences=dict(app_preferences or {}),
             warnings=list(getattr(session, "warnings", []) or []),
             errors=list(getattr(session, "errors", []) or []),
@@ -343,6 +351,8 @@ class PersistenceManager:
             ocr_reports=[OCRSuggestionReport.from_dict(row) for row in payload.get("ocr_reports", [])],
             workflow_statuses=[dict(row) for row in payload.get("workflow_statuses", [])],
             workflow_summaries=[dict(row) for row in payload.get("workflow_summaries", [])],
+            home_reports=[dict(row) for row in payload.get("home_reports", [])],
+            acknowledged_home_actions=[str(row) for row in payload.get("acknowledged_home_actions", [])],
             app_preferences=dict(payload.get("app_preferences") or {}),
             warnings=list(payload.get("warnings") or []),
             errors=list(payload.get("errors") or []),
