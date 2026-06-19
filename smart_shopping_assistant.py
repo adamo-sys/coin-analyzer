@@ -254,6 +254,16 @@ class SmartShoppingAssistant:
             )
             for reason in row.reasons:
                 lines.append(f"   - {reason}")
+            try:
+                from shopping_explainability import ShoppingExplanationEngine
+
+                explanation = ShoppingExplanationEngine().explain_shopping_recommendation(row).explanation
+                lines.append("   Why:")
+                for reason in explanation.primary_reasons[:3]:
+                    lines.append(f"   - {reason}")
+                lines.append(f"   - Confidence: {explanation.confidence.level}")
+            except Exception:
+                pass
         return "\n".join(lines) + "\n"
 
     def export_markdown(self, output_path: str, report: Optional[ShoppingRecommendationReport] = None) -> bool:

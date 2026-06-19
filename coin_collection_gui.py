@@ -31,6 +31,7 @@ from market_awareness import MarketAwarenessEngine
 from persistence_manager import PersistenceManager
 from photo_assisted_entry import PhotoAssistedEntry
 from photo_vault import PhotoVaultIntegrityAudit
+from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 
 
@@ -2407,6 +2408,17 @@ Total Unique Dates: {total_unique_dates}
             if result.acquisition_decision.priority_reasons:
                 lines.extend(["", "Priority Reasons:"])
                 lines.extend(f"  - {reason}" for reason in result.acquisition_decision.priority_reasons)
+            explanation = ShoppingExplanationEngine().explain_listing_analysis(result)
+            lines.extend([
+                "",
+                "Why:",
+                f"  Confidence: {explanation.explanation.confidence.level} - {explanation.explanation.confidence.explanation}",
+                "  Primary Reasons:",
+            ])
+            lines.extend(f"  - {reason}" for reason in explanation.explanation.primary_reasons)
+            if explanation.explanation.supporting_reasons:
+                lines.extend(["", "  Supporting Reasons:"])
+                lines.extend(f"  - {reason}" for reason in explanation.explanation.supporting_reasons[:6])
             if result.warnings:
                 lines.extend(["", "Warnings:"])
                 lines.extend(f"  - {warning}" for warning in result.warnings)
