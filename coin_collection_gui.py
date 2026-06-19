@@ -29,6 +29,7 @@ from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
 from ocr_experiment import OCRExperiment
+from ocr_validation import OCRValidationEngine
 from persistence_manager import PersistenceManager
 from photo_assisted_entry import PhotoAssistedEntry
 from photo_vault import PhotoVaultIntegrityAudit
@@ -2592,7 +2593,7 @@ Total Unique Dates: {total_unique_dates}
         dialog.title("OCR Experiment")
         dialog.geometry("820x760")
 
-        current_report = {"report": None}
+        current_report = {"report": None, "validation": None}
 
         main_frame = ttk.Frame(dialog, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -2643,33 +2644,35 @@ Total Unique Dates: {total_unique_dates}
                     image_path=image_var.get(),
                     raw_text=supplied_text if supplied_text else None,
                 )
+                validation = OCRValidationEngine().validate(suggestion_report=report)
                 current_report["report"] = report
+                current_report["validation"] = validation
                 self.ocr_results.append(report.result)
                 self.ocr_reports.append(report)
                 result_text.delete("1.0", tk.END)
-                result_text.insert(tk.END, report.format_markdown())
+                result_text.insert(tk.END, report.format_markdown() + "\n" + validation.format_markdown())
             except Exception as e:
                 messagebox.showerror("OCR Experiment Error", f"OCR experiment failed: {str(e)}")
 
         def export_ocr_report(export_type):
-            report = current_report.get("report")
-            if not report:
+            validation = current_report.get("validation")
+            if not validation:
                 messagebox.showwarning("No Report", "Run an OCR experiment before exporting.")
                 return
             extension = ".md" if export_type == "markdown" else ".csv"
             filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
             file_path = filedialog.asksaveasfilename(
-                title="Export OCR Suggestion Report",
+                title="Export OCR Validation Report",
                 defaultextension=extension,
                 filetypes=filetypes + [("All files", "*.*")],
             )
             if not file_path:
                 return
-            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            ok = validation.export_markdown(file_path) if export_type == "markdown" else validation.export_csv(file_path)
             if ok:
-                messagebox.showinfo("Export Complete", f"OCR suggestion report exported to {file_path}")
+                messagebox.showinfo("Export Complete", f"OCR validation report exported to {file_path}")
             else:
-                messagebox.showerror("Export Failed", "Could not export the OCR suggestion report.")
+                messagebox.showerror("Export Failed", "Could not export the OCR validation report.")
 
         ttk.Button(button_frame, text="Run OCR Experiment", command=run_ocr).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_ocr_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
