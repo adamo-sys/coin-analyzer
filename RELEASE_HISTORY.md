@@ -30,6 +30,7 @@
 | `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with recommendation confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer and Smart Shopping display integration, and CSV/Markdown export. |
 | `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible years/denominations/countries/note prefixes/certification numbers, deterministic confidence, manual-review requirement, app-state persistence, Tools menu workflow, and CSV/Markdown export. |
 | `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with HIGH/MEDIUM/LOW trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, review recommendations, Tools menu integration, and CSV/Markdown export. |
+| `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
 
 ## Notes
 

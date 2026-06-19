@@ -90,10 +90,11 @@ Work through this queue in priority order. Handle only one task at a time.
 58. `[x]` Build v2.5.2 Shopping Explainability
 59. `[x]` Build v2.6 OCR Experiments
 60. `[x]` Build v2.6.1 OCR Validation Layer
-61. `[ ]` Build v3.0 Collector Companion
-62. `[ ]` Improve Buy Advisor validation messages
-63. `[ ]` Add autocomplete for country/denomination
-64. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+61. `[x]` Build v2.7 Workflow Integration
+62. `[ ]` Build v3.0 Collector Companion
+63. `[ ]` Improve Buy Advisor validation messages
+64. `[ ]` Add autocomplete for country/denomination
+65. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
 ## Official Post-v2.2 Roadmap
 
@@ -178,6 +179,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v2.6.1.md` (new file)
 - Implementation commit hash: `22645a0`
 - Test coverage: total passing tests increased from 433 to 444; existing regression suites remained green.
+
+#### `[x]` Build v2.7 Workflow Integration
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `collector_workflows.py` (new file)
+  - `test_collector_workflows.py` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.7.md` (new file)
+- Implementation commit hash: `599cb4a`
+- Test coverage: total passing tests increased from 444 to 451; existing regression suites remained green.
 
 #### `[x]` Build v2.5.2 Shopping Explainability
 

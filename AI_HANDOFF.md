@@ -4,8 +4,8 @@
 
 - Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.6.1`
-- Current active task completed: v2.6.1 OCR Validation Layer
+- Current project state file reports release version: `v2.7`
+- Current active task completed: v2.7 Workflow Integration
 
 ## Official Post-v2.2 Roadmap
 
@@ -134,6 +134,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - OCR Validation Layer evaluates OCR output quality, trust level, validation score, findings, warnings, review recommendations, and explanations without changing OCR suggestions or collection/recommendation behavior.
 - Tools -> OCR Experiment now displays the OCR suggestion report plus validation trust level, score, findings, warnings, explanation, and manual-review recommendations.
 - Added `test_ocr_validation.py` covering trust levels, year/denomination/country/certification validation, warning generation, scoring, explanation, exports, and OCR behavior preservation.
+- Added `collector_workflows.py` with CollectorWorkflowEngine, guided Acquisition Workflow, Collection Review Workflow, Photo Review Workflow, CollectorDailySummary, WorkflowStatus, and WorkflowSummary.
+- Workflow Integration orchestrates existing Photo-Assisted Entry, OCR Experiment, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Collection Quality, Collection Integrity, Collection Snapshot, and Photo Vault Audit systems without replacing them.
+- Added Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary.
+- Persistence Manager now stores workflow statuses and workflow summaries in local app state.
+- Added `test_collector_workflows.py` covering acquisition workflow, collection review workflow, photo workflow, daily summary, status tracking, persistence, and exports.
 
 ## Engine Scope
 
@@ -344,6 +349,16 @@ The OCR validation layer adds:
 - OCRValidationExplanation for why a trust level was assigned
 - Year, denomination, country, certification, confidence, ambiguity, and source-warning checks
 
+The workflow integration layer adds:
+
+- CollectorWorkflowEngine as a facade for guided collector workflows
+- AcquisitionWorkflow for Photo -> Photo-Assisted Entry -> OCR Experiment -> OCR Validation -> Smart Shopping -> Shopping Explainability -> Save Candidate review
+- CollectionReviewWorkflow for Collection Dashboard -> Collection Quality -> Collection Integrity -> Snapshot Review -> Recommended Actions
+- PhotoReviewWorkflow for Photo Vault -> Photo Vault Audit -> Coverage Review -> Missing Photo Actions
+- CollectorDailySummary for a daily "what should I do today?" task list
+- WorkflowStatus and WorkflowSummary for lightweight state tracking and persistence
+- CSV and Markdown exports for workflow reports
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -376,6 +391,7 @@ Supported statuses:
 - Shopping Explainability must remain explanation-only. Do not change recommendation thresholds, rankings, prices, duplicate logic, ownership logic, or acquisition-impact calculations.
 - OCR Experiments must remain advisory-only. Do not let OCR modify collection records, create ownership entries, update grades, change recommendations, auto-buy, alter shopping rankings, or bypass manual review.
 - OCR Validation must remain a trust/reporting layer only. Do not let validation upgrade OCR suggestions into authoritative collection data or change recommendations.
+- Workflow Integration must remain orchestration-only. Do not add new recommendation logic, new grading logic, scraping, APIs, live pricing, background jobs, or automatic collection updates.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -383,8 +399,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 444 tests OK for the v2.6.1 OCR Validation Layer release line.
-- Coverage note: total passing tests increased from 433 to 444; existing regression suites remained green.
+- `.\run_tests.bat`: 451 tests OK for the v2.7 Workflow Integration release line.
+- Coverage note: total passing tests increased from 444 to 451; existing regression suites remained green.
+- Targeted Collector Workflow tests: 7 tests OK.
 - Targeted OCR Validation tests: 11 tests OK.
 - Targeted OCR Experiment tests: 11 tests OK.
 - Targeted Shopping Explainability tests: 12 tests OK.
@@ -431,6 +448,7 @@ Supported statuses:
 - Shopping Explainability is a translation/reporting layer only; it does not modify recommendation outcomes or use AI confidence.
 - OCR Experiments are advisory-only and manual-review-only. Local OCR runtime availability may vary; missing OCR runtime or missing images should produce warnings, not crashes.
 - OCR Validation detects ambiguity and conflicts but does not resolve attribution; collector review is still required for all OCR-derived values.
+- Workflow Integration coordinates existing systems and stores lightweight summaries/statuses only; it does not make final collector decisions or write collection ownership records.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.

@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.6.1`
+Current version: `v2.7`
 
-Latest tagged release: `v2.6.1`
+Latest tagged release: `v2.7`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -49,6 +49,7 @@ The app is especially tuned for Adam-specific priorities:
 - Shopping Explainability: explains existing BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations with confidence, primary reasons, supporting reasons, impact summaries, warnings, and collector notes.
 - OCR Experiments: advisory-only OCR suggestion reports for candidate photos, with raw text, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, persistence, and CSV/Markdown export.
 - OCR Validation Layer: evaluates whether OCR output can be trusted with HIGH/MEDIUM/LOW trust levels, validation scores, findings, warnings, explanations, manual-review recommendations, and CSV/Markdown export.
+- Workflow Integration: guided collector workflows that orchestrate existing Photo-Assisted Entry, OCR, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Quality, Integrity, Snapshot, and Photo Vault Audit systems without replacing them.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -124,7 +125,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.6.1 OCR Validation Layer suite passed with `444 tests OK`.
+The v2.7 Workflow Integration suite passed with `451 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -160,6 +161,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer/Smart Shopping display integration, and CSV/Markdown export. |
 | `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible field suggestions, deterministic confidence, manual-review requirement, persistence, Tools menu workflow, and CSV/Markdown export. |
 | `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, Tools menu integration, and CSV/Markdown export. |
+| `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -189,6 +191,9 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
 - Use Mobile Readiness Report output when planning future mobile architecture; it is an audit artifact, not a mobile app.
 - Use Mobile Companion Prototype output when simulating a quick dealer-table candidate decision from minimal input.
+- Use Acquisition Workflow when you want Photo -> OCR -> Validation -> Recommendation -> Review in one guided flow.
+- Use Collection Review Workflow when you want Dashboard -> Quality -> Integrity -> Snapshot -> Actions in one guided flow.
+- Use Daily Collector Summary when you want a concise "what should I do today?" list from current workflow state.
 
 These tools overlap intentionally. Listing Analyzer is the fastest entry point for pasted listings; it reuses the same underlying Collection Intelligence and Acquisition Workflow instead of replacing them.
 
@@ -216,6 +221,7 @@ Official post-v2.2 roadmap:
 - `v2.5.2` Shopping Explainability
 - `v2.6` OCR Experiments
 - `v2.6.1` OCR Validation Layer
+- `v2.7` Workflow Integration
 - `v3.0` Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
@@ -746,6 +752,42 @@ Limitations:
 - Validation does not make OCR authoritative.
 - Validation does not update collection records, ownership, grades, recommendations, shopping rankings, or acquisition decisions.
 - LOW trust and MEDIUM trust results still require collector review before use.
+
+## Workflow Integration
+
+v2.7 turns existing modules into guided collector workflows.
+
+`collector_workflows.py` provides:
+
+- `CollectorWorkflowEngine` as a facade for guided workflows.
+- `AcquisitionWorkflow` for Photo -> Photo-Assisted Entry -> OCR Experiment -> OCR Validation -> Smart Shopping -> Shopping Explainability -> Save Candidate review.
+- `CollectionReviewWorkflow` for Collection Dashboard -> Collection Quality -> Collection Integrity -> Snapshot Review -> Recommended Actions.
+- `PhotoReviewWorkflow` for Photo Vault -> Photo Vault Audit -> Coverage Review -> Missing Photo Actions.
+- `CollectorDailySummary` for a daily "what should I do today?" task list.
+- `WorkflowStatus` and `WorkflowSummary` for lightweight status tracking and persistence.
+
+Tools menu entries:
+
+- Tools -> Acquisition Workflow
+- Tools -> Collection Review Workflow
+- Tools -> Daily Collector Summary
+
+Exports:
+
+- Markdown workflow summaries.
+- CSV workflow summaries where practical.
+
+Persistence:
+
+- Workflow statuses and workflow summaries are stored in local app state.
+- No background jobs are created.
+
+Limitations:
+
+- Workflow Integration orchestrates existing systems only.
+- It does not add new recommendation logic.
+- It does not change OCR, validation, shopping, dashboard, integrity, snapshot, or photo-audit outcomes.
+- It does not scrape, call APIs, grade images, or modify collection records automatically.
 
 ## Collection Dashboard
 

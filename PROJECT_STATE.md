@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.6.1`
+* Current release version: `v2.7`
 * Current Git branch: `main`
 * Last updated date: 2026-06-19
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.6.1`
-* Summary of what was included: OCR Validation Layer with HIGH/MEDIUM/LOW trust levels, validation score, OCR findings, warnings, explanations, review recommendations, Tools menu integration, and CSV/Markdown export.
+* Most recent Git tag: `v2.7`
+* Summary of what was included: Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -42,6 +42,7 @@
 * `v2.5.2` acceptance audit passed on 2026-06-19; tag `v2.5.2` verified during release.
 * `v2.6` acceptance audit passed on 2026-06-19; tag `v2.6` verified during release.
 * `v2.6.1` acceptance audit passed on 2026-06-19; tag `v2.6.1` verified during release.
+* `v2.7` acceptance audit passed on 2026-06-19; tag `v2.7` verified during release.
 
 ## Completed Features
 
@@ -100,6 +101,7 @@
 * Shopping Explainability: report-only explanation layer that translates existing shopping, listing, acquisition, and impact outputs into primary reasons, supporting reasons, confidence labels, impact summaries, warnings, collector notes, and CSV/Markdown exports without changing recommendation outcomes.
 * OCR Experiments: advisory-only OCR workflow for image paths and pasted OCR text, with raw OCR output, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, app-state persistence, Tools -> OCR Experiment, and CSV/Markdown export without modifying collection records or recommendation logic.
 * OCR Validation Layer: deterministic trust layer for OCR output, with HIGH/MEDIUM/LOW trust levels, validation score, year/denomination/country/certification checks, findings, warnings, explanations, review recommendations, Tools -> OCR Experiment display integration, and CSV/Markdown export without changing OCR suggestions or collection/recommendation behavior.
+* Workflow Integration: orchestration layer that coordinates existing Photo-Assisted Entry, OCR Experiments, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Collection Quality, Collection Integrity, Collection Snapshot, and Photo Vault Audit systems into guided acquisition, collection review, photo review, and daily summary workflows.
 
 ## Known Bugs
 
@@ -169,6 +171,7 @@ Prepare v3.0 Collector Companion planning, unless a maintenance fix is prioritiz
 * Photo-Assisted Entry system: `photo_assisted_entry.py` provides `PhotoCandidate`, `PhotoAssistedEntry`, and `PhotoReviewReport` for metadata-only front/reverse/reference photo candidate workflows. It links photo paths through Photo Vault metadata, routes recommendations through Mobile Companion and existing acquisition engines, stores candidate metadata in app state, and exports review reports without copying, moving, reading, OCRing, classifying, or grading images.
 * OCR Experiment system: `ocr_experiment.py` provides `OCRResult`, `OCRConfidence`, `OCRSuggestionReport`, and `OCRExperiment` for advisory-only OCR text extraction and deterministic suggestion parsing. It can report possible years, denominations, countries, note prefixes, and certification numbers, persists OCR metadata through app state, exports CSV/Markdown reports, and always requires manual review.
 * OCR Validation system: `ocr_validation.py` provides `OCRValidationEngine`, `OCRValidationReport`, `OCRTrustLevel`, `OCRValidationScore`, and `OCRValidationExplanation` for deterministic OCR trust assessment. It validates year, denomination, country, certification, confidence, source warnings, and ambiguity, then exports CSV/Markdown validation reports.
+* Workflow Integration system: `collector_workflows.py` provides `CollectorWorkflowEngine`, guided `AcquisitionWorkflow`, `CollectionReviewWorkflow`, `PhotoReviewWorkflow`, `CollectorDailySummary`, `WorkflowStatus`, and `WorkflowSummary`. It orchestrates existing engines, persists lightweight workflow state, exposes Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary, and exports workflow Markdown/CSV summaries.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -213,6 +216,12 @@ Prepare v3.0 Collector Companion planning, unless a maintenance fix is prioritiz
 ## Recent Changes
 
 ### 2026-06-19
+
+* Implemented v2.7 Workflow Integration: CollectorWorkflowEngine, guided Acquisition Workflow, Collection Review Workflow, Photo Review Workflow, Daily Collector Summary, WorkflowStatus, WorkflowSummary, app-state persistence for workflow statuses/summaries, Tools menu entries, CSV/Markdown export, and orchestration tests.
+* Implementation commit: `599cb4a`
+* Full test suite passed: 451 tests OK.
+* Coverage note: total passing tests increased from 444 to 451; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.7 imports, workflow generation, exports, persistence, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.6.1 OCR Validation Layer: OCRValidationEngine, OCRValidationReport, OCRTrustLevel, OCRValidationScore, OCRValidationExplanation, year/denomination/country/certification validation, warning generation, trust scoring, explanations, Tools -> OCR Experiment validation display, and CSV/Markdown export.
 * Implementation commit: `22645a0`
