@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.5`
+Current version: `v2.5.1`
 
-Latest tagged release: `v2.5`
+Latest tagged release: `v2.5.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -43,7 +43,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
 - Series Tracker: tracks supported collecting goals, owned dates, missing dates, WANT_LIST targets, upgrade counts, and series priority.
-- Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, and exports.
+- Photo Vault: metadata-only photo organization, linking, certification lookup, search, coverage metrics, integrity audit, and exports.
 - Market Awareness Layer: local-only observed price, purchase, sale, and auction records with dashboard summaries and acquisition historical context.
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
@@ -120,7 +120,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.5 Photo-Assisted Entry suite passed with `399 tests OK`.
+The v2.5.1 Photo Vault Hardening suite passed with `410 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -152,6 +152,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
 | `v2.4.3` | See verified tag `v2.4.3` | Collection Snapshot System with persistent snapshots, collection growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export. |
 | `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, and CSV/Markdown review export. |
+| `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery integration, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -173,6 +174,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use acquisition impact output from Listing Analyzer when you need to know how much a candidate improves the collection, not just whether it is buyable.
 - Use Series Tracker output when you want to know which supported series are closest to completion and which dates matter next.
 - Use Photo Vault output when you want to link and search photo metadata for collection items, candidates, references, auction wins, and sold items.
+- Use Photo Vault Audit when you want to check whether photo metadata is trustworthy and which references need cleanup.
 - Use Market Awareness output when you want to track what you observed, paid, sold, or bid locally without relying on live pricing.
 - Use Want List Generator when planning what to look for next, not when evaluating one specific listing.
 - Use Collection Gap Report when reviewing missing dates and completion percentages by country and denomination.
@@ -234,6 +236,7 @@ Future candidates:
 - Mobile Companion Prototype is still local desktop workflow logic, not a mobile app or web app.
 - Future mobile work requires storage-provider, file-picker, export-destination, and photo URI abstractions.
 - Photo-Assisted Entry stores photo paths and metadata only. It does not copy, move, inspect, OCR, classify, or grade images.
+- Photo Vault Audit is metadata-only. It does not inspect image contents, repair files, delete records, or move photos.
 - JSON storage is simple and may not scale well for very large collections.
 - GUI workflows currently rely mostly on smoke testing rather than full automated UI coverage.
 
@@ -593,6 +596,42 @@ Limitations:
 - Photos are not moved, copied, read, OCRed, classified, or graded.
 - Missing photo paths are reported as warnings.
 - Backup packages preserve photo candidate metadata, not arbitrary photo folders.
+
+## Photo Vault Audit
+
+v2.5.1 adds a read-only Photo Vault integrity audit. It answers whether photo records are useful, findable, valid, and safely reportable.
+
+Audit checks:
+
+- Missing photo files
+- Invalid or unsupported photo paths
+- Duplicate photo references
+- Unlinked photo metadata
+- Collection items without photos
+- Candidate records without photos
+- Certified/slabbed items without photos
+- Invalid image extensions
+
+Coverage metrics:
+
+- Total photo records
+- Valid photo references
+- Missing photo references
+- Duplicate photo references
+- Collection photo coverage percentage
+- Certified-item photo coverage percentage
+- Candidate photo coverage percentage
+
+Backup behavior:
+
+- Backup packages preserve photo metadata in app state.
+- Photo files themselves are not copied automatically.
+- Keep `coin_photos/` folders in regular external backups.
+
+Exports:
+
+- Markdown
+- CSV
 
 ## Collection Dashboard
 

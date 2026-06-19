@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.5`
+* Current release version: `v2.5.1`
 * Current Git branch: `main`
 * Last updated date: 2026-06-18
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.5`
-* Summary of what was included: Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools -> Photo-Assisted Entry, and CSV/Markdown review export.
+* Most recent Git tag: `v2.5.1`
+* Summary of what was included: Photo Vault Hardening with Photo Vault integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo metadata findings, candidate/certified-item coverage checks, Data Safety and recovery messaging, Tools -> Photo Vault Audit, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -38,6 +38,7 @@
 * `v2.4.2` acceptance audit passed on 2026-06-18; tag `v2.4.2` verified during release.
 * `v2.4.3` acceptance audit passed on 2026-06-18; tag `v2.4.3` verified during release.
 * `v2.5` acceptance audit passed on 2026-06-18; tag `v2.5` verified during release.
+* `v2.5.1` acceptance audit passed on 2026-06-18; tag `v2.5.1` verified during release.
 
 ## Completed Features
 
@@ -92,6 +93,7 @@
 * Mobile Readiness: deterministic readiness audit layer that documents desktop dependency blockers, service boundaries, mobile input friction, future endpoint mappings, dealer-table phone workflow steps, mobile readiness scoring, and CSV/Markdown export without building a mobile app or API.
 * Mobile Companion Prototype: local desktop prototype for minimal candidate entry, quick recommendation output, phone workflow simulation, provider abstraction points, dashboard mobile summary, persistence of recent mobile candidates/recommendations, and CSV/Markdown export without building a mobile app.
 * Photo-Assisted Entry: metadata-only photo reference workflow for front, reverse, and reference photos attached to manually reviewed candidates, with Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools -> Photo-Assisted Entry, and CSV/Markdown export.
+* Photo Vault Hardening: read-only Photo Vault integrity audit for missing files, duplicate references, unlinked metadata, invalid extensions, unsupported paths, collection/candidate/certified-item coverage, backup/recovery photo metadata messaging, Tools -> Photo Vault Audit, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -162,7 +164,7 @@ Build v2.6 OCR Experiments.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
-* Photo Vault system: `photo_vault.py` stores metadata-only `PhotoRecord` objects, links photos to collection items and candidates, supports reference/auction/sold photo types, certification-number lookup, deterministic search, coverage metrics, expected folder mapping, and CSV/Markdown exports.
+* Photo Vault system: `photo_vault.py` stores metadata-only `PhotoRecord` objects, links photos to collection items and candidates, supports reference/auction/sold photo types, certification-number lookup, deterministic search, coverage metrics, expected folder mapping, CSV/Markdown exports, and `PhotoVaultIntegrityAudit` for report-only trust checks across missing, duplicate, unlinked, invalid, unsupported, collection, candidate, and certified-item photo metadata.
 * Market Awareness system: `market_awareness.py` stores local-only observed price, purchase, sale, and auction records, generates summaries, exposes historical observed-price context for acquisition impact, supports photo-reference identifiers, and exports CSV/Markdown reports.
 * Smart Shopping Assistant system: `smart_shopping_assistant.py` ranks shopping opportunities by reusing Listing Analyzer parsing, Acquisition Workflow decisions, Acquisition Impact scoring, staged WANT_LIST context, local Market Awareness observations, and optional photo-reference identifiers.
 * Collector Operating System system: `collector_operating_system.py` composes Collection Dashboard, Collection Quality, Series Tracker, Smart Shopping Assistant, Market Awareness, and Photo Vault context into Collector Home and Collection Health Report outputs without duplicating decision logic.
@@ -202,6 +204,12 @@ Build v2.6 OCR Experiments.
 ## Recent Changes
 
 ### 2026-06-18
+
+* Implemented v2.5.1 Photo Vault Hardening: PhotoVaultIntegrityAudit, PhotoCoverageReport, PhotoVaultIssue, missing/duplicate/unlinked/invalid/unsupported photo findings, collection/candidate/certified-item coverage metrics, Tools -> Photo Vault Audit, Data Safety photo findings, recovery report photo-file backup warning, and CSV/Markdown export.
+* Implementation commit: `749182f`
+* Full test suite passed: 410 tests OK.
+* Coverage note: total passing tests increased from 399 to 410; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; v2.5.1 imports, Photo Vault audit generation, Data Safety integration, backup/recovery messaging, exports, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.5 Photo-Assisted Entry: PhotoCandidate, PhotoAssistedEntry, PhotoReviewReport, Tools -> Photo-Assisted Entry, Photo Vault candidate/reference linking, Mobile Companion recommendation reuse, persisted photo candidate metadata, backup-compatible metadata-only behavior, and CSV/Markdown export.
 * Implementation commit: `fd817b6`

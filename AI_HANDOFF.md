@@ -4,8 +4,8 @@
 
 - Date: 2026-06-18
 - Branch: `main`
-- Current project state file reports release version: `v2.5`
-- Current active task completed: v2.5 Photo-Assisted Entry
+- Current project state file reports release version: `v2.5.1`
+- Current active task completed: v2.5.1 Photo Vault Hardening
 
 ## Official Post-v2.2 Roadmap
 
@@ -115,6 +115,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Photo-Assisted Entry links candidate photos through Photo Vault metadata, converts candidates into Mobile Companion/Smart Shopping inputs, and reuses existing recommendation engines.
 - Persistence Manager now stores photo candidate metadata in local app state.
 - Added `test_photo_assisted_entry.py` covering candidate creation, photo linking, Photo Vault integration, Mobile Companion integration, persistence, backup metadata behavior, and exports.
+- Added PhotoVaultIntegrityAudit, PhotoCoverageReport, and PhotoVaultIssue to `photo_vault.py`.
+- Added Tools -> Photo Vault Audit for read-only coverage and trust reporting with CSV/Markdown export.
+- Photo Vault Audit detects missing photo files, duplicate references, unlinked records, invalid extensions, unsupported paths, collection items without photos, candidates without photos, and certified/slabbed items without photos.
+- Data Safety validation now surfaces Photo Vault audit warnings for duplicate, unlinked, invalid, unsupported, and candidate-missing-photo metadata.
+- Collection Recovery Report now states that app-state backups preserve photo metadata, while photo files themselves are not copied automatically.
 
 ## Engine Scope
 
@@ -292,6 +297,14 @@ The photo-assisted entry layer adds:
 - App-state persistence for photo candidate metadata
 - Metadata-only backup compatibility through existing app-state backup packages
 
+The photo vault hardening layer adds:
+
+- PhotoVaultIntegrityAudit for report-only photo metadata trust checks
+- PhotoCoverageReport for total records, valid references, missing references, duplicates, collection coverage, certified-item coverage, and candidate coverage
+- PhotoVaultIssue for exportable issue rows with issue type, severity, reference, path, photo type, and recommendation
+- Tools -> Photo Vault Audit with Markdown and CSV export
+- Data Safety and Collection Recovery messaging for photo metadata backup limitations
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -320,6 +333,7 @@ Supported statuses:
 - Mobile Companion must reuse existing acquisition and impact engines; do not create duplicate ownership, upgrade, duplicate, or recommendation logic.
 - Photo-Assisted Entry must remain metadata-only. Do not move, copy, inspect, OCR, classify, or grade photo files.
 - Photo-Assisted Entry must reuse Photo Vault, Mobile Companion, and existing acquisition engines; do not create a second recommendation source.
+- Photo Vault Audit must remain report-only. Do not automatically move, delete, rename, repair, OCR, classify, inspect, or grade image files.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -327,8 +341,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 399 tests OK for the v2.5 Photo-Assisted Entry release line.
-- Coverage note: total passing tests increased from 391 to 399; existing regression suites remained green.
+- `.\run_tests.bat`: 410 tests OK for the v2.5.1 Photo Vault Hardening release line.
+- Coverage note: total passing tests increased from 399 to 410; existing regression suites remained green.
+- Targeted Photo Vault tests: 18 tests OK.
+- Targeted Backup tests: 22 tests OK.
 - Targeted Photo-Assisted Entry tests: 8 tests OK.
 - Targeted Collection Snapshot tests: 9 tests OK.
 - Targeted Collection Integrity tests: 14 tests OK.
@@ -366,6 +382,7 @@ Supported statuses:
 - Series Tracker definitions identify supported series; they do not contain fabricated master mintage checklists. Completion is based on actual owned dates and missing years inside observed owned spans.
 - Photo Vault is metadata-only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
 - Photo-Assisted Entry stores photo paths and metadata only. It does not move files automatically and does not perform OCR, image recognition, AI grading, scraping, or Numista lookups.
+- Photo Vault Audit stores and reports metadata only. Backup packages preserve photo metadata in app state but do not copy arbitrary photo folders.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.

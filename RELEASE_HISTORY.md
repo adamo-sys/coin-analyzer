@@ -26,6 +26,7 @@
 | `v2.4.2` | See verified tag `v2.4.2` | Collection Integrity Audit with integrity score, duplicate detection, missing data checks, photo/market/certification integrity summaries, backup readiness integration, and CSV/Markdown export. |
 | `v2.4.3` | See verified tag `v2.4.3` | Collection Snapshot System with persistent snapshots, collection growth metrics, quality/integrity/photo/series deltas, GUI snapshot workflows, and CSV/Markdown export. |
 | `v2.5` | See verified tag `v2.5` | Photo-Assisted Entry with metadata-only photo candidate records, Photo Vault linking, Mobile Companion recommendation reuse, persistence, backup-compatible metadata, Tools menu workflow, and CSV/Markdown review export. |
+| `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with Photo Vault integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery messaging, Tools menu workflow, and CSV/Markdown export. |
 
 ## Notes
 

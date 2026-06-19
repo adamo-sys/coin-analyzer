@@ -86,11 +86,12 @@ Work through this queue in priority order. Handle only one task at a time.
 54. `[x]` Build v2.4.2 Collection Integrity Audit
 55. `[x]` Build v2.4.3 Collection Snapshot System
 56. `[x]` Build v2.5 Photo-Assisted Entry
-57. `[ ]` Build v2.6 OCR Experiments
-58. `[ ]` Build v3.0 Collector Companion
-59. `[ ]` Improve Buy Advisor validation messages
-60. `[ ]` Add autocomplete for country/denomination
-61. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+57. `[x]` Build v2.5.1 Photo Vault Hardening
+58. `[ ]` Build v2.6 OCR Experiments
+59. `[ ]` Build v3.0 Collector Companion
+60. `[ ]` Improve Buy Advisor validation messages
+61. `[ ]` Add autocomplete for country/denomination
+62. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
 ## Official Post-v2.2 Roadmap
 
@@ -142,6 +143,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-18
+
+#### `[x]` Build v2.5.1 Photo Vault Hardening
+
+- Date completed: 2026-06-18
+- Files modified:
+  - `photo_vault.py`
+  - `test_photo_vault.py`
+  - `backup_manager.py`
+  - `test_backup_manager.py`
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.5.1.md` (new file)
+- Implementation commit hash: `749182f`
+- Test coverage: total passing tests increased from 399 to 410; existing regression suites remained green.
 
 #### `[x]` Build v2.5 Photo-Assisted Entry
 
