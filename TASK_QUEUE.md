@@ -89,10 +89,11 @@ Work through this queue in priority order. Handle only one task at a time.
 57. `[x]` Build v2.5.1 Photo Vault Hardening
 58. `[x]` Build v2.5.2 Shopping Explainability
 59. `[x]` Build v2.6 OCR Experiments
-60. `[ ]` Build v3.0 Collector Companion
-61. `[ ]` Improve Buy Advisor validation messages
-62. `[ ]` Add autocomplete for country/denomination
-63. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+60. `[x]` Build v2.6.1 OCR Validation Layer
+61. `[ ]` Build v3.0 Collector Companion
+62. `[ ]` Improve Buy Advisor validation messages
+63. `[ ]` Add autocomplete for country/denomination
+64. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
 ## Official Post-v2.2 Roadmap
 
@@ -161,6 +162,22 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v2.6.md` (new file)
 - Implementation commit hash: `f569393`
 - Test coverage: total passing tests increased from 422 to 433; existing regression suites remained green.
+
+#### `[x]` Build v2.6.1 OCR Validation Layer
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `ocr_validation.py` (new file)
+  - `test_ocr_validation.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.6.1.md` (new file)
+- Implementation commit hash: `22645a0`
+- Test coverage: total passing tests increased from 433 to 444; existing regression suites remained green.
 
 #### `[x]` Build v2.5.2 Shopping Explainability
 

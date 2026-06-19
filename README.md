@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.6`
+Current version: `v2.6.1`
 
-Latest tagged release: `v2.6`
+Latest tagged release: `v2.6.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -48,6 +48,7 @@ The app is especially tuned for Adam-specific priorities:
 - Smart Shopping Assistant: ranked purchase-opportunity workflow that combines WANT_LIST, acquisition impact, collection quality, series completion, upgrade resolution, and local market context.
 - Shopping Explainability: explains existing BUY/PASS/WATCH/NEGOTIATE/REVIEW recommendations with confidence, primary reasons, supporting reasons, impact summaries, warnings, and collector notes.
 - OCR Experiments: advisory-only OCR suggestion reports for candidate photos, with raw text, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, persistence, and CSV/Markdown export.
+- OCR Validation Layer: evaluates whether OCR output can be trusted with HIGH/MEDIUM/LOW trust levels, validation scores, findings, warnings, explanations, manual-review recommendations, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -123,7 +124,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.6 OCR Experiments suite passed with `433 tests OK`.
+The v2.6.1 OCR Validation Layer suite passed with `444 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -158,6 +159,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.5.1` | See verified tag `v2.5.1` | Photo Vault Hardening with integrity audit, coverage metrics, missing/duplicate/unlinked/invalid photo findings, Data Safety/recovery integration, and CSV/Markdown export. |
 | `v2.5.2` | See verified tag `v2.5.2` | Shopping Explainability with confidence labels, primary/supporting reasons, impact summaries, collector notes, Listing Analyzer/Smart Shopping display integration, and CSV/Markdown export. |
 | `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible field suggestions, deterministic confidence, manual-review requirement, persistence, Tools menu workflow, and CSV/Markdown export. |
+| `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, Tools menu integration, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -213,6 +215,7 @@ Official post-v2.2 roadmap:
 - `v2.5` Photo-Assisted Entry
 - `v2.5.2` Shopping Explainability
 - `v2.6` OCR Experiments
+- `v2.6.1` OCR Validation Layer
 - `v3.0` Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
@@ -702,6 +705,47 @@ Known limitations:
 - Local OCR depends on the user's installed OCR runtime. If unavailable, the workflow reports a warning and continues safely.
 - Suggestion extraction is deterministic text parsing, not proof of attribution.
 - Ambiguous or incomplete OCR text requires manual verification.
+
+## OCR Validation Layer
+
+v2.6.1 answers whether an OCR result is trustworthy enough to use after manual review.
+
+`ocr_validation.py` provides:
+
+- `OCRValidationEngine` for deterministic OCR quality checks.
+- `OCRValidationReport` for trust level, validation score, findings, warnings, explanations, and review recommendations.
+- `OCRTrustLevel` values: HIGH, MEDIUM, and LOW.
+- `OCRValidationScore` with strengths, weaknesses, and recommended actions.
+- `OCRValidationExplanation` explaining why the trust level was assigned.
+
+Validation checks include:
+
+- Year format, plausible ranges, conflicts, and ambiguous year readings.
+- Denomination conflicts and ambiguous denomination readings.
+- Country recognition quality, missing countries, conflicting countries, and incomplete country text.
+- Certification-number format consistency and malformed or incomplete values.
+- Overall OCR quality, incomplete text, low confidence, and OCR-source warnings.
+
+Tools -> OCR Experiment now displays:
+
+- Raw OCR suggestion report.
+- Trust level.
+- Validation score.
+- Validation findings.
+- Warnings.
+- Explanation.
+- Manual-review recommendations.
+
+Exports:
+
+- Markdown validation report.
+- CSV validation report.
+
+Limitations:
+
+- Validation does not make OCR authoritative.
+- Validation does not update collection records, ownership, grades, recommendations, shopping rankings, or acquisition decisions.
+- LOW trust and MEDIUM trust results still require collector review before use.
 
 ## Collection Dashboard
 

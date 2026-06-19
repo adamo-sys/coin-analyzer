@@ -4,8 +4,8 @@
 
 - Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.6`
-- Current active task completed: v2.6 OCR Experiments
+- Current project state file reports release version: `v2.6.1`
+- Current active task completed: v2.6.1 OCR Validation Layer
 
 ## Official Post-v2.2 Roadmap
 
@@ -130,6 +130,10 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - OCR Experiments extract possible years, denominations, countries, note prefixes, and certification numbers from OCR text while always requiring manual review.
 - Persistence Manager now stores OCR results and OCR reports in local app state.
 - Added `test_ocr_experiment.py` covering OCR result creation, deterministic confidence, suggestion extraction, missing-image warnings, persistence, exports, Photo-Assisted Entry/Photo Vault/Mobile Companion integration helpers, and no collection mutation.
+- Added `ocr_validation.py` with OCRValidationEngine, OCRValidationReport, OCRTrustLevel, OCRValidationScore, and OCRValidationExplanation.
+- OCR Validation Layer evaluates OCR output quality, trust level, validation score, findings, warnings, review recommendations, and explanations without changing OCR suggestions or collection/recommendation behavior.
+- Tools -> OCR Experiment now displays the OCR suggestion report plus validation trust level, score, findings, warnings, explanation, and manual-review recommendations.
+- Added `test_ocr_validation.py` covering trust levels, year/denomination/country/certification validation, warning generation, scoring, explanation, exports, and OCR behavior preservation.
 
 ## Engine Scope
 
@@ -331,6 +335,15 @@ The OCR experiment layer adds:
 - OCRExperiment for optional local OCR execution, raw-text suggestion extraction, and helper integrations with PhotoCandidate, PhotoRecord, and MobileCandidateEntry
 - Tools -> OCR Experiment for displaying raw OCR output, extracted suggestions, confidence, and warnings
 
+The OCR validation layer adds:
+
+- OCRValidationEngine for deterministic OCR trust assessment
+- OCRValidationReport for findings, trust level, validation score, warnings, explanations, and review recommendations
+- OCRTrustLevel values: HIGH, MEDIUM, and LOW
+- OCRValidationScore with strengths, weaknesses, and recommended actions
+- OCRValidationExplanation for why a trust level was assigned
+- Year, denomination, country, certification, confidence, ambiguity, and source-warning checks
+
 Supported statuses:
 
 - `ALREADY_OWNED`
@@ -362,6 +375,7 @@ Supported statuses:
 - Photo Vault Audit must remain report-only. Do not automatically move, delete, rename, repair, OCR, classify, inspect, or grade image files.
 - Shopping Explainability must remain explanation-only. Do not change recommendation thresholds, rankings, prices, duplicate logic, ownership logic, or acquisition-impact calculations.
 - OCR Experiments must remain advisory-only. Do not let OCR modify collection records, create ownership entries, update grades, change recommendations, auto-buy, alter shopping rankings, or bypass manual review.
+- OCR Validation must remain a trust/reporting layer only. Do not let validation upgrade OCR suggestions into authoritative collection data or change recommendations.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -369,8 +383,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 433 tests OK for the v2.6 OCR Experiments release line.
-- Coverage note: total passing tests increased from 422 to 433; existing regression suites remained green.
+- `.\run_tests.bat`: 444 tests OK for the v2.6.1 OCR Validation Layer release line.
+- Coverage note: total passing tests increased from 433 to 444; existing regression suites remained green.
+- Targeted OCR Validation tests: 11 tests OK.
 - Targeted OCR Experiment tests: 11 tests OK.
 - Targeted Shopping Explainability tests: 12 tests OK.
 - Targeted Photo Vault tests: 18 tests OK.
@@ -415,6 +430,7 @@ Supported statuses:
 - Photo Vault Audit stores and reports metadata only. Backup packages preserve photo metadata in app state but do not copy arbitrary photo folders.
 - Shopping Explainability is a translation/reporting layer only; it does not modify recommendation outcomes or use AI confidence.
 - OCR Experiments are advisory-only and manual-review-only. Local OCR runtime availability may vary; missing OCR runtime or missing images should produce warnings, not crashes.
+- OCR Validation detects ambiguity and conflicts but does not resolve attribution; collector review is still required for all OCR-derived values.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
