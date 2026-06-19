@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.8`
+Current version: `v2.9`
 
-Latest tagged release: `v2.8`
+Latest tagged release: `v2.9`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -51,6 +51,7 @@ The app is especially tuned for Adam-specific priorities:
 - OCR Validation Layer: evaluates whether OCR output can be trusted with HIGH/MEDIUM/LOW trust levels, validation scores, findings, warnings, explanations, manual-review recommendations, and CSV/Markdown export.
 - Workflow Integration: guided collector workflows that orchestrate existing Photo-Assisted Entry, OCR, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Quality, Integrity, Snapshot, and Photo Vault Audit systems without replacing them.
 - Collector Home Dashboard: one daily dashboard for status cards, ranked actions, top opportunities, review queues, data safety, progress, workflow status, and CSV/Markdown export.
+- Collector Companion Readiness: v3.0 release-candidate audit for report/export consistency, end-to-end workflow quality, readiness checklist, persistence, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -126,7 +127,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.8 Collector Home Dashboard suite passed with `463 tests OK`.
+The v2.9 Collector Companion Release Candidate suite passed with `471 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -164,12 +165,14 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, Tools menu integration, and CSV/Markdown export. |
 | `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
 | `v2.8` | See verified tag `v2.8` | Collector Home Dashboard with status cards, ranked daily actions, top opportunities, review queues, data safety, progress signals, persistence, and CSV/Markdown export. |
+| `v2.9` | See verified tag `v2.9` | Collector Companion Release Candidate with menu cleanup, readiness checklist, report/export consistency audits, workflow audit, persistence, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
 ## Which Tool To Use
 
 - Use Collector Home Dashboard when you want one daily view of what needs attention, what is safe, what should be reviewed, and what opportunity matters most.
+- Use Collector Companion Readiness when validating whether the app is ready for v3.0 Collector Companion.
 - Use Collector Home when you want the older consolidated starting report for collection summary and workflow steps.
 - Use Data Safety Check before shutdowns, imports, release work, or restore attempts.
 - Use Collection Integrity Audit before trusting Dashboard, Shopping Assistant, Series Tracker, Quality Engine, Acquisition Impact, Collection Health Report, or Mobile Companion output after major data changes.
@@ -829,6 +832,30 @@ Limitations:
 
 - Collector Home Dashboard is a workflow-surfacing layer, not a new recommendation engine.
 - It does not mutate collection data, run OCR, scrape prices, call APIs, grade images, or create background jobs.
+
+## Collector Companion Readiness
+
+Use Tools -> Collector Companion Readiness when preparing for v3.0.
+
+The readiness report includes:
+
+- V3.0 readiness checklist.
+- Export consistency audit.
+- Report consistency audit.
+- End-to-end workflow audit.
+- Findings and remaining friction points.
+
+The checklist covers backups, persistence, integrity, snapshots, photo workflow, OCR workflow, explainability, Collector Home Dashboard, Series Tracker, exports, and documentation.
+
+Exports:
+
+- Markdown readiness report.
+- CSV readiness report.
+
+Limitations:
+
+- Readiness is an audit/reporting layer only.
+- It does not change recommendations, update collection data, run OCR, scrape, call APIs, or create background jobs.
 
 ## Collection Dashboard
 

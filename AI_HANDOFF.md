@@ -4,8 +4,8 @@
 
 - Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.8`
-- Current active task completed: v2.8 Collector Home Dashboard
+- Current project state file reports release version: `v2.9`
+- Current active task completed: v2.9 Collector Companion Release Candidate
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -14,7 +14,7 @@
 3. `v2.9` Collector Companion Release Candidate
 4. `v3.0` Collector Companion
 
-Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
+Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
 ## What Changed
 
@@ -143,6 +143,11 @@ Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfa
 - Added Tools -> Collector Home Dashboard in `coin_collection_gui.py`.
 - Persistence Manager now stores generated home reports and acknowledged home action identifiers in local app state.
 - Added `test_collector_home_dashboard.py` covering report generation, daily action ranking, severity, backup status, integrity status, OCR review status, photo coverage, snapshot trend, top opportunities, exports, persistence compatibility, and fallback behavior.
+- Added `collector_companion_readiness.py` with CollectorCompanionReadinessAuditor, CollectorCompanionReadinessReport, ExportConsistencyReport, ReportConsistencyReport, WorkflowAuditReport, and V3ReadinessChecklistItem.
+- Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
+- Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
+- Persistence Manager now stores readiness reports and audit summaries in local app state.
+- Added `test_collector_companion_readiness.py` covering readiness generation, checklist generation, export consistency, report consistency, workflow audit, persistence compatibility, export generation, and menu grouping.
 
 ## Engine Scope
 
@@ -403,8 +408,8 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 463 tests OK for the v2.8 Collector Home Dashboard release line.
-- Coverage note: total passing tests increased from 451 to 463; existing regression suites remained green.
+- `.\run_tests.bat`: 471 tests OK for the v2.9 Collector Companion Release Candidate release line.
+- Coverage note: total passing tests increased from 463 to 471; existing regression suites remained green.
 - Targeted Collector Workflow tests: 7 tests OK.
 - Targeted OCR Validation tests: 11 tests OK.
 - Targeted OCR Experiment tests: 11 tests OK.
@@ -454,6 +459,7 @@ Supported statuses:
 - OCR Validation detects ambiguity and conflicts but does not resolve attribution; collector review is still required for all OCR-derived values.
 - Workflow Integration coordinates existing systems and stores lightweight summaries/statuses only; it does not make final collector decisions or write collection ownership records.
 - Collector Home Dashboard surfaces existing status/report outputs only; it does not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
+- Collector Companion Readiness is an audit/reporting layer only; it does not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.

@@ -32,6 +32,7 @@
 | `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with HIGH/MEDIUM/LOW trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, review recommendations, Tools menu integration, and CSV/Markdown export. |
 | `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
 | `v2.8` | See verified tag `v2.8` | Collector Home Dashboard with Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked daily actions, top opportunities, persistence, Tools menu entry, and CSV/Markdown export. |
+| `v2.9` | See verified tag `v2.9` | Collector Companion Release Candidate with menu cleanup, readiness checklist, report/export consistency audits, workflow audit, persistence, Tools/Help entries, and CSV/Markdown export. |
 
 ## Notes
 

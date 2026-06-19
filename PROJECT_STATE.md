@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.8`
+* Current release version: `v2.9`
 * Current Git branch: `main`
 * Last updated date: 2026-06-19
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.8`
-* Summary of what was included: Collector Home Dashboard with daily status cards, ranked actions, top opportunities, review queues, data safety, progress signals, persistence, Tools menu entry, and CSV/Markdown export.
+* Most recent Git tag: `v2.9`
+* Summary of what was included: Collector Companion Release Candidate with menu cleanup, readiness checklist, export/report consistency audits, workflow audit, persistence, Tools menu entry, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -44,6 +44,7 @@
 * `v2.6.1` acceptance audit passed on 2026-06-19; tag `v2.6.1` verified during release.
 * `v2.7` acceptance audit passed on 2026-06-19; tag `v2.7` verified during release.
 * `v2.8` acceptance audit passed on 2026-06-19; tag `v2.8` verified during release.
+* `v2.9` acceptance audit passed on 2026-06-19; tag `v2.9` verified during release.
 
 ## Completed Features
 
@@ -104,6 +105,7 @@
 * OCR Validation Layer: deterministic trust layer for OCR output, with HIGH/MEDIUM/LOW trust levels, validation score, year/denomination/country/certification checks, findings, warnings, explanations, review recommendations, Tools -> OCR Experiment display integration, and CSV/Markdown export without changing OCR suggestions or collection/recommendation behavior.
 * Workflow Integration: orchestration layer that coordinates existing Photo-Assisted Entry, OCR Experiments, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Collection Quality, Collection Integrity, Collection Snapshot, and Photo Vault Audit systems into guided acquisition, collection review, photo review, and daily summary workflows.
 * Collector Home Dashboard: unified daily dashboard that surfaces Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked Daily Collector Actions, top opportunities, warnings, workflow status, persistence, and CSV/Markdown export while reusing existing engines.
+* Collector Companion Readiness: v3.0 release-candidate audit system with menu grouping, V3 readiness checklist, export consistency report, report consistency report, end-to-end workflow audit, readiness report, persistence, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -124,7 +126,7 @@ Official v2.7-to-v3.0 roadmap:
 3. `v2.9` Collector Companion Release Candidate
 4. `v3.0` Collector Companion
 
-Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
+Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
 Near-term maintenance candidates:
 
@@ -152,7 +154,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v2.9 Collector Companion Release Candidate planning, unless a maintenance fix is prioritized first.
+Prepare v3.0 Collector Companion planning, unless a release-blocking polish or maintenance fix is prioritized first.
 
 ## Project Architecture
 
@@ -174,6 +176,7 @@ Prepare v2.9 Collector Companion Release Candidate planning, unless a maintenanc
 * OCR Validation system: `ocr_validation.py` provides `OCRValidationEngine`, `OCRValidationReport`, `OCRTrustLevel`, `OCRValidationScore`, and `OCRValidationExplanation` for deterministic OCR trust assessment. It validates year, denomination, country, certification, confidence, source warnings, and ambiguity, then exports CSV/Markdown validation reports.
 * Workflow Integration system: `collector_workflows.py` provides `CollectorWorkflowEngine`, guided `AcquisitionWorkflow`, `CollectionReviewWorkflow`, `PhotoReviewWorkflow`, `CollectorDailySummary`, `WorkflowStatus`, and `WorkflowSummary`. It orchestrates existing engines, persists lightweight workflow state, exposes Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary, and exports workflow Markdown/CSV summaries.
 * Collector Home Dashboard system: `collector_home_dashboard.py` provides `CollectorHomeDashboard`, `CollectorHomeReport`, `HomeStatusCard`, `DailyCollectorAction`, and `HomeStatusSeverity`. It aggregates existing workflow, dashboard, shopping, OCR validation, photo audit, integrity, backup, snapshot, series, and persistence signals into one daily report without adding recommendation logic or mutating collection data.
+* Collector Companion Readiness system: `collector_companion_readiness.py` provides `CollectorCompanionReadinessAuditor`, `CollectorCompanionReadinessReport`, `ExportConsistencyReport`, `ReportConsistencyReport`, `WorkflowAuditReport`, and `V3ReadinessChecklistItem`. It audits readiness, workflow cohesion, report/export consistency, and v3.0 blockers without modifying collection data or decision logic.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -218,6 +221,12 @@ Prepare v2.9 Collector Companion Release Candidate planning, unless a maintenanc
 ## Recent Changes
 
 ### 2026-06-19
+
+* Implemented v2.9 Collector Companion Release Candidate: menu grouping into Collector Home, Workflows, Reports, Tools, and Help; Collector Companion Readiness report; export consistency audit; report consistency audit; end-to-end workflow audit; V3 readiness checklist; app-state persistence for readiness reports/audit summaries; Tools/Help readiness entry; CSV/Markdown export; and focused tests.
+* Implementation commit: `379715f`
+* Full test suite passed: 471 tests OK.
+* Coverage note: total passing tests increased from 463 to 471; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install may remain environment-sensitive; v2.9 imports, readiness generation, menu source validation, exports, persistence, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.8 Collector Home Dashboard: CollectorHomeDashboard, CollectorHomeReport, HomeStatusCard, DailyCollectorAction, HomeStatusSeverity, Tools -> Collector Home Dashboard, app-state persistence for home reports/action acknowledgements, status cards, daily actions, top opportunities, review queues, data safety, progress, CSV/Markdown export, and focused tests.
 * Implementation commit: `632a922`

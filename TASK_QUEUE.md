@@ -92,7 +92,7 @@ Work through this queue in priority order. Handle only one task at a time.
 60. `[x]` Build v2.6.1 OCR Validation Layer
 61. `[x]` Build v2.7 Workflow Integration
 62. `[x]` Build v2.8 Collector Home Dashboard
-63. `[ ]` Build v2.9 Collector Companion Release Candidate
+63. `[x]` Build v2.9 Collector Companion Release Candidate
 64. `[ ]` Build v3.0 Collector Companion
 65. `[ ]` Improve Buy Advisor validation messages
 66. `[ ]` Add autocomplete for country/denomination
@@ -105,7 +105,7 @@ Work through this queue in priority order. Handle only one task at a time.
 3. `v2.9` Collector Companion Release Candidate
 4. `v3.0` Collector Companion
 
-Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
+Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
 ## Adam-Specific Collection Priorities
 
@@ -147,6 +147,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-19
+
+#### `[x]` Build v2.9 Collector Companion Release Candidate
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `collector_companion_readiness.py` (new file)
+  - `test_collector_companion_readiness.py` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.9.md` (new file)
+- Implementation commit hash: `379715f`
+- Test coverage: total passing tests increased from 463 to 471; existing regression suites remained green.
 
 #### `[x]` Build v2.8 Collector Home Dashboard
 
