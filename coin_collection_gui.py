@@ -28,6 +28,7 @@ from collection_integrity import CollectionIntegrityAudit
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from market_awareness import MarketAwarenessEngine
+from ocr_experiment import OCRExperiment
 from persistence_manager import PersistenceManager
 from photo_assisted_entry import PhotoAssistedEntry
 from photo_vault import PhotoVaultIntegrityAudit
@@ -52,6 +53,8 @@ class CoinCollectionGUI:
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
         self.photo_candidates = []
+        self.ocr_results = []
+        self.ocr_reports = []
         self.shopping_candidates = []
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
@@ -118,6 +121,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
         tools_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
         tools_menu.add_command(label="Photo-Assisted Entry", command=self.open_photo_assisted_entry)
+        tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
         tools_menu.add_command(label="Smart Shopping Assistant", command=self.open_smart_shopping_assistant)
         tools_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
     
@@ -368,6 +372,8 @@ Total Unique Dates: {total_unique_dates}
             photo_records=self.photo_records,
             shopping_candidates=self.shopping_candidates,
             photo_candidates=self.photo_candidates,
+            ocr_results=self.ocr_results,
+            ocr_reports=self.ocr_reports,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.save_state(state)
@@ -404,6 +410,8 @@ Total Unique Dates: {total_unique_dates}
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
         self.photo_candidates = []
+        self.ocr_results = []
+        self.ocr_reports = []
         self.shopping_candidates = []
         self.app_preferences = {}
         self.refresh_session_status()
@@ -430,6 +438,8 @@ Total Unique Dates: {total_unique_dates}
             photo_records=self.photo_records,
             shopping_candidates=self.shopping_candidates,
             photo_candidates=self.photo_candidates,
+            ocr_results=self.ocr_results,
+            ocr_reports=self.ocr_reports,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.export_state(file_path, state)
@@ -469,6 +479,8 @@ Total Unique Dates: {total_unique_dates}
         self.market_awareness_engine = state.market_awareness
         self.photo_records = list(state.photo_records)
         self.photo_candidates = list(getattr(state, "photo_candidates", []) or [])
+        self.ocr_results = list(getattr(state, "ocr_results", []) or [])
+        self.ocr_reports = list(getattr(state, "ocr_reports", []) or [])
         self.shopping_candidates = list(state.shopping_candidates)
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
@@ -2572,6 +2584,96 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Analyze Photo Candidate", command=analyze_photo_candidate).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_photo_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_photo_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_ocr_experiment(self):
+        """Open advisory-only OCR experiment workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("OCR Experiment")
+        dialog.geometry("820x760")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        form_frame = ttk.LabelFrame(main_frame, text="OCR Source", padding="10")
+        form_frame.pack(fill=tk.X, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        image_var = tk.StringVar()
+
+        def browse_image():
+            path = filedialog.askopenfilename(
+                title="Select Image for OCR Experiment",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if path:
+                image_var.set(path)
+
+        ttk.Label(form_frame, text="Image Path:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=image_var).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+        ttk.Button(form_frame, text="Browse", command=browse_image).grid(row=0, column=2, sticky=tk.W, padx=(6, 0), pady=4)
+
+        ttk.Label(form_frame, text="Raw OCR Text:").grid(row=1, column=0, sticky=(tk.W, tk.N), pady=4)
+        raw_text = tk.Text(form_frame, height=5, wrap=tk.WORD)
+        raw_text.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        ttk.Label(
+            form_frame,
+            text="OCR output is advisory only and requires manual review. It never updates collection records.",
+            wraplength=680,
+        ).grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=(8, 0))
+
+        result_frame = ttk.LabelFrame(main_frame, text="OCR Suggestion Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def run_ocr():
+            try:
+                supplied_text = raw_text.get("1.0", tk.END).strip()
+                report = OCRExperiment().run(
+                    image_path=image_var.get(),
+                    raw_text=supplied_text if supplied_text else None,
+                )
+                current_report["report"] = report
+                self.ocr_results.append(report.result)
+                self.ocr_reports.append(report)
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except Exception as e:
+                messagebox.showerror("OCR Experiment Error", f"OCR experiment failed: {str(e)}")
+
+        def export_ocr_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Run an OCR experiment before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export OCR Suggestion Report",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"OCR suggestion report exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", "Could not export the OCR suggestion report.")
+
+        ttk.Button(button_frame, text="Run OCR Experiment", command=run_ocr).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_ocr_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_ocr_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_smart_shopping_assistant(self):

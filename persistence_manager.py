@@ -24,6 +24,7 @@ from market_awareness import (
     SaleRecord,
 )
 from mobile_companion import MobileAnalysisReport, MobileCandidateEntry
+from ocr_experiment import OCRResult, OCRSuggestionReport
 from photo_assisted_entry import PhotoCandidate
 from photo_vault import PhotoRecord
 from session_context import (
@@ -35,7 +36,7 @@ from session_context import (
 from smart_shopping_assistant import ShoppingCandidate
 
 
-APP_STATE_VERSION = "2.5"
+APP_STATE_VERSION = "2.6"
 DEFAULT_STATE_DIR = os.path.join("collection_data", "app_state")
 DEFAULT_STATE_FILENAME = "app_state.json"
 
@@ -68,6 +69,8 @@ class AppState:
     recent_mobile_candidates: List[MobileCandidateEntry] = field(default_factory=list)
     recent_mobile_recommendations: List[MobileAnalysisReport] = field(default_factory=list)
     photo_candidates: List[PhotoCandidate] = field(default_factory=list)
+    ocr_results: List[OCRResult] = field(default_factory=list)
+    ocr_reports: List[OCRSuggestionReport] = field(default_factory=list)
     app_preferences: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -103,6 +106,14 @@ class AppState:
             "photo_candidates": [
                 candidate.to_dict()
                 for candidate in self.photo_candidates
+            ],
+            "ocr_results": [
+                result.to_dict()
+                for result in self.ocr_results
+            ],
+            "ocr_reports": [
+                report.to_dict()
+                for report in self.ocr_reports
             ],
             "app_preferences": dict(self.app_preferences),
             "warnings": list(self.warnings),
@@ -234,7 +245,7 @@ class PersistenceManager:
         market = payload.get("market_records", {})
         if market and not isinstance(market, dict):
             errors.append("market_records must be an object")
-        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "warnings", "errors"]:
+        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "warnings", "errors"]:
             if key in payload and not isinstance(payload.get(key), list):
                 errors.append(f"{key} must be a list")
         for key in ["collection_workbook_path", "want_list_path"]:
@@ -253,6 +264,8 @@ class PersistenceManager:
         recent_mobile_candidates: Optional[Iterable[MobileCandidateEntry]] = None,
         recent_mobile_recommendations: Optional[Iterable[MobileAnalysisReport]] = None,
         photo_candidates: Optional[Iterable[PhotoCandidate]] = None,
+        ocr_results: Optional[Iterable[OCRResult]] = None,
+        ocr_reports: Optional[Iterable[OCRSuggestionReport]] = None,
         app_preferences: Optional[Dict[str, Any]] = None,
     ) -> AppState:
         """Build AppState from current runtime objects."""
@@ -272,6 +285,8 @@ class PersistenceManager:
             recent_mobile_candidates=list(recent_mobile_candidates or []),
             recent_mobile_recommendations=list(recent_mobile_recommendations or []),
             photo_candidates=list(photo_candidates or []),
+            ocr_results=list(ocr_results or []),
+            ocr_reports=list(ocr_reports or []),
             app_preferences=dict(app_preferences or {}),
             warnings=list(getattr(session, "warnings", []) or []),
             errors=list(getattr(session, "errors", []) or []),
@@ -316,6 +331,8 @@ class PersistenceManager:
             recent_mobile_candidates=[MobileCandidateEntry.from_dict(row) for row in payload.get("recent_mobile_candidates", [])],
             recent_mobile_recommendations=[MobileAnalysisReport.from_dict(row) for row in payload.get("recent_mobile_recommendations", [])],
             photo_candidates=[PhotoCandidate.from_dict(row) for row in payload.get("photo_candidates", [])],
+            ocr_results=[OCRResult.from_dict(row) for row in payload.get("ocr_results", [])],
+            ocr_reports=[OCRSuggestionReport.from_dict(row) for row in payload.get("ocr_reports", [])],
             app_preferences=dict(payload.get("app_preferences") or {}),
             warnings=list(payload.get("warnings") or []),
             errors=list(payload.get("errors") or []),
