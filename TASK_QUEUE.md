@@ -91,20 +91,21 @@ Work through this queue in priority order. Handle only one task at a time.
 59. `[x]` Build v2.6 OCR Experiments
 60. `[x]` Build v2.6.1 OCR Validation Layer
 61. `[x]` Build v2.7 Workflow Integration
-62. `[ ]` Build v3.0 Collector Companion
-63. `[ ]` Improve Buy Advisor validation messages
-64. `[ ]` Add autocomplete for country/denomination
-65. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+62. `[x]` Build v2.8 Collector Home Dashboard
+63. `[ ]` Build v2.9 Collector Companion Release Candidate
+64. `[ ]` Build v3.0 Collector Companion
+65. `[ ]` Improve Buy Advisor validation messages
+66. `[ ]` Add autocomplete for country/denomination
+67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 
-## Official Post-v2.2 Roadmap
+## Official v2.7-to-v3.0 Roadmap
 
-1. `v2.3` Mobile Readiness
-2. `v2.4` Mobile Companion Prototype
-3. `v2.5` Photo-Assisted Entry
-4. `v2.6` OCR Experiments
-5. `v3.0` Collector Companion
+1. `v2.7` Workflow Integration
+2. `v2.8` Collector Home Dashboard
+3. `v2.9` Collector Companion Release Candidate
+4. `v3.0` Collector Companion
 
-Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
 
 ## Adam-Specific Collection Priorities
 
@@ -146,6 +147,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-19
+
+#### `[x]` Build v2.8 Collector Home Dashboard
+
+- Date completed: 2026-06-19
+- Files modified:
+  - `collector_home_dashboard.py` (new file)
+  - `test_collector_home_dashboard.py` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v2.8.md` (new file)
+- Implementation commit hash: `632a922`
+- Test coverage: total passing tests increased from 451 to 463; existing regression suites remained green.
 
 #### `[x]` Build v2.6 OCR Experiments
 

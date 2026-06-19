@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v2.7`
+Current version: `v2.8`
 
-Latest tagged release: `v2.7`
+Latest tagged release: `v2.8`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -50,6 +50,7 @@ The app is especially tuned for Adam-specific priorities:
 - OCR Experiments: advisory-only OCR suggestion reports for candidate photos, with raw text, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, persistence, and CSV/Markdown export.
 - OCR Validation Layer: evaluates whether OCR output can be trusted with HIGH/MEDIUM/LOW trust levels, validation scores, findings, warnings, explanations, manual-review recommendations, and CSV/Markdown export.
 - Workflow Integration: guided collector workflows that orchestrate existing Photo-Assisted Entry, OCR, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Quality, Integrity, Snapshot, and Photo Vault Audit systems without replacing them.
+- Collector Home Dashboard: one daily dashboard for status cards, ranked actions, top opportunities, review queues, data safety, progress, workflow status, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
@@ -73,8 +74,8 @@ The app is especially tuned for Adam-specific priorities:
 1. Launch Coin Analyzer.
 2. Load or review the local collection.
 3. Use Tools -> Load Collection Context to select the legacy workbook once for the session.
-4. Open Tools -> Collector Home for the unified overview.
-5. Review Best Next Purchase, Highest Impact Opportunity, Top WANT_LIST Target, Series Closest To Completion, quality score, market activity, and photo coverage.
+4. Open Tools -> Collector Home Dashboard for the daily "what should I do today?" view.
+5. Review Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked daily actions, and top opportunities.
 6. Open Tools -> Smart Shopping Assistant to compare multiple opportunities at once.
 7. Enter candidate listings or rely on loaded WANT_LIST context.
 8. For a single pasted listing, use Tools -> Listing Analyzer.
@@ -125,7 +126,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v2.7 Workflow Integration suite passed with `451 tests OK`.
+The v2.8 Collector Home Dashboard suite passed with `463 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -162,12 +163,14 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.6` | See verified tag `v2.6` | OCR Experiments with advisory raw OCR text, possible field suggestions, deterministic confidence, manual-review requirement, persistence, Tools menu workflow, and CSV/Markdown export. |
 | `v2.6.1` | See verified tag `v2.6.1` | OCR Validation Layer with trust levels, validation score, year/denomination/country/certification checks, warnings, explanations, Tools menu integration, and CSV/Markdown export. |
 | `v2.7` | See verified tag `v2.7` | Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export. |
+| `v2.8` | See verified tag `v2.8` | Collector Home Dashboard with status cards, ranked daily actions, top opportunities, review queues, data safety, progress signals, persistence, and CSV/Markdown export. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
 ## Which Tool To Use
 
-- Use Collector Home when you want the unified starting point for what to focus on next.
+- Use Collector Home Dashboard when you want one daily view of what needs attention, what is safe, what should be reviewed, and what opportunity matters most.
+- Use Collector Home when you want the older consolidated starting report for collection summary and workflow steps.
 - Use Data Safety Check before shutdowns, imports, release work, or restore attempts.
 - Use Collection Integrity Audit before trusting Dashboard, Shopping Assistant, Series Tracker, Quality Engine, Acquisition Impact, Collection Health Report, or Mobile Companion output after major data changes.
 - Use Create Snapshot after major collection sessions, imports, photo cleanup, market record updates, or shopping candidate reviews.
@@ -222,6 +225,8 @@ Official post-v2.2 roadmap:
 - `v2.6` OCR Experiments
 - `v2.6.1` OCR Validation Layer
 - `v2.7` Workflow Integration
+- `v2.8` Collector Home Dashboard
+- `v2.9` Collector Companion Release Candidate
 - `v3.0` Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
@@ -788,6 +793,42 @@ Limitations:
 - It does not add new recommendation logic.
 - It does not change OCR, validation, shopping, dashboard, integrity, snapshot, or photo-audit outcomes.
 - It does not scrape, call APIs, grade images, or modify collection records automatically.
+
+## Collector Home Dashboard
+
+Use Tools -> Collector Home Dashboard when you want one daily command center for the collection.
+
+The home dashboard answers:
+
+- What needs attention today?
+- What is safe?
+- What should be reviewed?
+- What acquisition opportunity matters most?
+- What progress has been made?
+
+Status cards:
+
+- Collection Health: reuses Collection Quality and Collection Integrity.
+- Acquisition Focus: reuses Smart Shopping Assistant, Shopping Explainability, and Acquisition Impact outputs.
+- Review Queue: reuses OCR Validation, Photo Vault Audit, and workflow status.
+- Data Safety: reuses BackupManager, DataSafetyValidator, and Persistence checks.
+- Progress: reuses Snapshot System, Series Tracker, and Photo Vault coverage.
+
+Daily actions are ranked by deterministic severity and urgency. Examples include backing up collection data, fixing integrity issues, reviewing OCR items, adding missing photos, reviewing top shopping opportunities, and creating snapshots.
+
+Exports:
+
+- Markdown home report.
+- CSV home report.
+
+Persistence:
+
+- The last generated home reports and acknowledged action IDs can be stored in local app state.
+
+Limitations:
+
+- Collector Home Dashboard is a workflow-surfacing layer, not a new recommendation engine.
+- It does not mutate collection data, run OCR, scrape prices, call APIs, grade images, or create background jobs.
 
 ## Collection Dashboard
 

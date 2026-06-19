@@ -4,18 +4,17 @@
 
 - Date: 2026-06-19
 - Branch: `main`
-- Current project state file reports release version: `v2.7`
-- Current active task completed: v2.7 Workflow Integration
+- Current project state file reports release version: `v2.8`
+- Current active task completed: v2.8 Collector Home Dashboard
 
-## Official Post-v2.2 Roadmap
+## Official v2.7-to-v3.0 Roadmap
 
-1. `v2.3` Mobile Readiness
-2. `v2.4` Mobile Companion Prototype
-3. `v2.5` Photo-Assisted Entry
-4. `v2.6` OCR Experiments
-5. `v3.0` Collector Companion
+1. `v2.7` Workflow Integration
+2. `v2.8` Collector Home Dashboard
+3. `v2.9` Collector Companion Release Candidate
+4. `v3.0` Collector Companion
 
-Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
 
 ## What Changed
 
@@ -139,6 +138,11 @@ Clarification: `v2.3` is not a mobile app. It is a readiness and architecture mi
 - Added Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary.
 - Persistence Manager now stores workflow statuses and workflow summaries in local app state.
 - Added `test_collector_workflows.py` covering acquisition workflow, collection review workflow, photo workflow, daily summary, status tracking, persistence, and exports.
+- Added `collector_home_dashboard.py` with CollectorHomeDashboard, CollectorHomeReport, HomeStatusCard, DailyCollectorAction, and HomeStatusSeverity.
+- Collector Home Dashboard aggregates Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked daily actions, top opportunities, warnings, workflow statuses, persistence, and CSV/Markdown export by reusing existing engines.
+- Added Tools -> Collector Home Dashboard in `coin_collection_gui.py`.
+- Persistence Manager now stores generated home reports and acknowledged home action identifiers in local app state.
+- Added `test_collector_home_dashboard.py` covering report generation, daily action ranking, severity, backup status, integrity status, OCR review status, photo coverage, snapshot trend, top opportunities, exports, persistence compatibility, and fallback behavior.
 
 ## Engine Scope
 
@@ -399,8 +403,8 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 451 tests OK for the v2.7 Workflow Integration release line.
-- Coverage note: total passing tests increased from 444 to 451; existing regression suites remained green.
+- `.\run_tests.bat`: 463 tests OK for the v2.8 Collector Home Dashboard release line.
+- Coverage note: total passing tests increased from 451 to 463; existing regression suites remained green.
 - Targeted Collector Workflow tests: 7 tests OK.
 - Targeted OCR Validation tests: 11 tests OK.
 - Targeted OCR Experiment tests: 11 tests OK.
@@ -449,9 +453,10 @@ Supported statuses:
 - OCR Experiments are advisory-only and manual-review-only. Local OCR runtime availability may vary; missing OCR runtime or missing images should produce warnings, not crashes.
 - OCR Validation detects ambiguity and conflicts but does not resolve attribution; collector review is still required for all OCR-derived values.
 - Workflow Integration coordinates existing systems and stores lightweight summaries/statuses only; it does not make final collector decisions or write collection ownership records.
+- Collector Home Dashboard surfaces existing status/report outputs only; it does not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
-- Collector Home and Collection Health Report are consolidation layers only; they do not modify collection records.
+- Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
 - Persistence stores local JSON state only; no cloud sync, database server, credentials, scraping, APIs, or workbook mutation.
 - Backup packages are local zip files only; keep off-machine backups separately and continue storing collection workbooks in known backed-up locations.
 - Workbook copy coverage depends on the persisted workbook path saved in app state. If the workbook path is missing or stale, backup continues and reports a warning.

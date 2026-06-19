@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v2.7`
+* Current release version: `v2.8`
 * Current Git branch: `main`
 * Last updated date: 2026-06-19
 
 ## Last Release Tag
 
-* Most recent Git tag: `v2.7`
-* Summary of what was included: Workflow Integration with guided acquisition, collection review, photo review, daily collector summary, workflow status tracking, persistence, Tools menu entries, and CSV/Markdown export.
+* Most recent Git tag: `v2.8`
+* Summary of what was included: Collector Home Dashboard with daily status cards, ranked actions, top opportunities, review queues, data safety, progress signals, persistence, Tools menu entry, and CSV/Markdown export.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -43,6 +43,7 @@
 * `v2.6` acceptance audit passed on 2026-06-19; tag `v2.6` verified during release.
 * `v2.6.1` acceptance audit passed on 2026-06-19; tag `v2.6.1` verified during release.
 * `v2.7` acceptance audit passed on 2026-06-19; tag `v2.7` verified during release.
+* `v2.8` acceptance audit passed on 2026-06-19; tag `v2.8` verified during release.
 
 ## Completed Features
 
@@ -102,6 +103,7 @@
 * OCR Experiments: advisory-only OCR workflow for image paths and pasted OCR text, with raw OCR output, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, app-state persistence, Tools -> OCR Experiment, and CSV/Markdown export without modifying collection records or recommendation logic.
 * OCR Validation Layer: deterministic trust layer for OCR output, with HIGH/MEDIUM/LOW trust levels, validation score, year/denomination/country/certification checks, findings, warnings, explanations, review recommendations, Tools -> OCR Experiment display integration, and CSV/Markdown export without changing OCR suggestions or collection/recommendation behavior.
 * Workflow Integration: orchestration layer that coordinates existing Photo-Assisted Entry, OCR Experiments, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Collection Quality, Collection Integrity, Collection Snapshot, and Photo Vault Audit systems into guided acquisition, collection review, photo review, and daily summary workflows.
+* Collector Home Dashboard: unified daily dashboard that surfaces Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked Daily Collector Actions, top opportunities, warnings, workflow status, persistence, and CSV/Markdown export while reusing existing engines.
 
 ## Known Bugs
 
@@ -115,15 +117,14 @@
 
 ## Active Roadmap
 
-Official post-v2.2 roadmap:
+Official v2.7-to-v3.0 roadmap:
 
-1. `v2.3` Mobile Readiness
-2. `v2.4` Mobile Companion Prototype
-3. `v2.5` Photo-Assisted Entry
-4. `v2.6` OCR Experiments
-5. `v3.0` Collector Companion
+1. `v2.7` Workflow Integration
+2. `v2.8` Collector Home Dashboard
+3. `v2.9` Collector Companion Release Candidate
+4. `v3.0` Collector Companion
 
-Clarification: `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+Clarification: `v2.8` is not a new recommendation engine. It is a workflow-surfacing milestone focused on showing existing collector status, actions, safety, review, progress, and opportunities in one place.
 
 Near-term maintenance candidates:
 
@@ -151,7 +152,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v3.0 Collector Companion planning, unless a maintenance fix is prioritized first.
+Prepare v2.9 Collector Companion Release Candidate planning, unless a maintenance fix is prioritized first.
 
 ## Project Architecture
 
@@ -172,6 +173,7 @@ Prepare v3.0 Collector Companion planning, unless a maintenance fix is prioritiz
 * OCR Experiment system: `ocr_experiment.py` provides `OCRResult`, `OCRConfidence`, `OCRSuggestionReport`, and `OCRExperiment` for advisory-only OCR text extraction and deterministic suggestion parsing. It can report possible years, denominations, countries, note prefixes, and certification numbers, persists OCR metadata through app state, exports CSV/Markdown reports, and always requires manual review.
 * OCR Validation system: `ocr_validation.py` provides `OCRValidationEngine`, `OCRValidationReport`, `OCRTrustLevel`, `OCRValidationScore`, and `OCRValidationExplanation` for deterministic OCR trust assessment. It validates year, denomination, country, certification, confidence, source warnings, and ambiguity, then exports CSV/Markdown validation reports.
 * Workflow Integration system: `collector_workflows.py` provides `CollectorWorkflowEngine`, guided `AcquisitionWorkflow`, `CollectionReviewWorkflow`, `PhotoReviewWorkflow`, `CollectorDailySummary`, `WorkflowStatus`, and `WorkflowSummary`. It orchestrates existing engines, persists lightweight workflow state, exposes Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary, and exports workflow Markdown/CSV summaries.
+* Collector Home Dashboard system: `collector_home_dashboard.py` provides `CollectorHomeDashboard`, `CollectorHomeReport`, `HomeStatusCard`, `DailyCollectorAction`, and `HomeStatusSeverity`. It aggregates existing workflow, dashboard, shopping, OCR validation, photo audit, integrity, backup, snapshot, series, and persistence signals into one daily report without adding recommendation logic or mutating collection data.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -216,6 +218,12 @@ Prepare v3.0 Collector Companion planning, unless a maintenance fix is prioritiz
 ## Recent Changes
 
 ### 2026-06-19
+
+* Implemented v2.8 Collector Home Dashboard: CollectorHomeDashboard, CollectorHomeReport, HomeStatusCard, DailyCollectorAction, HomeStatusSeverity, Tools -> Collector Home Dashboard, app-state persistence for home reports/action acknowledgements, status cards, daily actions, top opportunities, review queues, data safety, progress, CSV/Markdown export, and focused tests.
+* Implementation commit: `632a922`
+* Full test suite passed: 463 tests OK.
+* Coverage note: total passing tests increased from 451 to 463; existing regression suites remained green.
+* GUI smoke note: local Tcl/Tk install may remain environment-sensitive; v2.8 imports, report generation, exports, persistence, targeted tests, and full non-GUI regression suite passed.
 
 * Implemented v2.7 Workflow Integration: CollectorWorkflowEngine, guided Acquisition Workflow, Collection Review Workflow, Photo Review Workflow, Daily Collector Summary, WorkflowStatus, WorkflowSummary, app-state persistence for workflow statuses/summaries, Tools menu entries, CSV/Markdown export, and orchestration tests.
 * Implementation commit: `599cb4a`
