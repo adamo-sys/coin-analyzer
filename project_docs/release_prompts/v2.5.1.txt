@@ -1,0 +1,338 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v2.5.md
+* Photo Vault documentation
+* Photo-Assisted Entry documentation
+* Backup documentation
+
+Begin v2.5.1 development.
+
+Roadmap Context:
+
+v2.5 = Photo-Assisted Entry
+v2.5.1 = Photo Vault Hardening
+
+GOAL:
+
+Improve photo reliability, coverage, and trustworthiness.
+
+Purpose:
+
+Ensure photo references are useful, findable, valid, and safely reportable.
+
+This is a hardening release.
+
+Do not add:
+
+* OCR
+* image recognition
+* AI grading
+* scraping
+* APIs
+* live pricing
+* cloud sync
+* database server
+* Numista integration
+
+---
+
+1. PHOTO VAULT INTEGRITY AUDIT
+
+---
+
+Create or enhance:
+
+PhotoVaultIntegrityAudit
+
+Output:
+
+PhotoCoverageReport
+
+Detect:
+
+* missing photo files
+* invalid photo paths
+* duplicate photo references
+* unlinked photo records
+* collection items without photos
+* candidates without photos
+* certification-linked items without photos
+* orphan photo metadata
+
+Report only.
+
+Do not move, delete, rename, or modify photo files.
+
+---
+
+2. PHOTO COVERAGE METRICS
+
+---
+
+Calculate:
+
+* total photo records
+* valid photo references
+* missing photo references
+* duplicate photo references
+* collection photo coverage percentage
+* certified-item photo coverage percentage
+* candidate photo coverage percentage
+
+Use available metadata only.
+
+Do not inspect image contents.
+
+---
+
+3. PHOTO QUALITY FLAGS
+
+---
+
+Add metadata-level flags only:
+
+* missing front photo
+* missing reverse photo
+* missing certification/slab photo
+* missing candidate photo
+* invalid file extension
+* unsupported file path
+
+No image analysis.
+
+---
+
+4. PHOTO VAULT SEARCH HARDENING
+
+---
+
+Improve deterministic search by:
+
+* certification number
+* item name
+* notes
+* filename
+* photo type
+
+Preserve existing behavior.
+
+---
+
+5. BACKUP AND RECOVERY INTEGRATION
+
+---
+
+Integrate with:
+
+* BackupManager
+* CollectionRecoveryReport
+* DataSafetyValidator
+
+Report:
+
+* photo metadata backed up
+* photo files copied: NO unless explicitly supported elsewhere
+* missing photo references
+* photo recovery risks
+
+Do not start copying arbitrary photo folders automatically.
+
+---
+
+6. PHOTO-ASSISTED ENTRY INTEGRATION
+
+---
+
+Ensure Photo-Assisted Entry records are visible in photo coverage/reporting.
+
+Validate:
+
+* candidate photo metadata
+* linked photo references
+* mobile companion photo references
+
+---
+
+7. GUI INTEGRATION
+
+---
+
+Add or enhance:
+
+Tools -> Photo Vault Audit
+
+or enhance existing Photo Vault report access.
+
+Display:
+
+* photo coverage percentage
+* missing references
+* duplicate references
+* recommended actions
+
+Keep UI simple.
+
+No redesign.
+
+---
+
+8. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+PhotoCoverageReport
+
+Include:
+
+* item/candidate reference
+* photo path
+* photo type
+* issue type
+* recommendation
+
+---
+
+9. TESTING
+
+---
+
+Add tests for:
+
+* missing photo reference detection
+* duplicate photo reference detection
+* unlinked photo detection
+* collection item without photo detection
+* certified item without photo detection
+* candidate photo coverage
+* invalid extension detection
+* search by certification
+* search by filename
+* backup/recovery reporting
+* export generation
+
+Run:
+
+* Photo Vault tests
+* Photo-Assisted Entry tests
+* Backup tests
+* Persistence tests
+* Collection Integrity tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+10. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v2.5.1.md
+
+Document:
+
+* photo coverage metrics
+* audit checks
+* backup limitations
+* known limitations
+
+---
+
+11. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* Photo Vault Audit imports cleanly
+* PhotoCoverageReport generates
+* missing photo detection works
+* duplicate photo detection works
+* unlinked photo detection works
+* collection coverage works
+* certified item coverage works
+* candidate coverage works
+* search hardening works
+* backup/recovery reporting works
+* export works
+* existing regression suite passes
+* full suite passes
+
+Fix only defects.
+
+No new features after audit begins.
+
+---
+
+12. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v2.5.1
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* Files changed
+* Tests run
+* Audit result
+* Commit hashes
+* Tag hash
+* Push verification
+* Remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+A collector can answer:
+
+"Are my photo records trustworthy?"
+
+using a single Photo Vault audit/report.
+
+The system identifies:
+
+* missing photos
+* invalid photo references
+* duplicate photo records
+* unlinked photo metadata
+* photo coverage gaps
+
+without performing OCR, image recognition, or automatic file changes.
