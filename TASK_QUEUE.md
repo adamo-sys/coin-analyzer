@@ -105,23 +105,24 @@ Work through this queue in priority order. Handle only one task at a time.
 73. `[x]` Build v3.6 Deal Hunter Calibration
 74. `[x]` Build v3.7 Live Deal Hunter Readiness
 75. `[x]` Build v3.8 Market Intelligence
-76. `[ ]` Build v4.0 Live Deal Hunter
-77. `[ ]` Build v4.1 Live Source Validation
-78. `[ ]` Build v4.2 Portfolio Performance
-79. `[ ]` Build v5.0 Mobile Collector Companion
+76. `[ ]` Build v3.9 Portfolio Performance
+77. `[ ]` Build v4.0 Live Deal Hunter
+78. `[ ]` Build v4.1 Live Source Validation
+79. `[ ]` Build v4.2 Market Intelligence Automation
+80. `[ ]` Build v5.0 Mobile Collector Companion
 
-## Official Post-v3.4 Roadmap
+## Official Post-v3.8 Roadmap
 
-1. `v3.5` External Listing Connectors
-2. `v3.6` Deal Hunter Calibration
-3. `v3.7` Live Deal Hunter Readiness
-4. `v3.8` Market Intelligence
-5. `v4.0` Live Deal Hunter
-6. `v4.1` Live Source Validation
-7. `v4.2` Portfolio Performance
-8. `v5.0` Mobile Collector Companion
+1. `v3.8` Market Intelligence
+2. `v3.9` Portfolio Performance
+3. `v4.0` Live Deal Hunter
+4. `v4.1` Live Source Validation
+5. `v4.2` Market Intelligence Automation
+6. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+
+Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
 Clarification: `v3.4` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 
@@ -165,6 +166,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[x]` Lock post-v3.8 roadmap
+
+- Date completed: 2026-06-21
+- Roadmap locked:
+  - `v3.8` Market Intelligence
+  - `v3.9` Portfolio Performance
+  - `v4.0` Live Deal Hunter
+  - `v4.1` Live Source Validation
+  - `v4.2` Market Intelligence Automation
+  - `v5.0` Mobile Collector Companion
+- Rationale: the platform can now evaluate, rank, explain, and calibrate opportunities; the next objective is understanding portfolio progress and collection development over time.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+- Commit hash: pending
 
 #### `[x]` Build v3.8 Market Intelligence
 

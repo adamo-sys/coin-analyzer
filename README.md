@@ -242,20 +242,20 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official post-v3.4 roadmap:
+Official post-v3.8 roadmap:
 
-- `v3.5` External Listing Connectors
-- `v3.6` Deal Hunter Calibration
-- `v3.7` Live Deal Hunter Readiness
 - `v3.8` Market Intelligence
+- `v3.9` Portfolio Performance
 - `v4.0` Live Deal Hunter
 - `v4.1` Live Source Validation
-- `v4.2` Portfolio Performance
+- `v4.2` Market Intelligence Automation
 - `v5.0` Mobile Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
 Post-v3.7 roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+
+Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 
 Near-term maintenance candidates:
 

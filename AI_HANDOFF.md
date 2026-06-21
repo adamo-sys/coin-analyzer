@@ -16,18 +16,18 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official Post-v3.4 Roadmap
+## Official Post-v3.8 Roadmap
 
-1. `v3.5` External Listing Connectors
-2. `v3.6` Deal Hunter Calibration
-3. `v3.7` Live Deal Hunter Readiness
-4. `v3.8` Market Intelligence
-5. `v4.0` Live Deal Hunter
-6. `v4.1` Live Source Validation
-7. `v4.2` Portfolio Performance
-8. `v5.0` Mobile Collector Companion
+1. `v3.8` Market Intelligence
+2. `v3.9` Portfolio Performance
+3. `v4.0` Live Deal Hunter
+4. `v4.1` Live Source Validation
+5. `v4.2` Market Intelligence Automation
+6. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+
+Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
 ## What Changed
 
@@ -539,7 +539,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Prepare v4.0 Live Deal Hunter implementation planning using the v3.7 contracts, v3.8 Market Intelligence value/risk explanations, and no-mutation safety rules.
+1. Build v3.9 Portfolio Performance using snapshots, collection intelligence, opportunity analysis, market intelligence, and series tracking without adding live pricing or forecasting.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.
