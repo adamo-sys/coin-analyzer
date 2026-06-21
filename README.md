@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.1`
+Current version: `v3.2`
 
-Latest tagged release: `v3.1`
+Latest tagged release: `v3.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -39,7 +39,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
-- Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
+- Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, flag risky/ambiguous listings, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
@@ -128,7 +128,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.1 Deal Hunter suite passed with `494 tests OK`.
+The v3.2 Deal Hunter refinement suite passed with `505 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -169,6 +169,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.9` | See verified tag `v2.9` | Collector Companion Release Candidate with menu cleanup, readiness checklist, report/export consistency audits, workflow audit, persistence, and CSV/Markdown export. |
 | `v3.0` | See verified tag `v3.0` | Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass. |
 | `v3.1` | See verified tag `v3.1` | eBay.ca-style Deal Hunter MVP with manual/CSV listing intake, deterministic parsing, collection-aware scoring, counterarguments, persistence, exports, and 494-test regression pass. |
+| `v3.2` | See verified tag `v3.2` | Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -236,6 +237,7 @@ Official post-v2.2 roadmap:
 - `v2.9` Collector Companion Release Candidate
 - `v3.0` Collector Companion
 - `v3.1` eBay.ca Coin Deal Hunter MVP
+- `v3.2` Deal Hunter Workflow Refinement
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
@@ -247,7 +249,7 @@ Near-term maintenance candidates:
 - Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
-- Harden Deal Hunter parsing/scoring with more fixture examples before adding any live source integration.
+- Keep Deal Hunter offline while expanding local fixtures and validation for new collector edge cases.
 
 Future candidates:
 
@@ -526,9 +528,11 @@ Supported CSV columns:
 - `image_url`
 - `description`
 
-Deal Hunter parses titles and descriptions for country, year, denomination, series/type, grade, slab company, and keywords such as silver, proof-like, specimen, large bust, near 6, wide 9, banknote, and chartered banknote.
+Deal Hunter parses titles and descriptions for country, year, denomination, series/type, grade, slab company, grade words, and keywords such as silver, proof-like, specimen, large bust, near 6, wide 9, banknote, chartered banknote, lot listings, and possible problem-coin language.
 
-It reuses existing collection intelligence, acquisition workflow, acquisition impact, smart shopping, WANT_LIST, series, and local market-awareness context. It reports collection status, priority score, liquidity score, collection-fit score, risk score, max rational price, recommendation, counterargument, reasons, and warnings.
+It reuses existing collection intelligence, acquisition workflow, acquisition impact, smart shopping, WANT_LIST, series, and local market-awareness context. It reports collection status, priority score, liquidity score, collection-fit score, risk score, max rational price, recommendation, counterargument, reasons, warnings, and risk flags such as high shipping, unclear grade, raw overgraded, lot listing, possible damage, unclear currency, non-collection relevant, and needs manual review.
+
+CSV import accepts common column aliases where safe, reports malformed price and skipped-row warnings, and keeps invalid required rows out of the analysis. Exports include parsed fields, total cost, scores, recommendation, risk flags, counterargument, reasons, warnings, and listing URL.
 
 Recommendations:
 

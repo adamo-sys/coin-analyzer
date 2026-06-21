@@ -98,13 +98,15 @@ Work through this queue in priority order. Handle only one task at a time.
 66. `[ ]` Add autocomplete for country/denomination
 67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 68. `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
+69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
 
 ## Official v3.x Roadmap
 
 1. `v3.0` Collector Companion
 2. `v3.1` eBay.ca Coin Deal Hunter MVP
+3. `v3.2` Deal Hunter Workflow Refinement
 
-Clarification: `v3.1` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, or claim live market-pricing accuracy.
+Clarification: `v3.2` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, or claim live market-pricing accuracy.
 
 ## Adam-Specific Collection Priorities
 
@@ -144,6 +146,27 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
    - Recommend highest-impact purchases
 
 ## Project Changelog
+
+### 2026-06-21
+
+#### `[x]` Build v3.2 Deal Hunter Workflow Refinement
+
+- Date completed: 2026-06-21
+- Files modified:
+  - `deal_hunter.py`
+  - `coin_collection_gui.py`
+  - `test_deal_hunter.py`
+  - `test_data/deal_hunter/sample_ebay_ca_listings.csv`
+  - `project_docs/release_prompts/3.2.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.2.md` (new file)
+- Implementation commit hash: `0a80eff`
+- Test coverage: total passing tests increased from 494 to 505; existing regression suites remained green.
+- Limitation: deterministic local guidance only; no scraping, browser automation, eBay API usage, live listing fetches, or live market-pricing claims.
 
 ### 2026-06-20
 
