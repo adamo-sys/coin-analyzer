@@ -106,7 +106,7 @@ Work through this queue in priority order. Handle only one task at a time.
 74. `[x]` Build v3.7 Live Deal Hunter Readiness
 75. `[x]` Build v3.8 Market Intelligence
 76. `[x]` Build v3.9 Portfolio Performance
-77. `[-]` Build v4.0 Live Deal Hunter (Controlled Beta)
+77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
 78. `[ ]` Build v4.1 Live Source Validation
 79. `[ ]` Build v4.2 Market Intelligence Automation
 80. `[ ]` Build v5.0 Mobile Collector Companion
@@ -184,6 +184,27 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
 - Commit hash: `3dd8830`
+
+#### `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `live_deal_hunter.py` (new file)
+  - `test_live_deal_hunter.py` (new file)
+  - `test_data/deal_hunter/sample_live_rss.xml` (new fixture)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v4.0.txt` (release prompt archive)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v4.0.md` (new file)
+- Roadmap lock commit hash: `3dd8830`
+- Implementation commit hash: `1d8c1bc`
+- Test coverage: total passing tests increased from 579 to 589; existing regression suites remained green.
+- Limitation: controlled-beta public RSS/XML ingestion only; no scraping, browser automation, logins, eBay API integration, purchases, bids, background polling, collection mutation, or live-pricing accuracy claims.
 
 #### `[x]` Lock post-v3.8 roadmap
 

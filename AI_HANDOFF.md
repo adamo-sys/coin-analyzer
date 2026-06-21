@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.9`
-- Current active task completed: v3.9 Portfolio Performance
+- Current project state file reports release version: `v4.0`
+- Current active task completed: v4.0 Live Deal Hunter (Controlled Beta)
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -193,6 +193,12 @@ v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportuni
 - Portfolio Performance reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and local Market Awareness records.
 - Added Tools -> Portfolio Performance with report display and CSV/Markdown export.
 - Added `test_portfolio_performance.py` covering growth analysis, acquisition analysis, series progress, budget allocation, health score, snapshot comparison, executive dashboard, and exports.
+- Added `live_deal_hunter.py` with `LiveDealHunter`, `LiveListing`, `LiveListingBatch`, `LiveDealHunterReport`, `LiveListingSource`, and `RSSListingConnector`.
+- Live Deal Hunter fetches public RSS/XML only when explicitly triggered by the user, validates and normalizes listing data, rejects missing/invalid/duplicate URLs, converts accepted listings into CandidatePool inputs, reuses Deal Hunter Ranking and Market Intelligence, and exports CSV/Markdown reports.
+- Added Tools -> Live Deal Hunter with RSS URL input, timeout input, explicit Analyze Live Feed action, report display, CSV export, and Markdown export.
+- Added `test_data/deal_hunter/sample_live_rss.xml` and `test_live_deal_hunter.py` covering RSS parsing, source validation, listing normalization, CandidatePool integration, ranking integration, Market Intelligence integration, duplicate detection, reports/exports, source failures, and malformed feeds.
+- v4.0 full suite passed: 589 tests OK. Coverage increased from 579 to 589, and existing regression suites remained green.
+- v4.0 guardrails: no purchases, no bids, no background polling, no scheduled execution, no page scraping, no browser automation, no logins, no collection mutation, and no live-pricing accuracy claims.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.

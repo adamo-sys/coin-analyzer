@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v3.9`
+* Current release version: `v4.0`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v3.9`
-* Summary of what was included: Portfolio Performance with deterministic collection growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, CSV/Markdown export, and 579-test regression pass.
+* Most recent Git tag: `v4.0`
+* Summary of what was included: Live Deal Hunter controlled beta with user-triggered RSS ingestion, source validation, listing normalization, CandidatePool/ranking/Market Intelligence integration, Tools -> Live Deal Hunter, CSV/Markdown export, and 589-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -55,6 +55,7 @@
 * `v3.7` acceptance audit passed on 2026-06-21; tag `v3.7` verified during release.
 * `v3.8` acceptance audit passed on 2026-06-21; tag `v3.8` verified during release.
 * `v3.9` acceptance audit passed on 2026-06-21; tag `v3.9` verified during release.
+* `v4.0` acceptance audit passed on 2026-06-21; tag `v4.0` verified during release.
 
 ## Completed Features
 
@@ -124,6 +125,7 @@
 * Live Deal Hunter Readiness: readiness and safety layer for future live listing ingestion with contract models, source validation reports, staleness flags, rate-limit policy models, failure models, no-fetch guardrails, GUI report workflow, and CSV/Markdown export.
 * Market Intelligence: deterministic local fair-value and deal-quality analysis that reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness records to explain value confidence, risks, counterarguments, and buy rationale without scraping, APIs, live pricing, purchasing, or collection mutation.
 * Portfolio Performance: deterministic portfolio-level reporting that reuses snapshots, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and local Market Awareness records to explain growth, acquisition performance, series progress, budget allocation, collection health, risks, and focus areas without investment advice, live pricing, forecasting, or collection mutation.
+* Live Deal Hunter: controlled-beta user-triggered public RSS/XML ingestion that validates listings, flags stale/missing/non-CAD/duplicate/invalid data, normalizes listings into existing candidate models, ranks opportunities through CandidatePool/Deal Hunter Ranking, adds Market Intelligence context, provides Tools -> Live Deal Hunter, and exports CSV/Markdown reports without purchases, bids, background polling, scraping, browser automation, collection mutation, or live-pricing claims.
 
 ## Known Bugs
 
@@ -141,7 +143,7 @@ Official v4.0 roadmap:
 
 1. `v3.8` Market Intelligence
 2. `v3.9` Portfolio Performance
-3. `v4.0` Live Deal Hunter (Controlled Beta)
+3. `v4.0` Live Deal Hunter (Controlled Beta) - complete
 4. `v4.1` Live Source Validation
 5. `v4.2` Market Intelligence Automation
 6. `v5.0` Mobile Collector Companion
@@ -180,7 +182,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v4.0 Live Deal Hunter (Controlled Beta) unless a release-blocking defect is found.
+Prepare v4.1 Live Source Validation unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -208,6 +210,7 @@ Build v4.0 Live Deal Hunter (Controlled Beta) unless a release-blocking defect i
 * External Listing Connector system: `listing_connectors.py` provides `ListingConnector`, `ConnectorRegistry`, `NormalizedListing`, `eBayCSVConnector`, `AuctionCSVConnector`, `DealerInventoryConnector`, `GenericCSVConnector`, `ConnectorValidationReport`, `ConnectorImportReport`, `SourceSummaryReport`, and `DuplicateOpportunityDetector`. It normalizes user-supplied local CSV files into Deal Hunter-compatible listings and CandidatePools without scraping, APIs, live listing retrieval, browser automation, or collection mutation.
 * Deal Hunter Calibration system: `deal_hunter_calibration.py` provides `CalibrationCase`, `CalibrationCaseResult`, `DealHunterCalibrationEngine`, and `DealHunterCalibrationReport`. It runs offline calibration fixtures through Deal Hunter and Ranking output to surface false recommendations, ranking misses, missing risk flags, over/under-penalized cases, and explanation gaps before any live-source work.
 * Live Deal Hunter Readiness system: `live_deal_hunter_readiness.py` provides `LiveDealHunterReadinessAudit`, `LiveDealHunterReadinessReport`, `LiveListingSource`, `LiveListingBatch`, `LiveListingFetchResult`, `LiveSourceValidationReport`, `RateLimitPolicy`, and `LiveSourceFailure`. It documents future live-source boundaries and validates supplied batch data without performing live fetching.
+* Live Deal Hunter system: `live_deal_hunter.py` provides `LiveListing`, `LiveListingBatch`, `LiveListingSource`, `RSSListingConnector`, `LiveDealHunter`, and `LiveDealHunterReport`. It fetches public RSS/XML only after explicit user action, validates and normalizes listing data, suppresses invalid and duplicate URLs, converts accepted listings into CandidatePool inputs, reuses Deal Hunter Ranking and Market Intelligence, and exports CSV/Markdown reports without bidding, buying, background polling, scraping, browser automation, or collection mutation.
 * Market Intelligence system: `market_intelligence.py` provides `MarketIntelligenceEngine`, `MarketIntelligenceReport`, `FairValueEstimate`, `DealQuality`, `OpportunityConfidence`, `ComparableSale`, and `RiskSummary`. It reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness data for deterministic fair-value guidance without external fetching or collection mutation.
 * Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
@@ -255,6 +258,13 @@ Build v4.0 Live Deal Hunter (Controlled Beta) unless a release-blocking defect i
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v4.0 Live Deal Hunter controlled beta: `LiveDealHunter`, `RSSListingConnector`, `LiveListing`, `LiveListingBatch`, `LiveDealHunterReport`, public RSS/XML parsing, validation flags, duplicate URL rejection, CandidatePool/ranking integration, Market Intelligence context, Tools -> Live Deal Hunter, CSV/Markdown export, and explicit no-purchase/no-bidding/no-background/no-mutation safety guardrails.
+* Roadmap lock commit: `3dd8830`
+* Implementation commit: `1d8c1bc`
+* Full test suite passed: 589 tests OK.
+* Coverage note: total passing tests increased from 579 to 589; existing regression suites remained green.
+* Limitation: controlled-beta public RSS/XML ingestion only; no scraping, browser automation, logins, eBay API integration, bids, purchases, background polling, collection mutation, or live-pricing accuracy claims.
 
 * Implemented v3.9 Portfolio Performance: `PortfolioPerformanceEngine`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, `CollectionHealthScore`, executive `PortfolioPerformanceReport`, Tools -> Portfolio Performance, snapshot comparison support, CSV/Markdown export, and explicit no-investment-advice/no-live-pricing guardrails.
 * Roadmap lock commit: `a65a9ce`

@@ -1,0 +1,444 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.5.md
+* docs/releases/v3.6.md
+* docs/releases/v3.7.md
+* docs/releases/v3.8.md
+* docs/releases/v3.9.md
+* current codebase
+
+Begin v4.0 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v4.0 = Live Deal Hunter (Controlled Beta)
+
+v4.1 = Live Source Validation
+
+v4.2 = Market Intelligence Automation
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+v3.x established:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Listing Connectors
+* Calibration
+* Live Readiness
+* Market Intelligence
+* Portfolio Performance
+
+v4.0 introduces live opportunity discovery.
+
+Commit:
+
+Lock v4.0 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue.
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Collector Companion now discovers opportunities.
+
+The collector remains in control.
+
+The system may:
+
+* fetch listings
+* validate listings
+* score listings
+* rank listings
+* explain listings
+
+The system may NOT:
+
+* purchase items
+* place bids
+* mutate collection records
+* run hidden background jobs
+* perform automatic monitoring
+* perform automatic refreshes
+
+All live activity must be explicitly user-triggered.
+
+==================================================
+PHASE 2
+LIVE DEAL HUNTER FRAMEWORK
+==========================
+
+Create:
+
+live_deal_hunter.py
+
+Implement:
+
+* LiveDealHunter
+* LiveListing
+* LiveListingBatch
+* LiveDealHunterReport
+
+Integrate with:
+
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+
+Preserve all existing behavior.
+
+==================================================
+PHASE 3
+LIVE SOURCE CONTRACTS
+=====================
+
+Implement:
+
+LiveListingSource
+
+Required output:
+
+* title
+* price
+* shipping
+* currency
+* seller
+* source
+* URL
+* image URL (optional)
+* listing timestamp
+* end timestamp (if available)
+* raw metadata
+
+All live sources must normalize into existing listing models.
+
+==================================================
+PHASE 4
+CONTROLLED BETA SOURCE
+======================
+
+Implement ONE live source only.
+
+Preferred order:
+
+1. Public eBay RSS feed
+2. Public RSS/XML listing feed
+3. Public auction feed
+
+Do NOT implement:
+
+* browser automation
+* login-required scraping
+* CAPTCHA handling
+* account authentication
+* hidden scraping
+
+Goal:
+
+Validate architecture.
+
+Not maximize source count.
+
+==================================================
+PHASE 5
+RSS LISTING CONNECTOR
+=====================
+
+Create:
+
+RSSListingConnector
+
+Responsibilities:
+
+* fetch
+* parse
+* validate
+* normalize
+
+Output:
+
+NormalizedListing
+
+Compatible with:
+
+* Listing Connectors
+* Candidate Pools
+* Ranking Engine
+
+==================================================
+PHASE 6
+LIVE SOURCE VALIDATION
+======================
+
+Validate:
+
+* title
+* price
+* shipping
+* currency
+* seller
+* URL
+* timestamps
+
+Flag:
+
+* STALE
+* UNKNOWN_CURRENCY
+* NON_CAD
+* MISSING_PRICE
+* MISSING_TITLE
+* DUPLICATE_URL
+* INVALID_URL
+* UNKNOWN_SELLER
+
+Never silently accept malformed data.
+
+==================================================
+PHASE 7
+CANDIDATE POOL INTEGRATION
+==========================
+
+Live listings must enter:
+
+CandidatePool
+
+and flow through:
+
+Deal Hunter
+↓
+Opportunity Engine
+↓
+Ranking Engine
+↓
+Market Intelligence
+
+Do not create new recommendation engines.
+
+Reuse existing intelligence.
+
+==================================================
+PHASE 8
+LIVE OPPORTUNITY DASHBOARD
+==========================
+
+Add:
+
+Tools -> Live Deal Hunter
+
+Display:
+
+* source status
+* fetch timestamp
+* listings processed
+* accepted listings
+* rejected listings
+* validation warnings
+* top opportunities
+
+No major UI redesign.
+
+==================================================
+PHASE 9
+REPORTING
+=========
+
+Create:
+
+LiveDealHunterReport
+
+Include:
+
+* source name
+* fetch timestamp
+* listing count
+* accepted count
+* rejected count
+* validation warnings
+* top opportunities
+* errors
+
+Support:
+
+* Markdown export
+* CSV export
+
+==================================================
+PHASE 10
+FAILURE HANDLING
+================
+
+Handle:
+
+* unavailable source
+* malformed feed
+* timeout
+* network error
+* duplicate data
+* validation failure
+
+Generate explicit errors.
+
+No silent failures.
+
+==================================================
+PHASE 11
+SAFETY GUARANTEES
+=================
+
+Verify:
+
+* no automatic purchases
+* no automatic bidding
+* no collection mutation
+* no hidden network activity
+* no background polling
+* no scheduled execution
+
+All live actions must require user initiation.
+
+==================================================
+PHASE 12
+TESTING
+=======
+
+Add tests for:
+
+* RSS feed parsing
+* source validation
+* listing normalization
+* candidate pool integration
+* ranking integration
+* market intelligence integration
+* duplicate detection
+* report generation
+* failure handling
+
+Run:
+
+* Live Deal Hunter tests
+* Connector tests
+* Deal Hunter tests
+* Ranking tests
+* Opportunity Engine tests
+* Market Intelligence tests
+* Portfolio Performance tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 13
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.0.md
+
+Document:
+
+* live source architecture
+* supported live source
+* validation rules
+* safety guarantees
+* limitations
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* live fetch works
+* normalization works
+* validation works
+* candidate pool integration works
+* ranking works
+* market intelligence works
+* reporting works
+* safety guarantees hold
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v4.0
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can retrieve listings from one real public source, validate them, normalize them, rank them, evaluate them through the existing intelligence stack, and present opportunities to the collector while remaining completely user-controlled.
+
+This is the first release where Collector Companion discovers opportunities instead of waiting for imported listings.
