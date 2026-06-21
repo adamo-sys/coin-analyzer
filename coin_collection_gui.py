@@ -44,6 +44,7 @@ from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from collector_workflows import CollectorWorkflowEngine
 from market_awareness import MarketAwarenessEngine
+from market_intelligence_automation import MarketIntelligenceAutomationEngine
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
 from opportunity_engine import OpportunityEngine
@@ -175,6 +176,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Live Source Validation", command=self.open_live_source_validation)
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
+        tools_menu.add_command(label="Market Intelligence Automation", command=self.open_market_intelligence_automation)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3527,6 +3529,112 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showinfo("Export Complete", f"Market Intelligence Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Analyze", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_market_intelligence_automation(self):
+        """Open batch Market Intelligence enrichment workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Market Intelligence Automation")
+        dialog.geometry("980x800")
+
+        engine = MarketIntelligenceAutomationEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Candidate Listings", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            input_frame,
+            text="Enter one listing per line: title | price_cad | shipping_cad | seller | source | listing_url | original_recommendation",
+        ).pack(anchor=tk.W)
+        listings_text = tk.Text(input_frame, height=8, wrap=tk.WORD)
+        listings_text.pack(fill=tk.X, pady=(6, 0))
+        ttk.Label(
+            input_frame,
+            text="Uses existing local Market Intelligence only. No scraping, APIs, live pricing, exchange rates, purchases, or collection mutation.",
+            wraplength=840,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Automation Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def parse_rows():
+            rows = []
+            for line in listings_text.get("1.0", tk.END).splitlines():
+                if not line.strip():
+                    continue
+                parts = [part.strip() for part in line.split("|")]
+                listing = DealListing(
+                    title=parts[0] if parts else "",
+                    price_cad=parse_money(parts[1]) if len(parts) > 1 else 0.0,
+                    shipping_cad=parse_money(parts[2]) if len(parts) > 2 else 0.0,
+                    seller=parts[3] if len(parts) > 3 else "",
+                    source=parts[4] if len(parts) > 4 else "Manual",
+                    listing_url=parts[5] if len(parts) > 5 else "",
+                )
+                rows.append({"listing": listing, "recommendation": parts[6] if len(parts) > 6 else "UNKNOWN"})
+            return rows
+
+        def enrich_rows():
+            try:
+                report = engine.enrich_candidates(parse_rows(), "GUI manual candidates")
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric CAD price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Market Intelligence Automation Error", f"Enrichment failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                enrich_rows()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Market Intelligence Automation CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Market Intelligence Automation CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                enrich_rows()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Market Intelligence Automation Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Market Intelligence Automation Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Enrich Candidates", command=enrich_rows).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)

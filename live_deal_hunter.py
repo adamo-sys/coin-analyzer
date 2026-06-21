@@ -21,6 +21,7 @@ from deal_hunter import DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, DealHunterRankingReport
 from listing_connectors import NormalizedListing
 from live_source_validation import LiveSourceValidationReport, LiveSourceValidator
+from market_intelligence_automation import MarketEnrichmentBatchReport, MarketIntelligenceAutomationEngine
 from market_awareness import MarketAwarenessEngine
 from market_intelligence import MarketIntelligenceEngine, MarketIntelligenceReport
 
@@ -366,6 +367,7 @@ class LiveDealHunterReport:
     ranking_report: Optional[DealHunterRankingReport] = None
     market_intelligence_reports: List[MarketIntelligenceReport] = field(default_factory=list)
     validation_report: Optional[LiveSourceValidationReport] = None
+    market_enrichment_report: Optional[MarketEnrichmentBatchReport] = None
 
     @property
     def top_opportunities(self) -> List[Any]:
@@ -383,6 +385,7 @@ class LiveDealHunterReport:
             "validation_warnings": "; ".join(self.validation_warnings),
             "errors": "; ".join(self.errors),
             "validation_report": self.validation_report.to_dict() if self.validation_report else {},
+            "market_enrichment_report": self.market_enrichment_report.to_dict() if self.market_enrichment_report else {},
             "top_opportunities": [deal.to_dict() for deal in self.top_opportunities],
             "market_intelligence": [report.to_dict() for report in self.market_intelligence_reports],
         }
@@ -440,6 +443,16 @@ class LiveDealHunterReport:
                 )
         else:
             lines.append("- No market intelligence summaries generated.")
+        lines.extend(["", "## Market Intelligence Automation", ""])
+        if self.market_enrichment_report:
+            lines.append(f"- Enriched candidates: {self.market_enrichment_report.enriched_count}")
+            for row in self.market_enrichment_report.enriched_candidates[:5]:
+                lines.append(
+                    f"- {row.original_listing.title}: {row.deal_quality}, confidence {row.opportunity_confidence}, "
+                    f"relevance {row.collection_relevance.collection_relevance_score}/100"
+                )
+        else:
+            lines.append("- No automated enrichment generated.")
         return "\n".join(lines) + "\n"
 
     def export_markdown(self, output_path: str) -> bool:
@@ -478,6 +491,14 @@ class LiveDealHunterReport:
                     report.deal_quality.quality,
                     f"confidence={report.confidence.score}; expected_value={report.fair_value.expected_value:.2f}",
                 ])
+            if self.market_enrichment_report:
+                for row in self.market_enrichment_report.enriched_candidates:
+                    writer.writerow([
+                        "market_enrichment",
+                        row.original_listing.title,
+                        row.deal_quality,
+                        f"confidence={row.opportunity_confidence}; relevance={row.collection_relevance.collection_relevance_score}; recommendation={row.escalated_recommendation}",
+                    ])
         return True
 
 
@@ -506,6 +527,12 @@ class LiveDealHunter:
             self.market_awareness_engine,
         )
         self.validator = LiveSourceValidator()
+        self.market_automation_engine = MarketIntelligenceAutomationEngine(
+            self.collection_items,
+            self.want_list_intents,
+            self.market_awareness_engine,
+            self.market_intelligence_engine,
+        )
 
     def run_source(self, source: LiveListingSource, limit: int = 5) -> LiveDealHunterReport:
         batch = source.fetch_listings()
@@ -534,6 +561,7 @@ class LiveDealHunter:
         if ranking:
             for ranked in ranking.ranked_deals[:limit]:
                 market_reports.append(self.market_intelligence_engine.evaluate_listing(ranked.listing))
+        enrichment = self.market_automation_engine.enrich_ranking_report(ranking, batch.source_name) if ranking else None
         return LiveDealHunterReport(
             source_name=batch.source_name,
             fetch_timestamp=batch.fetch_timestamp,
@@ -546,6 +574,7 @@ class LiveDealHunter:
             ranking_report=ranking,
             market_intelligence_reports=market_reports,
             validation_report=validation_report,
+            market_enrichment_report=enrichment,
         )
 
     @staticmethod
