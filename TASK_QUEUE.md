@@ -183,7 +183,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
-- Commit hash: pending
+- Commit hash: `3dd8830`
 
 #### `[x]` Lock post-v3.8 roadmap
 
