@@ -1,0 +1,331 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.1.md
+* current Deal Hunter code/tests
+
+Begin v3.2 development.
+
+Roadmap Context:
+
+v3.1 = Deal Hunter MVP
+v3.2 = Deal Hunter Workflow Refinement
+
+GOAL:
+
+Improve Deal Hunter accuracy, usability, parsing, and reporting using deterministic local logic.
+
+This is NOT live scraping.
+
+Do not add:
+
+* live website scraping
+* browser automation
+* eBay API calls
+* live pricing
+* market prediction
+* image recognition
+* automatic purchasing
+* automatic collection mutation
+
+---
+
+1. DEAL HUNTER PARSER REFINEMENT
+
+---
+
+Improve deterministic parsing for listing titles/descriptions.
+
+Focus on:
+
+* Newfoundland coins
+* Canadian silver
+* 1859 Large Cent varieties
+* 1973 Large Bust quarter
+* 1926 Near 6 nickel
+* Canadian banknotes
+* chartered banknotes
+* slab companies: ICCS, CCCS, PCGS, NGC, BCS, PMG
+* grade words and grade abbreviations
+* lot / group / bulk listings
+* damaged / cleaned / holed / bent / environmental damage keywords
+
+---
+
+2. REALISTIC LISTING EDGE CASES
+
+---
+
+Improve handling of:
+
+* vague titles
+* multiple coins in one listing
+* “estate lot” titles
+* inflated grade language
+* “rare” keyword abuse
+* high shipping
+* non-CAD ambiguity
+* no grade stated
+* raw vs certified listings
+* banknote vs coin distinction
+
+---
+
+3. DEAL RISK FLAGS
+
+---
+
+Add or refine risk flags:
+
+* HIGH_SHIPPING
+* UNCLEAR_GRADE
+* RAW_OVERGRADED
+* LOT_LISTING
+* POSSIBLE_DAMAGE
+* UNCLEAR_CURRENCY
+* NON_COLLECTION_RELEVANT
+* NEEDS_MANUAL_REVIEW
+
+Risk flags should affect recommendation and explanation.
+
+---
+
+4. SCORING REFINEMENT
+
+---
+
+Review and refine:
+
+* priority score
+* liquidity score
+* collection-fit score
+* risk score
+* max rational bid/price
+* BUY / WATCH / PASS / NEGOTIATE / REVIEW logic
+
+Preserve existing v3.1 behavior unless tests show a clear defect.
+
+Do not claim market-pricing accuracy.
+
+---
+
+5. EXPLAINABILITY IMPROVEMENT
+
+---
+
+Improve Deal Hunter result explanations.
+
+Every listing should clearly show:
+
+* why it was recommended
+* why it was risky
+* what made it collection-relevant
+* counterargument before BUY
+* manual review reasons if applicable
+
+---
+
+6. CSV WORKFLOW IMPROVEMENT
+
+---
+
+Improve CSV import resilience.
+
+Handle:
+
+* missing optional columns
+* blank shipping
+* blank description
+* malformed price
+* extra columns
+* inconsistent column naming where safe
+
+Do not silently accept invalid required data.
+
+Report import warnings.
+
+---
+
+7. SAMPLE DATA EXPANSION
+
+---
+
+Expand or add sample CSV fixture with realistic fake listings.
+
+Include:
+
+* Newfoundland upgrade
+* same-grade duplicate
+* lower-grade duplicate
+* high-shipping deal killer
+* slabbed Canadian coin
+* BCS/PMG banknote
+* chartered banknote
+* vague estate lot
+* raw overgraded coin
+* non-Canadian irrelevant item
+* unclear currency
+* bulk lot requiring review
+
+---
+
+8. GUI / WORKFLOW REVIEW
+
+---
+
+Review Deal Hunter UI workflow.
+
+Improve only where low-risk:
+
+* clearer result display
+* clearer warnings
+* clearer score labels
+* import result summary
+* export buttons if already consistent with project patterns
+
+No major redesign.
+
+---
+
+9. EXPORT SUPPORT
+
+---
+
+Ensure Deal Hunter Markdown/CSV exports include:
+
+* parsed fields
+* total cost
+* scores
+* recommendation
+* risk flags
+* counterargument
+* reasons
+* warnings
+* listing URL
+
+---
+
+10. TESTING
+
+---
+
+Add tests for:
+
+* vague estate lot
+* raw overgraded listing
+* damaged coin keyword
+* high shipping
+* unclear currency
+* bulk lot
+* chartered banknote
+* BCS/PMG banknote
+* slabbed Canadian coin
+* Newfoundland priority
+* 1926 Near 6 priority
+* 1973 Large Bust priority
+* CSV missing optional columns
+* CSV malformed price
+* import warnings
+* export fields
+
+Run:
+
+* Deal Hunter tests
+* Smart Shopping tests
+* Acquisition Impact tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+11. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.2.md
+
+Document:
+
+* improved parser behavior
+* risk flags
+* CSV import rules
+* limitations
+* no-scraping rule
+* no-live-pricing rule
+
+---
+
+12. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* Deal Hunter imports cleanly
+* improved parser works
+* risk flags work
+* refined scoring works
+* CSV import warnings work
+* explanations work
+* exports work
+* existing v3.1 scenarios still pass
+* full suite passes
+
+Fix only defects.
+
+No new features after audit begins.
+
+---
+
+13. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.2
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* v3.2 tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+Deal Hunter handles more realistic listing data, flags risk more clearly, explains recommendations better, and remains fully local/deterministic with no scraping or live pricing.

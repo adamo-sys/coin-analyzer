@@ -5,7 +5,18 @@ import tempfile
 import unittest
 
 from coin_collection import CoinItem
-from deal_hunter import DealHunter, DealHunterReport, DealListing
+from deal_hunter import (
+    DealHunter,
+    DealHunterReport,
+    DealListing,
+    RISK_HIGH_SHIPPING,
+    RISK_LOT_LISTING,
+    RISK_NEEDS_MANUAL_REVIEW,
+    RISK_POSSIBLE_DAMAGE,
+    RISK_RAW_OVERGRADED,
+    RISK_UNCLEAR_CURRENCY,
+    RISK_UNCLEAR_GRADE,
+)
 from legacy_portfolio_importer import LegacyWantListIntent
 from market_awareness import MarketAwarenessEngine, ObservedPriceRecord
 from persistence_manager import PersistenceManager
@@ -108,6 +119,7 @@ class TestDealHunter(unittest.TestCase):
         result = self.hunter.analyze_listing(DealListing("1912 Canada 10 cents VF20", 25, 40))
 
         self.assertIn("High shipping weakens the deal", result.warnings)
+        self.assertIn(RISK_HIGH_SHIPPING, result.risk_flags)
         self.assertIn(result.recommendation, {"NEGOTIATE", "WATCH", "REVIEW", "PASS"})
         self.assertNotEqual(result.recommendation, "BUY")
 
@@ -141,6 +153,7 @@ class TestDealHunter(unittest.TestCase):
 
         self.assertIn(result.recommendation, {"REVIEW", "PASS"})
         self.assertTrue(any("currency" in warning.lower() for warning in result.warnings))
+        self.assertIn(RISK_UNCLEAR_CURRENCY, result.risk_flags)
 
     def test_csv_import(self):
         listings = DealHunter.import_csv(SAMPLE_CSV)
@@ -148,6 +161,42 @@ class TestDealHunter(unittest.TestCase):
         self.assertGreaterEqual(len(listings), 8)
         self.assertIsInstance(listings[0], DealListing)
         self.assertEqual(listings[0].total_cost, 93.0)
+
+    def test_csv_import_with_warnings_handles_missing_optional_columns(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, "minimal.csv")
+            with open(csv_path, "w", encoding="utf-8") as handle:
+                handle.write("listing_title,price\n1901 Newfoundland 50 cents VF20,85\n")
+
+            result = DealHunter.import_csv_with_warnings(csv_path)
+
+        self.assertEqual(result.rows_found, 1)
+        self.assertEqual(result.importable_count, 1)
+        self.assertEqual(result.listings[0].shipping_cad, 0.0)
+
+    def test_csv_import_reports_malformed_price(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, "bad_price.csv")
+            with open(csv_path, "w", encoding="utf-8") as handle:
+                handle.write("title,price_cad,shipping_cad,extra\n1901 Newfoundland 50 cents VF20,not-a-price,,ignored\n")
+
+            result = DealHunter.import_csv_with_warnings(csv_path)
+
+        self.assertEqual(result.rows_found, 1)
+        self.assertEqual(result.importable_count, 1)
+        self.assertTrue(any("Malformed price_cad" in warning for warning in result.warnings))
+
+    def test_csv_import_skips_missing_required_title(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, "missing_title.csv")
+            with open(csv_path, "w", encoding="utf-8") as handle:
+                handle.write("title,price_cad\n,85\n")
+
+            result = DealHunter.import_csv_with_warnings(csv_path)
+
+        self.assertEqual(result.importable_count, 0)
+        self.assertEqual(result.skipped_rows, 1)
+        self.assertTrue(any("missing required title" in warning for warning in result.warnings))
 
     def test_counterargument_before_buy(self):
         result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents VF20 PCGS", 80, 5))
@@ -169,7 +218,10 @@ class TestDealHunter(unittest.TestCase):
             with open(md_path, "r", encoding="utf-8") as handle:
                 self.assertIn("deterministic CAD guidance only", handle.read())
             with open(csv_path, "r", encoding="utf-8") as handle:
-                self.assertIn("recommendation", handle.read())
+                exported = handle.read()
+                self.assertIn("recommendation", exported)
+                self.assertIn("risk_flags", exported)
+                self.assertIn("parsed_country", exported)
 
     def test_persistence_round_trip(self):
         listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS", 80, 5)
@@ -202,6 +254,56 @@ class TestDealHunter(unittest.TestCase):
 
         self.assertIn('label="Deal Hunter"', source)
         self.assertIn("open_deal_hunter", source)
+
+    def test_vague_estate_lot_requires_review(self):
+        result = self.hunter.analyze_listing(DealListing("Estate lot old Canadian coins silver rare", 50, 18))
+
+        self.assertIn(RISK_LOT_LISTING, result.risk_flags)
+        self.assertIn(RISK_NEEDS_MANUAL_REVIEW, result.risk_flags)
+        self.assertEqual(result.recommendation, "REVIEW")
+
+    def test_raw_overgraded_listing_requires_review(self):
+        result = self.hunter.analyze_listing(DealListing("Raw 1859 Canada Large Cent GEM RARE", 200, 12))
+
+        self.assertIn(RISK_RAW_OVERGRADED, result.risk_flags)
+        self.assertIn(RISK_NEEDS_MANUAL_REVIEW, result.risk_flags)
+        self.assertEqual(result.recommendation, "REVIEW")
+
+    def test_damaged_coin_keyword_requires_review(self):
+        result = self.hunter.analyze_listing(DealListing("1973 Canada quarter Large Bust raw bent", 25, 5))
+
+        self.assertIn(RISK_POSSIBLE_DAMAGE, result.risk_flags)
+        self.assertEqual(result.recommendation, "REVIEW")
+
+    def test_bulk_lot_requires_review(self):
+        result = self.hunter.analyze_listing(DealListing("Bulk lot Newfoundland Canada coins mixed group", 80, 30))
+
+        self.assertIn(RISK_LOT_LISTING, result.risk_flags)
+        self.assertIn(RISK_HIGH_SHIPPING, result.risk_flags)
+        self.assertEqual(result.recommendation, "REVIEW")
+
+    def test_1973_large_bust_priority(self):
+        result = self.hunter.analyze_listing(DealListing("1973 Canada quarter Large Bust VF20", 35, 5))
+
+        self.assertIn("large bust", result.parsed_candidate.keywords)
+        self.assertGreaterEqual(result.priority_score, 30)
+
+    def test_1926_near_6_priority(self):
+        result = self.hunter.analyze_listing(DealListing("1926 Canada 5 cents Near 6 VF20", 45, 5))
+
+        self.assertIn("near 6", result.parsed_candidate.keywords)
+        self.assertGreaterEqual(result.priority_score, 30)
+
+    def test_grade_words_are_parsed(self):
+        result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents Very Fine", 85, 5))
+
+        self.assertEqual(result.parsed_candidate.grade, "VF-20")
+        self.assertNotIn(RISK_UNCLEAR_GRADE, result.risk_flags)
+
+    def test_no_grade_sets_unclear_grade_flag(self):
+        result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents", 85, 5))
+
+        self.assertIn(RISK_UNCLEAR_GRADE, result.risk_flags)
 
 
 if __name__ == "__main__":

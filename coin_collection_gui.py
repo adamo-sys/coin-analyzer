@@ -3235,7 +3235,8 @@ Total Unique Dates: {total_unique_dates}
             if not file_path:
                 return
             try:
-                listings = DealHunter.import_csv(file_path)
+                import_result = DealHunter.import_csv_with_warnings(file_path)
+                listings = import_result.listings
                 listings_text.delete("1.0", tk.END)
                 listings_text.insert(
                     tk.END,
@@ -3245,6 +3246,14 @@ Total Unique Dates: {total_unique_dates}
                     )
                 )
                 analyze_listings(listings)
+                detail = (
+                    f"Rows found: {import_result.rows_found}\n"
+                    f"Listings importable: {import_result.importable_count}\n"
+                    f"Rows skipped: {import_result.skipped_rows}"
+                )
+                if import_result.warnings:
+                    detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in import_result.warnings[:8])
+                messagebox.showinfo("Deal Hunter CSV Import", detail)
             except Exception as e:
                 messagebox.showerror("Deal Hunter CSV Error", f"CSV import failed: {str(e)}")
 

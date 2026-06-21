@@ -10,7 +10,7 @@ import csv
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from acquisition_workflow import AcquisitionWorkflow
 from acquisition_impact import AcquisitionImpactEngine
@@ -33,6 +33,32 @@ KEYWORDS = [
     "wide 9",
     "banknote",
     "chartered banknote",
+    "estate lot",
+    "bulk lot",
+    "lot",
+    "cleaned",
+    "damaged",
+    "holed",
+    "bent",
+    "environmental damage",
+]
+RISK_HIGH_SHIPPING = "HIGH_SHIPPING"
+RISK_UNCLEAR_GRADE = "UNCLEAR_GRADE"
+RISK_RAW_OVERGRADED = "RAW_OVERGRADED"
+RISK_LOT_LISTING = "LOT_LISTING"
+RISK_POSSIBLE_DAMAGE = "POSSIBLE_DAMAGE"
+RISK_UNCLEAR_CURRENCY = "UNCLEAR_CURRENCY"
+RISK_NON_COLLECTION_RELEVANT = "NON_COLLECTION_RELEVANT"
+RISK_NEEDS_MANUAL_REVIEW = "NEEDS_MANUAL_REVIEW"
+DAMAGE_TERMS = ["damaged", "cleaned", "holed", "bent", "environmental damage", "corrosion", "scratched"]
+LOT_TERMS = ["estate lot", "bulk lot", "group lot", "coin lot", "collection lot", "lot of", "mixed lot"]
+GRADE_WORDS = [
+    (r"\bvery\s+fine\b", "VF-20"),
+    (r"\bextra\s+fine\b|\bextremely\s+fine\b", "EF-40"),
+    (r"\balmost\s+uncirculated\b", "AU-50"),
+    (r"\buncirculated\b|\bbrilliant\s+uncirculated\b", "MS-60"),
+    (r"\bgood\b", "G-4"),
+    (r"\bfine\b", "F-12"),
 ]
 
 
@@ -57,6 +83,15 @@ def _money(value: Any) -> float:
     )
     cleaned = re.sub(r"\b(?:usd|us|gbp|eur)\b", "", cleaned).strip()
     return round(float(cleaned), 2) if cleaned else 0.0
+
+
+def _money_with_warning(value: Any, field_name: str) -> Tuple[float, List[str]]:
+    if value in (None, ""):
+        return 0.0, []
+    try:
+        return _money(value), []
+    except (TypeError, ValueError):
+        return 0.0, [f"Malformed {field_name}: {value}"]
 
 
 def _currency_warnings(*values: Any, currency: str = "CAD") -> List[str]:
@@ -104,8 +139,10 @@ class DealListing:
         raw_price = self.price_cad
         raw_shipping = self.shipping_cad
         self.title = str(self.title or "").strip()
-        self.price_cad = _money(self.price_cad)
-        self.shipping_cad = _money(self.shipping_cad)
+        price, price_warnings = _money_with_warning(self.price_cad, "price_cad")
+        shipping, shipping_warnings = _money_with_warning(self.shipping_cad, "shipping_cad")
+        self.price_cad = price
+        self.shipping_cad = shipping
         self.seller = str(self.seller or "").strip()
         self.source = str(self.source or "").strip()
         self.listing_url = str(self.listing_url or "").strip()
@@ -117,6 +154,8 @@ class DealListing:
         self.total_cost = round(self.price_cad + self.shipping_cad, 2)
         self.input_warnings = _dedupe(
             list(self.input_warnings)
+            + price_warnings
+            + shipping_warnings
             + _currency_warnings(raw_price, raw_shipping, self.title, self.description, currency=self.currency)
         )
 
@@ -204,15 +243,24 @@ class DealHunterResult:
     counterargument: str
     reasons: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    risk_flags: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        parsed = self.parsed_candidate.to_dict()
         return {
             "title": self.listing.title,
             "total_cost": self.listing.total_cost,
             "seller": self.listing.seller,
             "source": self.listing.source,
             "listing_url": self.listing.listing_url,
-            "parsed_candidate": self.parsed_candidate.to_dict(),
+            "parsed_candidate": parsed,
+            "parsed_country": parsed["country"],
+            "parsed_year": parsed["year"],
+            "parsed_denomination": parsed["denomination"],
+            "parsed_series_type": parsed["series_type"],
+            "parsed_grade": parsed["grade"],
+            "parsed_certifier": parsed["certifier"],
+            "parsed_keywords": "; ".join(parsed["keywords"]),
             "collection_status": self.collection_status,
             "priority_score": self.priority_score,
             "liquidity_score": self.liquidity_score,
@@ -223,6 +271,7 @@ class DealHunterResult:
             "counterargument": self.counterargument,
             "reasons": "; ".join(self.reasons),
             "warnings": "; ".join(self.warnings),
+            "risk_flags": "; ".join(self.risk_flags),
         }
 
 
@@ -265,6 +314,7 @@ class DealHunterReport:
                 f"- Collection-fit score: {result.collection_fit_score}",
                 f"- Risk score: {result.risk_score}",
                 f"- Max rational price CAD: {result.max_rational_price:.2f}",
+                f"- Risk flags: {', '.join(result.risk_flags) if result.risk_flags else 'None'}",
                 f"- Counterargument: {result.counterargument}",
                 "",
                 "Reasons:",
@@ -289,6 +339,13 @@ class DealHunterReport:
                 "seller",
                 "source",
                 "listing_url",
+                "parsed_country",
+                "parsed_year",
+                "parsed_denomination",
+                "parsed_series_type",
+                "parsed_grade",
+                "parsed_certifier",
+                "parsed_keywords",
                 "collection_status",
                 "priority_score",
                 "liquidity_score",
@@ -297,6 +354,7 @@ class DealHunterReport:
                 "max_rational_price",
                 "recommendation",
                 "counterargument",
+                "risk_flags",
                 "reasons",
                 "warnings",
             ])
@@ -306,6 +364,18 @@ class DealHunterReport:
                 row.pop("parsed_candidate", None)
                 writer.writerow(row)
         return True
+
+
+@dataclass
+class DealHunterCSVImportResult:
+    rows_found: int
+    listings: List[DealListing] = field(default_factory=list)
+    skipped_rows: int = 0
+    warnings: List[str] = field(default_factory=list)
+
+    @property
+    def importable_count(self) -> int:
+        return len(self.listings)
 
 
 class DealHunter:
@@ -350,13 +420,14 @@ class DealHunter:
         shopping = shopping_report.best_next_purchase
         parsed = self.parse_listing(listing, candidate)
         warnings = _dedupe(list(listing.input_warnings) + list(acquisition.warning_flags) + self._risk_warnings(listing, parsed, candidate, acquisition.collection_intelligence_status))
+        risk_flags = self._risk_flags(listing, parsed, candidate, acquisition.collection_intelligence_status, warnings)
         reasons = self._reasons(listing, parsed, acquisition, impact, shopping)
         liquidity = self._liquidity_score(listing, parsed)
         fit = self._collection_fit_score(acquisition.collection_intelligence_status, impact.impact_score, parsed)
-        risk = self._risk_score(listing, parsed, warnings)
+        risk = self._risk_score(listing, parsed, warnings, risk_flags)
         priority = self._priority_score(shopping.opportunity_score if shopping else 0, impact.impact_score, liquidity, fit, risk, parsed, acquisition.collection_intelligence_status)
-        counterargument = self._counterargument(listing, acquisition.collection_intelligence_status, risk, warnings)
-        recommendation = self._recommendation(acquisition.recommendation, priority, fit, risk, listing, counterargument, warnings)
+        counterargument = self._counterargument(listing, acquisition.collection_intelligence_status, risk, warnings, risk_flags)
+        recommendation = self._recommendation(acquisition.recommendation, priority, fit, risk, listing, counterargument, warnings, risk_flags)
 
         return DealHunterResult(
             listing=listing,
@@ -371,6 +442,7 @@ class DealHunter:
             counterargument=counterargument,
             reasons=reasons,
             warnings=warnings,
+            risk_flags=risk_flags,
         )
 
     def generate_report(self, listings: Iterable[DealListing]) -> DealHunterReport:
@@ -380,9 +452,55 @@ class DealHunter:
 
     @staticmethod
     def import_csv(input_path: str) -> List[DealListing]:
+        return DealHunter.import_csv_with_warnings(input_path).listings
+
+    @staticmethod
+    def import_csv_with_warnings(input_path: str) -> "DealHunterCSVImportResult":
         with open(input_path, "r", newline="", encoding="utf-8-sig") as handle:
             reader = csv.DictReader(handle)
-            return [DealListing.from_dict(row) for row in reader]
+            listings = []
+            warnings = []
+            skipped_rows = 0
+            rows_found = 0
+            for index, row in enumerate(reader, start=2):
+                rows_found += 1
+                normalized = DealHunter._normalize_csv_row(row)
+                if not normalized.get("title"):
+                    skipped_rows += 1
+                    warnings.append(f"Row {index}: missing required title")
+                    continue
+                if str(normalized.get("price_cad") or "").strip() == "":
+                    skipped_rows += 1
+                    warnings.append(f"Row {index}: missing required price_cad")
+                    continue
+                listing = DealListing.from_dict(normalized)
+                warnings.extend(f"Row {index}: {warning}" for warning in listing.input_warnings)
+                listings.append(listing)
+            return DealHunterCSVImportResult(rows_found, listings, skipped_rows, _dedupe(warnings))
+
+    @staticmethod
+    def _normalize_csv_row(row: Dict[str, Any]) -> Dict[str, Any]:
+        aliases = {
+            "title": ["title", "listing_title", "item_title", "name"],
+            "price_cad": ["price_cad", "price", "asking_price", "asking_price_cad", "current_bid"],
+            "shipping_cad": ["shipping_cad", "shipping", "postage", "shipping_cost"],
+            "seller": ["seller", "dealer", "vendor"],
+            "source": ["source", "platform"],
+            "listing_url": ["listing_url", "url", "link"],
+            "end_time": ["end_time", "end_date", "date"],
+            "image_url": ["image_url", "image", "photo_url"],
+            "description": ["description", "desc", "notes"],
+            "currency": ["currency", "currency_code"],
+        }
+        lowered = {str(key or "").strip().lower(): value for key, value in (row or {}).items()}
+        normalized = {}
+        for target, names in aliases.items():
+            normalized[target] = ""
+            for name in names:
+                if name in lowered:
+                    normalized[target] = lowered[name]
+                    break
+        return normalized
 
     def parse_listing(self, listing: DealListing, candidate: Optional[CandidateItem] = None) -> ParsedDealCandidate:
         candidate = candidate or ListingAnalyzer(self.collection_items, self.want_list_intents).to_candidate_item(listing.to_listing_candidate())
@@ -401,7 +519,7 @@ class DealHunter:
             year=candidate.year,
             denomination=candidate.denomination,
             series_type=series,
-            grade=candidate.grade,
+            grade=candidate.grade or self._extract_grade_word(text),
             certifier=certifier,
             keywords=_dedupe(keywords),
         )
@@ -411,6 +529,8 @@ class DealHunter:
         parsed_cert = self._extract_certifier(text)
         if parsed_cert:
             candidate.certifier = parsed_cert
+        if not candidate.grade:
+            candidate.grade = self._extract_grade_word(text.lower())
         lowered = text.lower()
         if "banknote" in lowered and not candidate.denomination:
             candidate.denomination = "banknote"
@@ -428,6 +548,14 @@ class DealHunter:
         for company in SLAB_COMPANIES:
             if company.lower() in lowered:
                 return company
+        return ""
+
+    @staticmethod
+    def _extract_grade_word(text: str) -> str:
+        lowered = text.lower()
+        for pattern, grade in GRADE_WORDS:
+            if re.search(pattern, lowered):
+                return grade
         return ""
 
     def _collection_status(self, status: str) -> str:
@@ -473,7 +601,7 @@ class DealHunter:
         score += self._priority_boost(parsed) // 3
         return max(0, min(100, score))
 
-    def _risk_score(self, listing: DealListing, parsed: ParsedDealCandidate, warnings: List[str]) -> int:
+    def _risk_score(self, listing: DealListing, parsed: ParsedDealCandidate, warnings: List[str], risk_flags: Optional[List[str]] = None) -> int:
         score = 0
         if listing.shipping_cad > 25 or (listing.price_cad > 0 and listing.shipping_cad / listing.price_cad >= 0.35):
             score += 28
@@ -490,6 +618,10 @@ class DealHunter:
             score += 18
         if any("currency" in warning.lower() for warning in warnings):
             score += 30
+        flags = set(risk_flags or [])
+        score += 12 if RISK_LOT_LISTING in flags else 0
+        score += 18 if RISK_POSSIBLE_DAMAGE in flags else 0
+        score += 12 if RISK_RAW_OVERGRADED in flags else 0
         return max(0, min(100, score))
 
     def _priority_score(self, shopping_score: int, impact_score: int, liquidity: int, fit: int, risk: int, parsed: ParsedDealCandidate, status: str) -> int:
@@ -499,7 +631,10 @@ class DealHunter:
         score += self._priority_boost(parsed)
         score -= risk // 2
         if status in {MatchStatus.SAME_GRADE_DUPLICATE.value, MatchStatus.LOWER_GRADE_DUPLICATE.value, MatchStatus.NOT_RELEVANT.value}:
-            score = min(score, 25)
+            cap = 35 if status == MatchStatus.NOT_RELEVANT.value and self._priority_boost(parsed) >= 18 else 25
+            score = min(score, cap)
+            if status == MatchStatus.NOT_RELEVANT.value and self._priority_boost(parsed) >= 18:
+                score = max(score, 30)
         return max(0, min(100, int(round(score))))
 
     def _priority_boost(self, parsed: ParsedDealCandidate) -> int:
@@ -536,9 +671,38 @@ class DealHunter:
         lowered = " ".join([listing.title, listing.description]).lower()
         if not candidate.certifier and any(term in lowered for term in ["gem", "high grade", "rare", "unc"]):
             warnings.append("Raw coin with ambitious grade language")
+        if any(term in lowered for term in LOT_TERMS):
+            warnings.append("Lot listing requires manual review")
+        if any(term in lowered for term in DAMAGE_TERMS):
+            warnings.append("Possible damage or problem-coin keyword")
         if status == MatchStatus.NOT_RELEVANT.value:
             warnings.append("Not collection relevant")
         return warnings
+
+    def _risk_flags(self, listing: DealListing, parsed: ParsedDealCandidate, candidate: CandidateItem, status: str, warnings: List[str]) -> List[str]:
+        lowered = " ".join([listing.title, listing.description]).lower()
+        flags = []
+        if listing.shipping_cad > 25 or (listing.price_cad > 0 and listing.shipping_cad / listing.price_cad >= 0.35):
+            flags.append(RISK_HIGH_SHIPPING)
+        if not parsed.grade:
+            flags.append(RISK_UNCLEAR_GRADE)
+        if not candidate.certifier and any(term in lowered for term in ["gem", "high grade", "rare", "unc", "ms+++"]):
+            flags.append(RISK_RAW_OVERGRADED)
+        if any(term in lowered for term in LOT_TERMS):
+            flags.append(RISK_LOT_LISTING)
+        if any(term in lowered for term in DAMAGE_TERMS):
+            flags.append(RISK_POSSIBLE_DAMAGE)
+        if any("currency" in warning.lower() or "malformed price" in warning.lower() for warning in warnings):
+            flags.append(RISK_UNCLEAR_CURRENCY)
+        on_theme_incomplete = parsed.country in {"Canada", "Newfoundland"} and (
+            self._priority_boost(parsed) > 0
+            or any(keyword in parsed.keywords for keyword in ["silver", "estate lot", "bulk lot", "lot", "large bust", "near 6", "banknote", "chartered banknote"])
+        )
+        if (status == MatchStatus.NOT_RELEVANT.value and not on_theme_incomplete) or (parsed.country not in {"Canada", "Newfoundland"} and "banknote" not in parsed.keywords):
+            flags.append(RISK_NON_COLLECTION_RELEVANT)
+        if flags and any(flag in flags for flag in [RISK_LOT_LISTING, RISK_POSSIBLE_DAMAGE, RISK_UNCLEAR_CURRENCY, RISK_RAW_OVERGRADED]):
+            flags.append(RISK_NEEDS_MANUAL_REVIEW)
+        return _dedupe(flags)
 
     def _reasons(self, listing: DealListing, parsed: ParsedDealCandidate, acquisition: Any, impact: Any, shopping: Any) -> List[str]:
         reasons = []
@@ -564,7 +728,7 @@ class DealHunter:
             reasons.extend(shopping.reasons[:3])
         return _dedupe(reasons)
 
-    def _counterargument(self, listing: DealListing, status: str, risk: int, warnings: List[str]) -> str:
+    def _counterargument(self, listing: DealListing, status: str, risk: int, warnings: List[str], risk_flags: Optional[List[str]] = None) -> str:
         points = []
         if status in {MatchStatus.ALREADY_OWNED.value, MatchStatus.SAME_GRADE_DUPLICATE.value}:
             points.append("already have a similar item")
@@ -574,13 +738,22 @@ class DealHunter:
             points.append("grade is uncertain")
         if risk >= 45:
             points.append("risk factors are material")
+        if RISK_LOT_LISTING in set(risk_flags or []):
+            points.append("lot contents may not match the target coin")
+        if RISK_POSSIBLE_DAMAGE in set(risk_flags or []):
+            points.append("problem-coin keywords reduce confidence")
         if listing.total_cost > 0:
             points.append("better opportunities may exist at the same budget")
         return "; ".join(points) if points else "No major counterargument beyond normal manual review."
 
-    def _recommendation(self, base: str, priority: int, fit: int, risk: int, listing: DealListing, counterargument: str, warnings: List[str]) -> str:
-        if any("currency" in warning.lower() for warning in warnings):
+    def _recommendation(self, base: str, priority: int, fit: int, risk: int, listing: DealListing, counterargument: str, warnings: List[str], risk_flags: Optional[List[str]] = None) -> str:
+        flags = set(risk_flags or [])
+        if RISK_UNCLEAR_CURRENCY in flags:
             return "REVIEW" if fit >= 45 else "PASS"
+        if RISK_POSSIBLE_DAMAGE in flags or RISK_LOT_LISTING in flags or RISK_RAW_OVERGRADED in flags:
+            if RISK_NON_COLLECTION_RELEVANT not in flags:
+                return "REVIEW"
+            return "REVIEW" if fit >= 35 else "PASS"
         if fit <= 8:
             return "PASS"
         if risk >= 70:
