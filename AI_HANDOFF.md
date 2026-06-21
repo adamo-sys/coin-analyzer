@@ -16,15 +16,15 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official Post-v3.2 Roadmap
+## Official Post-v3.4 Roadmap
 
-1. `v3.3` Opportunity Engine
-2. `v3.4` Deal Hunter Ranking Engine
-3. `v3.5` External Listing Imports
-4. `v4.0` Live Deal Hunter
+1. `v3.5` External Listing Connectors
+2. `v4.0` Live Deal Hunter
+3. `v4.1` Live Source Validation
+4. `v4.2` Market Intelligence
 5. `v5.0` Mobile Collector Companion
 
-Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
 ## What Changed
 
@@ -504,7 +504,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v3.5 External Listing Imports.
+1. Build v3.5 External Listing Connectors.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

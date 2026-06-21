@@ -230,29 +230,17 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official post-v2.2 roadmap:
+Official post-v3.4 roadmap:
 
-- `v2.3` Mobile Readiness
-- `v2.4` Mobile Companion Prototype
-- `v2.5` Photo-Assisted Entry
-- `v2.5.2` Shopping Explainability
-- `v2.6` OCR Experiments
-- `v2.6.1` OCR Validation Layer
-- `v2.7` Workflow Integration
-- `v2.8` Collector Home Dashboard
-- `v2.9` Collector Companion Release Candidate
-- `v3.0` Collector Companion
-- `v3.1` eBay.ca Coin Deal Hunter MVP
-- `v3.2` Deal Hunter Workflow Refinement
-- `v3.3` Opportunity Engine
-- `v3.4` Deal Hunter Ranking Engine
-- `v3.5` External Listing Imports
+- `v3.5` External Listing Connectors
 - `v4.0` Live Deal Hunter
+- `v4.1` Live Source Validation
+- `v4.2` Market Intelligence
 - `v5.0` Mobile Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
-Post-v3.2 roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+Post-v3.4 roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
 Near-term maintenance candidates:
 
@@ -262,7 +250,7 @@ Near-term maintenance candidates:
 - Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
-- Build v3.5 External Listing Imports to improve offline import compatibility without adding scraping, APIs, or live listing retrieval.
+- Build v3.5 External Listing Connectors to improve offline import compatibility without adding scraping, APIs, or live listing retrieval.
 
 Future candidates:
 

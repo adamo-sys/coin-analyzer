@@ -101,25 +101,21 @@ Work through this queue in priority order. Handle only one task at a time.
 69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
 70. `[x]` Build v3.3 Opportunity Engine
 71. `[x]` Build v3.4 Deal Hunter Ranking Engine
-72. `[ ]` Build v3.5 External Listing Imports
+72. `[ ]` Build v3.5 External Listing Connectors
 73. `[ ]` Build v4.0 Live Deal Hunter
-74. `[ ]` Build v5.0 Mobile Collector Companion
+74. `[ ]` Build v4.1 Live Source Validation
+75. `[ ]` Build v4.2 Market Intelligence
+76. `[ ]` Build v5.0 Mobile Collector Companion
 
-## Official v3.x Roadmap
+## Official Post-v3.4 Roadmap
 
-1. `v3.0` Collector Companion
-2. `v3.1` eBay.ca Coin Deal Hunter MVP
-3. `v3.2` Deal Hunter Workflow Refinement
-4. `v3.3` Opportunity Engine
-5. `v3.4` Deal Hunter Ranking Engine
-6. `v3.5` External Listing Imports
+1. `v3.5` External Listing Connectors
+2. `v4.0` Live Deal Hunter
+3. `v4.1` Live Source Validation
+4. `v4.2` Market Intelligence
+5. `v5.0` Mobile Collector Companion
 
-## Official Long-Range Roadmap
-
-1. `v4.0` Live Deal Hunter
-2. `v5.0` Mobile Collector Companion
-
-Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
 Clarification: `v3.4` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 
@@ -163,6 +159,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[x]` Lock post-v3.4 roadmap
+
+- Date completed: 2026-06-21
+- Roadmap locked:
+  - `v3.5` External Listing Connectors
+  - `v4.0` Live Deal Hunter
+  - `v4.1` Live Source Validation
+  - `v4.2` Market Intelligence
+  - `v5.0` Mobile Collector Companion
+- Rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine; the next bottleneck is candidate acquisition, so future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+- Commit hash: pending
 
 #### `[x]` Build v3.4 Deal Hunter Ranking Engine
 
