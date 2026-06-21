@@ -1,0 +1,409 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.0.md
+* current codebase
+
+Begin v4.1 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v4.1 = Live Source Validation
+
+v4.2 = Market Intelligence Automation
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+v4.0 introduced live opportunity discovery.
+
+v4.1 focuses on trust, validation, reliability, and source quality.
+
+Commit:
+
+Lock v4.1 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue.
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Prevent bad live data from contaminating:
+
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+
+The system should aggressively validate incoming listings.
+
+The system should prefer:
+
+REVIEW
+
+over
+
+false confidence.
+
+==================================================
+PHASE 2
+LIVE SOURCE VALIDATION ENGINE
+=============================
+
+Create:
+
+live_source_validation.py
+
+Implement:
+
+* LiveSourceValidator
+* ValidationResult
+* ValidationWarning
+* ValidationSummary
+* SourceHealthReport
+
+Purpose:
+
+Validate all live listings before they enter the intelligence pipeline.
+
+==================================================
+PHASE 3
+LISTING VALIDATION RULES
+========================
+
+Validate:
+
+* title exists
+* price exists
+* URL exists
+* seller exists
+* source exists
+
+Flag:
+
+* missing title
+* missing price
+* missing URL
+* missing seller
+* missing source
+
+Never silently accept malformed listings.
+
+==================================================
+PHASE 4
+CURRENCY VALIDATION
+===================
+
+Validate:
+
+* CAD
+* USD
+* unknown currency
+
+Flag:
+
+* NON_CAD
+* UNKNOWN_CURRENCY
+
+Do NOT convert currencies.
+
+Do NOT fetch exchange rates.
+
+Do NOT claim equivalent values.
+
+==================================================
+PHASE 5
+STALE LISTING DETECTION
+=======================
+
+Create:
+
+ListingFreshness
+
+Values:
+
+* FRESH
+* STALE
+* UNKNOWN
+
+Use timestamps supplied by the feed.
+
+Do not use live time lookups beyond normal system time.
+
+==================================================
+PHASE 6
+URL VALIDATION
+==============
+
+Validate:
+
+* malformed URLs
+* duplicate URLs
+* empty URLs
+* unsupported URL schemes
+
+Flag issues.
+
+Do not automatically repair URLs.
+
+==================================================
+PHASE 7
+SOURCE HEALTH
+=============
+
+Create:
+
+SourceHealthReport
+
+Track:
+
+* fetch success rate
+* validation pass rate
+* duplicate rate
+* stale rate
+* malformed rate
+
+Output:
+
+HEALTHY
+WATCH
+UNHEALTHY
+
+Deterministic only.
+
+==================================================
+PHASE 8
+RISK ESCALATION
+===============
+
+Generate warnings for:
+
+* high shipping
+* missing seller
+* vague title
+* missing description
+* stale listing
+* unknown currency
+* suspicious metadata
+
+Escalate to REVIEW when appropriate.
+
+==================================================
+PHASE 9
+LIVE PIPELINE INTEGRATION
+=========================
+
+Integrate validation before:
+
+CandidatePool
+↓
+Deal Hunter
+↓
+Opportunity Engine
+↓
+Ranking
+↓
+Market Intelligence
+
+Invalid listings must be flagged before entering the recommendation pipeline.
+
+==================================================
+PHASE 10
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Live Source Validation
+
+Display:
+
+* source health
+* validation warnings
+* freshness
+* validation summary
+* failed listings
+
+Keep UI simple.
+
+==================================================
+PHASE 11
+REPORTING
+=========
+
+Create:
+
+LiveSourceValidationReport
+
+Include:
+
+* source
+* listing counts
+* validation warnings
+* stale counts
+* duplicate counts
+* malformed counts
+* health status
+
+Support:
+
+* Markdown export
+* CSV export
+
+==================================================
+PHASE 12
+FAILURE HANDLING
+================
+
+Handle:
+
+* malformed feeds
+* empty feeds
+* invalid listings
+* duplicate feeds
+* missing timestamps
+* unsupported formats
+
+Generate explicit errors.
+
+No silent failures.
+
+==================================================
+PHASE 13
+TESTING
+=======
+
+Add tests for:
+
+* missing title
+* missing price
+* missing seller
+* missing URL
+* CAD listings
+* non-CAD listings
+* unknown currency
+* stale listings
+* duplicate URLs
+* malformed URLs
+* source health scoring
+* validation reports
+* export generation
+
+Run:
+
+* Live Source Validation tests
+* Live Deal Hunter tests
+* Connector tests
+* Deal Hunter tests
+* Ranking tests
+* Market Intelligence tests
+* Portfolio Performance tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 14
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.1.md
+
+Document:
+
+* validation architecture
+* health scoring
+* freshness logic
+* limitations
+
+==================================================
+PHASE 15
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* validation works
+* freshness works
+* source health works
+* reports work
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 16
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v4.1
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can determine whether a live source and its listings are trustworthy enough to enter the recommendation pipeline and can clearly explain validation failures, freshness concerns, and source-health issues.

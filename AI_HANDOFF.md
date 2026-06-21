@@ -5,7 +5,7 @@
 - Date: 2026-06-21
 - Branch: `main`
 - Current project state file reports release version: `v4.0`
-- Current active task completed: v4.0 Live Deal Hunter (Controlled Beta)
+- Current active task in progress: v4.1 Live Source Validation
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,20 +16,19 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v4.0 Roadmap
+## Official v4.1 Roadmap
 
-1. `v3.8` Market Intelligence
-2. `v3.9` Portfolio Performance
-3. `v4.0` Live Deal Hunter (Controlled Beta)
-4. `v4.1` Live Source Validation
-5. `v4.2` Market Intelligence Automation
-6. `v5.0` Mobile Collector Companion
+1. `v4.1` Live Source Validation
+2. `v4.2` Market Intelligence Automation
+3. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
 v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
+
+v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
 
 ## What Changed
 

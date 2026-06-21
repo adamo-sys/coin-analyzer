@@ -248,11 +248,8 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v4.0 roadmap:
+Official v4.1 roadmap:
 
-- `v3.8` Market Intelligence
-- `v3.9` Portfolio Performance
-- `v4.0` Live Deal Hunter (Controlled Beta)
 - `v4.1` Live Source Validation
 - `v4.2` Market Intelligence Automation
 - `v5.0` Mobile Collector Companion
@@ -264,6 +261,8 @@ Post-v3.7 roadmap rationale: the platform now contains Collection Intelligence, 
 Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 
 v4.0 roadmap rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
+
+v4.1 roadmap rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
 
 Near-term maintenance candidates:
 

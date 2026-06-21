@@ -107,24 +107,23 @@ Work through this queue in priority order. Handle only one task at a time.
 75. `[x]` Build v3.8 Market Intelligence
 76. `[x]` Build v3.9 Portfolio Performance
 77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
-78. `[ ]` Build v4.1 Live Source Validation
+78. `[-]` Build v4.1 Live Source Validation
 79. `[ ]` Build v4.2 Market Intelligence Automation
 80. `[ ]` Build v5.0 Mobile Collector Companion
 
-## Official v4.0 Roadmap
+## Official v4.1 Roadmap
 
-1. `v3.8` Market Intelligence
-2. `v3.9` Portfolio Performance
-3. `v4.0` Live Deal Hunter (Controlled Beta)
-4. `v4.1` Live Source Validation
-5. `v4.2` Market Intelligence Automation
-6. `v5.0` Mobile Collector Companion
+1. `v4.1` Live Source Validation
+2. `v4.2` Market Intelligence Automation
+3. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
 v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
+
+v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
 
 Clarification: `v3.4` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 
@@ -168,6 +167,22 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[x]` Lock v4.1 roadmap
+
+- Date completed: 2026-06-21
+- Roadmap locked:
+  - `v4.1` Live Source Validation
+  - `v4.2` Market Intelligence Automation
+  - `v5.0` Mobile Collector Companion
+- Rationale: v4.0 introduced live opportunity discovery; v4.1 focuses on trust, validation, reliability, and source quality.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+  - `project_docs/release_prompts/v4.1.txt`
+- Commit hash: pending
 
 #### `[x]` Lock v4.0 roadmap
 
