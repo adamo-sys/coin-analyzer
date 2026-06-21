@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.3`
-- Current active task completed: v3.3 Opportunity Engine
+- Current project state file reports release version: `v3.4`
+- Current active task completed: v3.4 Deal Hunter Ranking and Import Framework
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -161,6 +161,11 @@ Roadmap rationale: the platform has matured from collection management toward co
 - Added `opportunity_engine.py` with OpportunityEngine, OpportunityScore, OpportunityReport, and TopOpportunitiesReport for budget-aware "What should I buy next?" guidance.
 - Opportunity Engine reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context.
 - Added Workflows -> Opportunity Engine with optional manual candidates, top opportunities, budget recommendations, CSV export, and Markdown export.
+- Added `deal_hunter_ranking.py` with `CandidatePool`, `ImportProfile`, `DealHunterRankingEngine`, `RankingScore`, `RankedDeal`, `BudgetOpportunityReport`, and `DealHunterRankingReport`.
+- Deal Hunter Ranking merges manual/CSV candidate pools, validates eBay/Auction/Dealer/Custom import profiles, detects duplicate URLs/listings, and suppresses repeated recommendations.
+- Deal Hunter Ranking reuses Deal Hunter and Opportunity Engine outputs to score candidates by collection fit, upgrade value, gap value, WANT_LIST relevance, liquidity, risk, and budget fit.
+- Added Tools -> Deal Hunter Ranking with manual pool entry, local CSV import, source summary/ranking display, CSV export, and Markdown export.
+- Added `test_deal_hunter_ranking.py` covering candidate pools, duplicate detection/import handling, import profiles, malformed imports, ranking score generation, budget views, Newfoundland/banknote/upgrade/gap categories, and exports.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -420,6 +425,7 @@ Supported statuses:
 - Workflow Integration must remain orchestration-only. Do not add new recommendation logic, new grading logic, scraping, APIs, live pricing, background jobs, or automatic collection updates.
 - Deal Hunter must remain offline and deterministic. Do not scrape, use browser automation, fetch live listing pages, require eBay API credentials, claim live market-pricing accuracy, or mutate collection records. Risk flags and parser signals are manual-review guidance, not live market truth.
 - Opportunity Engine must remain offline and deterministic. Do not use it to add scraping, browser automation, APIs, live pricing, market prediction, image recognition, automatic purchasing, or collection mutation.
+- Deal Hunter Ranking must remain offline and deterministic. It may rank supplied local candidate pools and CSV imports, but it must not fetch listings, scrape websites, use eBay APIs, use browser automation, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -427,8 +433,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 515 tests OK for the v3.3 Opportunity Engine release line.
-- Coverage note: total passing tests increased from 505 to 515; existing regression suites remained green.
+- `.\run_tests.bat`: 527 tests OK for the v3.4 Deal Hunter Ranking release line.
+- Coverage note: total passing tests increased from 515 to 527; existing regression suites remained green.
+- Targeted Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 114 tests OK.
+- Targeted Deal Hunter Ranking tests: 12 tests OK.
 - Targeted Opportunity Engine, Deal Hunter, Smart Shopping, Acquisition Impact, Collection Intelligence, and Focused Collection Intelligence regression block: 111 tests OK.
 - Targeted Opportunity Engine tests: 10 tests OK.
 - Targeted Deal Hunter tests: 30 tests OK.
@@ -485,6 +493,7 @@ Supported statuses:
 - Collector Companion Readiness and Status are audit/reporting layers only; they do not add recommendation logic, mutate ownership data, run OCR, scrape, call APIs, grade images, create background jobs, or replace existing tools.
 - Deal Hunter recommendations are deterministic local guidance only. Max rational price is not live market pricing, appraisal, or a guarantee of value. CSV import warnings and risk flags reduce silent failure, but ambiguous listings still require collector review.
 - Opportunity Engine scores supplied/generated opportunities only. Unpriced opportunities receive budget-fit review warnings, and all recommendations include counterarguments.
+- Deal Hunter Ranking scores supplied/generated local candidate pools only. Import profiles are offline CSV mapping frameworks, not connectors, scrapers, or APIs.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -495,7 +504,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v3.4 Deal Hunter Ranking Engine.
+1. Build v3.5 External Listing Imports.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

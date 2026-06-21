@@ -100,7 +100,7 @@ Work through this queue in priority order. Handle only one task at a time.
 68. `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
 69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
 70. `[x]` Build v3.3 Opportunity Engine
-71. `[ ]` Build v3.4 Deal Hunter Ranking Engine
+71. `[x]` Build v3.4 Deal Hunter Ranking Engine
 72. `[ ]` Build v3.5 External Listing Imports
 73. `[ ]` Build v4.0 Live Deal Hunter
 74. `[ ]` Build v5.0 Mobile Collector Companion
@@ -121,7 +121,7 @@ Work through this queue in priority order. Handle only one task at a time.
 
 Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
 
-Clarification: `v3.3` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
+Clarification: `v3.4` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 
 ## Adam-Specific Collection Priorities
 
@@ -163,6 +163,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[x]` Build v3.4 Deal Hunter Ranking Engine
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `deal_hunter_ranking.py` (new file)
+  - `test_deal_hunter_ranking.py` (new file)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.4.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.4.md` (new file)
+- Implementation commit hash: `47d34fe`
+- Test coverage: total passing tests increased from 515 to 527; existing regression suites remained green.
+- Limitation: deterministic local ranking only; no scraping, browser automation, eBay APIs, live listing retrieval, live pricing, automatic purchasing, image recognition, or collection mutation.
 
 #### `[x]` Build v3.3 Opportunity Engine
 

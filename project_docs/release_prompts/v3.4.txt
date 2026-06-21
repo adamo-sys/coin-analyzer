@@ -1,0 +1,427 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.0.md
+* docs/releases/v3.1.md
+* docs/releases/v3.2.md
+* docs/releases/v3.3.md
+* current codebase
+
+Begin v3.4 development.
+
+Roadmap Context:
+
+v3.3 = Opportunity Engine
+
+v3.4 = Deal Hunter Ranking & Import Framework
+
+Future roadmap:
+
+v3.5 = External Listing Connectors
+
+v4.0 = Live Deal Hunter
+
+v5.0 = Mobile Collector Companion
+
+---
+
+## GOAL
+
+Transform Deal Hunter from:
+
+"Evaluate one listing"
+
+into:
+
+"Rank large pools of candidate listings and surface the best opportunities."
+
+This release focuses on:
+
+* ranking
+* prioritization
+* budget allocation
+* import scalability
+
+Do NOT add:
+
+* scraping
+* browser automation
+* eBay APIs
+* live listing retrieval
+* live pricing
+* image recognition
+* automatic purchasing
+* collection mutation
+
+Deterministic local logic only.
+
+---
+
+1. CANDIDATE POOL SYSTEM
+
+---
+
+Create:
+
+CandidatePool
+
+Purpose:
+
+Store and manage large groups of imported listings.
+
+Support:
+
+* manual entries
+* existing Deal Hunter CSV imports
+* multiple CSV imports merged together
+
+CandidatePool should preserve:
+
+* source
+* seller
+* URL
+* parsed metadata
+* scores
+* recommendations
+
+---
+
+2. DEAL HUNTER RANKING ENGINE
+
+---
+
+Create:
+
+DealHunterRankingEngine
+
+Purpose:
+
+Rank candidate listings by overall opportunity.
+
+Use:
+
+* Deal Hunter scores
+* Opportunity Engine scores
+* Collection fit
+* Upgrade value
+* Gap filling value
+* Want-list relevance
+* Liquidity
+* Risk
+* Budget fit
+
+Output:
+
+RankingScore
+
+0–100
+
+Deterministic.
+
+---
+
+3. RANKING CATEGORIES
+
+---
+
+Generate:
+
+Top Opportunities Overall
+
+Top Opportunities Under $50
+
+Top Opportunities Under $100
+
+Top Opportunities Under $250
+
+Top Opportunities Under $500
+
+Top Newfoundland Opportunities
+
+Top Canadian Silver Opportunities
+
+Top Banknote Opportunities
+
+Top Upgrade Opportunities
+
+Top Collection Gap Opportunities
+
+Top Want-List Opportunities
+
+---
+
+4. BUDGET OPTIMIZATION
+
+---
+
+Support:
+
+* $50
+* $100
+* $250
+* $500
+
+Questions:
+
+"What should I buy with this budget?"
+
+"What gives the most collection impact per dollar?"
+
+"What should I buy first?"
+
+Provide reasoning and counterarguments.
+
+---
+
+5. IMPORT FRAMEWORK
+
+---
+
+Create:
+
+ImportProfile
+
+Support:
+
+* eBay CSV
+* Auction CSV
+* Dealer CSV
+* Custom CSV
+
+This is a framework only.
+
+Do NOT implement scraping.
+
+Do NOT implement APIs.
+
+Do NOT fetch listings.
+
+Purpose:
+
+Allow future connectors to plug into a common structure.
+
+---
+
+6. IMPORT VALIDATION
+
+---
+
+Validate:
+
+* required fields
+* pricing
+* URLs
+* duplicate imports
+* malformed rows
+* unsupported formats
+
+Generate import warnings.
+
+Do not silently discard records.
+
+---
+
+7. DUPLICATE MANAGEMENT
+
+---
+
+Detect:
+
+* identical URLs
+* duplicate listings
+* repeated imports
+
+Allow ranking engine to avoid duplicate recommendations.
+
+---
+
+8. OPPORTUNITY CONSOLIDATION
+
+---
+
+If multiple listings represent:
+
+* same upgrade
+* same want-list target
+* same collection gap
+
+Consolidate opportunity reporting where appropriate.
+
+Avoid flooding reports.
+
+---
+
+9. REPORTING
+
+---
+
+Create:
+
+DealHunterRankingReport
+
+Include:
+
+* rank
+* listing summary
+* recommendation
+* ranking score
+* collection impact
+* budget fit
+* risk flags
+* counterargument
+* source
+
+Create:
+
+BudgetOpportunityReport
+
+Create:
+
+TopOpportunitiesReport
+
+Support:
+
+* Markdown export
+* CSV export
+
+---
+
+10. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Deal Hunter Ranking
+
+Display:
+
+* candidate count
+* top opportunities
+* ranking scores
+* budget views
+* source summaries
+
+No major redesign.
+
+---
+
+11. TESTING
+
+---
+
+Add tests for:
+
+* ranking score generation
+* candidate pool creation
+* duplicate detection
+* duplicate import handling
+* budget ranking
+* Newfoundland ranking
+* banknote ranking
+* upgrade ranking
+* collection gap ranking
+* import profiles
+* malformed imports
+* export generation
+
+Run:
+
+* Ranking tests
+* Deal Hunter tests
+* Opportunity Engine tests
+* Collection Intelligence tests
+* Smart Shopping tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+12. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.4.md
+
+Document:
+
+* ranking methodology
+* candidate pools
+* import profiles
+* budget optimization
+* limitations
+
+---
+
+13. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* candidate pool works
+* ranking works
+* budget optimization works
+* duplicate handling works
+* import profiles work
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+14. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.4
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+A collector can import large groups of candidate listings, rank them by collection impact and budget fit, and immediately see the highest-priority opportunities without manually reviewing every listing.
