@@ -1,0 +1,407 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.0.md
+* docs/releases/v3.1.md
+* docs/releases/v3.2.md
+* docs/releases/v3.3.md
+* docs/releases/v3.4.md
+* current codebase
+
+Begin v3.5 development.
+
+---
+
+PHASE 0
+ROADMAP UPDATE
+--------------
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v3.5 = External Listing Connectors
+
+v4.0 = Live Deal Hunter
+
+v4.1 = Live Source Validation
+
+v4.2 = Market Intelligence
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+The platform now contains:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+
+The next bottleneck is candidate acquisition.
+
+Future development should prioritize:
+
+* listing ingestion
+* source normalization
+* connector reliability
+* candidate volume
+
+before live APIs and scraping.
+
+Commit:
+
+Lock post-v3.4 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue into v3.5.
+
+---
+
+PHASE 1
+V3.5 EXTERNAL LISTING CONNECTORS
+--------------------------------
+
+GOAL
+
+Create a connector framework that normalizes listing data from multiple sources.
+
+Do NOT implement:
+
+* scraping
+* browser automation
+* eBay APIs
+* dealer APIs
+* auction APIs
+* live fetching
+
+Framework only.
+
+---
+
+1. CONNECTOR FRAMEWORK
+
+---
+
+Create:
+
+* ListingConnector
+* ConnectorRegistry
+
+Purpose:
+
+Normalize external listing data into a common structure.
+
+All connectors should output:
+
+NormalizedListing
+
+Compatible with:
+
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+
+---
+
+2. BUILT-IN CONNECTORS
+
+---
+
+Implement:
+
+eBayCSVConnector
+
+AuctionCSVConnector
+
+DealerInventoryConnector
+
+GenericCSVConnector
+
+These connectors should normalize source fields into a common listing model.
+
+---
+
+3. NORMALIZED LISTING MODEL
+
+---
+
+Ensure every imported listing can expose:
+
+* title
+* description
+* price
+* shipping
+* total cost
+* seller
+* source
+* source type
+* URL
+* image URL
+* import timestamp
+* connector name
+
+---
+
+4. IMPORT PIPELINES
+
+---
+
+Support:
+
+* single-file imports
+* multi-file imports
+* mixed-source imports
+
+Examples:
+
+eBay CSV
++
+Dealer CSV
++
+Auction CSV
+
+into one CandidatePool.
+
+---
+
+5. CONNECTOR VALIDATION
+
+---
+
+Create:
+
+ConnectorValidationReport
+
+Validate:
+
+* required fields
+* malformed prices
+* malformed URLs
+* missing titles
+* unsupported columns
+* import warnings
+
+Do not silently discard invalid records.
+
+---
+
+6. SOURCE TRACKING
+
+---
+
+Every listing should record:
+
+* connector used
+* source name
+* source type
+* import date/time
+
+Purpose:
+
+Improve traceability.
+
+---
+
+7. CROSS-SOURCE DUPLICATE DETECTION
+
+---
+
+Create:
+
+DuplicateOpportunityDetector
+
+Detect:
+
+* identical URLs
+* same listing imported twice
+* likely duplicate opportunities across sources
+
+Flag duplicates for review.
+
+Do not automatically remove them.
+
+---
+
+8. MULTI-SOURCE RANKING
+
+---
+
+Allow:
+
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+
+to operate on listings from multiple connectors simultaneously.
+
+Preserve existing ranking behavior.
+
+---
+
+9. REPORTING
+
+---
+
+Create:
+
+ConnectorImportReport
+
+SourceSummaryReport
+
+ConnectorValidationReport
+
+Support:
+
+* Markdown export
+* CSV export
+
+---
+
+10. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> External Listing Connectors
+
+Allow:
+
+* connector selection
+* file import
+* validation review
+* import summary
+
+No major redesign.
+
+---
+
+11. TESTING
+
+---
+
+Add tests for:
+
+* eBay connector
+* Auction connector
+* Dealer connector
+* Generic connector
+* malformed imports
+* validation warnings
+* source tracking
+* duplicate detection
+* multi-source ranking
+* report exports
+
+Run:
+
+* Connector tests
+* Ranking tests
+* Deal Hunter tests
+* Opportunity Engine tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+12. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.5.md
+
+Document:
+
+* connector framework
+* supported import formats
+* source tracking
+* validation
+* limitations
+
+---
+
+13. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* connectors import correctly
+* validation works
+* source tracking works
+* duplicate detection works
+* multi-source ranking works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+14. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.5
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+Collector Companion can ingest, normalize, validate, track, and rank listings from multiple offline sources through a common connector framework without scraping, APIs, or live data retrieval.

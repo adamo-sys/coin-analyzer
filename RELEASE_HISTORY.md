@@ -38,6 +38,7 @@
 | `v3.2` | See verified tag `v3.2` | Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass. |
 | `v3.3` | See verified tag `v3.3` | Opportunity Engine with budget-aware collection opportunities, top opportunity groupings, counterarguments, Deal Hunter input support, and 515-test regression pass. |
 | `v3.4` | See verified tag `v3.4` | Deal Hunter Ranking and Import Framework with candidate pools, import profiles, duplicate suppression, budget/category rankings, source summaries, Tools -> Deal Hunter Ranking, and 527-test regression pass. |
+| `v3.5` | See verified tag `v3.5` | External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV normalization, validation, source tracking, duplicate-opportunity detection, Tools -> External Listing Connectors, multi-source ranking compatibility, and 538-test regression pass. |
 
 ## Notes
 

@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.4`
-- Current active task completed: v3.4 Deal Hunter Ranking and Import Framework
+- Current project state file reports release version: `v3.5`
+- Current active task completed: v3.5 External Listing Connectors
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -166,6 +166,10 @@ Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunte
 - Deal Hunter Ranking reuses Deal Hunter and Opportunity Engine outputs to score candidates by collection fit, upgrade value, gap value, WANT_LIST relevance, liquidity, risk, and budget fit.
 - Added Tools -> Deal Hunter Ranking with manual pool entry, local CSV import, source summary/ranking display, CSV export, and Markdown export.
 - Added `test_deal_hunter_ranking.py` covering candidate pools, duplicate detection/import handling, import profiles, malformed imports, ranking score generation, budget views, Newfoundland/banknote/upgrade/gap categories, and exports.
+- Added `listing_connectors.py` with `ListingConnector`, `ConnectorRegistry`, `NormalizedListing`, `eBayCSVConnector`, `AuctionCSVConnector`, `DealerInventoryConnector`, `GenericCSVConnector`, `ConnectorValidationReport`, `ConnectorImportReport`, `SourceSummaryReport`, and `DuplicateOpportunityDetector`.
+- External Listing Connectors normalize user-supplied local CSV files into Deal Hunter-compatible listings, preserve source/connector/import metadata, validate required fields/prices/URLs/unsupported columns, and detect duplicate opportunities across sources.
+- Added Tools -> External Listing Connectors for connector selection, local file import, validation/source/duplicate summary, multi-source ranking handoff, Markdown import export, and ranking CSV export.
+- Added `test_listing_connectors.py` covering eBay/Auction/Dealer/Generic connectors, malformed imports, validation warnings, source tracking, duplicate detection, multi-source ranking, and report exports.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -426,6 +430,7 @@ Supported statuses:
 - Deal Hunter must remain offline and deterministic. Do not scrape, use browser automation, fetch live listing pages, require eBay API credentials, claim live market-pricing accuracy, or mutate collection records. Risk flags and parser signals are manual-review guidance, not live market truth.
 - Opportunity Engine must remain offline and deterministic. Do not use it to add scraping, browser automation, APIs, live pricing, market prediction, image recognition, automatic purchasing, or collection mutation.
 - Deal Hunter Ranking must remain offline and deterministic. It may rank supplied local candidate pools and CSV imports, but it must not fetch listings, scrape websites, use eBay APIs, use browser automation, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
+- External Listing Connectors must remain offline local-file adapters only. Do not add scraping, browser automation, eBay APIs, dealer APIs, auction APIs, live fetching, live pricing, automatic purchasing, image recognition, or collection mutation in this layer.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -433,8 +438,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 527 tests OK for the v3.4 Deal Hunter Ranking release line.
-- Coverage note: total passing tests increased from 515 to 527; existing regression suites remained green.
+- `.\run_tests.bat`: 538 tests OK for the v3.5 External Listing Connectors release line.
+- Coverage note: total passing tests increased from 527 to 538; existing regression suites remained green.
+- Targeted External Listing Connectors, Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 125 tests OK.
+- Targeted External Listing Connectors tests: 11 tests OK.
 - Targeted Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 114 tests OK.
 - Targeted Deal Hunter Ranking tests: 12 tests OK.
 - Targeted Opportunity Engine, Deal Hunter, Smart Shopping, Acquisition Impact, Collection Intelligence, and Focused Collection Intelligence regression block: 111 tests OK.
@@ -494,6 +501,7 @@ Supported statuses:
 - Deal Hunter recommendations are deterministic local guidance only. Max rational price is not live market pricing, appraisal, or a guarantee of value. CSV import warnings and risk flags reduce silent failure, but ambiguous listings still require collector review.
 - Opportunity Engine scores supplied/generated opportunities only. Unpriced opportunities receive budget-fit review warnings, and all recommendations include counterarguments.
 - Deal Hunter Ranking scores supplied/generated local candidate pools only. Import profiles are offline CSV mapping frameworks, not connectors, scrapers, or APIs.
+- External Listing Connectors normalize supplied local CSV files only. Connector validation reports help review import quality, but ambiguous rows and likely duplicate opportunities still require collector review.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -504,7 +512,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v3.5 External Listing Connectors.
+1. Prepare v4.0 Live Deal Hunter planning.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

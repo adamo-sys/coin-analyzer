@@ -101,7 +101,7 @@ Work through this queue in priority order. Handle only one task at a time.
 69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
 70. `[x]` Build v3.3 Opportunity Engine
 71. `[x]` Build v3.4 Deal Hunter Ranking Engine
-72. `[ ]` Build v3.5 External Listing Connectors
+72. `[x]` Build v3.5 External Listing Connectors
 73. `[ ]` Build v4.0 Live Deal Hunter
 74. `[ ]` Build v4.1 Live Source Validation
 75. `[ ]` Build v4.2 Market Intelligence
@@ -175,7 +175,27 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
-- Commit hash: pending
+- Commit hash: `e4a2245`
+
+#### `[x]` Build v3.5 External Listing Connectors
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `listing_connectors.py` (new file)
+  - `test_listing_connectors.py` (new file)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.5.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.5.md` (new file)
+- Roadmap lock commit hash: `e4a2245`
+- Implementation commit hash: `27aca0c`
+- Test coverage: total passing tests increased from 527 to 538; existing regression suites remained green.
+- Limitation: deterministic local connector framework only; no scraping, browser automation, eBay/dealer/auction APIs, live listing retrieval, live pricing, automatic purchasing, image recognition, or collection mutation.
 
 #### `[x]` Build v3.4 Deal Hunter Ranking Engine
 

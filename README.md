@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.4`
+Current version: `v3.5`
 
-Latest tagged release: `v3.4`
+Latest tagged release: `v3.5`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -41,6 +41,7 @@ The app is especially tuned for Adam-specific priorities:
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
 - Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, flag risky/ambiguous listings, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
 - Deal Hunter Ranking: merge large manual/CSV candidate pools, detect duplicate listings, rank opportunities by Deal Hunter score, Opportunity Engine score, collection fit, upgrades, gaps, WANT_LIST relevance, liquidity, risk, and budget fit, then export budget/category ranking reports.
+- External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
@@ -130,7 +131,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.4 Deal Hunter Ranking suite passed with `527 tests OK`.
+The v3.5 External Listing Connectors suite passed with `538 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -174,6 +175,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.2` | See verified tag `v3.2` | Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass. |
 | `v3.3` | See verified tag `v3.3` | Opportunity Engine with budget-aware collection opportunities, top opportunity groupings, counterarguments, Deal Hunter input support, and 515-test regression pass. |
 | `v3.4` | See verified tag `v3.4` | Deal Hunter Ranking and Import Framework with candidate pools, import profiles, duplicate suppression, budget/category rankings, source summaries, CSV/Markdown export, and 527-test regression pass. |
+| `v3.5` | See verified tag `v3.5` | External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV normalization, validation, source tracking, duplicate-opportunity detection, multi-source ranking compatibility, and 538-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -190,6 +192,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Deal Hunter when comparing eBay.ca-style listing rows from manual entry or CSV import and you want collection-aware BUY/WATCH/NEGOTIATE/REVIEW/PASS guidance with counterarguments.
 - Use Deal Hunter Ranking when you have many candidate listings and want top overall, budget-specific, Newfoundland, Canadian silver, banknote, upgrade, gap, and WANT_LIST opportunity rankings.
+- Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
@@ -570,6 +573,46 @@ Deal Hunter Ranking adds:
 
 Deal Hunter Ranking is deterministic local guidance only. It does not scrape, fetch URLs, use browser automation, call eBay APIs, retrieve live listings, claim live market pricing accuracy, purchase automatically, or mutate collection data.
 
+## External Listing Connectors
+
+Use Tools -> External Listing Connectors to normalize user-supplied local CSV files from multiple offline source formats before ranking them.
+
+Supported connectors:
+
+- eBay CSV Connector
+- Auction CSV Connector
+- Dealer Inventory Connector
+- Generic CSV Connector
+
+Connector outputs use a common `NormalizedListing` model with:
+
+- title
+- description
+- price
+- shipping
+- total cost
+- seller
+- source
+- source type
+- URL
+- image URL
+- import timestamp
+- connector name
+
+Connector validation reports:
+
+- required field issues
+- malformed prices
+- malformed URLs
+- missing titles
+- unsupported columns
+- skipped rows
+- import warnings
+
+The connector registry supports single-file imports, multi-file imports, and mixed-source imports into one CandidatePool for Deal Hunter Ranking. DuplicateOpportunityDetector flags identical URLs, same listings, and likely duplicate opportunities across sources for collector review.
+
+External Listing Connectors are local-file adapters only. They do not scrape, use browser automation, call eBay/dealer/auction APIs, fetch live listings, claim live market pricing accuracy, purchase automatically, recognize images, or mutate collection records.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -607,6 +650,7 @@ Export support is intentionally report-specific:
 - Smart Shopping Assistant: CSV and Markdown export.
 - Deal Hunter: CSV and Markdown export.
 - Deal Hunter Ranking: CSV and Markdown export.
+- External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.
 
