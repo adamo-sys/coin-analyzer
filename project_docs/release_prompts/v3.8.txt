@@ -1,0 +1,434 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.5.md
+* docs/releases/v3.6.md
+* docs/releases/v3.7.md (if present)
+* current codebase
+
+Begin v3.8 development.
+
+---
+
+PHASE 0
+ROADMAP UPDATE
+--------------
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v3.7 = Live Deal Hunter Readiness
+
+v3.8 = Market Intelligence
+
+v4.0 = Live Deal Hunter
+
+v4.1 = Live Source Validation
+
+v4.2 = Portfolio Performance
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+The platform now contains:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Listing Connectors
+* Calibration Framework
+
+Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+
+Commit:
+
+Lock post-v3.7 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue into v3.8.
+
+---
+
+PHASE 1
+V3.8 MARKET INTELLIGENCE
+------------------------
+
+GOAL
+
+Help answer:
+
+"Is this actually a good deal?"
+
+not just:
+
+"Should I look at it?"
+
+Do NOT implement:
+
+* scraping
+* browser automation
+* eBay APIs
+* dealer APIs
+* auction APIs
+* live pricing retrieval
+* automatic purchasing
+* collection mutation
+
+All intelligence must remain deterministic and local.
+
+---
+
+1. MARKET INTELLIGENCE ENGINE
+
+---
+
+Create:
+
+MarketIntelligenceEngine
+
+Purpose:
+
+Evaluate deal quality using available local information.
+
+Integrate with:
+
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Collection Intelligence
+
+---
+
+2. FAIR VALUE ESTIMATES
+
+---
+
+Create:
+
+FairValueEstimate
+
+Support:
+
+* Conservative Value
+* Expected Value
+* Aggressive Value
+
+These are estimation bands only.
+
+No market-price guarantees.
+
+No live pricing claims.
+
+---
+
+3. DEAL QUALITY MODEL
+
+---
+
+Create:
+
+DealQuality
+
+Possible outputs:
+
+* Excellent
+* Good
+* Fair
+* Weak
+* Overpriced
+* Unknown
+
+Reasoning required.
+
+---
+
+4. OPPORTUNITY CONFIDENCE
+
+---
+
+Create:
+
+OpportunityConfidence
+
+Score:
+
+0–100
+
+Based on:
+
+* collection fit
+* duplicate status
+* upgrade potential
+* gap impact
+* data completeness
+* risk indicators
+* available valuation evidence
+
+Deterministic only.
+
+---
+
+5. COMPARABLE SALES FRAMEWORK
+
+---
+
+Create:
+
+ComparableSale
+
+Support local/manual data only.
+
+Examples:
+
+* auction result
+* dealer observation
+* user-entered comp
+* catalog value
+* historical reference
+
+No web retrieval.
+
+No API calls.
+
+---
+
+6. VALUE EXPLANATION
+
+---
+
+Create:
+
+MarketIntelligenceReport
+
+Include:
+
+* deal quality
+* confidence score
+* fair value range
+* strengths
+* weaknesses
+* risk factors
+* counterargument
+* buy rationale (if applicable)
+
+Every recommendation must include a counterargument.
+
+---
+
+7. RISK ANALYSIS
+
+---
+
+Evaluate:
+
+* high shipping
+* vague title
+* uncertain attribution
+* raw grade risk
+* damaged/cleaned risk
+* low-information listing
+* duplicate ownership
+* weak collection relevance
+
+Output:
+
+RiskSummary
+
+---
+
+8. COLLECTION IMPACT + VALUE
+
+---
+
+Combine:
+
+* collection impact
+* deal quality
+* confidence
+* budget fit
+
+Purpose:
+
+Distinguish:
+
+Good Coin
+
+vs
+
+Good Deal
+
+vs
+
+Good Opportunity
+
+---
+
+9. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Market Intelligence
+
+Display:
+
+* deal quality
+* fair value estimate
+* confidence score
+* strengths
+* weaknesses
+* risk factors
+* counterargument
+
+No major redesign.
+
+---
+
+10. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* MarketIntelligenceReport
+* FairValueEstimate
+* RiskSummary
+
+---
+
+11. TESTING
+
+---
+
+Add tests for:
+
+* fair value generation
+* confidence scoring
+* deal quality classification
+* comparable sales handling
+* risk analysis
+* counterargument generation
+* duplicate handling
+* upgrade handling
+* export generation
+
+Run:
+
+* Market Intelligence tests
+* Deal Hunter tests
+* Opportunity Engine tests
+* Ranking tests
+* Connector tests
+* Calibration tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+12. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.8.md
+
+Document:
+
+* deal quality model
+* confidence model
+* fair value estimates
+* comparable sales framework
+* limitations
+
+---
+
+13. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* market intelligence works
+* confidence scoring works
+* fair value estimates work
+* risk analysis works
+* exports work
+* existing behavior preserved
+* no live pricing retrieval exists
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+14. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.8
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+Collector Companion can explain not only whether an opportunity fits the collection, but also how strong the deal appears to be, how confident the system is, and what risks or counterarguments should be considered before purchase.

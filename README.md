@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.7`
+Current version: `v3.8`
 
-Latest tagged release: `v3.7`
+Latest tagged release: `v3.8`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -43,6 +43,7 @@ The app is especially tuned for Adam-specific priorities:
 - Deal Hunter Ranking: merge large manual/CSV candidate pools, detect duplicate listings, rank opportunities by Deal Hunter score, Opportunity Engine score, collection fit, upgrades, gaps, WANT_LIST relevance, liquidity, risk, and budget fit, then export budget/category ranking reports.
 - Deal Hunter Calibration: run offline collector-judgment cases against Deal Hunter and Ranking output to catch false BUY/PASS/REVIEW decisions, ranking misses, risk-flag misses, and explanation gaps before any live-source work.
 - Live Deal Hunter Readiness: audit future live-source readiness, contracts, validation, staleness, rate-limit planning, and safety rules without fetching live listings.
+- Market Intelligence: estimate fair-value bands from local comparable sales and existing internal deal guidance, classify deal quality, explain confidence/risk, generate counterarguments, and export reports without scraping, APIs, or live pricing.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
@@ -133,7 +134,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.7 Live Deal Hunter Readiness suite passed with `560 tests OK`.
+The v3.8 Market Intelligence suite passed with `571 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -180,6 +181,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.5` | See verified tag `v3.5` | External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV normalization, validation, source tracking, duplicate-opportunity detection, multi-source ranking compatibility, and 538-test regression pass. |
 | `v3.6` | See verified tag `v3.6` | Deal Hunter Calibration with offline collector-judgment fixtures, false recommendation detection, ranking/risk/explanation calibration reports, GUI workflow, and 550-test regression pass. |
 | `v3.7` | See verified tag `v3.7` | Live Deal Hunter Readiness with future live-source contracts, validation reports, staleness flags, rate-limit/failure models, safety audit, GUI workflow, and 560-test regression pass. |
+| `v3.8` | See verified tag `v3.8` | Market Intelligence with local comparable-sale fair-value bands, deal quality, opportunity confidence, risk summaries, counterarguments, Tools -> Market Intelligence, and 571-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -198,6 +200,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Deal Hunter Ranking when you have many candidate listings and want top overall, budget-specific, Newfoundland, Canadian silver, banknote, upgrade, gap, and WANT_LIST opportunity rankings.
 - Use Deal Hunter Calibration when you want to test Deal Hunter and Ranking behavior against known offline collector-judgment cases before adding or trusting a new source format.
 - Use Live Deal Hunter Readiness when planning future live-source work and checking source contracts, validation, staleness, rate-limit policy, failure handling, and no-mutation guardrails.
+- Use Market Intelligence when you want a local fair-value estimate, deal-quality label, confidence score, risk summary, counterargument, and buy rationale for one listing before live-source work exists.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
@@ -276,6 +279,7 @@ Future candidates:
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
 - Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
 - Deal Hunter stores listing URLs and image URLs as reference data only. It does not scrape, fetch, use browser automation, call eBay APIs, or claim live market-pricing accuracy.
+- Market Intelligence estimates are deterministic local guidance from supplied comparable sales, local Market Awareness records, and existing internal deal guidance. They are not appraisals, live market pricing, or guarantees of value.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
 - Backup packages are local zip files; they are not cloud sync, remote backup, or disaster recovery by themselves.
@@ -651,6 +655,23 @@ The readiness layer adds:
 
 Live Deal Hunter Readiness performs zero live fetching. The source contract stub raises `NotImplementedError` and exists only to document the future boundary. It does not scrape, use browser automation, call APIs, fetch listings, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 
+## Market Intelligence
+
+Use Tools -> Market Intelligence when you want a value and risk explanation for a single supplied listing before live-source ingestion exists.
+
+Market Intelligence adds:
+
+- `MarketIntelligenceEngine` for deterministic local listing evaluation.
+- `FairValueEstimate` with conservative, expected, and aggressive bands.
+- `ComparableSale` support from supplied rows and local Market Awareness observations.
+- `DealQuality` labels: Excellent, Good, Fair, Weak, Overpriced, or Unknown.
+- `OpportunityConfidence` score using collection fit, duplicate risk, upgrade/gap impact, data completeness, valuation evidence, and risk penalties.
+- `RiskSummary` with clear warnings for shipping, raw/unclear grade, damage, lots, currency ambiguity, and duplicate risk.
+- Collector-facing counterargument and buy rationale.
+- CSV and Markdown export.
+
+Market Intelligence reuses Deal Hunter, Opportunity Engine, Deal Hunter Ranking context, Collection Intelligence, WANT_LIST context, and local Market Awareness records. It does not scrape, use browser automation, call APIs, fetch listings, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection data.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -690,6 +711,7 @@ Export support is intentionally report-specific:
 - Deal Hunter Ranking: CSV and Markdown export.
 - Deal Hunter Calibration: CSV and Markdown export.
 - Live Deal Hunter Readiness: CSV and Markdown export.
+- Market Intelligence: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

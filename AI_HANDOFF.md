@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.7`
-- Current active task completed: v3.7 Live Deal Hunter Readiness
+- Current project state file reports release version: `v3.8`
+- Current active task completed: v3.8 Market Intelligence
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -183,6 +183,10 @@ Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunte
 - Added deterministic staleness flags: `FRESH`, `STALE`, and `UNKNOWN`.
 - Added Tools -> Live Deal Hunter Readiness with report display and CSV/Markdown export.
 - Added `test_live_deal_hunter_readiness.py` covering readiness report generation, contract models, validation reports, staleness, rate-limit policy, failure model, no-fetch behavior, and exports.
+- Added `market_intelligence.py` with `MarketIntelligenceEngine`, `MarketIntelligenceReport`, `FairValueEstimate`, `ComparableSale`, `DealQuality`, `OpportunityConfidence`, and `RiskSummary`.
+- Market Intelligence evaluates supplied/manual listing data with local comparable sales, local Market Awareness observations, Deal Hunter output, Opportunity Engine integration, Collection Intelligence context, WANT_LIST context, risk flags, confidence scoring, deal quality, buy rationale, and counterarguments.
+- Added Tools -> Market Intelligence with manual listing entry, report display, CSV export, and Markdown export.
+- Added `test_market_intelligence.py` covering fair-value generation, confidence scoring, deal quality, comparable sales, risk analysis, counterarguments, duplicate handling, upgrade handling, fallback valuation, and exports.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -446,6 +450,7 @@ Supported statuses:
 - External Listing Connectors must remain offline local-file adapters only. Do not add scraping, browser automation, eBay APIs, dealer APIs, auction APIs, live fetching, live pricing, automatic purchasing, image recognition, or collection mutation in this layer.
 - Deal Hunter Calibration must remain an offline quality-control layer. Do not use it to fetch listings, scrape sites, call APIs, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 - Live Deal Hunter Readiness must remain contracts, validation, and reporting only. Do not add scraping, browser automation, APIs, live listing retrieval, background fetching, automatic purchasing, live pricing claims, image recognition, or collection mutation in this layer.
+- Market Intelligence must remain deterministic local guidance only. Do not add scraping, browser automation, APIs, live listing retrieval, live market-price claims, automatic purchasing, image recognition, or collection mutation.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -453,10 +458,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 560 tests OK for the v3.7 Live Deal Hunter Readiness release line.
-- Coverage note: total passing tests increased from 550 to 560; existing regression suites remained green.
-- Targeted Live Deal Hunter Readiness tests: 10 tests OK.
-- Targeted Live Deal Hunter Readiness, Connector, Deal Hunter, Ranking, Calibration, and Opportunity regression block: 85 tests OK.
+- `.\run_tests.bat`: 571 tests OK for the v3.8 Market Intelligence release line.
+- Coverage note: total passing tests increased from 560 to 571; existing regression suites remained green.
+- Targeted Market Intelligence tests: 11 tests OK.
+- Targeted Market Intelligence, Deal Hunter, Opportunity, Ranking, Connector, and Calibration regression block: 86 tests OK.
 - Targeted Deal Hunter Calibration tests: 12 tests OK.
 - Targeted Deal Hunter, Deal Hunter Ranking, Opportunity Engine, and Listing Connector regression block: 63 tests OK.
 - Targeted External Listing Connectors, Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 125 tests OK.
@@ -523,6 +528,7 @@ Supported statuses:
 - External Listing Connectors normalize supplied local CSV files only. Connector validation reports help review import quality, but ambiguous rows and likely duplicate opportunities still require collector review.
 - Deal Hunter Calibration compares supplied offline expectations against deterministic recommendations/rankings only. Calibration fixtures are fake local test scenarios, not live market data.
 - Live Deal Hunter Readiness defines future source contracts and validation reports only. `LiveListingSource.fetch_listings()` intentionally raises `NotImplementedError` in v3.7.
+- Market Intelligence estimates fair-value bands from supplied/local comparable rows and existing internal deal guidance only. It does not appraise coins, retrieve live values, predict markets, or guarantee value.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -533,7 +539,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Prepare v4.0 Live Deal Hunter implementation planning using the v3.7 contracts and safety rules.
+1. Prepare v4.0 Live Deal Hunter implementation planning using the v3.7 contracts, v3.8 Market Intelligence value/risk explanations, and no-mutation safety rules.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

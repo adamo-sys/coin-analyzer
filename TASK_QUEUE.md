@@ -104,7 +104,7 @@ Work through this queue in priority order. Handle only one task at a time.
 72. `[x]` Build v3.5 External Listing Connectors
 73. `[x]` Build v3.6 Deal Hunter Calibration
 74. `[x]` Build v3.7 Live Deal Hunter Readiness
-75. `[ ]` Build v3.8 Market Intelligence
+75. `[x]` Build v3.8 Market Intelligence
 76. `[ ]` Build v4.0 Live Deal Hunter
 77. `[ ]` Build v4.1 Live Source Validation
 78. `[ ]` Build v4.2 Portfolio Performance
@@ -166,16 +166,31 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-21
 
+#### `[x]` Build v3.8 Market Intelligence
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `market_intelligence.py` (new file)
+  - `test_market_intelligence.py` (new file)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.8.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.8.md` (new file)
+- Roadmap lock commit hash: `b9915d4`
+- Implementation commit hash: `92864f6`
+- Test coverage: total passing tests increased from 560 to 571; existing regression suites remained green.
+- Limitation: deterministic local market guidance only; no scraping, browser automation, APIs, live pricing, automatic purchasing, image recognition, or collection mutation.
+
 #### `[x]` Lock post-v3.4 roadmap
 
 - Date completed: 2026-06-21
-- Roadmap locked:
-  - `v3.5` External Listing Connectors
-  - `v4.0` Live Deal Hunter
-  - `v4.1` Live Source Validation
-  - `v4.2` Market Intelligence
-  - `v5.0` Mobile Collector Companion
-- Rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine; the next bottleneck is candidate acquisition, so future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
+- Historical note: this roadmap lock was later superseded by the post-v3.7 roadmap recorded above, which moves Market Intelligence to `v3.8` and keeps `v4.2` for Portfolio Performance.
+- Original rationale: the platform then contained Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine; the next bottleneck was candidate acquisition, so future development prioritized listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 - Files modified:
   - `PROJECT_STATE.md`
   - `TASK_QUEUE.md`
