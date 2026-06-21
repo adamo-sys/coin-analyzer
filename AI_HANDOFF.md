@@ -16,11 +16,11 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official Post-v3.8 Roadmap
+## Official v4.0 Roadmap
 
 1. `v3.8` Market Intelligence
 2. `v3.9` Portfolio Performance
-3. `v4.0` Live Deal Hunter
+3. `v4.0` Live Deal Hunter (Controlled Beta)
 4. `v4.1` Live Source Validation
 5. `v4.2` Market Intelligence Automation
 6. `v5.0` Mobile Collector Companion
@@ -28,6 +28,8 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
+
+v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
 
 ## What Changed
 
@@ -546,7 +548,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Prepare v4.0 Live Deal Hunter implementation planning using v3.7 live-source contracts, v3.8 Market Intelligence explanations, v3.9 Portfolio Performance context, and no-mutation safety rules.
+1. Complete v4.0 Live Deal Hunter (Controlled Beta) with explicit user-triggered fetching, one public RSS source boundary, validation, ranking, reporting, and no purchase/bid/background/mutation behavior.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

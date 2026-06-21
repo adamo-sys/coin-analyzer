@@ -137,11 +137,11 @@
 
 ## Active Roadmap
 
-Official post-v3.8 roadmap:
+Official v4.0 roadmap:
 
 1. `v3.8` Market Intelligence
 2. `v3.9` Portfolio Performance
-3. `v4.0` Live Deal Hunter
+3. `v4.0` Live Deal Hunter (Controlled Beta)
 4. `v4.1` Live Source Validation
 5. `v4.2` Market Intelligence Automation
 6. `v5.0` Mobile Collector Companion
@@ -149,6 +149,8 @@ Official post-v3.8 roadmap:
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
+
+v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
 
 Clarification: `v3.4` remains offline and deterministic. It adds no scraping, browser automation, eBay API usage, live listing fetches, live market-pricing claims, market prediction, automatic purchasing, image recognition, or collection mutation.
 
@@ -178,7 +180,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v4.0 Live Deal Hunter planning unless a release-blocking defect is found.
+Build v4.0 Live Deal Hunter (Controlled Beta) unless a release-blocking defect is found.
 
 ## Project Architecture
 
