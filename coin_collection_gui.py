@@ -27,6 +27,7 @@ from listing_connectors import (
 )
 from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
 from market_intelligence import MarketIntelligenceEngine
+from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
@@ -170,6 +171,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
+        tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -3521,6 +3523,78 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showinfo("Export Complete", f"Market Intelligence Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Analyze", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_portfolio_performance(self):
+        """Open deterministic portfolio-level performance report."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Portfolio Performance")
+        dialog.geometry("960x800")
+
+        engine = PortfolioPerformanceEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            market_awareness_engine=self.market_awareness_engine,
+            snapshot_manager=self.snapshot_manager,
+            shopping_candidates=self.shopping_candidates,
+            photo_records=self.photo_records,
+        )
+        current_report = {"report": engine.generate_report()}
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        summary_frame = ttk.LabelFrame(main_frame, text="Portfolio Summary", padding="10")
+        summary_frame.pack(fill=tk.X, pady=(0, 10))
+        report = current_report["report"]
+        ttk.Label(
+            summary_frame,
+            text=(
+                f"Items: {report.growth_report.collection_size}   "
+                f"Health: {report.health_score.score}/100   "
+                f"Estimated local value: ${report.growth_report.estimated_collection_value:.2f}"
+            ),
+        ).pack(anchor=tk.W)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Portfolio Performance Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+        result_text.insert(tk.END, report.format_markdown())
+
+        def refresh():
+            current_report["report"] = engine.generate_report()
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, current_report["report"].format_markdown())
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Portfolio Performance CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Portfolio Performance CSV exported to {file_path}")
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Portfolio Performance Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Portfolio Performance Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Refresh", command=refresh).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
