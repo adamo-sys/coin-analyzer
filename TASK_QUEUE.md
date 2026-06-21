@@ -104,22 +104,24 @@ Work through this queue in priority order. Handle only one task at a time.
 72. `[x]` Build v3.5 External Listing Connectors
 73. `[x]` Build v3.6 Deal Hunter Calibration
 74. `[x]` Build v3.7 Live Deal Hunter Readiness
-75. `[ ]` Build v4.0 Live Deal Hunter
-76. `[ ]` Build v4.1 Live Source Validation
-77. `[ ]` Build v4.2 Market Intelligence
-78. `[ ]` Build v5.0 Mobile Collector Companion
+75. `[ ]` Build v3.8 Market Intelligence
+76. `[ ]` Build v4.0 Live Deal Hunter
+77. `[ ]` Build v4.1 Live Source Validation
+78. `[ ]` Build v4.2 Portfolio Performance
+79. `[ ]` Build v5.0 Mobile Collector Companion
 
 ## Official Post-v3.4 Roadmap
 
 1. `v3.5` External Listing Connectors
 2. `v3.6` Deal Hunter Calibration
 3. `v3.7` Live Deal Hunter Readiness
-4. `v4.0` Live Deal Hunter
-5. `v4.1` Live Source Validation
-6. `v4.2` Market Intelligence
-7. `v5.0` Mobile Collector Companion
+4. `v3.8` Market Intelligence
+5. `v4.0` Live Deal Hunter
+6. `v4.1` Live Source Validation
+7. `v4.2` Portfolio Performance
+8. `v5.0` Mobile Collector Companion
 
-Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
+Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 Clarification: `v3.4` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 

@@ -21,12 +21,13 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 1. `v3.5` External Listing Connectors
 2. `v3.6` Deal Hunter Calibration
 3. `v3.7` Live Deal Hunter Readiness
-4. `v4.0` Live Deal Hunter
-5. `v4.1` Live Source Validation
-6. `v4.2` Market Intelligence
-7. `v5.0` Mobile Collector Companion
+4. `v3.8` Market Intelligence
+5. `v4.0` Live Deal Hunter
+6. `v4.1` Live Source Validation
+7. `v4.2` Portfolio Performance
+8. `v5.0` Mobile Collector Companion
 
-Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
+Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
 
 ## What Changed
 
