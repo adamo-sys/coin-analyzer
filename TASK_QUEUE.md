@@ -107,7 +107,7 @@ Work through this queue in priority order. Handle only one task at a time.
 75. `[x]` Build v3.8 Market Intelligence
 76. `[x]` Build v3.9 Portfolio Performance
 77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
-78. `[-]` Build v4.1 Live Source Validation
+78. `[x]` Build v4.1 Live Source Validation
 79. `[ ]` Build v4.2 Market Intelligence Automation
 80. `[ ]` Build v5.0 Mobile Collector Companion
 
@@ -183,6 +183,26 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `README.md`
   - `project_docs/release_prompts/v4.1.txt`
 - Commit hash: `fcc715d`
+
+#### `[x]` Build v4.1 Live Source Validation
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `live_source_validation.py` (new file)
+  - `test_live_source_validation.py` (new file)
+  - `live_deal_hunter.py`
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v4.1.md` (new file)
+- Roadmap lock commit hash: `fcc715d`
+- Implementation commit hash: `639d794`
+- Test coverage: total passing tests increased from 589 to 602; existing regression suites remained green.
+- Limitation: deterministic validation only; no listing repair, currency conversion, exchange-rate lookup, source truth guarantee, scraping, browser automation, purchases, bids, background polling, or collection mutation.
 
 #### `[x]` Lock v4.0 roadmap
 

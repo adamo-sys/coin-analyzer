@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v4.0`
-- Current active task in progress: v4.1 Live Source Validation
+- Current project state file reports release version: `v4.1`
+- Current active task completed: v4.1 Live Source Validation
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -198,6 +198,13 @@ v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trus
 - Added `test_data/deal_hunter/sample_live_rss.xml` and `test_live_deal_hunter.py` covering RSS parsing, source validation, listing normalization, CandidatePool integration, ranking integration, Market Intelligence integration, duplicate detection, reports/exports, source failures, and malformed feeds.
 - v4.0 full suite passed: 589 tests OK. Coverage increased from 579 to 589, and existing regression suites remained green.
 - v4.0 guardrails: no purchases, no bids, no background polling, no scheduled execution, no page scraping, no browser automation, no logins, no collection mutation, and no live-pricing accuracy claims.
+- Added `live_source_validation.py` with `LiveSourceValidator`, `ValidationResult`, `ValidationWarning`, `ValidationSummary`, `SourceHealthReport`, `LiveSourceValidationReport`, and `ListingFreshness`.
+- Live Source Validation checks required listing fields, CAD/USD/unknown currency, stale/unknown freshness, duplicate URLs, malformed/unsupported URLs, high shipping, vague titles, missing descriptions, and suspicious metadata.
+- Live Deal Hunter now gates CandidatePool/ranking/Market Intelligence entry through `LiveSourceValidator`, preferring REVIEW or rejection over false confidence.
+- Added Tools -> Live Source Validation with explicit user-triggered RSS validation, source health display, report display, CSV export, and Markdown export.
+- Added `test_live_source_validation.py` covering missing title/price/seller/URL, CAD/non-CAD/unknown currency, stale listings, duplicate URLs, malformed URLs, source health scoring, validation reports, exports, and Live Deal Hunter fixture validation.
+- v4.1 full suite passed: 602 tests OK. Coverage increased from 589 to 602, and existing regression suites remained green.
+- v4.1 guardrails: validation is deterministic and conservative; it does not repair listings, convert currencies, fetch exchange rates, guarantee source truth, scrape pages, automate browsers, purchase, bid, poll in the background, or mutate collection data.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.

@@ -44,6 +44,7 @@
 | `v3.8` | See verified tag `v3.8` | Market Intelligence with local comparable-sale fair-value bands, deal quality, opportunity confidence, risk summaries, counterarguments, Tools -> Market Intelligence, and 571-test regression pass. |
 | `v3.9` | See verified tag `v3.9` | Portfolio Performance with growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, and 579-test regression pass. |
 | `v4.0` | See verified tag `v4.0` | Live Deal Hunter controlled beta with user-triggered RSS/XML ingestion, validation flags, listing normalization, CandidatePool/ranking/Market Intelligence integration, Tools -> Live Deal Hunter, CSV/Markdown export, and 589-test regression pass. |
+| `v4.1` | See verified tag `v4.1` | Live Source Validation with required-field checks, currency/freshness/URL validation, source health scoring, REVIEW escalation, Live Deal Hunter pipeline gating, Tools -> Live Source Validation, and 602-test regression pass. |
 
 ## Notes
 
