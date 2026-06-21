@@ -1,0 +1,407 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.6.md
+* docs/releases/v3.7.md
+* docs/releases/v3.8.md
+* current codebase
+
+Begin v3.9 development.
+
+---
+
+PHASE 0
+ROADMAP UPDATE
+--------------
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v3.8 = Market Intelligence
+
+v3.9 = Portfolio Performance
+
+v4.0 = Live Deal Hunter
+
+v4.1 = Live Source Validation
+
+v4.2 = Market Intelligence Automation
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+The platform can now:
+
+* evaluate opportunities
+* rank opportunities
+* explain opportunities
+* calibrate recommendations
+
+The next objective is understanding portfolio progress and collection development over time.
+
+Commit:
+
+Lock post-v3.8 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue into v3.9.
+
+---
+
+PHASE 1
+V3.9 PORTFOLIO PERFORMANCE
+--------------------------
+
+GOAL
+
+Transform collection records, snapshots, and intelligence into portfolio-level insights.
+
+This is NOT investment advice.
+
+Do NOT implement:
+
+* live pricing
+* scraping
+* APIs
+* market forecasting
+* automatic purchases
+* collection mutation
+
+---
+
+1. PORTFOLIO PERFORMANCE ENGINE
+
+---
+
+Create:
+
+PortfolioPerformanceEngine
+
+Purpose:
+
+Analyze collection growth, quality, and progress.
+
+Integrate with:
+
+* Collection Snapshot System
+* Collection Intelligence
+* Opportunity Engine
+* Market Intelligence
+* Series Tracker
+
+---
+
+2. COLLECTION GROWTH ANALYSIS
+
+---
+
+Create:
+
+CollectionGrowthReport
+
+Track:
+
+* collection size
+* estimated collection value
+* silver holdings
+* slab count
+* banknote count
+* Newfoundland count
+* custom category counts
+
+Compare snapshots where available.
+
+---
+
+3. ACQUISITION PERFORMANCE
+
+---
+
+Create:
+
+AcquisitionPerformanceReport
+
+Highlight:
+
+* best acquisitions
+* biggest upgrades
+* highest collection impact
+* strongest opportunity captures
+* highest confidence purchases
+
+Use deterministic local data only.
+
+---
+
+4. SERIES PROGRESS ANALYSIS
+
+---
+
+Create:
+
+SeriesProgressReport
+
+Show:
+
+* completion percentages
+* progress since last snapshot
+* nearest completions
+* neglected series
+* strongest-performing series
+
+Support existing series tracking framework.
+
+---
+
+5. BUDGET ALLOCATION ANALYSIS
+
+---
+
+Create:
+
+BudgetAllocationReport
+
+Break down:
+
+* Newfoundland
+* Canadian silver
+* banknotes
+* slabs
+* upgrades
+* duplicates
+* other categories
+
+Purpose:
+
+Understand collection focus.
+
+---
+
+6. COLLECTION HEALTH SCORE
+
+---
+
+Create:
+
+CollectionHealthScore
+
+Factors may include:
+
+* backup readiness
+* collection integrity
+* photo coverage
+* documentation coverage
+* duplicate levels
+* want-list alignment
+* snapshot coverage
+
+Output:
+
+0–100
+
+With explanation.
+
+---
+
+7. EXECUTIVE DASHBOARD
+
+---
+
+Create:
+
+PortfolioPerformanceReport
+
+Provide:
+
+* growth summary
+* strengths
+* weaknesses
+* opportunities
+* risks
+* health score
+* recommended focus areas
+
+---
+
+8. HISTORICAL COMPARISON
+
+---
+
+If snapshots exist:
+
+Support:
+
+* first snapshot vs latest
+* previous snapshot vs current
+* custom snapshot comparisons
+
+Show deltas.
+
+Do not forecast future values.
+
+---
+
+9. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Portfolio Performance
+
+Display:
+
+* growth metrics
+* health score
+* progress summaries
+* focus recommendations
+
+No major redesign.
+
+---
+
+10. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* PortfolioPerformanceReport
+* CollectionGrowthReport
+* AcquisitionPerformanceReport
+* SeriesProgressReport
+* BudgetAllocationReport
+
+---
+
+11. TESTING
+
+---
+
+Add tests for:
+
+* growth analysis
+* acquisition analysis
+* series progress
+* budget allocation
+* health score
+* snapshot comparison
+* executive dashboard
+* export generation
+
+Run:
+
+* Portfolio Performance tests
+* Snapshot tests
+* Collection Intelligence tests
+* Opportunity Engine tests
+* Market Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+12. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.9.md
+
+Document:
+
+* growth metrics
+* health score
+* snapshot comparisons
+* limitations
+
+---
+
+13. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* portfolio analysis works
+* growth reports work
+* health score works
+* series progress works
+* snapshot comparison works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+14. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.9
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+Collector Companion can explain how the collection has grown, where the strongest progress has occurred, what areas need attention, and provide a portfolio-level view of the collection using deterministic local data.
