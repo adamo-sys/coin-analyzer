@@ -1,0 +1,16 @@
+case_id,title,description,price_cad,shipping_cad,source,expected_recommendation,expected_rank_category,expected_risk_flags,expected_priority_reason,collector_notes
+obvious_buy,1901 Newfoundland 50 cents VF20 PCGS,Want list date at fair total cost,80,5,Calibration,BUY,TOP_10,,Explicit WANT_LIST match,Obvious buy target
+obvious_pass,France 10 centimes 1975,World base metal outside core collecting priorities,1,5,Calibration,PASS,LOW_PRIORITY,NON_COLLECTION_RELEVANT,Non-Canadian,Obvious pass target
+high_shipping,1901 Newfoundland 50 cents VF20 PCGS,Good target weakened by shipping,20,60,Calibration,NEGOTIATE,TOP_10,HIGH_SHIPPING,High shipping,Good coin but shipping kills value
+cool_irrelevant,France 10 centimes 1975 toned proof,Cool but not part of Adam priority strategy,7,4,Calibration,PASS,LOW_PRIORITY,NON_COLLECTION_RELEVANT,Non-Canadian,Cool irrelevant item
+newfoundland_upgrade,1900 Newfoundland 50 cents EF40 ICCS,Better grade example for existing date,90,5,Calibration,BUY,TOP_10,,Potential upgrade,Newfoundland upgrade
+banknote_target,Canada chartered banknote BCS VF25,Priority banknote target with BCS certification,120,10,Calibration,NEGOTIATE,TOP_10,,Canadian banknote target,Banknote target
+chartered_banknote,Canada chartered banknote BCS VF25,Explicit want list chartered banknote,130,8,Calibration,NEGOTIATE,TOP_10,,Explicit WANT_LIST match,Chartered banknote target
+same_grade_duplicate,1900 Newfoundland 50 cents VF20 ICCS,Same grade item already owned,75,5,Calibration,PASS,,,"Duplicate",Same grade duplicate
+lower_grade_duplicate,1900 Newfoundland 50 cents VG8,Lower grade item already owned,25,5,Calibration,PASS,,,"Duplicate",Lower grade duplicate
+raw_overgraded,1901 Newfoundland 50 cents MS65 raw,Raw high grade claim needs review,90,5,Calibration,REVIEW,TOP_10,RAW_OVERGRADED|NEEDS_MANUAL_REVIEW,Raw,Raw overgraded risk
+damaged_coin,1901 Newfoundland 50 cents VF20 cleaned damaged,Problem coin keywords,35,5,Calibration,REVIEW,TOP_10,POSSIBLE_DAMAGE|NEEDS_MANUAL_REVIEW,damage,Damaged coin
+vague_estate_lot,Canadian coin estate lot Newfoundland silver,Vague lot needs manual review,25,10,Calibration,REVIEW,TOP_10,LOT_LISTING|NEEDS_MANUAL_REVIEW,Lot listing,Vague estate lot
+bulk_lot,bulk lot of world coins,Bulk lot requires manual review flag,20,20,Calibration,PASS,LOW_PRIORITY,LOT_LISTING|NEEDS_MANUAL_REVIEW,Lot listing,Bulk lot requiring review
+unclear_currency,1904 Newfoundland 50 cents VF20 USD,Non CAD price needs review,90,10,Calibration,REVIEW,TOP_10,UNCLEAR_CURRENCY|NEEDS_MANUAL_REVIEW,currency,Unclear currency
+want_list_match,Newfoundland 50 cents 1901 VF20,Explicit want list match without slab,84,6,Calibration,BUY,TOP_10,,Explicit WANT_LIST match,Want list match

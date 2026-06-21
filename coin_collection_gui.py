@@ -12,6 +12,7 @@ from acquisition_workflow import AcquisitionWorkflow
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
 from deal_hunter import DealHunter, DealListing
+from deal_hunter_calibration import DealHunterCalibrationEngine
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, ImportProfile
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
@@ -163,6 +164,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
+        tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3410,6 +3412,102 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Analyze Listings", command=analyze_listings).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_deal_hunter_calibration(self):
+        """Open offline Deal Hunter calibration report workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Deal Hunter Calibration")
+        dialog.geometry("940x760")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        summary_var = tk.StringVar(value="No calibration report loaded.")
+        ttk.Label(main_frame, textvariable=summary_var).pack(anchor=tk.W, pady=(0, 8))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Calibration Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        current_report = {"report": None}
+
+        def run_file(file_path):
+            engine = DealHunterCalibrationEngine(
+                self._collection_items(),
+                self._active_want_list_intents(),
+                self.market_awareness_engine,
+            )
+            cases = engine.load_cases(file_path)
+            report = engine.run(cases)
+            current_report["report"] = report
+            summary_var.set(
+                f"Cases: {report.total_cases} | Passed: {report.passed_cases} | "
+                f"Failed: {report.failed_cases} | Status: {report.status}"
+            )
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def load_csv():
+            file_path = filedialog.askopenfilename(
+                title="Load Deal Hunter Calibration CSV",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            try:
+                run_file(file_path)
+            except Exception as e:
+                messagebox.showerror("Calibration Error", f"Calibration failed: {str(e)}")
+
+        def run_default_fixture():
+            fixture_path = os.path.join("test_data", "deal_hunter", "calibration_cases.csv")
+            if not os.path.exists(fixture_path):
+                messagebox.showerror("Missing Fixture", f"Default calibration fixture not found: {fixture_path}")
+                return
+            try:
+                run_file(fixture_path)
+            except Exception as e:
+                messagebox.showerror("Calibration Error", f"Calibration failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                run_default_fixture()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter Calibration CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter calibration CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                run_default_fixture()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter Calibration Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter calibration Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Run Default Fixture", command=run_default_fixture).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Load CSV", command=load_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)

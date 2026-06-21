@@ -60,6 +60,7 @@ GRADE_WORDS = [
     (r"\bgood\b", "G-4"),
     (r"\bfine\b", "F-12"),
 ]
+RAW_OVERGRADED_TERMS = ["gem", "high grade", "rare", "unc", "ms+++"]
 
 
 def _now_iso() -> str:
@@ -612,7 +613,7 @@ class DealHunter:
         if len(listing.title.split()) < 4:
             score += 10
         lowered = " ".join([listing.title, listing.description]).lower()
-        if "raw" in lowered and any(term in lowered for term in ["gem", "high grade", "rare", "unc"]):
+        if "raw" in lowered and self._has_ambitious_raw_grade_language(lowered, parsed):
             score += 18
         if parsed.country not in {"Canada", "Newfoundland"} and "banknote" not in parsed.keywords:
             score += 18
@@ -669,7 +670,7 @@ class DealHunter:
         if parsed.country not in {"Canada", "Newfoundland"} and "banknote" not in parsed.keywords:
             warnings.append("Non-Canadian item appears outside Adam's core priorities")
         lowered = " ".join([listing.title, listing.description]).lower()
-        if not candidate.certifier and any(term in lowered for term in ["gem", "high grade", "rare", "unc"]):
+        if not candidate.certifier and self._has_ambitious_raw_grade_language(lowered, parsed):
             warnings.append("Raw coin with ambitious grade language")
         if any(term in lowered for term in LOT_TERMS):
             warnings.append("Lot listing requires manual review")
@@ -686,7 +687,7 @@ class DealHunter:
             flags.append(RISK_HIGH_SHIPPING)
         if not parsed.grade:
             flags.append(RISK_UNCLEAR_GRADE)
-        if not candidate.certifier and any(term in lowered for term in ["gem", "high grade", "rare", "unc", "ms+++"]):
+        if not candidate.certifier and self._has_ambitious_raw_grade_language(lowered, parsed):
             flags.append(RISK_RAW_OVERGRADED)
         if any(term in lowered for term in LOT_TERMS):
             flags.append(RISK_LOT_LISTING)
@@ -703,6 +704,15 @@ class DealHunter:
         if flags and any(flag in flags for flag in [RISK_LOT_LISTING, RISK_POSSIBLE_DAMAGE, RISK_UNCLEAR_CURRENCY, RISK_RAW_OVERGRADED]):
             flags.append(RISK_NEEDS_MANUAL_REVIEW)
         return _dedupe(flags)
+
+    @staticmethod
+    def _has_ambitious_raw_grade_language(text: str, parsed: ParsedDealCandidate) -> bool:
+        if any(term in text for term in RAW_OVERGRADED_TERMS):
+            return True
+        grade = (parsed.grade or "").upper()
+        if grade.startswith(("MS-", "AU-")):
+            return True
+        return any(token in text for token in [" ms60", " ms61", " ms62", " ms63", " ms64", " ms65", " au50", " au55", " au58"])
 
     def _reasons(self, listing: DealListing, parsed: ParsedDealCandidate, acquisition: Any, impact: Any, shopping: Any) -> List[str]:
         reasons = []
