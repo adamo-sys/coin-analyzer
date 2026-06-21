@@ -12,6 +12,7 @@ from acquisition_workflow import AcquisitionWorkflow
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
 from deal_hunter import DealHunter, DealListing
+from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, ImportProfile
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
@@ -156,6 +157,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
+        tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -3401,6 +3403,161 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showinfo("Export Complete", f"Deal Hunter Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Analyze Listings", command=analyze_listings).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_deal_hunter_ranking(self):
+        """Open ranked offline Deal Hunter candidate pool workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Deal Hunter Ranking")
+        dialog.geometry("960x800")
+
+        engine = DealHunterRankingEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+        current_pool = {"pool": CandidatePool.from_listings(self.recent_deal_listings)}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Candidate Pool", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            input_frame,
+            text="Enter one listing per line: title | price_cad | shipping_cad | seller | source | listing_url | description",
+        ).pack(anchor=tk.W)
+        listings_text = tk.Text(input_frame, height=8, wrap=tk.WORD)
+        listings_text.pack(fill=tk.X, pady=(6, 0))
+        if self.recent_deal_listings:
+            listings_text.insert(
+                tk.END,
+                "\n".join(
+                    f"{listing.title} | {listing.price_cad} | {listing.shipping_cad} | {listing.seller} | {listing.source} | {listing.listing_url} | {listing.description}"
+                    for listing in self.recent_deal_listings
+                )
+            )
+
+        ttk.Label(
+            input_frame,
+            text="Offline ranking only: CSV imports are local files; no scraping, browser automation, APIs, live listing retrieval, or automatic purchasing.",
+            wraplength=840,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Ranked Opportunities", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def parse_manual_pool():
+            listings = []
+            for line in listings_text.get("1.0", tk.END).splitlines():
+                if not line.strip():
+                    continue
+                parts = [part.strip() for part in line.split("|")]
+                listings.append(DealListing(
+                    title=parts[0] if parts else "",
+                    price_cad=parse_money(parts[1]) if len(parts) > 1 else 0.0,
+                    shipping_cad=parse_money(parts[2]) if len(parts) > 2 else 0.0,
+                    seller=parts[3] if len(parts) > 3 else "",
+                    source=parts[4] if len(parts) > 4 else "Manual",
+                    listing_url=parts[5] if len(parts) > 5 else "",
+                    description=parts[6] if len(parts) > 6 else "",
+                ))
+            return CandidatePool.from_listings(listings)
+
+        def render_pool(pool):
+            listings_text.delete("1.0", tk.END)
+            listings_text.insert(
+                tk.END,
+                "\n".join(
+                    f"{listing.title} | {listing.price_cad} | {listing.shipping_cad} | {listing.seller} | {listing.source} | {listing.listing_url} | {listing.description}"
+                    for listing in pool.listings
+                )
+            )
+
+        def analyze_pool(pool=None):
+            try:
+                active_pool = pool if pool is not None else parse_manual_pool()
+                current_pool["pool"] = active_pool
+                self.recent_deal_listings = list(active_pool.listings)
+                report = engine.rank_pool(active_pool)
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric CAD price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Deal Hunter Ranking Error", f"Ranking failed: {str(e)}")
+
+        def import_csv():
+            file_path = filedialog.askopenfilename(
+                title="Import Deal Hunter Candidate CSV",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                pool = current_pool["pool"] if current_pool["pool"].candidate_count else parse_manual_pool()
+                import_result = pool.import_csv(file_path, ImportProfile.ebay_csv())
+                current_pool["pool"] = pool
+                render_pool(pool)
+                analyze_pool(pool)
+                detail = (
+                    f"Rows found: {import_result.rows_found}\n"
+                    f"Listings imported: {import_result.imported_count}\n"
+                    f"Duplicate imports: {import_result.duplicate_count}\n"
+                    f"Rows skipped: {import_result.skipped_rows}"
+                )
+                if import_result.warnings:
+                    detail += "\n\nWarnings:\n" + "\n".join(f"- {warning}" for warning in import_result.warnings[:8])
+                messagebox.showinfo("Deal Hunter Candidate Import", detail)
+            except Exception as e:
+                messagebox.showerror("Deal Hunter Ranking CSV Error", f"CSV import failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze_pool()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter Ranking CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter ranking CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze_pool()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter Ranking Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter ranking Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Rank Pool", command=analyze_pool).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
