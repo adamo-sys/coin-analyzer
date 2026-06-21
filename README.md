@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.2`
+Current version: `v3.3`
 
-Latest tagged release: `v3.2`
+Latest tagged release: `v3.3`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -40,6 +40,7 @@ The app is especially tuned for Adam-specific priorities:
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
 - Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, flag risky/ambiguous listings, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
+- Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
@@ -128,7 +129,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.2 Deal Hunter refinement suite passed with `505 tests OK`.
+The v3.3 Opportunity Engine suite passed with `515 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -170,6 +171,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.0` | See verified tag `v3.0` | Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass. |
 | `v3.1` | See verified tag `v3.1` | eBay.ca-style Deal Hunter MVP with manual/CSV listing intake, deterministic parsing, collection-aware scoring, counterarguments, persistence, exports, and 494-test regression pass. |
 | `v3.2` | See verified tag `v3.2` | Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass. |
+| `v3.3` | See verified tag `v3.3` | Opportunity Engine with budget-aware collection opportunities, top opportunity groupings, counterarguments, Deal Hunter input support, and 515-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -185,6 +187,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
 - Use Deal Hunter when comparing eBay.ca-style listing rows from manual entry or CSV import and you want collection-aware BUY/WATCH/NEGOTIATE/REVIEW/PASS guidance with counterarguments.
+- Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Shopping Explainability output when you want to understand why a recommendation was BUY, PASS, WATCH, NEGOTIATE, or REVIEW.
@@ -256,7 +259,7 @@ Near-term maintenance candidates:
 - Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
-- Build the v3.3 Opportunity Engine to answer "What should I buy next?" with deterministic local opportunity scoring.
+- Build the v3.4 Deal Hunter Ranking Engine to improve candidate ranking quality without adding live data.
 
 Future candidates:
 
@@ -559,6 +562,25 @@ Limitations:
 - No live listing fetches.
 - No live market-pricing accuracy claims.
 - URLs and image URLs are stored as reference data only.
+
+## Opportunity Engine
+
+Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
+
+Opportunity types:
+
+- Upgrade Opportunity
+- Collection Gap Opportunity
+- Series Completion Opportunity
+- Want List Opportunity
+- Newfoundland Opportunity
+- Canadian Silver Opportunity
+- Canadian Banknote Opportunity
+- High-ROI Opportunity
+
+Budget analysis covers $50, $100, $250, and $500 scenarios. Every opportunity includes a deterministic score, reasoning, risks, budget fit, estimated collection impact, and counterargument before any recommendation.
+
+The engine reuses existing Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context. It does not scrape, call APIs, fetch listings, predict markets, mutate collection data, or claim live pricing accuracy.
 
 ## Exports
 

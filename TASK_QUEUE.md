@@ -99,7 +99,7 @@ Work through this queue in priority order. Handle only one task at a time.
 67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 68. `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
 69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
-70. `[-]` Build v3.3 Opportunity Engine
+70. `[x]` Build v3.3 Opportunity Engine
 71. `[ ]` Build v3.4 Deal Hunter Ranking Engine
 72. `[ ]` Build v3.5 External Listing Imports
 73. `[ ]` Build v4.0 Live Deal Hunter
@@ -164,9 +164,10 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-21
 
-#### `[-]` Build v3.3 Opportunity Engine
+#### `[x]` Build v3.3 Opportunity Engine
 
 - Date started: 2026-06-21
+- Date completed: 2026-06-21
 - Roadmap lock:
   - `v3.3` Opportunity Engine
   - `v3.4` Deal Hunter Ranking Engine
@@ -174,6 +175,21 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `v4.0` Live Deal Hunter
   - `v5.0` Mobile Collector Companion
 - Rationale: future work should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+- Files modified:
+  - `opportunity_engine.py` (new file)
+  - `test_opportunity_engine.py` (new file)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.3.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.3.md` (new file)
+- Roadmap lock commit hash: `7d53acc`
+- Implementation commit hash: `3871611`
+- Test coverage: total passing tests increased from 505 to 515; existing regression suites remained green.
+- Limitation: deterministic local guidance only; no scraping, browser automation, APIs, live pricing, market prediction, image recognition, automatic purchasing, or collection mutation.
 
 #### `[x]` Build v3.2 Deal Hunter Workflow Refinement
 

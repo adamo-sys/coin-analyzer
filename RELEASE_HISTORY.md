@@ -36,6 +36,7 @@
 | `v3.0` | See verified tag `v3.0` | Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass. |
 | `v3.1` | See verified tag `v3.1` | eBay.ca-style Deal Hunter MVP with manual/CSV listing intake, deterministic parsing, collection-aware scoring, counterarguments, persistence, exports, and 494-test regression pass. |
 | `v3.2` | See verified tag `v3.2` | Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass. |
+| `v3.3` | See verified tag `v3.3` | Opportunity Engine with budget-aware collection opportunities, top opportunity groupings, counterarguments, Deal Hunter input support, and 515-test regression pass. |
 
 ## Notes
 

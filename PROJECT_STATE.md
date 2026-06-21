@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v3.2`
+* Current release version: `v3.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v3.2`
-* Summary of what was included: Deal Hunter Workflow Refinement with improved parser coverage, risk flags, CSV import warnings, GUI import summaries, richer exports, and 505-test regression pass.
+* Most recent Git tag: `v3.3`
+* Summary of what was included: Opportunity Engine with budget-aware collection opportunities, top opportunity groupings, counterarguments, Deal Hunter input support, and 515-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -48,6 +48,7 @@
 * `v3.0` acceptance audit passed on 2026-06-19; tag `v3.0` verified during release.
 * `v3.1` acceptance audit passed on 2026-06-20; tag `v3.1` verified during release.
 * `v3.2` acceptance audit passed on 2026-06-21; tag `v3.2` verified during release.
+* `v3.3` acceptance audit passed on 2026-06-21; tag `v3.3` verified during release.
 
 ## Completed Features
 
@@ -110,6 +111,7 @@
 * Collector Home Dashboard: unified daily dashboard that surfaces Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked Daily Collector Actions, top opportunities, warnings, workflow status, persistence, and CSV/Markdown export while reusing existing engines.
 * Collector Companion Readiness and Status: v3.0 product audit system with menu grouping, V3 readiness checklist, export consistency report, report consistency report, end-to-end workflow audit, product status, persistence, and CSV/Markdown export.
 * Deal Hunter: eBay.ca-style offline listing evaluator with manual/CSV input, deterministic title/description parsing, slab/banknote/keyword/grade-word detection, lot/problem-listing risk flags, collection-aware scoring, Adam buying rules, counterarguments before BUY, CSV import warnings, persistence, and CSV/Markdown export.
+* Opportunity Engine: deterministic decision-support engine that answers "What should I buy next?" with top opportunities, budget recommendations, opportunity scores, reasoning, risks, counterarguments, Deal Hunter input support, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -167,7 +169,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Post-v3.2 maintenance and collector usability polish, starting with Buy Advisor validation messages unless a release-blocking defect is found.
+Build v3.4 Deal Hunter Ranking Engine unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -191,6 +193,7 @@ Post-v3.2 maintenance and collector usability polish, starting with Buy Advisor 
 * Collector Home Dashboard system: `collector_home_dashboard.py` provides `CollectorHomeDashboard`, `CollectorHomeReport`, `HomeStatusCard`, `DailyCollectorAction`, and `HomeStatusSeverity`. It aggregates existing workflow, dashboard, shopping, OCR validation, photo audit, integrity, backup, snapshot, series, and persistence signals into one daily report without adding recommendation logic or mutating collection data.
 * Collector Companion Readiness system: `collector_companion_readiness.py` provides `CollectorCompanionReadinessAuditor`, `CollectorCompanionReadinessReport`, `CollectorCompanionStatus`, `ExportConsistencyReport`, `ReportConsistencyReport`, `WorkflowAuditReport`, and `V3ReadinessChecklistItem`. It audits readiness, product status, workflow cohesion, report/export consistency, and v3.0 blockers without modifying collection data or decision logic.
 * Deal Hunter system: `deal_hunter.py` provides `DealListing`, `ParsedDealCandidate`, `DealHunterCSVImportResult`, `DealHunterResult`, `DealHunterReport`, and `DealHunter`. It imports manual/CSV eBay.ca-style listing rows, parses deterministic candidate signals, flags high shipping, unclear grade, raw-overgraded language, lot listings, possible damage, unclear currency, non-collection relevance, and manual-review needs, reuses Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping, Market Awareness, and WANT_LIST context, then exports CSV/Markdown reports without scraping or live pricing.
+* Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -235,6 +238,13 @@ Post-v3.2 maintenance and collector usability polish, starting with Buy Advisor 
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v3.3 Opportunity Engine: budget-aware top opportunities, $50/$100/$250/$500 recommendations, supported opportunity types, opportunity score components, reasoning, risks, counterarguments, Deal Hunter result input support, Workflows -> Opportunity Engine GUI, CSV/Markdown export, and release documentation.
+* Roadmap lock commit: `7d53acc`
+* Implementation commit: `3871611`
+* Full test suite passed: 515 tests OK.
+* Coverage note: total passing tests increased from 505 to 515; existing regression suites remained green.
+* Limitation note: Opportunity Engine is deterministic local guidance only. It does not scrape, fetch live listings, use browser automation, call APIs, predict markets, purchase automatically, recognize images, or mutate collection data.
 
 * Implemented v3.2 Deal Hunter Workflow Refinement: expanded deterministic parsing for key Canadian/Newfoundland targets, banknotes, slab companies, grade words, lots, problem-coin language, CSV aliases, malformed price warnings, skipped-row reporting, risk flags, GUI import summaries, and richer CSV/Markdown exports.
 * Implementation commit: `0a80eff`
