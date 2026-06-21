@@ -42,6 +42,7 @@
 | `v3.6` | See verified tag `v3.6` | Deal Hunter Calibration with offline collector-judgment fixtures, false BUY/PASS/REVIEW detection, ranking/risk/explanation checks, Tools -> Deal Hunter Calibration, and 550-test regression pass. |
 | `v3.7` | See verified tag `v3.7` | Live Deal Hunter Readiness with future live-source contracts, validation reports, staleness flags, rate-limit/failure models, safety audit, Tools -> Live Deal Hunter Readiness, and 560-test regression pass. |
 | `v3.8` | See verified tag `v3.8` | Market Intelligence with local comparable-sale fair-value bands, deal quality, opportunity confidence, risk summaries, counterarguments, Tools -> Market Intelligence, and 571-test regression pass. |
+| `v3.9` | See verified tag `v3.9` | Portfolio Performance with growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, and 579-test regression pass. |
 
 ## Notes
 

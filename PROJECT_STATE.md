@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v3.8`
+* Current release version: `v3.9`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v3.8`
-* Summary of what was included: Market Intelligence with deterministic local fair-value estimates, comparable-sale support, deal quality labels, opportunity confidence scoring, risk summaries, counterarguments, Tools -> Market Intelligence, CSV/Markdown export, and 571-test regression pass.
+* Most recent Git tag: `v3.9`
+* Summary of what was included: Portfolio Performance with deterministic collection growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, CSV/Markdown export, and 579-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -54,6 +54,7 @@
 * `v3.6` acceptance audit passed on 2026-06-21; tag `v3.6` verified during release.
 * `v3.7` acceptance audit passed on 2026-06-21; tag `v3.7` verified during release.
 * `v3.8` acceptance audit passed on 2026-06-21; tag `v3.8` verified during release.
+* `v3.9` acceptance audit passed on 2026-06-21; tag `v3.9` verified during release.
 
 ## Completed Features
 
@@ -122,6 +123,7 @@
 * Deal Hunter Calibration: offline calibration framework that compares expected collector judgment against Deal Hunter and Ranking output, detects false BUY/PASS/REVIEW outcomes, ranking misses, missing risk flags, and explanation gaps, and exports calibration reports without live-source ingestion.
 * Live Deal Hunter Readiness: readiness and safety layer for future live listing ingestion with contract models, source validation reports, staleness flags, rate-limit policy models, failure models, no-fetch guardrails, GUI report workflow, and CSV/Markdown export.
 * Market Intelligence: deterministic local fair-value and deal-quality analysis that reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness records to explain value confidence, risks, counterarguments, and buy rationale without scraping, APIs, live pricing, purchasing, or collection mutation.
+* Portfolio Performance: deterministic portfolio-level reporting that reuses snapshots, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and local Market Awareness records to explain growth, acquisition performance, series progress, budget allocation, collection health, risks, and focus areas without investment advice, live pricing, forecasting, or collection mutation.
 
 ## Known Bugs
 
@@ -176,7 +178,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v3.9 Portfolio Performance unless a release-blocking defect is found.
+Prepare v4.0 Live Deal Hunter planning unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -205,6 +207,7 @@ Build v3.9 Portfolio Performance unless a release-blocking defect is found.
 * Deal Hunter Calibration system: `deal_hunter_calibration.py` provides `CalibrationCase`, `CalibrationCaseResult`, `DealHunterCalibrationEngine`, and `DealHunterCalibrationReport`. It runs offline calibration fixtures through Deal Hunter and Ranking output to surface false recommendations, ranking misses, missing risk flags, over/under-penalized cases, and explanation gaps before any live-source work.
 * Live Deal Hunter Readiness system: `live_deal_hunter_readiness.py` provides `LiveDealHunterReadinessAudit`, `LiveDealHunterReadinessReport`, `LiveListingSource`, `LiveListingBatch`, `LiveListingFetchResult`, `LiveSourceValidationReport`, `RateLimitPolicy`, and `LiveSourceFailure`. It documents future live-source boundaries and validates supplied batch data without performing live fetching.
 * Market Intelligence system: `market_intelligence.py` provides `MarketIntelligenceEngine`, `MarketIntelligenceReport`, `FairValueEstimate`, `DealQuality`, `OpportunityConfidence`, `ComparableSale`, and `RiskSummary`. It reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness data for deterministic fair-value guidance without external fetching or collection mutation.
+* Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
@@ -250,6 +253,13 @@ Build v3.9 Portfolio Performance unless a release-blocking defect is found.
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v3.9 Portfolio Performance: `PortfolioPerformanceEngine`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, `CollectionHealthScore`, executive `PortfolioPerformanceReport`, Tools -> Portfolio Performance, snapshot comparison support, CSV/Markdown export, and explicit no-investment-advice/no-live-pricing guardrails.
+* Roadmap lock commit: `a65a9ce`
+* Implementation commit: `e52083d`
+* Full test suite passed: 579 tests OK.
+* Coverage note: total passing tests increased from 571 to 579; existing regression suites remained green.
+* Limitation: deterministic local portfolio-development reporting only; no investment advice, scraping, APIs, live pricing, market forecasting, automatic purchasing, or collection mutation.
 
 * Implemented v3.8 Market Intelligence: `MarketIntelligenceEngine`, `FairValueEstimate`, `ComparableSale`, `DealQuality`, `OpportunityConfidence`, `RiskSummary`, collector-facing counterarguments, Tools -> Market Intelligence, CSV/Markdown export, and explicit no-scraping/no-live-pricing guardrails.
 * Roadmap lock commit: `b9915d4`

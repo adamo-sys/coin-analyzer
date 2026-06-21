@@ -105,7 +105,7 @@ Work through this queue in priority order. Handle only one task at a time.
 73. `[x]` Build v3.6 Deal Hunter Calibration
 74. `[x]` Build v3.7 Live Deal Hunter Readiness
 75. `[x]` Build v3.8 Market Intelligence
-76. `[ ]` Build v3.9 Portfolio Performance
+76. `[x]` Build v3.9 Portfolio Performance
 77. `[ ]` Build v4.0 Live Deal Hunter
 78. `[ ]` Build v4.1 Live Source Validation
 79. `[ ]` Build v4.2 Market Intelligence Automation
@@ -184,6 +184,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
 - Commit hash: `a65a9ce`
+
+#### `[x]` Build v3.9 Portfolio Performance
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `portfolio_performance.py` (new file)
+  - `test_portfolio_performance.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.9.md` (new file)
+- Roadmap lock commit hash: `a65a9ce`
+- Implementation commit hash: `e52083d`
+- Test coverage: total passing tests increased from 571 to 579; existing regression suites remained green.
+- Limitation: deterministic local portfolio-development reporting only; no investment advice, scraping, APIs, live pricing, market forecasting, automatic purchasing, or collection mutation.
 
 #### `[x]` Build v3.8 Market Intelligence
 

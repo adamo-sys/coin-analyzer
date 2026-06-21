@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.8`
-- Current active task completed: v3.8 Market Intelligence
+- Current project state file reports release version: `v3.9`
+- Current active task completed: v3.9 Portfolio Performance
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -187,6 +187,10 @@ Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportuni
 - Market Intelligence evaluates supplied/manual listing data with local comparable sales, local Market Awareness observations, Deal Hunter output, Opportunity Engine integration, Collection Intelligence context, WANT_LIST context, risk flags, confidence scoring, deal quality, buy rationale, and counterarguments.
 - Added Tools -> Market Intelligence with manual listing entry, report display, CSV export, and Markdown export.
 - Added `test_market_intelligence.py` covering fair-value generation, confidence scoring, deal quality, comparable sales, risk analysis, counterarguments, duplicate handling, upgrade handling, fallback valuation, and exports.
+- Added `portfolio_performance.py` with `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`.
+- Portfolio Performance reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and local Market Awareness records.
+- Added Tools -> Portfolio Performance with report display and CSV/Markdown export.
+- Added `test_portfolio_performance.py` covering growth analysis, acquisition analysis, series progress, budget allocation, health score, snapshot comparison, executive dashboard, and exports.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -451,6 +455,7 @@ Supported statuses:
 - Deal Hunter Calibration must remain an offline quality-control layer. Do not use it to fetch listings, scrape sites, call APIs, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 - Live Deal Hunter Readiness must remain contracts, validation, and reporting only. Do not add scraping, browser automation, APIs, live listing retrieval, background fetching, automatic purchasing, live pricing claims, image recognition, or collection mutation in this layer.
 - Market Intelligence must remain deterministic local guidance only. Do not add scraping, browser automation, APIs, live listing retrieval, live market-price claims, automatic purchasing, image recognition, or collection mutation.
+- Portfolio Performance must remain deterministic local collection-development reporting only. Do not add investment advice, scraping, APIs, live pricing, market forecasting, automatic purchasing, or collection mutation.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -458,8 +463,9 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 571 tests OK for the v3.8 Market Intelligence release line.
-- Coverage note: total passing tests increased from 560 to 571; existing regression suites remained green.
+- `.\run_tests.bat`: 579 tests OK for the v3.9 Portfolio Performance release line.
+- Coverage note: total passing tests increased from 571 to 579; existing regression suites remained green.
+- Targeted Portfolio Performance, Snapshot, Collection Intelligence, Opportunity Engine, and Market Intelligence block: 50 tests OK.
 - Targeted Market Intelligence tests: 11 tests OK.
 - Targeted Market Intelligence, Deal Hunter, Opportunity, Ranking, Connector, and Calibration regression block: 86 tests OK.
 - Targeted Deal Hunter Calibration tests: 12 tests OK.
@@ -529,6 +535,7 @@ Supported statuses:
 - Deal Hunter Calibration compares supplied offline expectations against deterministic recommendations/rankings only. Calibration fixtures are fake local test scenarios, not live market data.
 - Live Deal Hunter Readiness defines future source contracts and validation reports only. `LiveListingSource.fetch_listings()` intentionally raises `NotImplementedError` in v3.7.
 - Market Intelligence estimates fair-value bands from supplied/local comparable rows and existing internal deal guidance only. It does not appraise coins, retrieve live values, predict markets, or guarantee value.
+- Portfolio Performance is not investment advice. It reports local collection growth, health, progress, and focus areas from existing records and snapshots only.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -539,7 +546,7 @@ Supported statuses:
 
 ## Recommended Next Steps
 
-1. Build v3.9 Portfolio Performance using snapshots, collection intelligence, opportunity analysis, market intelligence, and series tracking without adding live pricing or forecasting.
+1. Prepare v4.0 Live Deal Hunter implementation planning using v3.7 live-source contracts, v3.8 Market Intelligence explanations, v3.9 Portfolio Performance context, and no-mutation safety rules.
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.

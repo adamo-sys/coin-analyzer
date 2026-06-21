@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.8`
+Current version: `v3.9`
 
-Latest tagged release: `v3.8`
+Latest tagged release: `v3.9`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -44,6 +44,7 @@ The app is especially tuned for Adam-specific priorities:
 - Deal Hunter Calibration: run offline collector-judgment cases against Deal Hunter and Ranking output to catch false BUY/PASS/REVIEW decisions, ranking misses, risk-flag misses, and explanation gaps before any live-source work.
 - Live Deal Hunter Readiness: audit future live-source readiness, contracts, validation, staleness, rate-limit planning, and safety rules without fetching live listings.
 - Market Intelligence: estimate fair-value bands from local comparable sales and existing internal deal guidance, classify deal quality, explain confidence/risk, generate counterarguments, and export reports without scraping, APIs, or live pricing.
+- Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
@@ -134,7 +135,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.8 Market Intelligence suite passed with `571 tests OK`.
+The v3.9 Portfolio Performance suite passed with `579 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -182,6 +183,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.6` | See verified tag `v3.6` | Deal Hunter Calibration with offline collector-judgment fixtures, false recommendation detection, ranking/risk/explanation calibration reports, GUI workflow, and 550-test regression pass. |
 | `v3.7` | See verified tag `v3.7` | Live Deal Hunter Readiness with future live-source contracts, validation reports, staleness flags, rate-limit/failure models, safety audit, GUI workflow, and 560-test regression pass. |
 | `v3.8` | See verified tag `v3.8` | Market Intelligence with local comparable-sale fair-value bands, deal quality, opportunity confidence, risk summaries, counterarguments, Tools -> Market Intelligence, and 571-test regression pass. |
+| `v3.9` | See verified tag `v3.9` | Portfolio Performance with growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, and 579-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -201,6 +203,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Deal Hunter Calibration when you want to test Deal Hunter and Ranking behavior against known offline collector-judgment cases before adding or trusting a new source format.
 - Use Live Deal Hunter Readiness when planning future live-source work and checking source contracts, validation, staleness, rate-limit policy, failure handling, and no-mutation guardrails.
 - Use Market Intelligence when you want a local fair-value estimate, deal-quality label, confidence score, risk summary, counterargument, and buy rationale for one listing before live-source work exists.
+- Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
@@ -277,6 +280,7 @@ Future candidates:
 ## Known Limitations
 
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
+- Portfolio Performance is collection-development reporting, not investment advice, market forecasting, or live valuation.
 - Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
 - Deal Hunter stores listing URLs and image URLs as reference data only. It does not scrape, fetch, use browser automation, call eBay APIs, or claim live market-pricing accuracy.
 - Market Intelligence estimates are deterministic local guidance from supplied comparable sales, local Market Awareness records, and existing internal deal guidance. They are not appraisals, live market pricing, or guarantees of value.
@@ -672,6 +676,22 @@ Market Intelligence adds:
 
 Market Intelligence reuses Deal Hunter, Opportunity Engine, Deal Hunter Ranking context, Collection Intelligence, WANT_LIST context, and local Market Awareness records. It does not scrape, use browser automation, call APIs, fetch listings, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection data.
 
+## Portfolio Performance
+
+Use Tools -> Portfolio Performance when you want a portfolio-level view of how the collection is developing over time.
+
+Portfolio Performance adds:
+
+- `PortfolioPerformanceEngine` for local portfolio-level reporting.
+- `CollectionGrowthReport` for collection size, local estimated value, silver holdings, slab count, banknote count, Newfoundland count, category counts, and snapshot comparison.
+- `AcquisitionPerformanceReport` for best acquisitions, biggest upgrades, highest collection impact, strongest opportunity captures, and highest-confidence purchases from local records.
+- `SeriesProgressReport` for completion percentages, nearest completions, neglected series, strongest-performing series, and snapshot deltas.
+- `BudgetAllocationReport` for Newfoundland, Canadian silver, banknotes, slabs, upgrades, duplicates, and other categories.
+- `CollectionHealthScore` for backup readiness, integrity, photo coverage, documentation/certification coverage, duplicate control, WANT_LIST alignment, snapshot coverage, and series progress.
+- `PortfolioPerformanceReport` executive dashboard with strengths, weaknesses, opportunities, risks, recommended focus areas, and CSV/Markdown export.
+
+Portfolio Performance reuses the Collection Snapshot System, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Collection Quality, Collection Integrity, Market Awareness, and local collection records. It does not scrape, call APIs, forecast markets, provide investment advice, purchase automatically, or mutate collection data.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -712,6 +732,7 @@ Export support is intentionally report-specific:
 - Deal Hunter Calibration: CSV and Markdown export.
 - Live Deal Hunter Readiness: CSV and Markdown export.
 - Market Intelligence: CSV and Markdown export.
+- Portfolio Performance: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.
