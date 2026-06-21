@@ -238,8 +238,15 @@ Official post-v2.2 roadmap:
 - `v3.0` Collector Companion
 - `v3.1` eBay.ca Coin Deal Hunter MVP
 - `v3.2` Deal Hunter Workflow Refinement
+- `v3.3` Opportunity Engine
+- `v3.4` Deal Hunter Ranking Engine
+- `v3.5` External Listing Imports
+- `v4.0` Live Deal Hunter
+- `v5.0` Mobile Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+
+Post-v3.2 roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
 
 Near-term maintenance candidates:
 
@@ -249,7 +256,7 @@ Near-term maintenance candidates:
 - Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
-- Keep Deal Hunter offline while expanding local fixtures and validation for new collector edge cases.
+- Build the v3.3 Opportunity Engine to answer "What should I buy next?" with deterministic local opportunity scoring.
 
 Future candidates:
 

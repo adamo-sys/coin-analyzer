@@ -99,14 +99,29 @@ Work through this queue in priority order. Handle only one task at a time.
 67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
 68. `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
 69. `[x]` Build v3.2 Deal Hunter Workflow Refinement
+70. `[-]` Build v3.3 Opportunity Engine
+71. `[ ]` Build v3.4 Deal Hunter Ranking Engine
+72. `[ ]` Build v3.5 External Listing Imports
+73. `[ ]` Build v4.0 Live Deal Hunter
+74. `[ ]` Build v5.0 Mobile Collector Companion
 
 ## Official v3.x Roadmap
 
 1. `v3.0` Collector Companion
 2. `v3.1` eBay.ca Coin Deal Hunter MVP
 3. `v3.2` Deal Hunter Workflow Refinement
+4. `v3.3` Opportunity Engine
+5. `v3.4` Deal Hunter Ranking Engine
+6. `v3.5` External Listing Imports
 
-Clarification: `v3.2` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, or claim live market-pricing accuracy.
+## Official Long-Range Roadmap
+
+1. `v4.0` Live Deal Hunter
+2. `v5.0` Mobile Collector Companion
+
+Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+
+Clarification: `v3.3` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, claim live market-pricing accuracy, predict markets, purchase automatically, recognize images, or mutate collection data.
 
 ## Adam-Specific Collection Priorities
 
@@ -148,6 +163,17 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[-]` Build v3.3 Opportunity Engine
+
+- Date started: 2026-06-21
+- Roadmap lock:
+  - `v3.3` Opportunity Engine
+  - `v3.4` Deal Hunter Ranking Engine
+  - `v3.5` External Listing Imports
+  - `v4.0` Live Deal Hunter
+  - `v5.0` Mobile Collector Companion
+- Rationale: future work should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
 
 #### `[x]` Build v3.2 Deal Hunter Workflow Refinement
 

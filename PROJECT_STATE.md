@@ -128,8 +128,18 @@ Official v3.x roadmap:
 1. `v3.0` Collector Companion
 2. `v3.1` eBay.ca Coin Deal Hunter MVP
 3. `v3.2` Deal Hunter Workflow Refinement
+4. `v3.3` Opportunity Engine
+5. `v3.4` Deal Hunter Ranking Engine
+6. `v3.5` External Listing Imports
 
-Clarification: `v3.2` remains offline and deterministic. It adds no scraping, browser automation, eBay API usage, live listing fetches, or live market-pricing claims.
+Official long-range roadmap:
+
+1. `v4.0` Live Deal Hunter
+2. `v5.0` Mobile Collector Companion
+
+Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+
+Clarification: `v3.3` remains offline and deterministic. It adds no scraping, browser automation, eBay API usage, live listing fetches, live market-pricing claims, market prediction, automatic purchasing, image recognition, or collection mutation.
 
 Near-term maintenance candidates:
 

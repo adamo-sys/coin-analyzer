@@ -16,6 +16,16 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
+## Official Post-v3.2 Roadmap
+
+1. `v3.3` Opportunity Engine
+2. `v3.4` Deal Hunter Ranking Engine
+3. `v3.5` External Listing Imports
+4. `v4.0` Live Deal Hunter
+5. `v5.0` Mobile Collector Companion
+
+Roadmap rationale: the platform has matured from collection management toward collection decision support. Future development should prioritize opportunity identification, upgrade prioritization, budget allocation, candidate ranking, and decision quality over additional parser complexity.
+
 ## What Changed
 
 - Added `focused_collection_intelligence.py` with reusable deterministic candidate classification.
