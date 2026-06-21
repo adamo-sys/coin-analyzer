@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v4.1`
+Current version: `v4.2`
 
-Latest tagged release: `v4.1`
+Latest tagged release: `v4.2`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -46,6 +46,7 @@ The app is especially tuned for Adam-specific priorities:
 - Live Deal Hunter: controlled-beta, user-triggered public RSS feed ingestion that validates, normalizes, deduplicates, ranks, and exports live listing opportunities through existing Deal Hunter, CandidatePool, Ranking, Opportunity, and Market Intelligence systems.
 - Live Source Validation: deterministic trust layer for live source quality, listing validation, freshness checks, duplicate/malformed URL detection, source health scoring, REVIEW escalation, and CSV/Markdown export before live listings enter recommendation pipelines.
 - Market Intelligence: estimate fair-value bands from local comparable sales and existing internal deal guidance, classify deal quality, explain confidence/risk, generate counterarguments, and export reports without scraping, APIs, or live pricing.
+- Market Intelligence Automation: automatically enrich Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates with existing local Market Intelligence, collection relevance, evidence summaries, risk warnings, and review escalations while preserving original recommendations.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -137,7 +138,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v4.1 Live Source Validation suite passed with `602 tests OK`.
+The v4.2 Market Intelligence Automation suite passed with `615 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -188,6 +189,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.9` | See verified tag `v3.9` | Portfolio Performance with growth analysis, acquisition performance, series progress, budget allocation, health score, snapshot comparison, Tools -> Portfolio Performance, and 579-test regression pass. |
 | `v4.0` | See verified tag `v4.0` | Live Deal Hunter controlled beta with user-triggered RSS ingestion, source validation, listing normalization, CandidatePool/ranking/market-intelligence integration, GUI workflow, CSV/Markdown export, and 589-test regression pass. |
 | `v4.1` | See verified tag `v4.1` | Live Source Validation with listing trust checks, freshness, source health scoring, REVIEW escalation, Live Deal Hunter pipeline gating, Tools -> Live Source Validation, and 602-test regression pass. |
+| `v4.2` | See verified tag `v4.2` | Market Intelligence Automation with candidate enrichment, collection relevance summaries, fair-value evidence summaries, review escalation, Live Deal Hunter integration, Tools -> Market Intelligence Automation, and 615-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -209,6 +211,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Live Deal Hunter when you explicitly want to fetch a public RSS feed, validate/normalize current listing data, rank opportunities, and export the controlled-beta report.
 - Use Live Source Validation when you want to check whether a live source is trustworthy enough before its listings enter Deal Hunter, Ranking, Opportunity, or Market Intelligence.
 - Use Market Intelligence when you want a local fair-value estimate, deal-quality label, confidence score, risk summary, counterargument, and buy rationale for one listing before live-source work exists.
+- Use Market Intelligence Automation when you want a batch of candidates enriched with deal quality, confidence, fair-value evidence, collection relevance, risks, and review escalation while preserving the original recommendation.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
@@ -294,6 +297,7 @@ Future candidates:
 - Deal Hunter stores listing URLs and image URLs as reference data only. It does not scrape, fetch, use browser automation, call eBay APIs, or claim live market-pricing accuracy.
 - Live Deal Hunter is a controlled beta. It only fetches a user-specified public RSS/XML feed after an explicit button press; it does not bid, buy, mutate collection data, poll in the background, scrape pages, log into services, or guarantee feed availability.
 - Live Source Validation does not repair listings, convert currencies, fetch exchange rates, or guarantee source truth. It aggressively flags uncertainty and prefers REVIEW over false confidence.
+- Market Intelligence Automation reuses local Market Intelligence only. It does not create a second valuation engine, retrieve live prices, convert currencies, forecast markets, provide investment advice, purchase, bid, or mutate collection data.
 - Market Intelligence estimates are deterministic local guidance from supplied comparable sales, local Market Awareness records, and existing internal deal guidance. They are not appraisals, live market pricing, or guarantees of value.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.

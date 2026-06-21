@@ -108,7 +108,7 @@ Work through this queue in priority order. Handle only one task at a time.
 76. `[x]` Build v3.9 Portfolio Performance
 77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
 78. `[x]` Build v4.1 Live Source Validation
-79. `[-]` Build v4.2 Market Intelligence Automation
+79. `[x]` Build v4.2 Market Intelligence Automation
 80. `[ ]` Build v4.3 Watchlists & Alerts
 81. `[ ]` Build v5.0 Mobile Collector Companion
 
@@ -186,6 +186,26 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `README.md`
   - `project_docs/release_prompts/v4.2.txt`
 - Commit hash: `473ffee`
+
+#### `[x]` Build v4.2 Market Intelligence Automation
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `market_intelligence_automation.py` (new file)
+  - `test_market_intelligence_automation.py` (new file)
+  - `live_deal_hunter.py`
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v4.2.md` (new file)
+- Roadmap lock commit hash: `473ffee`
+- Implementation commit hash: `17d7fe5`
+- Test coverage: total passing tests increased from 602 to 615; existing regression suites remained green.
+- Limitation: deterministic local enrichment only; no scraping, APIs, live pricing, exchange-rate lookup, market forecasting, automatic purchasing, bidding, investment advice, or collection mutation.
 
 #### `[x]` Lock v4.1 roadmap
 

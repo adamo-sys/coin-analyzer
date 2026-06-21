@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v4.1`
-- Current active task in progress: v4.2 Market Intelligence Automation
+- Current project state file reports release version: `v4.2`
+- Current active task completed: v4.2 Market Intelligence Automation
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -207,6 +207,14 @@ v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened liv
 - Added `test_live_source_validation.py` covering missing title/price/seller/URL, CAD/non-CAD/unknown currency, stale listings, duplicate URLs, malformed URLs, source health scoring, validation reports, exports, and Live Deal Hunter fixture validation.
 - v4.1 full suite passed: 602 tests OK. Coverage increased from 589 to 602, and existing regression suites remained green.
 - v4.1 guardrails: validation is deterministic and conservative; it does not repair listings, convert currencies, fetch exchange rates, guarantee source truth, scrape pages, automate browsers, purchase, bid, poll in the background, or mutate collection data.
+- Added `market_intelligence_automation.py` with `MarketIntelligenceAutomationEngine`, `MarketEnrichedCandidate`, `MarketEnrichmentBatchReport`, `FairValueEvidenceSummary`, and `CollectionRelevanceSummary`.
+- Market Intelligence Automation reuses `MarketIntelligenceEngine` for all valuation guidance; it does not create a second valuation engine.
+- Automation supports single candidates, candidate pools, ranked lists, live listing batches, and Live Deal Hunter reports.
+- Live Deal Hunter reports now include automated Market Intelligence enrichment summaries after validation, CandidatePool creation, and ranking.
+- Added Tools -> Market Intelligence Automation for manual batch enrichment with CSV/Markdown export.
+- Added `test_market_intelligence_automation.py` covering single enrichment, candidate-pool enrichment, batch enrichment, upgrade/WANT_LIST/gap/duplicate classifications, low-confidence REVIEW escalation, fair-value evidence summaries, ranking integration, Live Deal Hunter integration, export generation, original recommendation preservation, and no live price retrieval.
+- v4.2 full suite passed: 615 tests OK. Coverage increased from 602 to 615, and existing regression suites remained green.
+- v4.2 guardrails: deterministic local enrichment only; no scraping, APIs, live pricing, exchange-rate lookup, market forecasting, automatic purchasing, bidding, investment advice, or collection mutation.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
