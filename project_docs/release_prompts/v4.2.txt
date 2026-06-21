@@ -1,0 +1,462 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.0.md
+* docs/releases/v4.1.md
+* current codebase
+
+Begin v4.2 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v4.2 = Market Intelligence Automation
+
+v4.3 = Watchlists & Alerts
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+v4.0 introduced live opportunity discovery.
+
+v4.1 hardened live source validation.
+
+v4.2 should automate the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
+
+Commit:
+
+Lock v4.2 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue.
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Automatically enrich Deal Hunter, Ranking, Opportunity Engine, and Live Deal Hunter candidates with local Market Intelligence.
+
+Do NOT add:
+
+* scraping
+* browser automation
+* eBay APIs
+* dealer APIs
+* auction APIs
+* live price fetching
+* exchange-rate fetching
+* market forecasting
+* automatic purchasing
+* collection mutation
+* investment advice
+
+All valuation intelligence must remain deterministic local guidance.
+
+==================================================
+PHASE 2
+MARKET INTELLIGENCE AUTOMATION ENGINE
+=====================================
+
+Create:
+
+market_intelligence_automation.py
+
+Implement:
+
+* MarketIntelligenceAutomationEngine
+* MarketEnrichedCandidate
+* MarketEnrichmentBatchReport
+* FairValueEvidenceSummary
+
+Purpose:
+
+Automatically apply Market Intelligence reports to candidate listings from:
+
+* Deal Hunter
+* Deal Hunter Ranking
+* Opportunity Engine
+* Live Deal Hunter
+* External Listing Connectors
+
+Reuse existing Market Intelligence logic.
+
+Do NOT create a second valuation engine.
+
+==================================================
+PHASE 3
+CANDIDATE ENRICHMENT
+====================
+
+Create:
+
+MarketEnrichedCandidate
+
+Include:
+
+* original listing/candidate
+* original recommendation
+* deal quality
+* fair value estimate
+* opportunity confidence
+* risk summary
+* strengths
+* weaknesses
+* counterargument
+* market intelligence warnings
+
+Preserve original recommendation.
+
+Do not silently overwrite recommendations.
+
+==================================================
+PHASE 4
+COLLECTION RELEVANCE SUMMARY
+============================
+
+Create:
+
+CollectionRelevanceSummary
+
+Purpose:
+
+Explain why the opportunity matters to THIS collection.
+
+Include:
+
+* collection relevance score
+* relevance explanation
+* collection goal advanced
+
+Classify as one or more:
+
+* Upgrade
+* Collection Gap
+* Want-List Match
+* Same-Grade Duplicate
+* Lower-Grade Duplicate
+* Speculative Opportunity
+* General Collection Fit
+* Not Collection Relevant
+
+Required output:
+
+Every enriched candidate must explicitly explain:
+
+* why it helps the collection
+* why it does not help the collection
+* what collection objective it advances
+
+Examples:
+
+* Newfoundland completion
+* Canadian silver expansion
+* 1859 variety target
+* 1926 Near 6 target
+* Canadian banknote target
+* upgrade opportunity
+* duplicate risk
+
+==================================================
+PHASE 5
+BATCH ENRICHMENT
+================
+
+Support:
+
+* single candidate enrichment
+* candidate pool enrichment
+* live batch enrichment
+* ranked list enrichment
+
+Output:
+
+MarketEnrichmentBatchReport
+
+Include:
+
+* candidates processed
+* enriched count
+* skipped count
+* warnings
+* errors
+
+==================================================
+PHASE 6
+CONFIDENCE ESCALATION
+=====================
+
+If Market Intelligence confidence is low or evidence is weak:
+
+* escalate recommendation to REVIEW where appropriate
+* add warning
+* preserve original recommendation
+* record escalation reason
+
+Do not silently alter recommendations.
+
+==================================================
+PHASE 7
+FAIR VALUE EVIDENCE SUMMARY
+===========================
+
+Create:
+
+FairValueEvidenceSummary
+
+Show:
+
+* comparable sales count
+* market awareness records used
+* evidence quality
+* evidence gaps
+* confidence impact
+
+No live pricing retrieval.
+
+No exchange-rate lookup.
+
+No market forecasting.
+
+==================================================
+PHASE 8
+RANKING INTEGRATION
+===================
+
+Allow ranking reports to include:
+
+* deal quality
+* fair value estimate
+* opportunity confidence
+* market risk warnings
+* collection relevance summary
+
+Preserve existing ranking behavior unless intentionally documented.
+
+==================================================
+PHASE 9
+LIVE DEAL HUNTER INTEGRATION
+============================
+
+Allow Live Deal Hunter reports to include automated Market Intelligence.
+
+Flow:
+
+Live Source
+↓
+Validation
+↓
+Candidate Pool
+↓
+Ranking
+↓
+Market Intelligence Automation
+↓
+Live Deal Hunter Report
+
+==================================================
+PHASE 10
+GUI INTEGRATION
+===============
+
+Add or enhance:
+
+Tools -> Market Intelligence Automation
+
+and/or enrich existing:
+
+* Deal Hunter Ranking
+* Live Deal Hunter
+* Opportunity Engine
+
+Display:
+
+* deal quality
+* confidence
+* fair value summary
+* risk warnings
+* collection relevance
+* review escalations
+
+Keep UI simple.
+
+==================================================
+PHASE 11
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* MarketEnrichmentBatchReport
+* MarketEnrichedCandidate
+* FairValueEvidenceSummary
+* CollectionRelevanceSummary
+
+==================================================
+PHASE 12
+TESTING
+=======
+
+Add tests for:
+
+* single candidate enrichment
+* candidate pool enrichment
+* batch enrichment
+* collection relevance scoring
+* upgrade classification
+* want-list classification
+* collection gap classification
+* duplicate classification
+* low-confidence escalation
+* fair value evidence summary
+* ranking integration
+* live deal hunter integration
+* export generation
+* preserving original recommendation
+* no live price retrieval
+
+Run:
+
+* Market Intelligence Automation tests
+* Market Intelligence tests
+* Live Deal Hunter tests
+* Live Source Validation tests
+* Ranking tests
+* Deal Hunter tests
+* Opportunity Engine tests
+* Portfolio Performance tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 13
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.2.md
+
+Document:
+
+* enrichment workflow
+* collection relevance model
+* confidence escalation
+* evidence summary
+* limitations
+* no-live-pricing rule
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* enrichment works
+* batch enrichment works
+* collection relevance works
+* evidence summaries work
+* confidence escalation works
+* original recommendations are preserved
+* ranking integration works
+* live deal hunter integration works
+* exports work
+* no live price retrieval exists
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v4.2
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can automatically enrich live, imported, ranked, and opportunity candidates with deterministic local Market Intelligence, including:
+
+* deal quality
+* confidence
+* fair-value evidence
+* collection relevance
+* risk warnings
+* review escalations
+* counterarguments
+
+while preserving original recommendations, avoiding live pricing, and maintaining complete collector control.
+
+The system must clearly answer:
+
+"Is this a good deal?"
+
+AND
+
+"Why does this matter to my collection?"

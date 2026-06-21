@@ -5,7 +5,7 @@
 - Date: 2026-06-21
 - Branch: `main`
 - Current project state file reports release version: `v4.1`
-- Current active task completed: v4.1 Live Source Validation
+- Current active task in progress: v4.2 Market Intelligence Automation
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,10 +16,10 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v4.1 Roadmap
+## Official v4.2 Roadmap
 
-1. `v4.1` Live Source Validation
-2. `v4.2` Market Intelligence Automation
+1. `v4.2` Market Intelligence Automation
+2. `v4.3` Watchlists & Alerts
 3. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
@@ -29,6 +29,8 @@ Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportuni
 v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
 
 v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
+
+v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened live source validation. v4.2 automates the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
 
 ## What Changed
 

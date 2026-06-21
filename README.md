@@ -251,10 +251,10 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v4.1 roadmap:
+Official v4.2 roadmap:
 
-- `v4.1` Live Source Validation
 - `v4.2` Market Intelligence Automation
+- `v4.3` Watchlists & Alerts
 - `v5.0` Mobile Collector Companion
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
@@ -266,6 +266,8 @@ Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and c
 v4.0 roadmap rationale: v3.x established Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, Calibration, Live Readiness, Market Intelligence, and Portfolio Performance. v4.0 introduces controlled, user-triggered live opportunity discovery while preserving no-purchase, no-bidding, no-background-job, and no-collection-mutation safety rules.
 
 v4.1 roadmap rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
+
+v4.2 roadmap rationale: v4.0 introduced live opportunity discovery and v4.1 hardened live source validation. v4.2 automates the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
 
 Near-term maintenance candidates:
 
