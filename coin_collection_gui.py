@@ -19,6 +19,11 @@ from legacy_portfolio_importer import (
     export_import_summary_csv,
     export_want_list_preview_csv,
 )
+from listing_connectors import (
+    ConnectorRegistry,
+    DuplicateOpportunityDetector,
+    SourceSummaryReport,
+)
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
@@ -158,6 +163,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
+        tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -3562,6 +3568,154 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_external_listing_connectors(self):
+        """Open offline external listing connector import workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("External Listing Connectors")
+        dialog.geometry("980x800")
+
+        registry = ConnectorRegistry()
+        current_imports = {"reports": []}
+        current_ranking = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Local Listing Import", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+        input_frame.columnconfigure(1, weight=1)
+
+        connector_var = tk.StringVar(value=registry.names()[0])
+        source_var = tk.StringVar()
+        ttk.Label(input_frame, text="Connector:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Combobox(input_frame, textvariable=connector_var, values=registry.names(), state="readonly").grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+        ttk.Label(input_frame, text="Source name:").grid(row=1, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(input_frame, textvariable=source_var).grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+        ttk.Label(
+            input_frame,
+            text="Imports local CSV files only. No scraping, browser automation, APIs, live listing retrieval, or collection mutation.",
+            wraplength=840,
+        ).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Connector Results", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def render_summary():
+            reports = current_imports["reports"]
+            all_listings = [listing for report in reports for listing in report.listings]
+            source_summary = SourceSummaryReport.from_listings(all_listings)
+            duplicates = DuplicateOpportunityDetector().detect(all_listings)
+            lines = [
+                "# External Listing Connectors",
+                "",
+                f"- Imported reports: {len(reports)}",
+                f"- Normalized listings: {len(all_listings)}",
+                f"- Duplicate findings: {len(duplicates)}",
+                "- Guidance note: offline local-file connector framework only.",
+                "",
+                "## Imports",
+                "",
+            ]
+            if not reports:
+                lines.append("- No files imported yet.")
+            for report in reports:
+                lines.extend([
+                    f"- {report.connector_name}: {report.imported_count} listings from {report.source_path}",
+                    f"  - Validation: {report.validation_report.status}",
+                    f"  - Skipped rows: {report.validation_report.skipped_rows}",
+                ])
+                for warning in report.validation_report.warnings[:5]:
+                    lines.append(f"  - Warning: {warning}")
+            lines.extend(["", "## Source Summary", "", source_summary.format_markdown(), "## Duplicate Findings", ""])
+            if duplicates:
+                for duplicate in duplicates:
+                    lines.append(f"- {duplicate.duplicate_type}: {duplicate.count} records ({duplicate.key})")
+            else:
+                lines.append("- No duplicate opportunities detected.")
+            if current_ranking["report"]:
+                lines.extend(["", "## Ranking Preview", ""])
+                lines.extend(current_ranking["report"]._format_deals(current_ranking["report"].ranked_deals[:5]))
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, "\n".join(lines).rstrip() + "\n")
+
+        def import_file():
+            file_path = filedialog.askopenfilename(
+                title="Import External Listing CSV",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                report = registry.import_file(connector_var.get(), file_path, source_name=source_var.get())
+                current_imports["reports"].append(report)
+                render_summary()
+                detail = (
+                    f"Connector: {report.connector_name}\n"
+                    f"Rows found: {report.validation_report.rows_found}\n"
+                    f"Listings imported: {report.imported_count}\n"
+                    f"Rows skipped: {report.validation_report.skipped_rows}\n"
+                    f"Warnings: {len(report.validation_report.warnings)}"
+                )
+                messagebox.showinfo("External Listing Import", detail)
+            except Exception as e:
+                messagebox.showerror("External Listing Connector Error", f"Import failed: {str(e)}")
+
+        def rank_imports():
+            try:
+                engine = DealHunterRankingEngine(
+                    self._collection_items(),
+                    self._active_want_list_intents(),
+                    self.market_awareness_engine,
+                )
+                current_ranking["report"] = registry.rank_reports(current_imports["reports"], engine)
+                render_summary()
+            except Exception as e:
+                messagebox.showerror("External Listing Ranking Error", f"Ranking failed: {str(e)}")
+
+        def export_import_markdown():
+            if not current_imports["reports"]:
+                messagebox.showwarning("No Imports", "Import at least one listing file first.")
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Connector Import Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            with open(file_path, "w", encoding="utf-8") as handle:
+                for report in current_imports["reports"]:
+                    handle.write(report.format_markdown())
+                    handle.write("\n")
+            messagebox.showinfo("Export Complete", f"Connector import report exported to {file_path}")
+
+        def export_ranking_csv():
+            if not current_ranking["report"]:
+                rank_imports()
+            if not current_ranking["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Multi-Source Ranking CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_ranking["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Multi-source ranking CSV exported to {file_path}")
+
+        ttk.Button(button_frame, text="Import File", command=import_file).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Rank Imported Listings", command=rank_imports).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Import Markdown", command=export_import_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Ranking CSV", command=export_ranking_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+        render_summary()
 
     def open_upgrade_advisor(self):
         """Open Upgrade Advisor dialog."""
