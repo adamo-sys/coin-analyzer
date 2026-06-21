@@ -25,6 +25,7 @@ from listing_connectors import (
     DuplicateOpportunityDetector,
     SourceSummaryReport,
 )
+from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
@@ -166,6 +167,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
+        tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -3663,6 +3665,69 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Rank Pool", command=analyze_pool).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_live_deal_hunter_readiness(self):
+        """Open future live-source readiness audit report."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Live Deal Hunter Readiness")
+        dialog.geometry("940x760")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        status_var = tk.StringVar(value="Run readiness audit to review future live-source guardrails.")
+        ttk.Label(main_frame, textvariable=status_var).pack(anchor=tk.W, pady=(0, 8))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Readiness Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        current_report = {"report": None}
+
+        def run_audit():
+            report = LiveDealHunterReadinessAudit().run()
+            current_report["report"] = report
+            status_var.set(
+                f"Status: {report.status} | Blockers: {len(report.blockers)} | "
+                f"Warnings: {len(report.warnings)}"
+            )
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def export_csv():
+            if not current_report["report"]:
+                run_audit()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Deal Hunter Readiness CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Live Deal Hunter readiness CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                run_audit()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Deal Hunter Readiness Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Live Deal Hunter readiness Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Run Audit", command=run_audit).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
