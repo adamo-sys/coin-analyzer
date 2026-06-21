@@ -182,7 +182,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
   - `project_docs/release_prompts/v4.1.txt`
-- Commit hash: pending
+- Commit hash: `fcc715d`
 
 #### `[x]` Lock v4.0 roadmap
 
