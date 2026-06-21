@@ -1,0 +1,11 @@
+title,price_cad,shipping_cad,seller,source,listing_url,end_time,image_url,description
+1901 Newfoundland 50 cents VF20 PCGS,85,8,Canada Coins,eBay.ca,https://www.ebay.ca/itm/fake-001,2026-07-01,,Gap filler example
+1900 Newfoundland 50 cents VF20 ICCS,75,10,Canadian Seller,eBay.ca,https://www.ebay.ca/itm/fake-002,2026-07-02,,Duplicate example
+1911 Canada 10 cents EF40 NGC silver,65,6,Ontario Dealer,eBay.ca,https://www.ebay.ca/itm/fake-003,2026-07-03,,Upgrade example
+1859 Canada Large Cent Wide 9 VF20,120,12,Quebec Coins,eBay.ca,https://www.ebay.ca/itm/fake-004,2026-07-04,,Large cent variety
+1973 Canada quarter Large Bust,35,5,Canadian Seller,eBay.ca,https://www.ebay.ca/itm/fake-005,2026-07-05,,Large Bust test
+1926 Canada 5 cents Near 6,45,5,Canadian Seller,eBay.ca,https://www.ebay.ca/itm/fake-006,2026-07-06,,Near 6 test
+Canada chartered banknote BCS VF25,150,15,Paper Dealer,eBay.ca,https://www.ebay.ca/itm/fake-007,2026-07-07,,Chartered banknote
+France 10 centimes 1975,1,35,World Seller,eBay.ca,https://www.ebay.ca/itm/fake-008,2026-07-08,,High shipping non-core
+1904 Newfoundland 50 cents VF20 USD,90,10,US Seller,eBay.com,https://www.ebay.com/itm/fake-009,2026-07-09,,Unclear non-CAD currency
+1935 Canada silver dollar PMG,110,8,Canada Notes,eBay.ca,https://www.ebay.ca/itm/fake-010,2026-07-10,,PMG detection

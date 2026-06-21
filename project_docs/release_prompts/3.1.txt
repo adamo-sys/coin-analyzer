@@ -1,0 +1,496 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.0.md
+* current codebase
+
+Begin v3.1 development.
+
+Roadmap Context:
+
+v3.0 = Collector Companion
+v3.1 = eBay.ca Coin Deal Hunter MVP
+
+GOAL:
+
+Add a collection-aware Deal Hunter module that can ingest eBay.ca-style listing data from manual entry or CSV import.
+
+This is an MVP.
+
+Do not scrape live websites.
+
+Do not use browser automation.
+
+Do not require eBay API credentials.
+
+Do not fetch live listing pages.
+
+Build the internal engine, scoring model, import workflow, tests, and documentation so live sources can be added later.
+
+---
+
+1. DEAL HUNTER FEATURE
+
+---
+
+Add a new feature/tool called:
+
+Deal Hunter
+
+Purpose:
+
+Evaluate candidate listings against Adam's collection, want list, and buying rules.
+
+The tool should answer:
+
+* Is this listing collection-relevant?
+* Is this already owned?
+* Is this an upgrade?
+* Is this a gap filler?
+* Is this a want-list match?
+* Is this worth watching, negotiating, buying, reviewing, or passing?
+
+---
+
+2. INPUT MODEL
+
+---
+
+Create:
+
+DealListing
+
+Accept manual rows or CSV import.
+
+Required / supported fields:
+
+* title
+* price_cad
+* shipping_cad
+* seller/source
+* listing_url
+* end_time/date optional
+* image_url optional
+* description optional
+
+Normalize:
+
+total_cost = price_cad + shipping_cad
+
+All pricing is CAD.
+
+If currency is not CAD or cannot be verified as CAD, flag REVIEW or PASS depending on severity.
+
+---
+
+3. CSV IMPORT
+
+---
+
+Add CSV import workflow.
+
+Support columns:
+
+* title
+* price_cad
+* shipping_cad
+* seller
+* source
+* listing_url
+* end_time
+* image_url
+* description
+
+Add a sample CSV fixture with 8-12 fake listings.
+
+Store fixture under an appropriate test/fixture/sample-data location.
+
+Do not place random CSV files in project root.
+
+---
+
+4. LISTING PARSER
+
+---
+
+Parse title and description for:
+
+* country
+* year
+* denomination
+* series/type
+* grade words
+* slab company if present:
+
+  * ICCS
+  * CCCS
+  * PCGS
+  * NGC
+  * BCS
+  * PMG
+* keywords:
+
+  * silver
+  * proof-like
+  * specimen
+  * large bust
+  * near 6
+  * wide 9
+  * banknote
+  * chartered banknote
+
+Parsing should be deterministic.
+
+Do not use live web lookups.
+
+---
+
+5. COLLECTION COMPARISON
+
+---
+
+Compare parsed candidate against current collection/session context.
+
+Reuse existing systems where possible:
+
+* Collection Intelligence
+* Smart Shopping Assistant
+* Acquisition Impact
+* Want List logic
+* Series Tracker
+* Market Awareness
+
+Classify listing as:
+
+* already owned
+* same-grade duplicate
+* lower-grade duplicate
+* better-grade upgrade
+* want-list match
+* collection gap
+* needs review
+* not collection relevant
+
+Do not duplicate ownership/upgrade logic if an existing engine can be reused.
+
+---
+
+6. DEAL SCORING
+
+---
+
+Create deterministic deal scoring.
+
+Output:
+
+* estimated priority score 0-100
+* liquidity score
+* collection-fit score
+* risk score
+* max rational bid/price
+* recommendation
+
+Recommendations:
+
+* BUY
+* WATCH
+* PASS
+* NEGOTIATE
+* REVIEW
+
+Important:
+
+Max rational bid/price is internal deterministic guidance only.
+
+It is not live market pricing.
+
+It is not appraisal.
+
+It is not a guarantee of value.
+
+---
+
+7. ADAM'S BUYING RULES
+
+---
+
+Apply Adam's buying rules:
+
+* Canadian sellers preferred
+* CAD pricing only
+* shipping included in total cost
+* upgrades over duplicates
+* pass if cool but not collection-relevant
+* explicitly argue against purchase before recommending BUY
+
+Priority boosts:
+
+* Newfoundland
+* Canadian silver
+* 1859 Large Cent varieties
+* 1973 Large Bust quarter
+* 1926 Near 6 nickel
+* Canadian banknotes
+* chartered banknotes
+
+Risk factors:
+
+* high shipping
+* missing grade
+* vague title
+* uncertain country/denomination
+* raw coin with ambitious grade language
+* non-Canadian irrelevant item
+* unclear currency
+
+---
+
+8. CONTRARIAN BUY CHECK
+
+---
+
+Before recommending BUY, produce:
+
+Counterargument
+
+Examples:
+
+* already have similar item
+* shipping weakens deal
+* grade uncertain
+* price may be high
+* better opportunities may exist
+
+BUY should only remain BUY if the positive case survives the counterargument.
+
+---
+
+9. OUTPUT REPORT
+
+---
+
+Create:
+
+DealHunterReport
+
+For each listing include:
+
+* parsed candidate summary
+* total cost
+* ownership/collection status
+* priority score
+* liquidity score
+* collection-fit score
+* risk score
+* max rational bid/price
+* recommendation
+* counterargument
+* reasons
+* warnings
+
+Support Markdown export.
+
+Support CSV export where practical.
+
+---
+
+10. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Deal Hunter
+
+Support:
+
+* manual listing entry
+* CSV import
+* scored results display
+
+Keep UI simple.
+
+No major redesign.
+
+---
+
+11. PERSISTENCE
+
+---
+
+Persist recent Deal Hunter listings and reports using existing persistence patterns if safe.
+
+Do not create a new database.
+
+Do not mutate collection records.
+
+---
+
+12. TESTING
+
+---
+
+Add tests for:
+
+* underpriced Newfoundland upgrade
+* same-grade duplicate
+* lower-grade duplicate
+* collection gap
+* want-list match
+* high shipping killing a deal
+* slabbed ICCS detection
+* slabbed PCGS detection
+* slabbed NGC detection
+* banknote detection
+* BCS detection
+* non-Canadian irrelevant item
+* unclear currency
+* CSV import
+* total cost calculation
+* counterargument before BUY
+* export generation
+
+Run:
+
+* Deal Hunter tests
+* Collection Intelligence tests
+* Smart Shopping tests
+* Acquisition Impact tests
+* Market Awareness tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+13. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.1.md
+
+Document:
+
+* Deal Hunter purpose
+* CSV format
+* scoring methodology
+* limitations
+* no-scraping rule
+* no-live-pricing rule
+
+---
+
+14. ACCEPTANCE AUDIT
+
+---
+
+Perform v3.1 acceptance audit.
+
+Verify:
+
+* Deal Hunter imports cleanly
+* manual listing workflow works
+* CSV import works
+* title parsing works
+* collection comparison works
+* scoring works
+* recommendations work
+* high shipping risk works
+* slab/banknote detection works
+* counterargument generation works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix only defects.
+
+No new features after audit begins.
+
+---
+
+15. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.1
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Tasks:
+
+1. Confirm working tree clean
+2. Report current HEAD
+3. Create tag v3.1
+4. Push main
+5. Push tag
+6. Verify local tag
+7. Verify remote tag
+8. Verify origin/main matches local HEAD
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* v3.1 tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+A collector can import or manually enter eBay.ca-style listings and receive collection-aware deal recommendations without live scraping, browser automation, API credentials, or live market pricing.
+
+17. Perform v3.1 acceptance audit.
+18. If PASS, tag v3.1, push main, push tag, and verify local/remote refs.
+19. Do not claim live market pricing accuracy; scoring is deterministic local guidance only.
+20. Store sample CSV under a fixtures/test data location, not random project root.
+
+Release Rule:
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+- files changed
+- tests run
+- audit result
+- commit hashes
+- v3.1 tag hash
+- push verification
+- remaining limitations

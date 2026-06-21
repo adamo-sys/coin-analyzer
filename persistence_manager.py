@@ -16,6 +16,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from focused_collection_intelligence import CandidateItem
 from legacy_portfolio_importer import LegacyWantListIntent
 from listing_analyzer import ListingCandidate
+from deal_hunter import DealListing
 from market_awareness import (
     AuctionRecord,
     MarketAwarenessEngine,
@@ -77,6 +78,8 @@ class AppState:
     acknowledged_home_actions: List[str] = field(default_factory=list)
     readiness_reports: List[Dict[str, Any]] = field(default_factory=list)
     audit_summaries: List[Dict[str, Any]] = field(default_factory=list)
+    recent_deal_listings: List[DealListing] = field(default_factory=list)
+    deal_hunter_reports: List[Dict[str, Any]] = field(default_factory=list)
     app_preferences: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -127,6 +130,8 @@ class AppState:
             "acknowledged_home_actions": list(self.acknowledged_home_actions),
             "readiness_reports": [dict(report) for report in self.readiness_reports],
             "audit_summaries": [dict(summary) for summary in self.audit_summaries],
+            "recent_deal_listings": [listing.to_dict() for listing in self.recent_deal_listings],
+            "deal_hunter_reports": [dict(report) for report in self.deal_hunter_reports],
             "app_preferences": dict(self.app_preferences),
             "warnings": list(self.warnings),
             "errors": list(self.errors),
@@ -257,7 +262,7 @@ class PersistenceManager:
         market = payload.get("market_records", {})
         if market and not isinstance(market, dict):
             errors.append("market_records must be an object")
-        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "workflow_statuses", "workflow_summaries", "home_reports", "acknowledged_home_actions", "readiness_reports", "audit_summaries", "warnings", "errors"]:
+        for key in ["photo_records", "shopping_candidates", "recent_mobile_candidates", "recent_mobile_recommendations", "photo_candidates", "ocr_results", "ocr_reports", "workflow_statuses", "workflow_summaries", "home_reports", "acknowledged_home_actions", "readiness_reports", "audit_summaries", "recent_deal_listings", "deal_hunter_reports", "warnings", "errors"]:
             if key in payload and not isinstance(payload.get(key), list):
                 errors.append(f"{key} must be a list")
         for key in ["collection_workbook_path", "want_list_path"]:
@@ -284,6 +289,8 @@ class PersistenceManager:
         acknowledged_home_actions: Optional[Iterable[str]] = None,
         readiness_reports: Optional[Iterable[Dict[str, Any]]] = None,
         audit_summaries: Optional[Iterable[Dict[str, Any]]] = None,
+        recent_deal_listings: Optional[Iterable[DealListing]] = None,
+        deal_hunter_reports: Optional[Iterable[Dict[str, Any]]] = None,
         app_preferences: Optional[Dict[str, Any]] = None,
     ) -> AppState:
         """Build AppState from current runtime objects."""
@@ -311,6 +318,8 @@ class PersistenceManager:
             acknowledged_home_actions=[str(action_id) for action_id in acknowledged_home_actions or []],
             readiness_reports=[dict(report) for report in readiness_reports or []],
             audit_summaries=[dict(summary) for summary in audit_summaries or []],
+            recent_deal_listings=list(recent_deal_listings or []),
+            deal_hunter_reports=[dict(report) for report in deal_hunter_reports or []],
             app_preferences=dict(app_preferences or {}),
             warnings=list(getattr(session, "warnings", []) or []),
             errors=list(getattr(session, "errors", []) or []),
@@ -363,6 +372,8 @@ class PersistenceManager:
             acknowledged_home_actions=[str(row) for row in payload.get("acknowledged_home_actions", [])],
             readiness_reports=[dict(row) for row in payload.get("readiness_reports", [])],
             audit_summaries=[dict(row) for row in payload.get("audit_summaries", [])],
+            recent_deal_listings=[DealListing.from_dict(row) for row in payload.get("recent_deal_listings", [])],
+            deal_hunter_reports=[dict(row) for row in payload.get("deal_hunter_reports", [])],
             app_preferences=dict(payload.get("app_preferences") or {}),
             warnings=list(payload.get("warnings") or []),
             errors=list(payload.get("errors") or []),

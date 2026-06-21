@@ -11,6 +11,7 @@ import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
+from deal_hunter import DealHunter, DealListing
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
@@ -66,6 +67,8 @@ class CoinCollectionGUI:
         self.acknowledged_home_actions = []
         self.readiness_reports = []
         self.audit_summaries = []
+        self.recent_deal_listings = []
+        self.deal_hunter_reports = []
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
@@ -113,6 +116,7 @@ class CoinCollectionGUI:
         workflows_menu.add_command(label="Photo-Assisted Entry", command=self.open_photo_assisted_entry)
         workflows_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
         workflows_menu.add_command(label="Smart Shopping Assistant", command=self.open_smart_shopping_assistant)
+        workflows_menu.add_command(label="Deal Hunter", command=self.open_deal_hunter)
         workflows_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
 
         # Reports menu
@@ -413,6 +417,8 @@ Total Unique Dates: {total_unique_dates}
             acknowledged_home_actions=self.acknowledged_home_actions,
             readiness_reports=self.readiness_reports,
             audit_summaries=self.audit_summaries,
+            recent_deal_listings=self.recent_deal_listings,
+            deal_hunter_reports=self.deal_hunter_reports,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.save_state(state)
@@ -458,6 +464,8 @@ Total Unique Dates: {total_unique_dates}
         self.acknowledged_home_actions = []
         self.readiness_reports = []
         self.audit_summaries = []
+        self.recent_deal_listings = []
+        self.deal_hunter_reports = []
         self.app_preferences = {}
         self.refresh_session_status()
         if result.success:
@@ -491,6 +499,8 @@ Total Unique Dates: {total_unique_dates}
             acknowledged_home_actions=self.acknowledged_home_actions,
             readiness_reports=self.readiness_reports,
             audit_summaries=self.audit_summaries,
+            recent_deal_listings=self.recent_deal_listings,
+            deal_hunter_reports=self.deal_hunter_reports,
             app_preferences=self.app_preferences,
         )
         result = self.persistence_manager.export_state(file_path, state)
@@ -539,6 +549,8 @@ Total Unique Dates: {total_unique_dates}
         self.acknowledged_home_actions = list(getattr(state, "acknowledged_home_actions", []) or [])
         self.readiness_reports = list(getattr(state, "readiness_reports", []) or [])
         self.audit_summaries = list(getattr(state, "audit_summaries", []) or [])
+        self.recent_deal_listings = list(getattr(state, "recent_deal_listings", []) or [])
+        self.deal_hunter_reports = list(getattr(state, "deal_hunter_reports", []) or [])
         self.app_preferences = dict(state.app_preferences)
         self.refresh_session_status()
 
@@ -3128,6 +3140,142 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showerror("Error", "Failed to export smart shopping Markdown")
 
         ttk.Button(button_frame, text="Analyze Opportunities", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_deal_hunter(self):
+        """Open offline eBay.ca-style Deal Hunter workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Deal Hunter")
+        dialog.geometry("940x780")
+
+        hunter = DealHunter(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Deal Listings", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            input_frame,
+            text="Enter one listing per line: title | price_cad | shipping_cad | seller | source | listing_url | description",
+        ).pack(anchor=tk.W)
+        listings_text = tk.Text(input_frame, height=8, wrap=tk.WORD)
+        listings_text.pack(fill=tk.X, pady=(6, 0))
+        if self.recent_deal_listings:
+            listings_text.insert(
+                tk.END,
+                "\n".join(
+                    f"{listing.title} | {listing.price_cad} | {listing.shipping_cad} | {listing.seller} | {listing.source} | {listing.listing_url} | {listing.description}"
+                    for listing in self.recent_deal_listings
+                )
+            )
+
+        ttk.Label(
+            input_frame,
+            text="Offline only: URLs are stored as references. No scraping, browser automation, API calls, or live pricing.",
+            wraplength=820,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Deal Hunter Results", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def parse_manual_listings():
+            listings = []
+            for line in listings_text.get("1.0", tk.END).splitlines():
+                if not line.strip():
+                    continue
+                parts = [part.strip() for part in line.split("|")]
+                listings.append(DealListing(
+                    title=parts[0] if parts else "",
+                    price_cad=parse_money(parts[1]) if len(parts) > 1 else 0.0,
+                    shipping_cad=parse_money(parts[2]) if len(parts) > 2 else 0.0,
+                    seller=parts[3] if len(parts) > 3 else "",
+                    source=parts[4] if len(parts) > 4 else "Manual",
+                    listing_url=parts[5] if len(parts) > 5 else "",
+                    description=parts[6] if len(parts) > 6 else "",
+                ))
+            return listings
+
+        def analyze_listings(listings=None):
+            try:
+                rows = listings if listings is not None else parse_manual_listings()
+                self.recent_deal_listings = list(rows)
+                report = hunter.generate_report(rows)
+                current_report["report"] = report
+                self.deal_hunter_reports.append(report.to_dict())
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric CAD price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Deal Hunter Error", f"Deal analysis failed: {str(e)}")
+
+        def import_csv():
+            file_path = filedialog.askopenfilename(
+                title="Import Deal Hunter CSV",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            try:
+                listings = DealHunter.import_csv(file_path)
+                listings_text.delete("1.0", tk.END)
+                listings_text.insert(
+                    tk.END,
+                    "\n".join(
+                        f"{listing.title} | {listing.price_cad} | {listing.shipping_cad} | {listing.seller} | {listing.source} | {listing.listing_url} | {listing.description}"
+                        for listing in listings
+                    )
+                )
+                analyze_listings(listings)
+            except Exception as e:
+                messagebox.showerror("Deal Hunter CSV Error", f"CSV import failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze_listings()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze_listings()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Deal Hunter Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Deal Hunter Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Analyze Listings", command=analyze_listings).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
