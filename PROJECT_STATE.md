@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v3.5`
+* Current release version: `v3.6`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v3.5`
-* Summary of what was included: External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV connectors, normalized listing model, validation reports, source tracking, duplicate-opportunity detection, multi-source CandidatePool ranking, GUI workflow, CSV/Markdown export, and 538-test regression pass.
+* Most recent Git tag: `v3.6`
+* Summary of what was included: Deal Hunter Calibration with offline collector-judgment fixtures, false BUY/PASS/REVIEW detection, ranking-miss detection, missing risk-flag detection, explanation checks, Tools -> Deal Hunter Calibration, CSV/Markdown export, raw high-grade risk calibration, and 550-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -51,6 +51,7 @@
 * `v3.3` acceptance audit passed on 2026-06-21; tag `v3.3` verified during release.
 * `v3.4` acceptance audit passed on 2026-06-21; tag `v3.4` verified during release.
 * `v3.5` acceptance audit passed on 2026-06-21; tag `v3.5` verified during release.
+* `v3.6` acceptance audit passed on 2026-06-21; tag `v3.6` verified during release.
 
 ## Completed Features
 
@@ -116,6 +117,7 @@
 * Opportunity Engine: deterministic decision-support engine that answers "What should I buy next?" with top opportunities, budget recommendations, opportunity scores, reasoning, risks, counterarguments, Deal Hunter input support, and CSV/Markdown export.
 * Deal Hunter Ranking and Import Framework: offline candidate-pool system that merges manual/CSV listings, validates import profiles, detects duplicate URLs/listings, ranks opportunities with Deal Hunter and Opportunity Engine context, produces budget/category views, and exports CSV/Markdown reports.
 * External Listing Connectors: offline connector framework that normalizes eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with source tracking, validation reports, duplicate-opportunity detection, multi-source CandidatePool ranking compatibility, GUI import workflow, and CSV/Markdown export.
+* Deal Hunter Calibration: offline calibration framework that compares expected collector judgment against Deal Hunter and Ranking output, detects false BUY/PASS/REVIEW outcomes, ranking misses, missing risk flags, and explanation gaps, and exports calibration reports without live-source ingestion.
 
 ## Known Bugs
 
@@ -132,10 +134,11 @@
 Official post-v3.4 roadmap:
 
 1. `v3.5` External Listing Connectors
-2. `v4.0` Live Deal Hunter
-3. `v4.1` Live Source Validation
-4. `v4.2` Market Intelligence
-5. `v5.0` Mobile Collector Companion
+2. `v3.6` Deal Hunter Calibration
+3. `v4.0` Live Deal Hunter
+4. `v4.1` Live Source Validation
+5. `v4.2` Market Intelligence
+6. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
@@ -193,6 +196,7 @@ Prepare v4.0 Live Deal Hunter planning unless a release-blocking defect is found
 * Deal Hunter system: `deal_hunter.py` provides `DealListing`, `ParsedDealCandidate`, `DealHunterCSVImportResult`, `DealHunterResult`, `DealHunterReport`, and `DealHunter`. It imports manual/CSV eBay.ca-style listing rows, parses deterministic candidate signals, flags high shipping, unclear grade, raw-overgraded language, lot listings, possible damage, unclear currency, non-collection relevance, and manual-review needs, reuses Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping, Market Awareness, and WANT_LIST context, then exports CSV/Markdown reports without scraping or live pricing.
 * Deal Hunter Ranking system: `deal_hunter_ranking.py` provides `CandidatePool`, `ImportProfile`, `DealHunterRankingEngine`, `RankingScore`, `RankedDeal`, `BudgetOpportunityReport`, and `DealHunterRankingReport`. It reuses Deal Hunter and Opportunity Engine outputs to rank large local candidate pools by collection fit, upgrade value, gap value, WANT_LIST relevance, liquidity, risk, and budget fit, then exports budget/category reports without scraping, APIs, live pricing, automatic purchasing, or collection mutation.
 * External Listing Connector system: `listing_connectors.py` provides `ListingConnector`, `ConnectorRegistry`, `NormalizedListing`, `eBayCSVConnector`, `AuctionCSVConnector`, `DealerInventoryConnector`, `GenericCSVConnector`, `ConnectorValidationReport`, `ConnectorImportReport`, `SourceSummaryReport`, and `DuplicateOpportunityDetector`. It normalizes user-supplied local CSV files into Deal Hunter-compatible listings and CandidatePools without scraping, APIs, live listing retrieval, browser automation, or collection mutation.
+* Deal Hunter Calibration system: `deal_hunter_calibration.py` provides `CalibrationCase`, `CalibrationCaseResult`, `DealHunterCalibrationEngine`, and `DealHunterCalibrationReport`. It runs offline calibration fixtures through Deal Hunter and Ranking output to surface false recommendations, ranking misses, missing risk flags, over/under-penalized cases, and explanation gaps before any live-source work.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
@@ -238,6 +242,12 @@ Prepare v4.0 Live Deal Hunter planning unless a release-blocking defect is found
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v3.6 Deal Hunter Calibration: `CalibrationCase`, `DealHunterCalibrationEngine`, `DealHunterCalibrationReport`, offline collector-judgment fixture CSV, false BUY/PASS/REVIEW detection, ranking-miss detection, missing risk-flag detection, explanation checks, Tools -> Deal Hunter Calibration, CSV/Markdown export, and raw high-grade listing risk calibration.
+* Implementation commit: `87bf575`
+* Full test suite passed: 550 tests OK.
+* Coverage note: total passing tests increased from 538 to 550; existing regression suites remained green.
+* Limitation: deterministic offline calibration only; no scraping, browser automation, eBay/dealer/auction APIs, live listing retrieval, live pricing, automatic purchasing, image recognition, or collection mutation.
 
 * Implemented v3.5 External Listing Connectors: `ListingConnector`, `ConnectorRegistry`, `NormalizedListing`, eBay/Auction/Dealer/Generic CSV connectors, validation reports, source summaries, duplicate-opportunity detection, multi-source CandidatePool/ranking compatibility, Tools -> External Listing Connectors, CSV/Markdown export, and release documentation.
 * Roadmap lock commit: `e4a2245`

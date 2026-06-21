@@ -102,18 +102,20 @@ Work through this queue in priority order. Handle only one task at a time.
 70. `[x]` Build v3.3 Opportunity Engine
 71. `[x]` Build v3.4 Deal Hunter Ranking Engine
 72. `[x]` Build v3.5 External Listing Connectors
-73. `[ ]` Build v4.0 Live Deal Hunter
-74. `[ ]` Build v4.1 Live Source Validation
-75. `[ ]` Build v4.2 Market Intelligence
-76. `[ ]` Build v5.0 Mobile Collector Companion
+73. `[x]` Build v3.6 Deal Hunter Calibration
+74. `[ ]` Build v4.0 Live Deal Hunter
+75. `[ ]` Build v4.1 Live Source Validation
+76. `[ ]` Build v4.2 Market Intelligence
+77. `[ ]` Build v5.0 Mobile Collector Companion
 
 ## Official Post-v3.4 Roadmap
 
 1. `v3.5` External Listing Connectors
-2. `v4.0` Live Deal Hunter
-3. `v4.1` Live Source Validation
-4. `v4.2` Market Intelligence
-5. `v5.0` Mobile Collector Companion
+2. `v3.6` Deal Hunter Calibration
+3. `v4.0` Live Deal Hunter
+4. `v4.1` Live Source Validation
+5. `v4.2` Market Intelligence
+6. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
@@ -176,6 +178,27 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
 - Commit hash: `e4a2245`
+
+#### `[x]` Build v3.6 Deal Hunter Calibration
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `deal_hunter_calibration.py` (new file)
+  - `test_deal_hunter_calibration.py` (new file)
+  - `test_data/deal_hunter/calibration_cases.csv` (new file)
+  - `deal_hunter.py`
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.6.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.6.md` (new file)
+- Implementation commit hash: `87bf575`
+- Test coverage: total passing tests increased from 538 to 550; existing regression suites remained green.
+- Limitation: deterministic offline calibration only; no scraping, browser automation, eBay/dealer/auction APIs, live listing retrieval, live pricing, automatic purchasing, image recognition, or collection mutation.
 
 #### `[x]` Build v3.5 External Listing Connectors
 

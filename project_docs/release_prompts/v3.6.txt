@@ -1,0 +1,377 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.1.md
+* docs/releases/v3.2.md
+* docs/releases/v3.3.md
+* docs/releases/v3.4.md
+* docs/releases/v3.5.md
+* current Deal Hunter, Opportunity Engine, Ranking Engine, and Listing Connector code
+
+Begin v3.6 development.
+
+Roadmap Context:
+
+v3.5 = External Listing Connectors
+v3.6 = Deal Hunter Calibration
+v4.0 = Live Deal Hunter
+
+GOAL:
+
+Calibrate Deal Hunter and Ranking behavior using realistic offline listing scenarios before adding live sources.
+
+This release improves decision quality.
+
+Do NOT add:
+
+* scraping
+* browser automation
+* eBay APIs
+* dealer APIs
+* auction APIs
+* live listing retrieval
+* live pricing
+* automatic purchasing
+* collection mutation
+
+---
+
+1. CALIBRATION ENGINE
+
+---
+
+Create:
+
+DealHunterCalibrationEngine
+
+Purpose:
+
+Compare expected collector judgment against actual Deal Hunter / Ranking output.
+
+Support calibration cases with:
+
+* listing data
+* expected recommendation
+* expected rank band
+* expected risk flags
+* expected rationale
+* notes
+
+---
+
+2. CALIBRATION CASE MODEL
+
+---
+
+Create:
+
+CalibrationCase
+
+Fields:
+
+* case_id
+* title
+* description
+* price_cad
+* shipping_cad
+* source
+* expected_recommendation
+* expected_rank_category
+* expected_risk_flags
+* expected_priority_reason
+* collector_notes
+
+---
+
+3. CALIBRATION REPORT
+
+---
+
+Create:
+
+DealHunterCalibrationReport
+
+Show:
+
+* total cases
+* passed cases
+* failed cases
+* false BUYs
+* false PASSes
+* false REVIEWs
+* ranking misses
+* missing risk flags
+* over-penalized listings
+* under-penalized listings
+
+---
+
+4. SCORING CALIBRATION
+
+---
+
+Review and tune deterministic scoring only where justified by tests.
+
+Focus:
+
+* Newfoundland priority
+* Canadian banknote priority
+* chartered banknote priority
+* Canadian silver priority
+* upgrade vs duplicate handling
+* high shipping penalty
+* vague title penalty
+* raw overgraded risk
+* damaged/cleaned/holed penalty
+* collection gap boost
+* want-list boost
+* budget-fit scoring
+
+Do not claim market pricing accuracy.
+
+---
+
+5. RANKING CALIBRATION
+
+---
+
+Improve ranking where needed.
+
+Check:
+
+* Top 10 overall
+* Top under $50
+* Top under $100
+* Top under $250
+* Top Newfoundland
+* Top banknote
+* Top upgrade
+* Top gap
+
+Goal:
+
+Better rank order, not more features.
+
+---
+
+6. CALIBRATION FIXTURES
+
+---
+
+Add realistic fake calibration data.
+
+Include:
+
+* obvious BUY
+* obvious PASS
+* good item killed by shipping
+* cool but irrelevant item
+* Newfoundland upgrade
+* banknote target
+* chartered banknote target
+* same-grade duplicate
+* lower-grade duplicate
+* raw overgraded coin
+* damaged coin
+* vague estate lot
+* bulk lot requiring review
+* unclear currency
+* want-list match
+
+Store fixtures in an appropriate test data folder.
+
+---
+
+7. FALSE POSITIVE / FALSE NEGATIVE REVIEW
+
+---
+
+Detect:
+
+False BUY:
+System recommends BUY when expected is PASS / REVIEW.
+
+False PASS:
+System recommends PASS when expected is BUY / WATCH / NEGOTIATE.
+
+Ranking miss:
+Strong opportunity ranked too low.
+
+Risk miss:
+Risk factor not flagged.
+
+---
+
+8. EXPLANATION CALIBRATION
+
+---
+
+Verify explanations match recommendation.
+
+For BUY:
+
+* must include counterargument
+* must justify why positive case survives
+
+For PASS:
+
+* must clearly explain collection irrelevance, duplicate status, risk, or poor fit
+
+For REVIEW:
+
+* must identify uncertainty
+
+---
+
+9. GUI INTEGRATION
+
+---
+
+Add or expose:
+
+Tools -> Deal Hunter Calibration
+
+Display:
+
+* calibration summary
+* failed cases
+* ranking misses
+* recommended tuning notes
+
+Keep UI simple.
+
+---
+
+10. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+DealHunterCalibrationReport
+
+---
+
+11. TESTING
+
+---
+
+Add tests for:
+
+* calibration case creation
+* calibration report generation
+* false BUY detection
+* false PASS detection
+* ranking miss detection
+* missing risk flag detection
+* Newfoundland calibration
+* banknote calibration
+* high shipping calibration
+* duplicate calibration
+* export generation
+
+Run:
+
+* Calibration tests
+* Deal Hunter tests
+* Ranking tests
+* Opportunity Engine tests
+* Listing Connector tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+12. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.6.md
+
+Document:
+
+* calibration purpose
+* calibration fixtures
+* scoring/ranking adjustments
+* remaining limitations
+* no-live-source rule
+
+---
+
+13. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* calibration engine works
+* calibration reports work
+* false BUY/PASS detection works
+* ranking miss detection works
+* risk flag detection works
+* explanations remain coherent
+* existing Deal Hunter behavior remains stable unless intentionally tuned
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+14. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.6
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+Deal Hunter can be tested against realistic collector judgment cases, identify bad recommendations or poor ranking behavior, and improve ranking/scoring quality before any live-source ingestion is added.

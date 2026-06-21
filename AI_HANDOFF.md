@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v3.5`
-- Current active task completed: v3.5 External Listing Connectors
+- Current project state file reports release version: `v3.6`
+- Current active task completed: v3.6 Deal Hunter Calibration
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -19,10 +19,11 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 ## Official Post-v3.4 Roadmap
 
 1. `v3.5` External Listing Connectors
-2. `v4.0` Live Deal Hunter
-3. `v4.1` Live Source Validation
-4. `v4.2` Market Intelligence
-5. `v5.0` Mobile Collector Companion
+2. `v3.6` Deal Hunter Calibration
+3. `v4.0` Live Deal Hunter
+4. `v4.1` Live Source Validation
+5. `v4.2` Market Intelligence
+6. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
@@ -170,6 +171,11 @@ Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunte
 - External Listing Connectors normalize user-supplied local CSV files into Deal Hunter-compatible listings, preserve source/connector/import metadata, validate required fields/prices/URLs/unsupported columns, and detect duplicate opportunities across sources.
 - Added Tools -> External Listing Connectors for connector selection, local file import, validation/source/duplicate summary, multi-source ranking handoff, Markdown import export, and ranking CSV export.
 - Added `test_listing_connectors.py` covering eBay/Auction/Dealer/Generic connectors, malformed imports, validation warnings, source tracking, duplicate detection, multi-source ranking, and report exports.
+- Added `deal_hunter_calibration.py` with `CalibrationCase`, `CalibrationCaseResult`, `DealHunterCalibrationEngine`, and `DealHunterCalibrationReport` for offline collector-judgment calibration.
+- Added `test_data/deal_hunter/calibration_cases.csv` with realistic fake cases for obvious BUY/PASS, high shipping, irrelevant items, Newfoundland upgrades, banknotes, same/lower-grade duplicates, raw overgraded claims, damaged/problem coins, estate/bulk lots, unclear currency, and explicit WANT_LIST matches.
+- Added `test_deal_hunter_calibration.py` covering case creation, report generation, false BUY/PASS detection, ranking misses, missing risk flags, Newfoundland, banknote, high shipping, duplicate calibration, and exports.
+- Added Tools -> Deal Hunter Calibration with default fixture loading, CSV loading, summary display, failed case display, and CSV/Markdown export.
+- Tuned Deal Hunter raw high-grade risk detection so raw AU/MS-style titles are flagged as `RAW_OVERGRADED` and routed to manual review when collection-relevant.
 - Reorganized the GUI menu bar into Collector Home, Workflows, Reports, Tools, and Help groupings while preserving existing commands.
 - Added Tools -> Collector Companion Readiness and Help -> Collector Companion Readiness.
 - Persistence Manager now stores readiness reports and audit summaries in local app state.
@@ -431,6 +437,7 @@ Supported statuses:
 - Opportunity Engine must remain offline and deterministic. Do not use it to add scraping, browser automation, APIs, live pricing, market prediction, image recognition, automatic purchasing, or collection mutation.
 - Deal Hunter Ranking must remain offline and deterministic. It may rank supplied local candidate pools and CSV imports, but it must not fetch listings, scrape websites, use eBay APIs, use browser automation, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 - External Listing Connectors must remain offline local-file adapters only. Do not add scraping, browser automation, eBay APIs, dealer APIs, auction APIs, live fetching, live pricing, automatic purchasing, image recognition, or collection mutation in this layer.
+- Deal Hunter Calibration must remain an offline quality-control layer. Do not use it to fetch listings, scrape sites, call APIs, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 - Keep Buy Advisor, Upgrade Advisor, Want List Generator, Collection Gap Report, and import previews stable unless the active task explicitly targets them.
 - Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 - A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
@@ -438,8 +445,10 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 538 tests OK for the v3.5 External Listing Connectors release line.
-- Coverage note: total passing tests increased from 527 to 538; existing regression suites remained green.
+- `.\run_tests.bat`: 550 tests OK for the v3.6 Deal Hunter Calibration release line.
+- Coverage note: total passing tests increased from 538 to 550; existing regression suites remained green.
+- Targeted Deal Hunter Calibration tests: 12 tests OK.
+- Targeted Deal Hunter, Deal Hunter Ranking, Opportunity Engine, and Listing Connector regression block: 63 tests OK.
 - Targeted External Listing Connectors, Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 125 tests OK.
 - Targeted External Listing Connectors tests: 11 tests OK.
 - Targeted Deal Hunter Ranking, Deal Hunter, Opportunity Engine, Collection Intelligence, Focused Collection Intelligence, and Smart Shopping regression block: 114 tests OK.
@@ -502,6 +511,7 @@ Supported statuses:
 - Opportunity Engine scores supplied/generated opportunities only. Unpriced opportunities receive budget-fit review warnings, and all recommendations include counterarguments.
 - Deal Hunter Ranking scores supplied/generated local candidate pools only. Import profiles are offline CSV mapping frameworks, not connectors, scrapers, or APIs.
 - External Listing Connectors normalize supplied local CSV files only. Connector validation reports help review import quality, but ambiguous rows and likely duplicate opportunities still require collector review.
+- Deal Hunter Calibration compares supplied offline expectations against deterministic recommendations/rankings only. Calibration fixtures are fake local test scenarios, not live market data.
 - Market Awareness is local recordkeeping only. It does not scrape, fetch URLs, call pricing APIs, predict market values, or estimate prices from external data.
 - Smart Shopping Assistant ranks opportunities from supplied local/manual inputs and existing staged context only; it does not scrape, fetch listings, forecast prices, or create market estimates.
 - Collector Home, Collector Home Dashboard, and Collection Health Report are consolidation/reporting layers only; they do not modify collection records.
@@ -516,4 +526,4 @@ Supported statuses:
 2. Improve Buy Advisor validation messages.
 3. Add GUI autocomplete for country and denomination.
 4. Improve photo URI/file-picker abstractions before a true companion UI.
-5. Keep OCR advisory-only unless a future release explicitly expands the reviewed workflow.
+5. Keep calibration fixtures current as new offline source formats or ranking behaviors are added.
