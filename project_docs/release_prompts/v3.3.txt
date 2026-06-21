@@ -1,0 +1,394 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.0.md
+* docs/releases/v3.1.md
+* docs/releases/v3.2.md
+* current codebase
+
+Begin v3.3 development.
+
+---
+
+PHASE 0
+ROADMAP UPDATE
+--------------
+
+Before implementing v3.3:
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock the roadmap as:
+
+v3.3 = Opportunity Engine
+
+v3.4 = Deal Hunter Ranking Engine
+
+v3.5 = External Listing Imports
+
+v4.0 = Live Deal Hunter
+
+v5.0 = Mobile Collector Companion
+
+Record rationale:
+
+The platform has matured from collection management toward collection decision support.
+
+Future development should prioritize:
+
+* opportunity identification
+* upgrade prioritization
+* budget allocation
+* candidate ranking
+* decision quality
+
+over additional parser complexity.
+
+Commit:
+
+Lock post-v3.2 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue into v3.3.
+
+---
+
+PHASE 1
+V3.3 OPPORTUNITY ENGINE
+-----------------------
+
+Roadmap Context:
+
+v3.3 = Opportunity Engine
+
+GOAL:
+
+Answer:
+
+"What should I buy next?"
+
+using existing collection intelligence.
+
+Do not add:
+
+* scraping
+* browser automation
+* APIs
+* live pricing
+* market prediction
+* image recognition
+* automatic purchasing
+* collection mutation
+
+Reuse existing systems.
+
+---
+
+1. OPPORTUNITY ENGINE
+
+---
+
+Create:
+
+OpportunityEngine
+
+Purpose:
+
+Identify the highest-impact collection opportunities.
+
+Use:
+
+* Collection Intelligence
+* Smart Shopping Assistant
+* Acquisition Impact
+* Collection Quality
+* Series Tracker
+* Want List
+* Deal Hunter
+* Snapshot data where useful
+
+---
+
+2. OPPORTUNITY TYPES
+
+---
+
+Support:
+
+* Upgrade Opportunity
+* Collection Gap Opportunity
+* Series Completion Opportunity
+* Want List Opportunity
+* Newfoundland Opportunity
+* Canadian Silver Opportunity
+* Canadian Banknote Opportunity
+* High-ROI Opportunity
+
+---
+
+3. BUDGET-AWARE ANALYSIS
+
+---
+
+Support budget scenarios:
+
+* $50
+* $100
+* $250
+* $500
+
+Answer:
+
+"What is the best use of this budget?"
+
+Provide reasoning.
+
+---
+
+4. COLLECTION IMPACT SCORING
+
+---
+
+Create:
+
+OpportunityScore
+
+Use:
+
+* collection fit
+* upgrade impact
+* completion impact
+* liquidity
+* risk
+* collection priorities
+
+Provide:
+
+0-100 score
+
+Deterministic only.
+
+---
+
+5. OPPORTUNITY REPORT
+
+---
+
+Create:
+
+OpportunityReport
+
+Include:
+
+* opportunity type
+* score
+* reasoning
+* risks
+* counterargument
+* estimated collection impact
+* budget fit
+
+Before recommending any opportunity, provide a counterargument.
+
+---
+
+6. TOP OPPORTUNITIES
+
+---
+
+Generate:
+
+TopOpportunitiesReport
+
+Examples:
+
+Top 5 opportunities overall
+
+Top 5 under $100
+
+Top Newfoundland opportunities
+
+Top banknote opportunities
+
+Top upgrade opportunities
+
+---
+
+7. DEAL HUNTER INTEGRATION
+
+---
+
+If Deal Hunter candidates exist:
+
+Allow Opportunity Engine to rank them.
+
+Do not change Deal Hunter recommendations.
+
+Use them as inputs.
+
+---
+
+8. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Opportunity Engine
+
+Display:
+
+* top opportunities
+* budget recommendations
+* opportunity scores
+* reasoning
+
+No major redesign.
+
+---
+
+9. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+OpportunityReport
+TopOpportunitiesReport
+
+---
+
+10. TESTING
+
+---
+
+Add tests for:
+
+* upgrade opportunity
+* collection gap opportunity
+* Newfoundland priority
+* banknote priority
+* budget analysis
+* opportunity scoring
+* counterargument generation
+* Deal Hunter integration
+* export generation
+
+Run:
+
+* Opportunity Engine tests
+* Deal Hunter tests
+* Smart Shopping tests
+* Acquisition Impact tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+11. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.3.md
+
+Document:
+
+* opportunity scoring
+* budget analysis
+* limitations
+* no-live-pricing rule
+
+---
+
+12. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* Opportunity Engine imports cleanly
+* budget analysis works
+* opportunity scoring works
+* top opportunity generation works
+* Deal Hunter integration works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+13. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.3
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* v3.3 tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+A collector can ask:
+
+"What should I buy next?"
+
+and receive prioritized, collection-aware, budget-aware recommendations using deterministic local logic.

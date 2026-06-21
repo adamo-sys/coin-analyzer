@@ -34,6 +34,7 @@ from collector_workflows import CollectorWorkflowEngine
 from market_awareness import MarketAwarenessEngine
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
+from opportunity_engine import OpportunityEngine
 from persistence_manager import PersistenceManager
 from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_vault import PhotoVaultIntegrityAudit
@@ -116,6 +117,7 @@ class CoinCollectionGUI:
         workflows_menu.add_command(label="Photo-Assisted Entry", command=self.open_photo_assisted_entry)
         workflows_menu.add_command(label="Listing Analyzer", command=self.open_listing_analyzer)
         workflows_menu.add_command(label="Smart Shopping Assistant", command=self.open_smart_shopping_assistant)
+        workflows_menu.add_command(label="Opportunity Engine", command=self.open_opportunity_engine)
         workflows_menu.add_command(label="Deal Hunter", command=self.open_deal_hunter)
         workflows_menu.add_command(label="Do I Own This?", command=self.open_collection_intelligence_lookup)
 
@@ -3138,6 +3140,121 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showinfo("Success", f"Smart shopping Markdown exported to {file_path}")
             else:
                 messagebox.showerror("Error", "Failed to export smart shopping Markdown")
+
+        ttk.Button(button_frame, text="Analyze Opportunities", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_opportunity_engine(self):
+        """Open budget-aware collection opportunity workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Opportunity Engine")
+        dialog.geometry("920x760")
+
+        engine = OpportunityEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Optional Candidate Opportunities", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            input_frame,
+            text="Enter optional candidates one per line: title | price | shipping | source",
+        ).pack(anchor=tk.W)
+        candidates_text = tk.Text(input_frame, height=7, wrap=tk.WORD)
+        candidates_text.pack(fill=tk.X, pady=(6, 0))
+        if self.shopping_candidates:
+            candidates_text.insert(
+                tk.END,
+                "\n".join(
+                    f"{candidate.item_name} | {candidate.asking_price} | {candidate.shipping} | {candidate.source or candidate.recommendation_source}"
+                    for candidate in self.shopping_candidates
+                )
+            )
+
+        ttk.Label(
+            input_frame,
+            text="Offline deterministic guidance only: no scraping, APIs, live pricing, market prediction, automatic purchases, or collection writes.",
+            wraplength=820,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Opportunity Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            cleaned = str(value or "").strip().replace("$", "").replace(",", "")
+            return float(cleaned) if cleaned else 0.0
+
+        def parse_candidates():
+            candidates = []
+            for line in candidates_text.get("1.0", tk.END).splitlines():
+                if not line.strip():
+                    continue
+                parts = [part.strip() for part in line.split("|")]
+                title = parts[0] if parts else ""
+                price = parse_money(parts[1]) if len(parts) > 1 else 0.0
+                shipping = parse_money(parts[2]) if len(parts) > 2 else 0.0
+                source = parts[3] if len(parts) > 3 else "Manual"
+                candidates.append(ShoppingCandidate(
+                    item_name=title,
+                    source=source,
+                    asking_price=price,
+                    shipping=shipping,
+                    recommendation_source="Opportunity Manual",
+                ))
+            return candidates
+
+        def analyze():
+            try:
+                candidates = parse_candidates()
+                self.shopping_candidates = candidates
+                report = engine.generate_report(candidates, limit=5)
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Opportunity Engine Error", f"Opportunity analysis failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Opportunity CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Opportunity CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze()
+            file_path = filedialog.asksaveasfilename(
+                title="Export Opportunity Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Opportunity Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Analyze Opportunities", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
