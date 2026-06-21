@@ -27,6 +27,7 @@ from listing_connectors import (
 )
 from live_deal_hunter import DEFAULT_EBAY_RSS_URL, LiveDealHunter, RSSListingConnector
 from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
+from live_source_validation import LiveSourceValidator
 from market_intelligence import MarketIntelligenceEngine
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
@@ -171,6 +172,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
         tools_menu.add_command(label="Live Deal Hunter", command=self.open_live_deal_hunter)
+        tools_menu.add_command(label="Live Source Validation", command=self.open_live_source_validation)
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
@@ -3950,6 +3952,105 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showinfo("Export Complete", f"Live Deal Hunter Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Analyze Live Feed", command=analyze_live_feed).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_live_source_validation(self):
+        """Open live source validation report workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Live Source Validation")
+        dialog.geometry("980x780")
+
+        validator = LiveSourceValidator()
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Live RSS Source", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+        input_frame.columnconfigure(1, weight=1)
+
+        source_url_var = tk.StringVar(value=DEFAULT_EBAY_RSS_URL)
+        timeout_var = tk.StringVar(value="10")
+
+        ttk.Label(input_frame, text="RSS URL:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(input_frame, textvariable=source_url_var).grid(
+            row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4
+        )
+        ttk.Label(input_frame, text="Timeout seconds:").grid(row=1, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(input_frame, textvariable=timeout_var, width=12).grid(
+            row=1, column=1, sticky=tk.W, padx=(8, 0), pady=4
+        )
+        ttk.Label(
+            input_frame,
+            text=(
+                "Validates live source quality before listings enter Deal Hunter, Ranking, "
+                "Opportunity, or Market Intelligence. No purchases, bids, background polling, or collection mutation."
+            ),
+            wraplength=840,
+        ).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
+        status_var = tk.StringVar(value="No live source validated yet.")
+        ttk.Label(main_frame, textvariable=status_var).pack(anchor=tk.W, pady=(0, 8))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Validation Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def validate_source():
+            try:
+                timeout = float(timeout_var.get() or "10")
+            except ValueError:
+                messagebox.showerror("Invalid Timeout", "Use a numeric timeout value.")
+                return
+            connector = RSSListingConnector(source_url_var.get().strip(), timeout_seconds=timeout)
+            batch = connector.fetch_listings()
+            report = validator.validate_batch(batch)
+            current_report["report"] = report
+            status_var.set(
+                f"Health: {report.source_health.status.value} | Listings: {report.summary.total_listings} | "
+                f"Valid: {report.summary.valid_count} | Review: {report.summary.review_count}"
+            )
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def export_csv():
+            if not current_report["report"]:
+                validate_source()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Source Validation CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Live Source Validation CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                validate_source()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Source Validation Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Live Source Validation Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Validate Source", command=validate_source).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)

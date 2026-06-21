@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 from deal_hunter import DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, DealHunterRankingReport
 from listing_connectors import NormalizedListing
+from live_source_validation import LiveSourceValidationReport, LiveSourceValidator
 from market_awareness import MarketAwarenessEngine
 from market_intelligence import MarketIntelligenceEngine, MarketIntelligenceReport
 
@@ -364,6 +365,7 @@ class LiveDealHunterReport:
     candidate_pool: CandidatePool = field(default_factory=CandidatePool)
     ranking_report: Optional[DealHunterRankingReport] = None
     market_intelligence_reports: List[MarketIntelligenceReport] = field(default_factory=list)
+    validation_report: Optional[LiveSourceValidationReport] = None
 
     @property
     def top_opportunities(self) -> List[Any]:
@@ -380,6 +382,7 @@ class LiveDealHunterReport:
             "rejected_count": self.rejected_count,
             "validation_warnings": "; ".join(self.validation_warnings),
             "errors": "; ".join(self.errors),
+            "validation_report": self.validation_report.to_dict() if self.validation_report else {},
             "top_opportunities": [deal.to_dict() for deal in self.top_opportunities],
             "market_intelligence": [report.to_dict() for report in self.market_intelligence_reports],
         }
@@ -393,11 +396,28 @@ class LiveDealHunterReport:
             f"- Listings processed: {self.listing_count}",
             f"- Accepted listings: {self.accepted_count}",
             f"- Rejected listings: {self.rejected_count}",
+            f"- Source health: {self.validation_report.source_health.status.value if self.validation_report else 'UNKNOWN'}",
             "- Safety: user-triggered fetch only; no purchases, bids, background polling, or collection mutation.",
+            "",
+            "## Validation Summary",
+            "",
+        ]
+        if self.validation_report:
+            summary = self.validation_report.summary
+            lines.extend([
+                f"- Validation pass rate: {summary.validation_pass_rate:.0%}",
+                f"- Review required: {summary.review_count}",
+                f"- Duplicate URLs: {summary.duplicate_count}",
+                f"- Stale listings: {summary.stale_count}",
+                f"- Malformed listings: {summary.malformed_count}",
+            ])
+        else:
+            lines.append("- No validation report generated.")
+        lines.extend([
             "",
             "## Errors",
             "",
-        ]
+        ])
         lines.extend(f"- {error}" for error in self.errors) if self.errors else lines.append("- None.")
         lines.extend(["", "## Validation Warnings", ""])
         lines.extend(f"- {warning}" for warning in self.validation_warnings) if self.validation_warnings else lines.append("- None.")
@@ -436,6 +456,10 @@ class LiveDealHunterReport:
             writer.writerow(["summary", "listing_count", self.listing_count, ""])
             writer.writerow(["summary", "accepted_count", self.accepted_count, ""])
             writer.writerow(["summary", "rejected_count", self.rejected_count, ""])
+            if self.validation_report:
+                writer.writerow(["summary", "source_health", self.validation_report.source_health.status.value, ""])
+                for key, value in self.validation_report.summary.to_dict().items():
+                    writer.writerow(["validation_summary", key, value, ""])
             for warning in self.validation_warnings:
                 writer.writerow(["validation_warning", warning, "", ""])
             for error in self.errors:
@@ -481,15 +505,27 @@ class LiveDealHunter:
             self.want_list_intents,
             self.market_awareness_engine,
         )
+        self.validator = LiveSourceValidator()
 
     def run_source(self, source: LiveListingSource, limit: int = 5) -> LiveDealHunterReport:
         batch = source.fetch_listings()
         return self.analyze_batch(batch, limit=limit)
 
     def analyze_batch(self, batch: LiveListingBatch, limit: int = 5) -> LiveDealHunterReport:
-        accepted = [listing for listing in batch.listings if not self._reject_listing(listing)]
-        rejected = [listing for listing in batch.listings if self._reject_listing(listing)]
+        validation_report = self.validator.validate_batch(batch)
+        validation_by_index = {result.listing_index: result for result in validation_report.results}
+        accepted = []
         warnings = []
+        for index, listing in enumerate(batch.listings, start=1):
+            result = validation_by_index.get(index)
+            if result:
+                listing.validation_flags = _dedupe(list(listing.validation_flags) + result.issue_codes)
+                listing.validation_warnings = _dedupe(
+                    list(listing.validation_warnings)
+                    + [warning.message for warning in result.warnings]
+                )
+                if result.valid_for_pipeline:
+                    accepted.append(listing)
         for listing in batch.listings:
             warnings.extend(f"{listing.title or 'Untitled'}: {warning}" for warning in listing.validation_warnings)
         pool = CandidatePool.from_listings(listing.to_deal_listing() for listing in accepted)
@@ -503,12 +539,13 @@ class LiveDealHunter:
             fetch_timestamp=batch.fetch_timestamp,
             listing_count=batch.listing_count,
             accepted_count=len(accepted),
-            rejected_count=len(rejected),
+            rejected_count=batch.listing_count - len(accepted),
             validation_warnings=_dedupe(warnings),
             errors=list(batch.errors),
             candidate_pool=pool,
             ranking_report=ranking,
             market_intelligence_reports=market_reports,
+            validation_report=validation_report,
         )
 
     @staticmethod
