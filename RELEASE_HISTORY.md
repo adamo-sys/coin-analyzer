@@ -40,6 +40,7 @@
 | `v3.4` | See verified tag `v3.4` | Deal Hunter Ranking and Import Framework with candidate pools, import profiles, duplicate suppression, budget/category rankings, source summaries, Tools -> Deal Hunter Ranking, and 527-test regression pass. |
 | `v3.5` | See verified tag `v3.5` | External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV normalization, validation, source tracking, duplicate-opportunity detection, Tools -> External Listing Connectors, multi-source ranking compatibility, and 538-test regression pass. |
 | `v3.6` | See verified tag `v3.6` | Deal Hunter Calibration with offline collector-judgment fixtures, false BUY/PASS/REVIEW detection, ranking/risk/explanation checks, Tools -> Deal Hunter Calibration, and 550-test regression pass. |
+| `v3.7` | See verified tag `v3.7` | Live Deal Hunter Readiness with future live-source contracts, validation reports, staleness flags, rate-limit/failure models, safety audit, Tools -> Live Deal Hunter Readiness, and 560-test regression pass. |
 
 ## Notes
 

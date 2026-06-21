@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.6`
+Current version: `v3.7`
 
-Latest tagged release: `v3.6`
+Latest tagged release: `v3.7`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -42,6 +42,7 @@ The app is especially tuned for Adam-specific priorities:
 - Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, flag risky/ambiguous listings, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
 - Deal Hunter Ranking: merge large manual/CSV candidate pools, detect duplicate listings, rank opportunities by Deal Hunter score, Opportunity Engine score, collection fit, upgrades, gaps, WANT_LIST relevance, liquidity, risk, and budget fit, then export budget/category ranking reports.
 - Deal Hunter Calibration: run offline collector-judgment cases against Deal Hunter and Ranking output to catch false BUY/PASS/REVIEW decisions, ranking misses, risk-flag misses, and explanation gaps before any live-source work.
+- Live Deal Hunter Readiness: audit future live-source readiness, contracts, validation, staleness, rate-limit planning, and safety rules without fetching live listings.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
@@ -132,7 +133,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.6 Deal Hunter Calibration suite passed with `550 tests OK`.
+The v3.7 Live Deal Hunter Readiness suite passed with `560 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -178,6 +179,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v3.4` | See verified tag `v3.4` | Deal Hunter Ranking and Import Framework with candidate pools, import profiles, duplicate suppression, budget/category rankings, source summaries, CSV/Markdown export, and 527-test regression pass. |
 | `v3.5` | See verified tag `v3.5` | External Listing Connectors with offline eBay/Auction/Dealer/Generic CSV normalization, validation, source tracking, duplicate-opportunity detection, multi-source ranking compatibility, and 538-test regression pass. |
 | `v3.6` | See verified tag `v3.6` | Deal Hunter Calibration with offline collector-judgment fixtures, false recommendation detection, ranking/risk/explanation calibration reports, GUI workflow, and 550-test regression pass. |
+| `v3.7` | See verified tag `v3.7` | Live Deal Hunter Readiness with future live-source contracts, validation reports, staleness flags, rate-limit/failure models, safety audit, GUI workflow, and 560-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -195,6 +197,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Deal Hunter when comparing eBay.ca-style listing rows from manual entry or CSV import and you want collection-aware BUY/WATCH/NEGOTIATE/REVIEW/PASS guidance with counterarguments.
 - Use Deal Hunter Ranking when you have many candidate listings and want top overall, budget-specific, Newfoundland, Canadian silver, banknote, upgrade, gap, and WANT_LIST opportunity rankings.
 - Use Deal Hunter Calibration when you want to test Deal Hunter and Ranking behavior against known offline collector-judgment cases before adding or trusting a new source format.
+- Use Live Deal Hunter Readiness when planning future live-source work and checking source contracts, validation, staleness, rate-limit policy, failure handling, and no-mutation guardrails.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
@@ -240,6 +243,7 @@ Official post-v3.4 roadmap:
 
 - `v3.5` External Listing Connectors
 - `v3.6` Deal Hunter Calibration
+- `v3.7` Live Deal Hunter Readiness
 - `v4.0` Live Deal Hunter
 - `v4.1` Live Source Validation
 - `v4.2` Market Intelligence
@@ -631,6 +635,21 @@ The calibration workflow adds:
 
 Deal Hunter Calibration is offline and deterministic. It does not scrape, use browser automation, call eBay/dealer/auction APIs, retrieve live listings, claim live market pricing accuracy, purchase automatically, recognize images, or mutate collection records.
 
+## Live Deal Hunter Readiness
+
+Use Tools -> Live Deal Hunter Readiness to audit whether the offline Deal Hunter stack is prepared for future live-source ingestion.
+
+The readiness layer adds:
+
+- `LiveDealHunterReadinessAudit` for connector, ranking, calibration, duplicate detection, validation, rate-limit, failure-handling, and no-mutation readiness checks.
+- `LiveListingSource`, `LiveListingBatch`, and `LiveListingFetchResult` contract models for future live sources.
+- `LiveSourceValidationReport` for future batch validation, including missing title, missing price, missing shipping, non-CAD currency, malformed URL, missing seller, suspicious metadata, duplicate URL, and stale listing checks.
+- Deterministic staleness flags: `FRESH`, `STALE`, and `UNKNOWN`.
+- `RateLimitPolicy` and `LiveSourceFailure` planning models.
+- CSV and Markdown export.
+
+Live Deal Hunter Readiness performs zero live fetching. The source contract stub raises `NotImplementedError` and exists only to document the future boundary. It does not scrape, use browser automation, call APIs, fetch listings, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection records.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -669,6 +688,7 @@ Export support is intentionally report-specific:
 - Deal Hunter: CSV and Markdown export.
 - Deal Hunter Ranking: CSV and Markdown export.
 - Deal Hunter Calibration: CSV and Markdown export.
+- Live Deal Hunter Readiness: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

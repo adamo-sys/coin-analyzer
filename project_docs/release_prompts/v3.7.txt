@@ -1,0 +1,347 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.5.md
+* docs/releases/v3.6.md
+* current Deal Hunter, Ranking, Connector, Opportunity, and Calibration code
+
+Begin v3.7 development.
+
+Roadmap Context:
+
+v3.5 = External Listing Connectors
+v3.6 = Deal Hunter Calibration
+v3.7 = Live Deal Hunter Readiness
+v4.0 = Live Deal Hunter
+
+GOAL:
+
+Prepare the system for future live listing ingestion without adding live ingestion yet.
+
+This is a readiness, safety, and architecture release.
+
+Do NOT add:
+
+* scraping
+* browser automation
+* eBay API calls
+* dealer API calls
+* auction API calls
+* live listing retrieval
+* automatic purchasing
+* automatic collection mutation
+* live pricing claims
+
+---
+
+1. LIVE SOURCE READINESS AUDIT
+
+---
+
+Create:
+
+LiveDealHunterReadinessAudit
+
+Purpose:
+
+Evaluate whether the current offline Deal Hunter stack is ready for live sources.
+
+Check:
+
+* connector framework readiness
+* ranking readiness
+* calibration readiness
+* duplicate detection readiness
+* source validation readiness
+* rate-limit safety planning
+* failure handling
+* no-collection-mutation safety
+
+Output:
+
+LiveDealHunterReadinessReport
+
+---
+
+2. LIVE SOURCE CONTRACTS
+
+---
+
+Create interface-style contracts only.
+
+Examples:
+
+LiveListingSource
+LiveListingBatch
+LiveListingFetchResult
+
+Do not implement real fetching.
+
+The contracts should define what future live sources must provide:
+
+* title
+* price
+* shipping
+* currency
+* seller
+* URL
+* image URL
+* source name
+* fetched timestamp
+* listing end time
+* raw metadata
+
+---
+
+3. SAFETY RULES
+
+---
+
+Document and enforce future live-ingestion safety expectations:
+
+* no automatic purchasing
+* no automatic collection mutation
+* no hidden network calls
+* explicit user-triggered fetch only
+* source-specific rate-limit awareness
+* clear failure reporting
+* stale listing warnings
+* currency validation required
+* shipping included in total cost
+
+---
+
+4. SOURCE VALIDATION PLANNING
+
+---
+
+Create:
+
+LiveSourceValidationReport
+
+Validate future source outputs for:
+
+* missing price
+* missing shipping
+* non-CAD currency
+* stale listing
+* duplicate URL
+* malformed URL
+* missing seller
+* missing title
+* suspicious metadata
+
+---
+
+5. STALENESS MODEL
+
+---
+
+Create deterministic staleness flags:
+
+* FRESH
+* STALE
+* UNKNOWN
+
+Do not fetch live data.
+
+Use supplied timestamps only.
+
+---
+
+6. RATE LIMIT PLAN
+
+---
+
+Create:
+
+RateLimitPolicy
+
+Document:
+
+* source name
+* allowed fetch cadence
+* batch size guidance
+* retry guidance
+* cooldown guidance
+
+No actual scheduling or background fetch.
+
+---
+
+7. FAILURE HANDLING PLAN
+
+---
+
+Define:
+
+LiveSourceFailure
+
+Examples:
+
+* network unavailable
+* source unavailable
+* authentication required
+* malformed response
+* rate limited
+* unsupported source
+
+No live calls.
+
+Models and reports only.
+
+---
+
+8. GUI INTEGRATION
+
+---
+
+Add:
+
+Tools -> Live Deal Hunter Readiness
+
+Display:
+
+* readiness status
+* blockers
+* warnings
+* required next steps before v4.0
+
+Keep UI simple.
+
+---
+
+9. EXPORT SUPPORT
+
+---
+
+Support:
+
+* Markdown export
+* CSV export where practical
+
+Export:
+
+* LiveDealHunterReadinessReport
+* LiveSourceValidationReport
+* RateLimitPolicy summary
+
+---
+
+10. TESTING
+
+---
+
+Add tests for:
+
+* readiness report generation
+* live source contract models
+* source validation report
+* stale listing flags
+* rate-limit policy model
+* failure model
+* no live fetch behavior
+* export generation
+
+Run:
+
+* Live readiness tests
+* Connector tests
+* Deal Hunter tests
+* Ranking tests
+* Calibration tests
+* Opportunity Engine tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+---
+
+11. DOCUMENTATION
+
+---
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v3.7.md
+
+Document:
+
+* v4.0 readiness status
+* live source contracts
+* safety rules
+* rate-limit policy
+* remaining blockers
+
+---
+
+12. ACCEPTANCE AUDIT
+
+---
+
+Verify:
+
+* readiness audit works
+* live source contracts work
+* validation report works
+* staleness model works
+* rate-limit policy works
+* failure models work
+* no code performs live fetching
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No new features after audit begins.
+
+---
+
+13. RELEASE TAGGING
+
+---
+
+If audit result is PASS:
+
+Tag:
+
+v3.7
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+---
+
+## DEFINITION OF DONE
+
+The project has explicit contracts, safety rules, validation models, staleness handling, and readiness reporting for future live Deal Hunter sources, while still performing zero live fetching.

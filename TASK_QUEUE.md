@@ -103,19 +103,21 @@ Work through this queue in priority order. Handle only one task at a time.
 71. `[x]` Build v3.4 Deal Hunter Ranking Engine
 72. `[x]` Build v3.5 External Listing Connectors
 73. `[x]` Build v3.6 Deal Hunter Calibration
-74. `[ ]` Build v4.0 Live Deal Hunter
-75. `[ ]` Build v4.1 Live Source Validation
-76. `[ ]` Build v4.2 Market Intelligence
-77. `[ ]` Build v5.0 Mobile Collector Companion
+74. `[x]` Build v3.7 Live Deal Hunter Readiness
+75. `[ ]` Build v4.0 Live Deal Hunter
+76. `[ ]` Build v4.1 Live Source Validation
+77. `[ ]` Build v4.2 Market Intelligence
+78. `[ ]` Build v5.0 Mobile Collector Companion
 
 ## Official Post-v3.4 Roadmap
 
 1. `v3.5` External Listing Connectors
 2. `v3.6` Deal Hunter Calibration
-3. `v4.0` Live Deal Hunter
-4. `v4.1` Live Source Validation
-5. `v4.2` Market Intelligence
-6. `v5.0` Mobile Collector Companion
+3. `v3.7` Live Deal Hunter Readiness
+4. `v4.0` Live Deal Hunter
+5. `v4.1` Live Source Validation
+6. `v4.2` Market Intelligence
+7. `v5.0` Mobile Collector Companion
 
 Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, and Ranking Engine. The next bottleneck is candidate acquisition. Future development should prioritize listing ingestion, source normalization, connector reliability, and candidate volume before live APIs and scraping.
 
@@ -199,6 +201,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 - Implementation commit hash: `87bf575`
 - Test coverage: total passing tests increased from 538 to 550; existing regression suites remained green.
 - Limitation: deterministic offline calibration only; no scraping, browser automation, eBay/dealer/auction APIs, live listing retrieval, live pricing, automatic purchasing, image recognition, or collection mutation.
+
+#### `[x]` Build v3.7 Live Deal Hunter Readiness
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `live_deal_hunter_readiness.py` (new file)
+  - `test_live_deal_hunter_readiness.py` (new file)
+  - `coin_collection_gui.py`
+  - `project_docs/release_prompts/v3.7.txt` (new file)
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.7.md` (new file)
+- Implementation commit hash: `ca87a8a`
+- Test coverage: total passing tests increased from 550 to 560; existing regression suites remained green.
+- Limitation: readiness contracts and validation only; no scraping, browser automation, eBay/dealer/auction APIs, live listing retrieval, automatic purchasing, live pricing claims, image recognition, or collection mutation.
 
 #### `[x]` Build v3.5 External Listing Connectors
 
