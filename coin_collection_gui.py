@@ -26,6 +26,7 @@ from listing_connectors import (
     SourceSummaryReport,
 )
 from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
+from market_intelligence import MarketIntelligenceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
@@ -168,6 +169,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
+        tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -3414,6 +3416,111 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Analyze Listings", command=analyze_listings).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_market_intelligence(self):
+        """Open local deterministic Market Intelligence workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Market Intelligence")
+        dialog.geometry("960x800")
+
+        engine = MarketIntelligenceEngine(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Listing Input", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        title_var = tk.StringVar(value="1901 Newfoundland 50 cents VF20")
+        price_var = tk.StringVar(value="80")
+        shipping_var = tk.StringVar(value="5")
+        seller_var = tk.StringVar()
+        source_var = tk.StringVar(value="Manual")
+
+        ttk.Label(input_frame, text="Title:").grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(input_frame, textvariable=title_var, width=80).grid(row=0, column=1, columnspan=3, sticky=(tk.W, tk.E), pady=3)
+        ttk.Label(input_frame, text="Price CAD:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(input_frame, textvariable=price_var, width=16).grid(row=1, column=1, sticky=tk.W, pady=3)
+        ttk.Label(input_frame, text="Shipping CAD:").grid(row=1, column=2, sticky=tk.W, pady=3)
+        ttk.Entry(input_frame, textvariable=shipping_var, width=16).grid(row=1, column=3, sticky=tk.W, pady=3)
+        ttk.Label(input_frame, text="Seller:").grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(input_frame, textvariable=seller_var, width=30).grid(row=2, column=1, sticky=tk.W, pady=3)
+        ttk.Label(input_frame, text="Source:").grid(row=2, column=2, sticky=tk.W, pady=3)
+        ttk.Entry(input_frame, textvariable=source_var, width=30).grid(row=2, column=3, sticky=tk.W, pady=3)
+        ttk.Label(input_frame, text="Description:").grid(row=3, column=0, sticky=tk.NW, pady=3)
+        description_text = tk.Text(input_frame, height=4, wrap=tk.WORD)
+        description_text.grid(row=3, column=1, columnspan=3, sticky=(tk.W, tk.E), pady=3)
+        input_frame.columnconfigure(1, weight=1)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Market Intelligence Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def parse_money(value):
+            return float(value) if str(value or "").strip() else 0.0
+
+        def analyze():
+            try:
+                listing = DealListing(
+                    title_var.get(),
+                    price_cad=parse_money(price_var.get()),
+                    shipping_cad=parse_money(shipping_var.get()),
+                    seller=seller_var.get(),
+                    source=source_var.get(),
+                    description=description_text.get("1.0", tk.END).strip(),
+                )
+                report = engine.evaluate_listing(listing)
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Use numeric CAD price and shipping values.")
+            except Exception as e:
+                messagebox.showerror("Market Intelligence Error", f"Analysis failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Market Intelligence CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Market Intelligence CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Market Intelligence Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Market Intelligence Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Analyze", command=analyze).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
