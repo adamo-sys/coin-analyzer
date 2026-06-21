@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v3.0`
+Current version: `v3.1`
 
-Latest tagged release: `v3.0`
+Latest tagged release: `v3.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -39,6 +39,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collection Intelligence Engine: classify manual candidates as owned, duplicate, upgrade, want-list match, collection gap, not relevant, or needs review.
 - Shared Session Context: load a legacy collection workbook and WANT_LIST context once per app session for reuse across collector tools.
 - Listing Analyzer: paste listing title, URL, price, shipping, notes, and description to get offline ownership, duplicate, upgrade, WANT_LIST, and acquisition guidance.
+- Deal Hunter: import or manually enter eBay.ca-style listing rows, parse titles/descriptions, compare against collection and WANT_LIST context, apply Adam's buying rules, and export deterministic deal reports without scraping or live pricing.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
 - Collection Quality Engine: deterministic quality scoring for completeness, upgrade pressure, WANT_LIST progress, diversity, certification, strengths, weaknesses, and recommended actions.
 - Smarter Acquisition Intelligence: simulates candidate impact on quality score, series completion, WANT_LIST progress, and upgrade opportunities.
@@ -127,7 +128,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v3.0 Collector Companion suite passed with `475 tests OK`.
+The v3.1 Deal Hunter suite passed with `494 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -167,6 +168,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v2.8` | See verified tag `v2.8` | Collector Home Dashboard with status cards, ranked daily actions, top opportunities, review queues, data safety, progress signals, persistence, and CSV/Markdown export. |
 | `v2.9` | See verified tag `v2.9` | Collector Companion Release Candidate with menu cleanup, readiness checklist, report/export consistency audits, workflow audit, persistence, and CSV/Markdown export. |
 | `v3.0` | See verified tag `v3.0` | Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass. |
+| `v3.1` | See verified tag `v3.1` | eBay.ca-style Deal Hunter MVP with manual/CSV listing intake, deterministic parsing, collection-aware scoring, counterarguments, persistence, exports, and 494-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -181,6 +183,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Snapshot Report to compare current collection state against the previous saved snapshot.
 - Use Collection Health Report when you want consolidated strengths, weaknesses, priorities, recommended actions, and persistence expectations.
 - Use Listing Analyzer when starting from a real listing title, asking price, shipping cost, seller notes, or URL.
+- Use Deal Hunter when comparing eBay.ca-style listing rows from manual entry or CSV import and you want collection-aware BUY/WATCH/NEGOTIATE/REVIEW/PASS guidance with counterarguments.
 - Use Photo-Assisted Entry when starting from front/reverse/reference photo paths and manual candidate details.
 - Use Smart Shopping Assistant when comparing multiple opportunities and deciding what to buy next.
 - Use Shopping Explainability output when you want to understand why a recommendation was BUY, PASS, WATCH, NEGOTIATE, or REVIEW.
@@ -232,6 +235,7 @@ Official post-v2.2 roadmap:
 - `v2.8` Collector Home Dashboard
 - `v2.9` Collector Companion Release Candidate
 - `v3.0` Collector Companion
+- `v3.1` eBay.ca Coin Deal Hunter MVP
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
@@ -243,6 +247,7 @@ Near-term maintenance candidates:
 - Consider a compact dealer-table candidate workflow after mobile storage abstractions exist.
 - Decide whether Acquisition Workflow guidance should become more visible in Buy Advisor reports.
 - Expand normalization fixtures for country, denomination, and variety edge cases.
+- Harden Deal Hunter parsing/scoring with more fixture examples before adding any live source integration.
 
 Future candidates:
 
@@ -255,6 +260,7 @@ Future candidates:
 
 - Acquisition price guidance is deterministic internal guidance, not live market pricing.
 - Listing Analyzer stores URLs as reference data only; it does not scrape, fetch, or enrich listings.
+- Deal Hunter stores listing URLs and image URLs as reference data only. It does not scrape, fetch, use browser automation, call eBay APIs, or claim live market-pricing accuracy.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
 - Backup packages are local zip files; they are not cloud sync, remote backup, or disaster recovery by themselves.
@@ -303,6 +309,7 @@ Persisted data:
 - Market Awareness records
 - Photo Vault records
 - Smart Shopping candidates
+- Recent Deal Hunter listings and reports
 - Basic app preferences/settings
 - Warnings and errors useful for restore diagnostics
 
@@ -503,6 +510,45 @@ Known limitations:
 - No OCR, image recognition, or AI grading.
 - Listing parsing is intentionally basic and should be manually reviewed for ambiguous listings.
 
+## Deal Hunter
+
+Use Workflows -> Deal Hunter to evaluate eBay.ca-style listing rows from manual entry or CSV import.
+
+Supported CSV columns:
+
+- `title`
+- `price_cad`
+- `shipping_cad`
+- `seller`
+- `source`
+- `listing_url`
+- `end_time`
+- `image_url`
+- `description`
+
+Deal Hunter parses titles and descriptions for country, year, denomination, series/type, grade, slab company, and keywords such as silver, proof-like, specimen, large bust, near 6, wide 9, banknote, and chartered banknote.
+
+It reuses existing collection intelligence, acquisition workflow, acquisition impact, smart shopping, WANT_LIST, series, and local market-awareness context. It reports collection status, priority score, liquidity score, collection-fit score, risk score, max rational price, recommendation, counterargument, reasons, and warnings.
+
+Recommendations:
+
+- BUY
+- WATCH
+- PASS
+- NEGOTIATE
+- REVIEW
+
+Scoring is deterministic local guidance only. Max rational price is not live market pricing, appraisal, or a guarantee of value.
+
+Limitations:
+
+- No scraping.
+- No browser automation.
+- No eBay API credentials.
+- No live listing fetches.
+- No live market-pricing accuracy claims.
+- URLs and image URLs are stored as reference data only.
+
 ## Exports
 
 Export support is intentionally report-specific:
@@ -519,6 +565,7 @@ Export support is intentionally report-specific:
 - Photo Vault: CSV and Markdown export.
 - Market Awareness Layer: CSV and Markdown export.
 - Smart Shopping Assistant: CSV and Markdown export.
+- Deal Hunter: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.
 

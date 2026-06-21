@@ -97,15 +97,14 @@ Work through this queue in priority order. Handle only one task at a time.
 65. `[ ]` Improve Buy Advisor validation messages
 66. `[ ]` Add autocomplete for country/denomination
 67. `[ ]` Consider storage/file-picker/photo URI adapters before mobile implementation
+68. `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
 
-## Official v2.7-to-v3.0 Roadmap
+## Official v3.x Roadmap
 
-1. `v2.7` Workflow Integration
-2. `v2.8` Collector Home Dashboard
-3. `v2.9` Collector Companion Release Candidate
-4. `v3.0` Collector Companion
+1. `v3.0` Collector Companion
+2. `v3.1` eBay.ca Coin Deal Hunter MVP
 
-Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
+Clarification: `v3.1` is offline and deterministic. It does not scrape, use browser automation, call eBay APIs, fetch live listings, or claim live market-pricing accuracy.
 
 ## Adam-Specific Collection Priorities
 
@@ -145,6 +144,28 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
    - Recommend highest-impact purchases
 
 ## Project Changelog
+
+### 2026-06-20
+
+#### `[x]` Build v3.1 eBay.ca Coin Deal Hunter MVP
+
+- Date completed: 2026-06-20
+- Files modified:
+  - `deal_hunter.py` (new file)
+  - `test_deal_hunter.py` (new file)
+  - `test_data/deal_hunter/sample_ebay_ca_listings.csv` (new file)
+  - `project_docs/release_prompts/3.1.txt` (new file)
+  - `coin_collection_gui.py`
+  - `persistence_manager.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v3.1.md` (new file)
+- Implementation commit hash: `fb20988`
+- Test coverage: total passing tests increased from 475 to 494; existing regression suites remained green.
+- Limitation: deterministic local guidance only; no scraping, browser automation, eBay API usage, live listing fetches, or live market-pricing claims.
 
 ### 2026-06-19
 

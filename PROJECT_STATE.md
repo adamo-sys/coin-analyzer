@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v3.0`
+* Current release version: `v3.1`
 * Current Git branch: `main`
-* Last updated date: 2026-06-19
+* Last updated date: 2026-06-20
 
 ## Last Release Tag
 
-* Most recent Git tag: `v3.0`
-* Summary of what was included: Collector Companion milestone with final status report, full system audit, end-to-end workflow verification, release notes, and 475-test regression pass.
+* Most recent Git tag: `v3.1`
+* Summary of what was included: eBay.ca-style Deal Hunter MVP with manual/CSV listing intake, deterministic parsing, collection-aware scoring, counterarguments, persistence, exports, and 494-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -46,6 +46,7 @@
 * `v2.8` acceptance audit passed on 2026-06-19; tag `v2.8` verified during release.
 * `v2.9` acceptance audit passed on 2026-06-19; tag `v2.9` verified during release.
 * `v3.0` acceptance audit passed on 2026-06-19; tag `v3.0` verified during release.
+* `v3.1` acceptance audit passed on 2026-06-20; tag `v3.1` verified during release.
 
 ## Completed Features
 
@@ -107,6 +108,7 @@
 * Workflow Integration: orchestration layer that coordinates existing Photo-Assisted Entry, OCR Experiments, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Collection Quality, Collection Integrity, Collection Snapshot, and Photo Vault Audit systems into guided acquisition, collection review, photo review, and daily summary workflows.
 * Collector Home Dashboard: unified daily dashboard that surfaces Collection Health, Acquisition Focus, Review Queue, Data Safety, Progress, ranked Daily Collector Actions, top opportunities, warnings, workflow status, persistence, and CSV/Markdown export while reusing existing engines.
 * Collector Companion Readiness and Status: v3.0 product audit system with menu grouping, V3 readiness checklist, export consistency report, report consistency report, end-to-end workflow audit, product status, persistence, and CSV/Markdown export.
+* Deal Hunter: eBay.ca-style offline listing evaluator with manual/CSV input, deterministic title/description parsing, slab/banknote/keyword detection, collection-aware scoring, Adam buying rules, counterarguments before BUY, persistence, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -120,14 +122,12 @@
 
 ## Active Roadmap
 
-Official v2.7-to-v3.0 roadmap:
+Official v3.x roadmap:
 
-1. `v2.7` Workflow Integration
-2. `v2.8` Collector Home Dashboard
-3. `v2.9` Collector Companion Release Candidate
-4. `v3.0` Collector Companion
+1. `v3.0` Collector Companion
+2. `v3.1` eBay.ca Coin Deal Hunter MVP
 
-Clarification: `v3.0` finalizes the workflow-driven Collector Companion product from the existing systems. It is not a new feature-engine release.
+Clarification: `v3.1` remains offline and deterministic. It adds no scraping, browser automation, eBay API usage, live listing fetches, or live market-pricing claims.
 
 Near-term maintenance candidates:
 
@@ -155,7 +155,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Post-v3.0 maintenance and collector usability polish, starting with Buy Advisor validation messages unless a release-blocking defect is found.
+Post-v3.1 maintenance and collector usability polish, starting with Buy Advisor validation messages unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -178,6 +178,7 @@ Post-v3.0 maintenance and collector usability polish, starting with Buy Advisor 
 * Workflow Integration system: `collector_workflows.py` provides `CollectorWorkflowEngine`, guided `AcquisitionWorkflow`, `CollectionReviewWorkflow`, `PhotoReviewWorkflow`, `CollectorDailySummary`, `WorkflowStatus`, and `WorkflowSummary`. It orchestrates existing engines, persists lightweight workflow state, exposes Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary, and exports workflow Markdown/CSV summaries.
 * Collector Home Dashboard system: `collector_home_dashboard.py` provides `CollectorHomeDashboard`, `CollectorHomeReport`, `HomeStatusCard`, `DailyCollectorAction`, and `HomeStatusSeverity`. It aggregates existing workflow, dashboard, shopping, OCR validation, photo audit, integrity, backup, snapshot, series, and persistence signals into one daily report without adding recommendation logic or mutating collection data.
 * Collector Companion Readiness system: `collector_companion_readiness.py` provides `CollectorCompanionReadinessAuditor`, `CollectorCompanionReadinessReport`, `CollectorCompanionStatus`, `ExportConsistencyReport`, `ReportConsistencyReport`, `WorkflowAuditReport`, and `V3ReadinessChecklistItem`. It audits readiness, product status, workflow cohesion, report/export consistency, and v3.0 blockers without modifying collection data or decision logic.
+* Deal Hunter system: `deal_hunter.py` provides `DealListing`, `ParsedDealCandidate`, `DealHunterResult`, `DealHunterReport`, and `DealHunter`. It imports manual/CSV eBay.ca-style listing rows, parses deterministic candidate signals, reuses Listing Analyzer, Acquisition Workflow, Acquisition Impact, Smart Shopping, Market Awareness, and WANT_LIST context, then exports CSV/Markdown reports without scraping or live pricing.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
 * Acquisition Impact system: `acquisition_impact.py` simulates candidate acquisition impact using `AcquisitionWorkflow`, `CollectionQualityEngine`, and `CollectionIntelligenceEngine` to report quality, completion, WANT_LIST, upgrade, and impact-score deltas.
 * Series Tracker system: `series_definitions.py` stores extendable supported-series definitions; `series_tracker.py` reports owned dates, missing dates, completion, WANT_LIST counts, upgrade counts, priority scores, top missing dates, and exports.
@@ -220,6 +221,14 @@ Post-v3.0 maintenance and collector usability polish, starting with Buy Advisor 
 * Never leave a completed version untagged.
 
 ## Recent Changes
+
+### 2026-06-20
+
+* Implemented v3.1 eBay.ca Coin Deal Hunter MVP: DealListing input model, CSV import, deterministic title/description parser, slab and banknote detection, collection-aware deal scoring, Adam buying rules, counterargument-before-BUY logic, Workflows -> Deal Hunter GUI, app-state persistence, test fixture CSV, CSV/Markdown export, and release documentation.
+* Implementation commit: `fb20988`
+* Full test suite passed: 494 tests OK.
+* Coverage note: total passing tests increased from 475 to 494; existing regression suites remained green.
+* Limitation note: Deal Hunter is deterministic local guidance only. It does not scrape, fetch live listings, use browser automation, call eBay APIs, or claim live market-pricing accuracy.
 
 ### 2026-06-19
 
