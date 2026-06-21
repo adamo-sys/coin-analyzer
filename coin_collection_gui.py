@@ -25,6 +25,7 @@ from listing_connectors import (
     DuplicateOpportunityDetector,
     SourceSummaryReport,
 )
+from live_deal_hunter import DEFAULT_EBAY_RSS_URL, LiveDealHunter, RSSListingConnector
 from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
 from market_intelligence import MarketIntelligenceEngine
 from portfolio_performance import PortfolioPerformanceEngine
@@ -169,6 +170,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
+        tools_menu.add_command(label="Live Deal Hunter", command=self.open_live_deal_hunter)
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
@@ -3846,6 +3848,108 @@ Total Unique Dates: {total_unique_dates}
 
         ttk.Button(button_frame, text="Rank Pool", command=analyze_pool).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Import CSV", command=import_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_live_deal_hunter(self):
+        """Open controlled-beta live RSS Deal Hunter workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Live Deal Hunter")
+        dialog.geometry("980x800")
+
+        hunter = LiveDealHunter(
+            self._collection_items(),
+            self._active_want_list_intents(),
+            self.market_awareness_engine,
+        )
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        input_frame = ttk.LabelFrame(main_frame, text="Live RSS Source", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+        input_frame.columnconfigure(1, weight=1)
+
+        source_url_var = tk.StringVar(value=DEFAULT_EBAY_RSS_URL)
+        timeout_var = tk.StringVar(value="10")
+
+        ttk.Label(input_frame, text="RSS URL:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(input_frame, textvariable=source_url_var).grid(
+            row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4
+        )
+        ttk.Label(input_frame, text="Timeout seconds:").grid(row=1, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(input_frame, textvariable=timeout_var, width=12).grid(
+            row=1, column=1, sticky=tk.W, padx=(8, 0), pady=4
+        )
+        ttk.Label(
+            input_frame,
+            text=(
+                "Controlled beta: fetches only when Analyze Live Feed is pressed. "
+                "No purchases, bids, collection mutation, background polling, scraping, or browser automation."
+            ),
+            wraplength=840,
+        ).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
+        status_var = tk.StringVar(value="No live feed analyzed yet.")
+        ttk.Label(main_frame, textvariable=status_var).pack(anchor=tk.W, pady=(0, 8))
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Live Deal Hunter Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        def analyze_live_feed():
+            try:
+                timeout = float(timeout_var.get() or "10")
+            except ValueError:
+                messagebox.showerror("Invalid Timeout", "Use a numeric timeout value.")
+                return
+            source = RSSListingConnector(source_url_var.get().strip(), timeout=timeout)
+            report = hunter.run_source(source)
+            current_report["report"] = report
+            status_var.set(
+                f"Listings: {report.listing_count} | Accepted: {report.accepted_count} | "
+                f"Rejected: {report.rejected_count} | Errors: {len(report.errors)}"
+            )
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze_live_feed()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Deal Hunter CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Live Deal Hunter CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze_live_feed()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Live Deal Hunter Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Live Deal Hunter Markdown exported to {file_path}")
+
+        ttk.Button(button_frame, text="Analyze Live Feed", command=analyze_live_feed).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)

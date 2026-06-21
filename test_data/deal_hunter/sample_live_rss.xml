@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Coin Analyzer Live Feed Fixture</title>
+    <item>
+      <title>1901 Newfoundland 50 cents VF20 C$95.00</title>
+      <link>https://www.ebay.ca/itm/1001</link>
+      <description>Nice Newfoundland silver coin. Shipping C$5.00.</description>
+      <price currencyId="CAD">95.00</price>
+      <seller>fixture-seller</seller>
+      <pubDate>Sat, 20 Jun 2026 12:00:00 GMT</pubDate>
+      <media:thumbnail url="https://example.test/1001.jpg" />
+    </item>
+    <item>
+      <title>Canada 1911 10 cents VF C$35.00</title>
+      <link>https://www.ebay.ca/itm/1002</link>
+      <description>Canadian silver dime. Free shipping.</description>
+      <price currencyId="CAD">35.00</price>
+      <seller>fixture-seller-2</seller>
+      <pubDate>Sat, 20 Jun 2026 13:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Canada 1911 10 cents duplicate C$36.00</title>
+      <link>https://www.ebay.ca/itm/1002</link>
+      <description>Duplicate URL should be rejected.</description>
+      <price currencyId="CAD">36.00</price>
+      <seller>fixture-seller-2</seller>
+      <pubDate>Sat, 20 Jun 2026 13:10:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>World token missing price</title>
+      <link>https://www.ebay.ca/itm/1003</link>
+      <description>No visible price.</description>
+      <seller></seller>
+      <pubDate>Sat, 20 Jun 2026 14:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
