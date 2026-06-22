@@ -184,9 +184,11 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
-#### `[-]` Lock v5.4 roadmap
+#### `[x]` Lock v5.4 roadmap
 
 - Date started: 2026-06-22
+- Date completed: 2026-06-22
+- Roadmap lock commit: `0760cc0`.
 - Roadmap locked:
   - `v5.4` Collector Workflow Integration
   - `v6.0` Collector Cloud Foundation
@@ -210,6 +212,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.1.md`
   - `docs/releases/v5.2.md`
   - `docs/releases/v5.3.md`
+
+#### `[-]` Build v5.4 Collector Workflow Integration
+
+- Date started: 2026-06-22
+- Implementation status: code and release audit complete; implementation commit, metadata commit, tag, push, and remote verification pending.
+- Added `collector_workflow_integration.py` with `CollectorWorkflowIntegrationEngine`, `WorkflowStage`, `WorkflowSession`, `WorkflowCompletionReport`, and `WorkflowHealthReport`.
+- End-to-end workflow implemented: Photo Capture -> OCR Identification -> Evidence Review -> Collection Context -> Collection Entry Candidate -> Portfolio Impact Preview -> Final Review.
+- Review checkpoints support APPROVE, REJECT, and REVIEW.
+- Workflow sessions support resume/reopen from serialized session data.
+- Workflow health reporting tracks completed workflows, abandoned workflows, review escalations, confidence distribution, and stage completion rates.
+- Portfolio preview integration reuses Mobile Collection Entry and Portfolio Performance preview data.
+- Mobile Companion integration: companion reports can include Collector Workflow Integration summaries.
+- GUI: Tools -> Collector Workflow Integration with workflow generation, final review controls, completion export, and health export.
+- Release prompt archived: `project_docs/release_prompts/v5.4.txt`.
+- Release notes: `docs/releases/v5.4.md`.
+- Tests passed: v5.4 focused/adjacent slice -> 44 tests OK; `run_tests.bat` -> 677 tests OK.
+- GUI smoke blocked by local Tcl/Tk `init.tcl` installation issue.
 
 #### `[x]` Lock v5.3 roadmap
 

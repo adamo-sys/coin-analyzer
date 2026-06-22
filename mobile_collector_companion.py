@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from collector_workflow_integration import WorkflowCompletionReport
 from deal_hunter import DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, RankedDeal
 from field_test_framework import ScenarioRunner, default_field_test_scenarios
@@ -213,6 +214,7 @@ class MobileCompanionReport:
     photo_capture_report: Optional[PhotoCaptureReport] = None
     ocr_identification_report: Optional[OCRIdentificationReport] = None
     mobile_entry_report: Optional[CollectionEntryReport] = None
+    workflow_completion_report: Optional[WorkflowCompletionReport] = None
     generated_at: str = ""
     limitations: List[str] = field(default_factory=list)
 
@@ -236,6 +238,7 @@ class MobileCompanionReport:
             "photo_capture_report": self.photo_capture_report.to_dict() if self.photo_capture_report else {},
             "ocr_identification_report": self.ocr_identification_report.to_dict() if self.ocr_identification_report else {},
             "mobile_entry_report": self.mobile_entry_report.to_dict() if self.mobile_entry_report else {},
+            "workflow_completion_report": self.workflow_completion_report.to_dict() if self.workflow_completion_report else {},
             "limitations": "; ".join(self.limitations),
         }
 
@@ -302,6 +305,18 @@ class MobileCompanionReport:
                 lines.append(f"  - Review status: {candidate.review_status}")
                 lines.append(f"  - Confidence: {candidate.confidence_summary()}")
                 lines.append(f"  - Collection context: {candidate.collection_status}; {candidate.collection_context}")
+        if self.workflow_completion_report:
+            lines.extend([
+                "",
+                "## Collector Workflow Integration",
+                "",
+                f"- Workflow status: {self.workflow_completion_report.session.status}",
+                f"- Workflow stages: {self.workflow_completion_report.completed_stage_count}/{self.workflow_completion_report.stage_count} complete",
+                f"- Review escalations: {self.workflow_completion_report.review_escalation_count}",
+                "- Collection mutation performed: NO",
+            ])
+            for stage in self.workflow_completion_report.session.stages[:7]:
+                lines.append(f"- Stage: {stage.name} - {stage.decision}; {stage.summary}")
         lines.extend(["", "## Limitations", ""])
         lines.extend(f"- {item}" for item in self.limitations)
         return "\n".join(lines).rstrip() + "\n"
@@ -460,6 +475,7 @@ class MobileCollectorCompanion:
         photo_capture_sessions: Optional[Sequence[PhotoCaptureSession]] = None,
         ocr_identification_report: Optional[OCRIdentificationReport] = None,
         mobile_entry_report: Optional[CollectionEntryReport] = None,
+        workflow_completion_report: Optional[WorkflowCompletionReport] = None,
     ) -> MobileCompanionReport:
         session = self.start_session(workflow_type=workflow_type, location=location)
         workflow = next((item for item in self.workflows() if item.name == workflow_type), self.workflows()[0])
@@ -483,6 +499,7 @@ class MobileCollectorCompanion:
             photo_capture_report=PhotoCaptureReport(photo_capture_sessions) if photo_capture_sessions is not None else self.photo_capture_workflow.report(),
             ocr_identification_report=ocr_identification_report,
             mobile_entry_report=mobile_entry_report,
+            workflow_completion_report=workflow_completion_report,
         )
 
     def run_field_test_snapshot(self):

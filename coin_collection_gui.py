@@ -49,6 +49,13 @@ from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
 from listing_analyzer import ListingAnalyzer, ListingCandidate
 from backup_manager import BackupManager, DataSafetyValidator
+from collector_workflow_integration import (
+    APPROVE as WORKFLOW_APPROVE,
+    REJECT as WORKFLOW_REJECT,
+    REVIEW as WORKFLOW_REVIEW,
+    STAGE_FINAL_REVIEW,
+    CollectorWorkflowIntegrationEngine,
+)
 from collection_dashboard import CollectionDashboard
 from collector_companion_readiness import CollectorCompanionReadinessAuditor
 from collector_home_dashboard import CollectorHomeDashboard
@@ -103,6 +110,7 @@ class CoinCollectionGUI:
         self.ocr_reports = []
         self.ocr_identification_reports = []
         self.mobile_entry_reports = []
+        self.workflow_completion_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -201,6 +209,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
         tools_menu.add_command(label="OCR-Assisted Identification", command=self.open_ocr_assisted_identification)
         tools_menu.add_command(label="Mobile Collection Entry", command=self.open_mobile_collection_entry)
+        tools_menu.add_command(label="Collector Workflow Integration", command=self.open_collector_workflow_integration)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3055,6 +3064,139 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
+    def open_collector_workflow_integration(self):
+        """Open end-to-end Collector Workflow Integration."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collector Workflow Integration")
+        dialog.geometry("1040x860")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Workflow Intake", padding="10")
+        form_frame.grid(row=0, column=0, sticky=tk.EW, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        subject_var = tk.StringVar(value="Canada 1945 5 cents")
+        front_var = tk.StringVar()
+        back_var = tk.StringVar()
+        location_var = tk.StringVar(value="Field workflow")
+
+        ttk.Label(form_frame, text="Subject:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=subject_var).grid(row=0, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Label(form_frame, text="Front Photo:").grid(row=1, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=front_var).grid(row=1, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Label(form_frame, text="Back Photo:").grid(row=2, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=back_var).grid(row=2, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Label(form_frame, text="Location:").grid(row=3, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=location_var).grid(row=3, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Label(form_frame, text="Raw OCR Text:").grid(row=4, column=0, sticky=(tk.W, tk.N), pady=4)
+        raw_text = tk.Text(form_frame, height=5, wrap=tk.WORD)
+        raw_text.grid(row=4, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        raw_text.insert(tk.END, "Canada 1945 5 cents George VI")
+
+        result_frame = ttk.LabelFrame(main_frame, text="Workflow Report", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+
+        def engine():
+            return CollectorWorkflowIntegrationEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                watchlists=self.watchlists,
+                photo_capture_workflow=self.photo_capture_workflow,
+            )
+
+        def show_report(report):
+            current_report["report"] = report
+            if not self.workflow_completion_reports or self.workflow_completion_reports[-1] is not report:
+                self.workflow_completion_reports.append(report)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def generate():
+            try:
+                supplied_text = raw_text.get("1.0", tk.END).strip()
+                if not supplied_text and not front_var.get().strip() and not back_var.get().strip():
+                    messagebox.showwarning("Input Required", "Provide OCR text or photo paths before running the workflow.")
+                    return
+                report = engine().run_workflow(
+                    subject=subject_var.get(),
+                    raw_text=supplied_text,
+                    front_path=front_var.get(),
+                    back_path=back_var.get(),
+                    location=location_var.get(),
+                )
+                if report.session.ocr_report:
+                    self.ocr_identification_reports.append(report.session.ocr_report)
+                if report.session.entry_report:
+                    self.mobile_entry_reports.append(report.session.entry_report)
+                show_report(report)
+            except Exception as exc:
+                messagebox.showerror("Collector Workflow Error", f"Collector workflow failed: {str(exc)}")
+
+        def review_final(decision):
+            report = current_report.get("report")
+            if not report:
+                generate()
+                report = current_report.get("report")
+            if not report:
+                return
+            engine().review_stage(report.session, STAGE_FINAL_REVIEW, decision, "Collector final review checkpoint")
+            show_report(report)
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate a collector workflow before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Workflow",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Collector workflow exported to {file_path}")
+
+        def export_health(export_type):
+            health = engine().health_report([report.session for report in self.workflow_completion_reports])
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Workflow Health",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = health.export_markdown(file_path) if export_type == "markdown" else health.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Collector workflow health exported to {file_path}")
+
+        ttk.Button(button_frame, text="Run Workflow", command=generate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Approve Final", command=lambda: review_final(WORKFLOW_APPROVE)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Reject Final", command=lambda: review_final(WORKFLOW_REJECT)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Review Final", command=lambda: review_final(WORKFLOW_REVIEW)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Health", command=lambda: export_health("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
         return CollectorWorkflowEngine(
@@ -4374,6 +4516,7 @@ Total Unique Dates: {total_unique_dates}
                     location="Field workflow",
                     ocr_identification_report=self.ocr_identification_reports[-1] if self.ocr_identification_reports else None,
                     mobile_entry_report=self.mobile_entry_reports[-1] if self.mobile_entry_reports else None,
+                    workflow_completion_report=self.workflow_completion_reports[-1] if self.workflow_completion_reports else None,
                 )
                 current_report["report"] = report
                 result_text.delete("1.0", tk.END)

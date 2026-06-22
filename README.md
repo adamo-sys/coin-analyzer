@@ -53,6 +53,7 @@ The app is especially tuned for Adam-specific priorities:
 - Phone Photo Capture: metadata-only capture sessions for phone-captured coin, banknote, and listing photos with front/back pairing, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Tools -> Phone Photo Capture, and CSV/Markdown export.
 - OCR-Assisted Identification: review-only pipeline that turns captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 - Mobile Collection Entry: review-only field workflow that converts OCR identification candidates into proposed collection-entry records with field confidence, collection/want-list/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Tools -> Mobile Collection Entry, and CSV/Markdown export without inserting records automatically.
+- Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, mobile collection entry candidates, portfolio preview, final review, workflow health reporting, Mobile Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without automatic collection mutation.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -203,8 +204,9 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
 | `v5.2` | See verified tag `v5.2` | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
+| `v5.4` | Pending tag verification | Collector Workflow Integration with end-to-end sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 
-See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), and [docs/releases/v5.3.md](docs/releases/v5.3.md) for release documentation.
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), and [docs/releases/v5.4.md](docs/releases/v5.4.md) for release documentation.
 
 
 ## Release Prompt Archive
@@ -235,6 +237,7 @@ Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `proje
 - Use Watchlists & Alerts when you want to define collector targets and scan existing candidate outputs for on-demand watchlist matches, upgrade opportunities, collection gaps, high-priority opportunities, or rare target opportunities.
 - Use Field Test & Tuning when you want deterministic live-pipeline test scenarios, pipeline health metrics, opportunity quality summaries, alert quality checks, and false-positive audit findings before expanding live or mobile workflows.
 - Use Mobile Collector Companion when you want a desktop/local simulation of field decisions at a coin show, dealer visit, antique market, coin shop, or auction preview.
+- Use Collector Workflow Integration when you want one guided flow from photo/OCR intake through evidence, collection context, entry candidate, portfolio preview, and final review.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.

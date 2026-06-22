@@ -44,6 +44,15 @@ Before each release, verify the current release prompt exists, previous archived
 
 ## What Changed
 
+- Added `collector_workflow_integration.py` with `CollectorWorkflowIntegrationEngine`, `WorkflowStage`, `WorkflowSession`, `WorkflowCompletionReport`, and `WorkflowHealthReport`.
+- Collector Workflow Integration coordinates Phone Photo Capture, OCR-Assisted Identification, evidence review, collection context, Mobile Collection Entry, Portfolio Performance preview, and final review without mutating collection records.
+- Workflow sessions track photos, OCR candidates, evidence, collection context, entry candidates, portfolio previews, review decisions, timestamps, and resume/reopen state.
+- Review checkpoints support APPROVE, REJECT, and REVIEW at OCR review, evidence review, collection context, entry review, portfolio preview, and final review stages.
+- Workflow health reporting tracks completed workflows, abandoned workflows, review escalations, confidence distribution, and stage completion rates.
+- Added Tools -> Collector Workflow Integration with Markdown/CSV export for completion and health reports.
+- Mobile Collector Companion reports can include Collector Workflow Integration summaries.
+- Added `test_collector_workflow_integration.py` and expanded Mobile Collector Companion tests.
+
 - Locked the v5.4 roadmap: Collector Workflow Integration, followed by v6.0 Collector Cloud Foundation, v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v5.4 release prompt at `project_docs/release_prompts/v5.4.txt`.
 

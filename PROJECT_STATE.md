@@ -9,7 +9,7 @@
 ## Last Release Tag
 
 * Most recent Git tag: `v5.3`
-* Summary of what was included: v5.4 Collector Workflow Integration development has started; latest released tag remains v5.3 Mobile Collection Entry.
+* Summary of what was included: v5.4 Collector Workflow Integration implementation is in progress with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and regression coverage. Latest released tag remains v5.3 until v5.4 tag verification completes.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -142,6 +142,7 @@
 * Phone Photo Capture: metadata-only field photo intake workflow for phone-captured coin, banknote, and listing photos with single-photo records, front/back sessions, missing-side checks, OCR/review readiness, Photo Vault records, OCR source adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, and CSV/Markdown export.
 * OCR-Assisted Identification: review-only pipeline that transforms captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Mobile Collector Companion summaries, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 * Mobile Collection Entry: review-only field workflow that transforms OCR identification candidates into proposed collection-entry records with field confidence, collection/WANT_LIST/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Mobile Collector Companion summaries, Tools -> Mobile Collection Entry, and CSV/Markdown export without automatic record insertion.
+* Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, collection entry candidates, portfolio impact preview, final review, workflow health reporting, Mobile Collector Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without collection mutation.
 
 ## Known Bugs
 
@@ -299,6 +300,14 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Implemented v5.4 Collector Workflow Integration locally: `CollectorWorkflowIntegrationEngine`, `WorkflowStage`, `WorkflowSession`, `WorkflowCompletionReport`, and `WorkflowHealthReport`; end-to-end photo/OCR/evidence/context/entry/portfolio/final-review workflow; resume support; review checkpoints; health reporting; Mobile Collector Companion summary integration; Tools -> Collector Workflow Integration; and CSV/Markdown export.
+* Roadmap lock commit: `0760cc0`
+* Acceptance audit so far: `python -m unittest test_collector_workflow_integration.py test_mobile_collector_companion.py test_ocr_assisted_identification.py test_mobile_collection_entry.py test_portfolio_performance.py` -> 44 tests OK; `run_tests.bat` -> 677 tests OK.
+* GUI smoke note: local Tcl/Tk install could not find `init.tcl`; syntax checks and full non-GUI regression suite passed.
+* Coverage note: total passing tests increased from 669 to 677; new v5.4 regression tests cover workflow creation, progression, resume, review checkpoints, portfolio preview integration, health reporting, Mobile Companion integration, and exports.
+* Release prompt archived: `project_docs/release_prompts/v5.4.txt`.
+* Limitation: Collector Workflow Integration is preview-only and manual-review-only; no cloud sync, internet services, automatic collection mutation, automatic purchases, or AI grading.
 
 * Locked v5.4 roadmap: Collector Workflow Integration -> Collector Cloud Foundation -> Sync & Backup -> Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
 * v5.4 roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
