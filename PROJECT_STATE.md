@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.3`
-* Summary of what was included: v5.4 Collector Workflow Integration implementation is in progress with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and regression coverage. Latest released tag remains v5.3 until v5.4 tag verification completes.
+* Most recent Git tag: `v5.4`
+* Summary of what was included: Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -64,6 +64,7 @@
 * `v5.1` acceptance audit passed on 2026-06-22; tag `v5.1` verified during release.
 * `v5.2` acceptance audit passed on 2026-06-22; tag `v5.2` verified during release.
 * `v5.3` acceptance audit passed on 2026-06-22; tag `v5.3` verified during release.
+* `v5.4` acceptance audit passed on 2026-06-22; tag `v5.4` verified during release.
 
 ## Completed Features
 
@@ -203,7 +204,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v5.4 Collector Workflow Integration unless a release-blocking defect is found.
+Begin v6.0 Collector Cloud Foundation planning unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -301,9 +302,11 @@ Current archive status:
 
 ### 2026-06-22
 
+* Implementation commit: `f86d8ca` (`Implement v5.4 collector workflow integration`).
+* Release packaging status: v5.4 tag and push verification completed.
 * Implemented v5.4 Collector Workflow Integration locally: `CollectorWorkflowIntegrationEngine`, `WorkflowStage`, `WorkflowSession`, `WorkflowCompletionReport`, and `WorkflowHealthReport`; end-to-end photo/OCR/evidence/context/entry/portfolio/final-review workflow; resume support; review checkpoints; health reporting; Mobile Collector Companion summary integration; Tools -> Collector Workflow Integration; and CSV/Markdown export.
 * Roadmap lock commit: `0760cc0`
-* Acceptance audit so far: `python -m unittest test_collector_workflow_integration.py test_mobile_collector_companion.py test_ocr_assisted_identification.py test_mobile_collection_entry.py test_portfolio_performance.py` -> 44 tests OK; `run_tests.bat` -> 677 tests OK.
+* Acceptance audit: `python -m unittest test_collector_workflow_integration.py test_mobile_collector_companion.py test_ocr_assisted_identification.py test_mobile_collection_entry.py test_portfolio_performance.py` -> 44 tests OK; `run_tests.bat` -> 677 tests OK.
 * GUI smoke note: local Tcl/Tk install could not find `init.tcl`; syntax checks and full non-GUI regression suite passed.
 * Coverage note: total passing tests increased from 669 to 677; new v5.4 regression tests cover workflow creation, progression, resume, review checkpoints, portfolio preview integration, health reporting, Mobile Companion integration, and exports.
 * Release prompt archived: `project_docs/release_prompts/v5.4.txt`.

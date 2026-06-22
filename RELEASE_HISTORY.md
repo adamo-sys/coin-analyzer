@@ -52,7 +52,7 @@
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, coin/banknote front-back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, CSV/Markdown export, and 650-test regression pass. |
 | `v5.2` | See verified tag `v5.2` | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection/want-list/watchlist context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
-| `v5.4` | Pending tag verification | Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
+| `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 
 ## Notes
 

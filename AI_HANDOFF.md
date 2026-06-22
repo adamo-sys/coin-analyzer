@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v5.4`
-- Current active task: v5.4 Collector Workflow Integration
+- Current active task completed: v5.4 Collector Workflow Integration
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -52,6 +52,8 @@ Before each release, verify the current release prompt exists, previous archived
 - Added Tools -> Collector Workflow Integration with Markdown/CSV export for completion and health reports.
 - Mobile Collector Companion reports can include Collector Workflow Integration summaries.
 - Added `test_collector_workflow_integration.py` and expanded Mobile Collector Companion tests.
+- v5.4 implementation commit: `f86d8ca`.
+- v5.4 acceptance audit: 677 tests OK via `run_tests.bat`.
 
 - Locked the v5.4 roadmap: Collector Workflow Integration, followed by v6.0 Collector Cloud Foundation, v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v5.4 release prompt at `project_docs/release_prompts/v5.4.txt`.

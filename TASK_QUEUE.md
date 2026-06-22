@@ -115,7 +115,7 @@ Work through this queue in priority order. Handle only one task at a time.
 83. `[x]` Build v5.1 Phone Photo Capture
 84. `[x]` Build v5.2 OCR-Assisted Identification
 85. `[x]` Build v5.3 Mobile Collection Entry
-86. `[-]` Build v5.4 Collector Workflow Integration
+86. `[x]` Build v5.4 Collector Workflow Integration
 87. `[ ]` Build v6.0 Collector Cloud Foundation
 88. `[ ]` Build v6.1 Sync & Backup
 89. `[ ]` Build v6.2 Multi-Device Collector Workspace
@@ -213,10 +213,12 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.2.md`
   - `docs/releases/v5.3.md`
 
-#### `[-]` Build v5.4 Collector Workflow Integration
+#### `[x]` Build v5.4 Collector Workflow Integration
 
 - Date started: 2026-06-22
-- Implementation status: code and release audit complete; implementation commit, metadata commit, tag, push, and remote verification pending.
+- Date completed: 2026-06-22
+- Implementation status: complete; metadata commit, tag, push, and remote verification completed.
+- Implementation commit: `f86d8ca`.
 - Added `collector_workflow_integration.py` with `CollectorWorkflowIntegrationEngine`, `WorkflowStage`, `WorkflowSession`, `WorkflowCompletionReport`, and `WorkflowHealthReport`.
 - End-to-end workflow implemented: Photo Capture -> OCR Identification -> Evidence Review -> Collection Context -> Collection Entry Candidate -> Portfolio Impact Preview -> Final Review.
 - Review checkpoints support APPROVE, REJECT, and REVIEW.
