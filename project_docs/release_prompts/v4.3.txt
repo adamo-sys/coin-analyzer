@@ -1,0 +1,433 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.0.md
+* docs/releases/v4.1.md
+* docs/releases/v4.2.md
+* current codebase
+
+Begin v4.3 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md (if appropriate)
+
+Lock roadmap as:
+
+v4.3 = Watchlists & Alerts
+
+v5.0 = Mobile Collector Companion
+
+v5.1 = Phone Photo Capture
+
+v5.2 = OCR-Assisted Identification
+
+v6.0 = Collector Cloud
+
+Record rationale:
+
+v4.2 completed automated market intelligence enrichment.
+
+v4.3 should allow collectors to define what they care about and automatically identify opportunities that match those goals.
+
+Commit:
+
+Lock v4.3 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+Then continue.
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Collector Companion should know what the collector is actively seeking.
+
+The system should automatically identify:
+
+* want-list matches
+* watchlist matches
+* upgrade opportunities
+* collection-gap opportunities
+* high-priority collection targets
+
+Do NOT add:
+
+* push notifications
+* email notifications
+* SMS notifications
+* background polling
+* scheduled jobs
+* automatic purchasing
+* collection mutation
+
+Alerts remain report-driven and user-triggered.
+
+==================================================
+PHASE 2
+WATCHLIST ENGINE
+================
+
+Create:
+
+watchlist_engine.py
+
+Implement:
+
+* WatchlistEngine
+* Watchlist
+* WatchlistItem
+* WatchlistMatch
+* WatchlistReport
+
+Purpose:
+
+Track collector-defined targets.
+
+==================================================
+PHASE 3
+WATCHLIST TYPES
+===============
+
+Support:
+
+Series Watch
+
+Examples:
+
+* Newfoundland
+* Canadian Silver
+* Canadian Banknotes
+* Large Cents
+
+Specific Coin Watch
+
+Examples:
+
+* 1926 Near 6 Nickel
+* 1973 Large Bust Quarter
+* 1859 Wide 9
+* 1904H Newfoundland 50 Cents
+
+Keyword Watch
+
+Examples:
+
+* ICCS
+* PCGS
+* PMG
+* Chartered Banknote
+
+Custom Watch
+
+User-defined text.
+
+==================================================
+PHASE 4
+PRIORITY SYSTEM
+===============
+
+Create:
+
+WatchPriority
+
+Levels:
+
+* CRITICAL
+* HIGH
+* NORMAL
+* LOW
+
+Allow watchlist entries to be prioritized.
+
+==================================================
+PHASE 5
+MATCH ENGINE
+============
+
+Evaluate candidates from:
+
+* Deal Hunter
+* Ranking Engine
+* Live Deal Hunter
+* Listing Connectors
+* Market Intelligence Automation
+
+Output:
+
+WatchlistMatch
+
+Include:
+
+* matched watch
+* confidence
+* relevance
+* match reason
+
+==================================================
+PHASE 6
+ALERT ENGINE
+============
+
+Create:
+
+AlertEngine
+
+Create:
+
+AlertRecord
+
+Types:
+
+* Watchlist Match
+* Upgrade Opportunity
+* Collection Gap Opportunity
+* High Priority Opportunity
+* Rare Target Opportunity
+
+Alerts are generated on demand.
+
+No background monitoring.
+
+==================================================
+PHASE 7
+ADAM COLLECTION PRESETS
+=======================
+
+Add optional built-in watch presets:
+
+* Newfoundland Coins
+* Newfoundland Silver
+* Canadian Silver
+* Canadian Banknotes
+* 1859 Large Cent Varieties
+* 1926 Near 6 Nickel
+* 1973 Large Bust Quarter
+
+Presets must remain editable.
+
+Do not hard-code recommendations.
+
+==================================================
+PHASE 8
+ALERT SCORING
+=============
+
+Create:
+
+AlertScore
+
+Factors:
+
+* watch priority
+* collection relevance
+* opportunity score
+* market intelligence confidence
+* upgrade potential
+
+Output:
+
+0-100
+
+==================================================
+PHASE 9
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Watchlists & Alerts
+
+Support:
+
+* create watchlist
+* edit watchlist
+* remove watchlist
+* run watch scan
+* review alerts
+
+Display:
+
+* active watchlists
+* recent matches
+* alert score
+* match reasons
+
+==================================================
+PHASE 10
+REPORTING
+=========
+
+Create:
+
+WatchlistReport
+AlertReport
+
+Support:
+
+* Markdown export
+* CSV export
+
+Include:
+
+* watchlist matches
+* alert scores
+* match reasons
+* opportunity summaries
+
+==================================================
+PHASE 11
+PIPELINE INTEGRATION
+====================
+
+Flow:
+
+Live Source
+↓
+Validation
+↓
+Deal Hunter
+↓
+Ranking
+↓
+Market Intelligence Automation
+↓
+Watchlists & Alerts
+↓
+Report
+
+Reuse existing intelligence.
+
+Do not duplicate scoring systems.
+
+==================================================
+PHASE 12
+TESTING
+=======
+
+Add tests for:
+
+* watchlist creation
+* watchlist matching
+* keyword watches
+* specific coin watches
+* priority handling
+* alert generation
+* alert scoring
+* preset watchlists
+* report generation
+* pipeline integration
+
+Run:
+
+* Watchlist tests
+* Market Intelligence Automation tests
+* Live Deal Hunter tests
+* Validation tests
+* Deal Hunter tests
+* Ranking tests
+* Portfolio Performance tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 13
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v4.3.md
+
+Document:
+
+* watchlists
+* alert engine
+* priorities
+* presets
+* limitations
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* watchlists work
+* alerts work
+* presets work
+* alert scoring works
+* reports work
+* integrations work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v4.3
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can automatically identify opportunities that match the collector's goals, explain why they matter, prioritize them, and generate actionable alerts using the existing intelligence stack while remaining fully user-controlled.

@@ -109,16 +109,21 @@ Work through this queue in priority order. Handle only one task at a time.
 77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
 78. `[x]` Build v4.1 Live Source Validation
 79. `[x]` Build v4.2 Market Intelligence Automation
-80. `[ ]` Build v4.3 Watchlists & Alerts
+80. `[-]` Build v4.3 Watchlists & Alerts
 81. `[ ]` Build v5.0 Mobile Collector Companion
+82. `[ ]` Build v5.1 Phone Photo Capture
+83. `[ ]` Build v5.2 OCR-Assisted Identification
+84. `[ ]` Build v6.0 Collector Cloud
 
-## Official v4.2 Roadmap
+## Official v4.3 Roadmap
 
-1. `v4.2` Market Intelligence Automation
-2. `v4.3` Watchlists & Alerts
-3. `v5.0` Mobile Collector Companion
+1. `v4.3` Watchlists & Alerts
+2. `v5.0` Mobile Collector Companion
+3. `v5.1` Phone Photo Capture
+4. `v5.2` OCR-Assisted Identification
+5. `v6.0` Collector Cloud
 
-Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+Roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -170,6 +175,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[-]` Lock v4.3 roadmap
+
+- Date started: 2026-06-21
+- Roadmap locked:
+  - `v4.3` Watchlists & Alerts
+  - `v5.0` Mobile Collector Companion
+  - `v5.1` Phone Photo Capture
+  - `v5.2` OCR-Assisted Identification
+  - `v6.0` Collector Cloud
+- Rationale: `v4.2` completed automated market intelligence enrichment; `v4.3` lets collectors define what they care about and identify matching opportunities.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+  - `project_docs/release_prompts/v4.3.txt`
+- Commit hash: pending
 
 #### `[x]` Lock v4.2 roadmap
 

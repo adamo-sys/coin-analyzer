@@ -254,15 +254,17 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v4.2 roadmap:
+Official v4.3 roadmap:
 
-- `v4.2` Market Intelligence Automation
 - `v4.3` Watchlists & Alerts
 - `v5.0` Mobile Collector Companion
+- `v5.1` Phone Photo Capture
+- `v5.2` OCR-Assisted Identification
+- `v6.0` Collector Cloud
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
-Post-v3.7 roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+v4.3 roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
 
 Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 

@@ -143,13 +143,15 @@
 
 ## Active Roadmap
 
-Official v4.2 roadmap:
+Official v4.3 roadmap:
 
-1. `v4.2` Market Intelligence Automation
-2. `v4.3` Watchlists & Alerts
-3. `v5.0` Mobile Collector Companion
+1. `v4.3` Watchlists & Alerts
+2. `v5.0` Mobile Collector Companion
+3. `v5.1` Phone Photo Capture
+4. `v5.2` OCR-Assisted Identification
+5. `v6.0` Collector Cloud
 
-Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+Roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -187,7 +189,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v4.3 Watchlists & Alerts unless a release-blocking defect is found.
+Build v4.3 Watchlists & Alerts unless a release-blocking defect is found.
 
 ## Project Architecture
 

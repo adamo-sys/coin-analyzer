@@ -5,7 +5,7 @@
 - Date: 2026-06-21
 - Branch: `main`
 - Current project state file reports release version: `v4.2`
-- Current active task completed: v4.2 Market Intelligence Automation
+- Current active task in progress: v4.3 Watchlists & Alerts
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,13 +16,15 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v4.2 Roadmap
+## Official v4.3 Roadmap
 
-1. `v4.2` Market Intelligence Automation
-2. `v4.3` Watchlists & Alerts
-3. `v5.0` Mobile Collector Companion
+1. `v4.3` Watchlists & Alerts
+2. `v5.0` Mobile Collector Companion
+3. `v5.1` Phone Photo Capture
+4. `v5.2` OCR-Assisted Identification
+5. `v6.0` Collector Cloud
 
-Roadmap rationale: the platform now contains Collection Intelligence, Deal Hunter, Opportunity Engine, Ranking Engine, Listing Connectors, and Calibration Framework. Before live listings are introduced, the system should better explain value, confidence, risk, and deal quality.
+Roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
