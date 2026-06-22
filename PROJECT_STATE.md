@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.0`
-* Summary of what was included: v5.1 implementation is in progress locally: Phone Photo Capture with metadata-only capture sessions, front/back pairing, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, CSV/Markdown export, and regression coverage. Release tag verification is pending.
+* Most recent Git tag: `v5.1`
+* Summary of what was included: Phone Photo Capture with metadata-only capture sessions, front/back pairing, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -61,6 +61,7 @@
 * `v4.3` acceptance audit passed on 2026-06-21; tag `v4.3` verified during release.
 * `v4.4` acceptance audit passed on 2026-06-21; tag `v4.4` verified during release.
 * `v5.0` acceptance audit passed on 2026-06-22; tag `v5.0` verified during release.
+* `v5.1` acceptance audit passed on 2026-06-22; tag `v5.1` verified during release.
 
 ## Completed Features
 
@@ -282,7 +283,8 @@ Prepare v5.1 Phone Photo Capture unless a release-blocking defect is found.
 ### 2026-06-22
 
 * Implemented v5.1 Phone Photo Capture locally: `PhotoCaptureWorkflow`, `CapturedPhoto`, `PhotoCaptureSession`, `PhotoCaptureReport`, coin/banknote front-back workflows, listing-photo workflow, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, and CSV/Markdown export.
-* Release packaging status: implementation complete locally; commit/tag/push verification pending.
+* Implementation commit: `f6946f3`
+* Release packaging status: v5.1 tag and push verification completed.
 * Full test suite passed: 650 tests OK.
 * Focused test slice passed: 65 tests OK (`test_photo_capture_workflow.py`, `test_mobile_collector_companion.py`, `test_ocr_experiment.py`, `test_ocr_validation.py`, `test_photo_vault.py`, `test_portfolio_performance.py`).
 * Coverage note: total passing tests increased from 641 to 650; new v5.1 regression tests cover session creation, front/back pairing, note workflows, state transitions, OCR readiness, export generation, Mobile Companion integration, and OCR/validation adapters.

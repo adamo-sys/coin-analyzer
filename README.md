@@ -197,7 +197,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, and regression coverage. |
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, and regression coverage. |
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
-| `v5.1` | Pending release tag | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
+| `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 

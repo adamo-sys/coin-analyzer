@@ -49,7 +49,7 @@
 | `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, CSV/Markdown export, and regression coverage. |
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, CSV/Markdown export, and regression coverage. |
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, CSV/Markdown export, and regression coverage. |
-| `v5.1` | Pending release tag | Phone Photo Capture with metadata-only capture sessions, coin/banknote front-back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, CSV/Markdown export, and 650-test regression pass. |
+| `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, coin/banknote front-back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, CSV/Markdown export, and 650-test regression pass. |
 
 ## Notes
 
