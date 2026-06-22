@@ -145,15 +145,15 @@
 
 ## Active Roadmap
 
-Official v4.3 roadmap:
+Official v4.4 roadmap:
 
-1. `v4.3` Watchlists & Alerts
+1. `v4.4` Live Deal Hunter Field Test & Tuning
 2. `v5.0` Mobile Collector Companion
 3. `v5.1` Phone Photo Capture
 4. `v5.2` OCR-Assisted Identification
 5. `v6.0` Collector Cloud
 
-Roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
+Roadmap rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts. Before mobile expansion, the live pipeline should be tuned using realistic scenarios and field-testing workflows.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -191,7 +191,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v5.0 Mobile Collector Companion unless a release-blocking defect is found.
+Build v4.4 Live Deal Hunter Field Test & Tuning unless a release-blocking defect is found.
 
 ## Project Architecture
 

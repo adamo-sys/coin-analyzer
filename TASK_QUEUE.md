@@ -110,20 +110,21 @@ Work through this queue in priority order. Handle only one task at a time.
 78. `[x]` Build v4.1 Live Source Validation
 79. `[x]` Build v4.2 Market Intelligence Automation
 80. `[x]` Build v4.3 Watchlists & Alerts
-81. `[ ]` Build v5.0 Mobile Collector Companion
-82. `[ ]` Build v5.1 Phone Photo Capture
-83. `[ ]` Build v5.2 OCR-Assisted Identification
-84. `[ ]` Build v6.0 Collector Cloud
+81. `[-]` Build v4.4 Live Deal Hunter Field Test & Tuning
+82. `[ ]` Build v5.0 Mobile Collector Companion
+83. `[ ]` Build v5.1 Phone Photo Capture
+84. `[ ]` Build v5.2 OCR-Assisted Identification
+85. `[ ]` Build v6.0 Collector Cloud
 
-## Official v4.3 Roadmap
+## Official v4.4 Roadmap
 
-1. `v4.3` Watchlists & Alerts
+1. `v4.4` Live Deal Hunter Field Test & Tuning
 2. `v5.0` Mobile Collector Companion
 3. `v5.1` Phone Photo Capture
 4. `v5.2` OCR-Assisted Identification
 5. `v6.0` Collector Cloud
 
-Roadmap rationale: `v4.2` completed automated market intelligence enrichment. `v4.3` should allow collectors to define what they care about and automatically identify opportunities that match those goals.
+Roadmap rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts. Before mobile expansion, the live pipeline should be tuned using realistic scenarios and field-testing workflows.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -175,6 +176,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[-]` Lock v4.4 roadmap
+
+- Date started: 2026-06-21
+- Roadmap locked:
+  - `v4.4` Live Deal Hunter Field Test & Tuning
+  - `v5.0` Mobile Collector Companion
+  - `v5.1` Phone Photo Capture
+  - `v5.2` OCR-Assisted Identification
+  - `v6.0` Collector Cloud
+- Rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts; before mobile expansion, the live pipeline should be tuned using realistic field-test scenarios.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+- Commit hash: pending
 
 #### `[x]` Lock v4.3 roadmap
 
