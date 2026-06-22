@@ -111,7 +111,7 @@ Work through this queue in priority order. Handle only one task at a time.
 79. `[x]` Build v4.2 Market Intelligence Automation
 80. `[x]` Build v4.3 Watchlists & Alerts
 81. `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
-82. `[-]` Build v5.0 Mobile Collector Companion
+82. `[x]` Build v5.0 Mobile Collector Companion
 83. `[ ]` Build v5.1 Phone Photo Capture
 84. `[ ]` Build v5.2 OCR-Assisted Identification
 85. `[ ]` Build v5.3 Mobile Collection Entry
@@ -201,6 +201,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
 - Commit hash: `0e9e37f`
+
+#### `[x]` Build v5.0 Mobile Collector Companion
+
+- Date started: 2026-06-22
+- Date completed: 2026-06-22
+- Files modified:
+  - `mobile_collector_companion.py` (new file)
+  - `test_mobile_collector_companion.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v5.0.md` (new file)
+- Roadmap lock commit hash: `0e9e37f`
+- Implementation commit hash: `814ca99`
+- Test coverage: total passing tests increased from 633 to 641; existing regression suites remained green.
+- Limitation: desktop/local mobile workflow simulation only; no Android/iOS app, cloud sync, phone-camera integration, OCR identification, live fetching, purchasing, or collection mutation.
 
 #### `[x]` Lock v4.4 roadmap
 

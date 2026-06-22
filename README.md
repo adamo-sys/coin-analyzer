@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v4.4`
+Current version: `v5.0`
 
-Latest tagged release: `v4.4`
+Latest tagged release: `v5.0`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -49,6 +49,7 @@ The app is especially tuned for Adam-specific priorities:
 - Market Intelligence Automation: automatically enrich Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates with existing local Market Intelligence, collection relevance, evidence summaries, risk warnings, and review escalations while preserving original recommendations.
 - Watchlists & Alerts: define editable series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports.
 - Field Test & Tuning: run deterministic live-pipeline scenarios through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, opportunity quality, alert quality, and likely false positives before mobile expansion.
+- Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews with quick decisions, collection context, field work mode, dashboard summaries, and CSV/Markdown export.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -140,7 +141,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v4.4 Live Deal Hunter Field Test & Tuning suite passed with `633 tests OK`.
+The v5.0 Mobile Collector Companion suite passed with `641 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -194,6 +195,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v4.2` | See verified tag `v4.2` | Market Intelligence Automation with candidate enrichment, collection relevance summaries, fair-value evidence summaries, review escalation, Live Deal Hunter integration, Tools -> Market Intelligence Automation, and 615-test regression pass. |
 | `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, and regression coverage. |
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, and regression coverage. |
+| `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -218,6 +220,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Market Intelligence Automation when you want a batch of candidates enriched with deal quality, confidence, fair-value evidence, collection relevance, risks, and review escalation while preserving the original recommendation.
 - Use Watchlists & Alerts when you want to define collector targets and scan existing candidate outputs for on-demand watchlist matches, upgrade opportunities, collection gaps, high-priority opportunities, or rare target opportunities.
 - Use Field Test & Tuning when you want deterministic live-pipeline test scenarios, pipeline health metrics, opportunity quality summaries, alert quality checks, and false-positive audit findings before expanding live or mobile workflows.
+- Use Mobile Collector Companion when you want a desktop/local simulation of field decisions at a coin show, dealer visit, antique market, coin shop, or auction preview.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
@@ -310,6 +313,7 @@ Future candidates:
 - Market Intelligence Automation reuses local Market Intelligence only. It does not create a second valuation engine, retrieve live prices, convert currencies, forecast markets, provide investment advice, purchase, bid, or mutate collection data.
 - Watchlists & Alerts are report-driven and user-triggered only. They do not send push, email, or SMS notifications, poll sources in the background, schedule jobs, purchase, bid, fetch live pricing, or mutate collection data.
 - Field Test & Tuning uses deterministic local fixtures only. It does not add live sources, scrape, automate browsers, call APIs, purchase, mutate collection data, send notifications, or sync to cloud services.
+- Mobile Collector Companion is a desktop/local workflow layer, not an Android app, iOS app, web app, cloud sync system, phone-camera integration, OCR identification workflow, purchasing tool, or collection-mutation workflow.
 - Market Intelligence estimates are deterministic local guidance from supplied comparable sales, local Market Awareness records, and existing internal deal guidance. They are not appraisals, live market pricing, or guarantees of value.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
@@ -769,6 +773,36 @@ Known limitations:
 - Findings are review recommendations only.
 - No scraping, browser automation, API integrations, automatic purchasing, collection mutation, push notifications, or cloud sync.
 
+## Mobile Collector Companion
+
+Use Tools -> Mobile Collector Companion when you want a phone-like collector workflow while still working inside the desktop app.
+
+Supported mobile-oriented workflows:
+
+- Coin Show Workflow
+- Dealer Visit Workflow
+- Antique Market Workflow
+- Coin Shop Workflow
+- Auction Preview Workflow
+
+Mobile Collector Companion adds:
+
+- `MobileCollectorCompanion` as the orchestration layer.
+- `MobileSession` and `MobileWorkflow` for phone-like field sessions.
+- `QuickDecisionSummary` for concise BUY/WATCH/PASS/REVIEW guidance, confidence, top reasons, key risks, watchlist matches, collection relevance, and market summary.
+- `MobileCollectionContext` for watchlist summary, active targets, collection priorities, recent opportunities, and portfolio highlights.
+- `MobileDashboard` for active watchlists, high-priority targets, recent alerts, recent opportunities, collection priorities, and quick decisions.
+- `FieldWorkMode` for short-form summaries optimized for on-the-go review.
+- `MobileCompanionReport` with CSV and Markdown export.
+
+The companion reuses Deal Hunter Ranking, Market Intelligence Automation, Watchlists, Alerts, Portfolio Performance, and Field Test Framework outputs. It does not create a second recommendation engine.
+
+Known limitations:
+
+- Desktop/local workflow simulation only.
+- No Android app, iOS app, web app, cloud sync, phone-camera integration, OCR identification, live fetching, purchasing, or collection mutation.
+- Quick decisions are compact summaries of existing deterministic engines and should be manually reviewed before spending money.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -812,6 +846,7 @@ Export support is intentionally report-specific:
 - Portfolio Performance: CSV and Markdown export.
 - Watchlists & Alerts: CSV and Markdown export.
 - Field Test & Tuning: CSV and Markdown export.
+- Mobile Collector Companion: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

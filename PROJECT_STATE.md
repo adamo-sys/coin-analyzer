@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v4.4`
+* Current release version: `v5.0`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v4.4`
-* Summary of what was included: Live Deal Hunter Field Test & Tuning with deterministic scenario library, field-test runner, opportunity quality reporting, pipeline health reporting, false-positive audit, Tools -> Field Test & Tuning, CSV/Markdown export, and regression coverage.
+* Most recent Git tag: `v5.0`
+* Summary of what was included: Mobile Collector Companion with desktop/local mobile-oriented sessions, field workflows, quick decision summaries, mobile collection context, mobile dashboard, field work mode, Tools -> Mobile Collector Companion, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -60,6 +60,7 @@
 * `v4.2` acceptance audit passed on 2026-06-21; tag `v4.2` verified during release.
 * `v4.3` acceptance audit passed on 2026-06-21; tag `v4.3` verified during release.
 * `v4.4` acceptance audit passed on 2026-06-21; tag `v4.4` verified during release.
+* `v5.0` acceptance audit passed on 2026-06-22; tag `v5.0` verified during release.
 
 ## Completed Features
 
@@ -134,6 +135,7 @@
 * Market Intelligence Automation: deterministic enrichment layer that applies existing Market Intelligence to Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates, preserving original recommendations while adding deal quality, confidence, fair-value evidence, collection relevance, risk warnings, counterarguments, and review escalation.
 * Watchlists & Alerts: report-driven collector target layer that lets users define series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports without background polling, notifications, purchasing, bidding, or collection mutation.
 * Live Deal Hunter Field Test & Tuning: deterministic field-test framework that runs realistic scenario batches through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, recommendation quality, alert quality, and likely false positives before mobile expansion.
+* Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews, with quick decision summaries, field work mode, mobile collection context, dashboard reporting, CSV/Markdown export, and integration with existing intelligence engines.
 
 ## Known Bugs
 
@@ -195,7 +197,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v5.0 Mobile Collector Companion unless a release-blocking defect is found.
+Prepare v5.1 Phone Photo Capture unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -229,6 +231,7 @@ Build v5.0 Mobile Collector Companion unless a release-blocking defect is found.
 * Market Intelligence Automation system: `market_intelligence_automation.py` provides `MarketIntelligenceAutomationEngine`, `MarketEnrichedCandidate`, `MarketEnrichmentBatchReport`, `FairValueEvidenceSummary`, and `CollectionRelevanceSummary`. It batch-enriches candidate listings through the existing Market Intelligence engine, preserves original recommendations, escalates uncertain cases to REVIEW, and exports CSV/Markdown reports without live price retrieval.
 * Watchlists & Alerts system: `watchlist_engine.py` provides `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`. It matches collector-defined watches against existing Deal Hunter, Ranking, Live Deal Hunter, listing connector, and Market Intelligence Automation outputs, then generates on-demand report alerts without polling, notifications, purchases, or collection mutation.
 * Field Test & Tuning system: `field_test_framework.py` provides `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, and `FalsePositiveAudit`. It runs deterministic local scenarios through Live Source Validation, Live Deal Hunter, Deal Hunter Ranking, Market Intelligence Automation, Watchlists, and Alerts without fetching live sources or mutating collection data.
+* Mobile Collector Companion system: `mobile_collector_companion.py` provides `MobileCollectorCompanion`, `MobileSession`, `MobileWorkflow`, `QuickDecisionSummary`, `MobileCollectionContext`, `MobileDashboard`, `FieldWorkMode`, and `MobileCompanionReport`. It reuses Deal Hunter Ranking, Market Intelligence Automation, Watchlists, Alerts, Portfolio Performance, and Field Test Framework outputs for phone-like desktop workflows without adding a mobile app, camera integration, cloud sync, or collection mutation.
 * Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
@@ -275,6 +278,13 @@ Build v5.0 Mobile Collector Companion unless a release-blocking defect is found.
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v5.0 Mobile Collector Companion: `MobileCollectorCompanion`, `MobileSession`, `MobileWorkflow`, `QuickDecisionSummary`, `MobileCollectionContext`, `MobileDashboard`, `FieldWorkMode`, `MobileCompanionReport`, coin show/dealer/antique market/coin shop/auction preview workflows, Tools -> Mobile Collector Companion, CSV/Markdown export, and integration with ranking, market intelligence, watchlists, alerts, portfolio context, and field-test snapshots.
+* Roadmap lock commit: `0e9e37f`
+* Implementation commit: `814ca99`
+* Full test suite passed: 641 tests OK.
+* Coverage note: total passing tests increased from 633 to 641; existing regression suites remained green.
+* Limitation: desktop/local mobile workflow simulation only; no Android/iOS app, cloud sync, phone-camera integration, OCR identification, live fetching, purchasing, or collection mutation.
 
 * Implemented v4.4 Live Deal Hunter Field Test & Tuning: `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, `FalsePositiveAudit`, deterministic scenario library, Tools -> Field Test & Tuning, CSV/Markdown export, and souvenir/token watchlist confidence tuning.
 * Roadmap lock commit: `e21abe3`
