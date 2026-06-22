@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.2` (v5.3 release packaging in progress)
-* Summary of what was included: v5.3 Mobile Collection Entry implementation is in progress with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and regression coverage.
+* Most recent Git tag: `v5.3`
+* Summary of what was included: Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -63,6 +63,7 @@
 * `v5.0` acceptance audit passed on 2026-06-22; tag `v5.0` verified during release.
 * `v5.1` acceptance audit passed on 2026-06-22; tag `v5.1` verified during release.
 * `v5.2` acceptance audit passed on 2026-06-22; tag `v5.2` verified during release.
+* `v5.3` acceptance audit passed on 2026-06-22; tag `v5.3` verified during release.
 
 ## Completed Features
 
@@ -202,7 +203,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Complete v5.3 Mobile Collection Entry release packaging, then begin v6.0 Collector Cloud planning unless a release-blocking defect is found.
+Begin v6.0 Collector Cloud planning unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -298,6 +299,17 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Implemented v5.3 Mobile Collection Entry locally: `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, `CollectionEntryReport`, OCR-to-entry candidate pipeline, field confidence, collection/WANT_LIST/watchlist context, portfolio impact preview, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, and CSV/Markdown export.
+* Roadmap lock commit: `bf294c1`
+* Implementation commit: `9b5be99`
+* Release packaging status: v5.3 tag and push verification completed.
+* Full test suite passed: 669 tests OK.
+* Focused test slice passed: 48 tests OK (`test_mobile_collection_entry.py`, `test_ocr_assisted_identification.py`, `test_mobile_collector_companion.py`, `test_portfolio_performance.py`, `test_collection_intelligence.py`).
+* Melt value cache audit passed: `python -m unittest test_melt_value_engine` -> 29 tests OK; prior isolated failure was sandbox cache-write behavior, not a v5.3 regression.
+* Coverage note: total passing tests increased from 660 to 669; new v5.3 regression tests cover mobile entry candidate generation, OCR integration, collection context, duplicate/upgrade behavior, WANT_LIST/watchlist context, portfolio impact preview, review workflow, Mobile Companion integration, and export generation.
+* Release prompt archived: `project_docs/release_prompts/v5.3.txt`.
+* Limitation: Mobile Collection Entry is preview-only and manual-review-only; no automatic collection insertion, ownership decision, AI grading, cloud sync, purchase, bid, or mobile-native app.
 
 * Implemented v5.2 OCR-Assisted Identification locally: `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, `IdentificationEvidence`, captured-photo-to-OCR-to-validation-to-candidate pipeline, evidence/confidence model, collection/WANT_LIST/watchlist context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 * Roadmap lock commit: `08c5cf2`

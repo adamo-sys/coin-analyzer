@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v5.3`
-- Current active task: v5.3 Mobile Collection Entry release packaging
+- Current active task completed: v5.3 Mobile Collection Entry
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -54,6 +54,8 @@ Before each release, verify the current release prompt exists, previous archived
 - Mobile Collector Companion reports can include Mobile Collection Entry summaries.
 - Added `test_mobile_collection_entry.py` and expanded Mobile Collector Companion tests.
 - Archived the v5.3 release prompt at `project_docs/release_prompts/v5.3.txt`.
+- v5.3 implementation commit: `9b5be99`.
+- v5.3 acceptance audit: 669 tests OK via `run_tests.bat`.
 
 - Added `ocr_assisted_identification.py` with `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, and `IdentificationEvidence`.
 - OCR-Assisted Identification turns captured photos or pasted OCR text into review-only identification candidates.

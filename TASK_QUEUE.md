@@ -114,7 +114,7 @@ Work through this queue in priority order. Handle only one task at a time.
 82. `[x]` Build v5.0 Mobile Collector Companion
 83. `[x]` Build v5.1 Phone Photo Capture
 84. `[x]` Build v5.2 OCR-Assisted Identification
-85. `[-]` Build v5.3 Mobile Collection Entry
+85. `[x]` Build v5.3 Mobile Collection Entry
 86. `[ ]` Build v6.0 Collector Cloud
 87. `[ ]` Build v6.1 Sync & Backup
 88. `[ ]` Build v6.2 Multi-Device Collector Workspace
@@ -203,10 +203,12 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `README.md`
 
 
-#### `[-]` Build v5.3 Mobile Collection Entry
+#### `[x]` Build v5.3 Mobile Collection Entry
 
 - Date started: 2026-06-22
-- Implementation status: code, documentation, and release audit complete; metadata commit, tag, push, and remote verification pending.
+- Date completed: 2026-06-22
+- Implementation status: complete; metadata commit, tag, push, and remote verification completed.
+- Implementation commit: `9b5be99`.
 - Added `mobile_collection_entry.py` with `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, and `CollectionEntryReport`.
 - Pipeline implemented: Photo/OCR text -> OCR Candidate -> Collection Entry Candidate -> Review -> Approved Entry Record preview.
 - Review decisions: APPROVE, REJECT, REVIEW; approval prepares a preview record only and never inserts it automatically.
