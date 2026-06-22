@@ -208,7 +208,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/relea
 
 Release prompts are treated as project documentation and architecture history. They live under `project_docs/release_prompts/` and should be preserved instead of overwritten.
 
-Current archived prompts include `project_docs/release_prompts/v5.1.txt` and `project_docs/release_prompts/v5.2.txt`. Release notes should state whether each release prompt was archived and where it was stored.
+Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, and `project_docs/release_prompts/v5.3.txt`. Release notes should state whether each release prompt was archived and where it was stored.
 
 ## Which Tool To Use
 

@@ -1,0 +1,429 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.0.md
+* docs/releases/v5.1.md
+* docs/releases/v5.2.md
+* current codebase
+
+Begin v5.3 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v5.3 = Mobile Collection Entry
+
+v6.0 = Collector Cloud
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+Commit:
+
+Lock v5.3 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v5.2 OCR-Assisted Identification
+
+Latest Tag:
+
+a6e7a416129438e287b76a7d93138986142d2f83
+
+Total Tests:
+
+660
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Live Source Validation
+* Watchlists & Alerts
+* Field Testing & Tuning
+* Mobile Collector Companion
+* Phone Photo Capture
+* OCR-Assisted Identification
+
+Locked Roadmap:
+
+v5.3 = Mobile Collection Entry
+
+v6.0 = Collector Cloud
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v5.3.txt
+
+Preserve all previous release prompts.
+
+Document archive status in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v5.3.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create a mobile-oriented collection entry workflow.
+
+Purpose:
+
+Allow collectors to review OCR-assisted candidates and create collection-entry records.
+
+This release is NOT:
+
+* automatic collection mutation
+* automatic ownership decisions
+* cloud sync
+* automatic purchasing
+* AI grading
+
+Collector review remains mandatory.
+
+==================================================
+PHASE 2
+MOBILE COLLECTION ENTRY ENGINE
+==============================
+
+Create:
+
+mobile_collection_entry.py
+
+Implement:
+
+* MobileCollectionEntryEngine
+* CollectionEntryCandidate
+* CollectionEntryReview
+* CollectionEntryReport
+
+==================================================
+PHASE 3
+OCR TO ENTRY PIPELINE
+=====================
+
+Support:
+
+Photo
+↓
+OCR Candidate
+↓
+Collection Entry Candidate
+↓
+Review
+↓
+Approved Entry Record
+
+Do not automatically insert records.
+
+==================================================
+PHASE 4
+ENTRY CANDIDATE MODEL
+=====================
+
+Create candidate fields:
+
+* country
+* year
+* denomination
+* series
+* monarch
+* variety
+* grade estimate
+* certification number
+* notes
+* acquisition source
+
+Track confidence for each field.
+
+==================================================
+PHASE 5
+COLLECTION CONTEXT REVIEW
+=========================
+
+Compare candidate against:
+
+* existing collection
+* want list
+* watchlists
+* collection priorities
+
+Output:
+
+* already owned
+* duplicate
+* possible upgrade
+* collection gap
+* want-list match
+* review required
+
+==================================================
+PHASE 6
+ENTRY REVIEW WORKFLOW
+=====================
+
+Create:
+
+CollectionEntryReview
+
+Allow:
+
+APPROVE
+REJECT
+REVIEW
+
+Include:
+
+* reasoning
+* evidence summary
+* confidence summary
+* collection relevance
+
+==================================================
+PHASE 7
+PORTFOLIO INTEGRATION
+=====================
+
+Integrate with:
+
+* Portfolio Performance
+* Collection Intelligence
+* Mobile Companion
+
+Provide impact previews:
+
+* collection value impact
+* priority impact
+* collection gap impact
+
+Preview only.
+
+No automatic mutation.
+
+==================================================
+PHASE 8
+FIELD WORKFLOW
+==============
+
+Support:
+
+Coin Show
+Dealer Visit
+Coin Shop
+Auction Preview
+Antique Market
+
+Allow quick collection-entry preparation while away from desktop.
+
+==================================================
+PHASE 9
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Mobile Collection Entry
+
+Display:
+
+* entry candidates
+* review status
+* confidence
+* evidence
+* collection context
+* portfolio impact preview
+
+==================================================
+PHASE 10
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* CollectionEntryCandidate
+* CollectionEntryReview
+* CollectionEntryReport
+
+==================================================
+PHASE 11
+TESTING
+=======
+
+Add tests for:
+
+* entry candidate creation
+* OCR integration
+* collection context integration
+* duplicate detection
+* upgrade detection
+* portfolio impact preview
+* review workflow
+* export generation
+
+Run:
+
+* Mobile Collection Entry tests
+* OCR tests
+* Mobile Companion tests
+* Portfolio tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 12
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.3.md
+
+Document:
+
+* entry workflow
+* review workflow
+* portfolio preview workflow
+* limitations
+* prompt archive status
+
+==================================================
+PHASE 13
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* release prompt archive updated
+* project snapshot updated
+* release history updated
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* entry workflow works
+* OCR integration works
+* review workflow works
+* portfolio preview works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v5.3
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion supports a complete collector workflow:
+
+Capture
+↓
+OCR
+↓
+Identify
+↓
+Review
+↓
+Collection Entry Candidate
+↓
+Portfolio Impact Preview
+
+while preserving collector control and preventing automatic collection mutation.
+
+This completes the v5 Mobile Collector Workflow arc.

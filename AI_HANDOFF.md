@@ -39,7 +39,7 @@ v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened liv
 
 ## Release Prompt Archive
 
-Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt` and `v5.2.txt`.
+Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, and `v5.3.txt`.
 
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 

@@ -182,6 +182,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
+#### `[-]` Lock v5.3 roadmap
+
+- Date started: 2026-06-22
+- Roadmap locked:
+  - `v5.3` Mobile Collection Entry
+  - `v6.0` Collector Cloud
+  - `v6.1` Sync & Backup
+  - `v6.2` Multi-Device Collector Workspace
+- Release prompt archive verified:
+  - `project_docs/release_prompts/v5.1.txt`
+  - `project_docs/release_prompts/v5.2.txt`
+  - `project_docs/release_prompts/v5.3.txt`
+- Files checked:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+
 #### `[x]` Lock v5.2 roadmap
 
 - Date started: 2026-06-22

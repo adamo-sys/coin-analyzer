@@ -201,7 +201,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v5.2 OCR-Assisted Identification unless a release-blocking defect is found.
+Begin v5.3 Mobile Collection Entry unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -212,6 +212,7 @@ Current archive status:
 
 * v5.1 prompt archived at `project_docs/release_prompts/v5.1.txt`.
 * v5.2 prompt archived at `project_docs/release_prompts/v5.2.txt` before v5.2 development.
+* v5.3 prompt archived at `project_docs/release_prompts/v5.3.txt` before v5.3 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 
