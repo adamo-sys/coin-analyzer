@@ -182,9 +182,10 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-21
 
-#### `[-]` Lock v5 roadmap
+#### `[x]` Lock v5 roadmap
 
 - Date started: 2026-06-22
+- Date completed: 2026-06-22
 - Roadmap locked:
   - `v5.0` Mobile Collector Companion
   - `v5.1` Phone Photo Capture
@@ -199,7 +200,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
-- Commit hash: pending
+- Commit hash: `0e9e37f`
 
 #### `[x]` Lock v4.4 roadmap
 
