@@ -53,6 +53,7 @@ from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
+from watchlist_engine import AlertEngine, Watchlist, WatchlistEngine, WatchlistItem
 
 
 class CoinCollectionGUI:
@@ -83,6 +84,7 @@ class CoinCollectionGUI:
         self.audit_summaries = []
         self.recent_deal_listings = []
         self.deal_hunter_reports = []
+        self.watchlists = [WatchlistEngine.adam_presets()]
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
         
@@ -177,6 +179,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Live Deal Hunter Readiness", command=self.open_live_deal_hunter_readiness)
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
         tools_menu.add_command(label="Market Intelligence Automation", command=self.open_market_intelligence_automation)
+        tools_menu.add_command(label="Watchlists & Alerts", command=self.open_watchlists_and_alerts)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3638,6 +3641,180 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_watchlists_and_alerts(self):
+        """Open report-driven Watchlists & Alerts workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Watchlists & Alerts")
+        dialog.geometry("1040x820")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        ttk.Label(
+            main_frame,
+            text="Edit watch rows as: name | type | query | priority | keywords. Alerts are generated only when you run a scan.",
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
+        watch_frame = ttk.LabelFrame(main_frame, text="Watchlists", padding="8")
+        watch_frame.grid(row=1, column=0, sticky=tk.NSEW, padx=(0, 6), pady=(0, 8))
+        watch_frame.columnconfigure(0, weight=1)
+        candidate_frame = ttk.LabelFrame(main_frame, text="Candidate Rows", padding="8")
+        candidate_frame.grid(row=1, column=1, sticky=tk.NSEW, padx=(6, 0), pady=(0, 8))
+        candidate_frame.columnconfigure(0, weight=1)
+
+        watch_text = tk.Text(watch_frame, height=12, wrap=tk.WORD)
+        watch_text.grid(row=0, column=0, sticky=tk.NSEW)
+        watch_text.insert(tk.END, self._format_watchlists_for_editor(self.watchlists))
+
+        candidate_text = tk.Text(candidate_frame, height=12, wrap=tk.WORD)
+        candidate_text.grid(row=0, column=0, sticky=tk.NSEW)
+        candidate_text.insert(
+            tk.END,
+            "Newfoundland 1904H 50 cents EF40 | 125 | 10 | Dealer | Local candidate | \n"
+            "Canada 1926 Near 6 nickel VF | 80 | 5 | Dealer | Local candidate | \n",
+        )
+
+        result_frame = ttk.LabelFrame(main_frame, text="Watchlist Report and Alerts", padding="8")
+        result_frame.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        current = {"watch_report": None, "alert_report": None}
+
+        def load_presets():
+            self.watchlists = [WatchlistEngine.adam_presets()]
+            watch_text.delete("1.0", tk.END)
+            watch_text.insert(tk.END, self._format_watchlists_for_editor(self.watchlists))
+
+        def save_watchlists():
+            try:
+                parsed = self._parse_watchlists_from_editor(watch_text.get("1.0", tk.END))
+                self.watchlists = parsed or [WatchlistEngine.adam_presets()]
+                messagebox.showinfo("Watchlists Saved", f"Saved {sum(len(w.items) for w in self.watchlists)} watch item(s).")
+            except Exception as exc:
+                messagebox.showerror("Watchlist Error", f"Could not save watchlists: {str(exc)}")
+
+        def run_scan():
+            try:
+                save_watchlists()
+                candidates = self._parse_watchlist_candidate_rows(candidate_text.get("1.0", tk.END))
+                engine = WatchlistEngine(self.watchlists)
+                alert_engine = AlertEngine(engine)
+                watch_report = engine.scan(candidates)
+                alert_report = alert_engine.generate_alerts(candidates)
+                current["watch_report"] = watch_report
+                current["alert_report"] = alert_report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, watch_report.format_markdown())
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, alert_report.format_markdown())
+            except Exception as exc:
+                messagebox.showerror("Watchlist Scan Error", f"Watchlist scan failed: {str(exc)}")
+
+        def export_csv():
+            if not current["alert_report"]:
+                run_scan()
+            if not current["alert_report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Alert Report CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current["alert_report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Alert CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current["alert_report"] or not current["watch_report"]:
+                run_scan()
+            if not current["alert_report"] or not current["watch_report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Watchlists & Alerts Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            with open(file_path, "w", encoding="utf-8") as handle:
+                handle.write(current["watch_report"].format_markdown())
+                handle.write("\n")
+                handle.write(current["alert_report"].format_markdown())
+            messagebox.showinfo("Export Complete", f"Watchlists & Alerts Markdown exported to {file_path}")
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        ttk.Button(button_frame, text="Load Adam Presets", command=load_presets).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Save Watchlists", command=save_watchlists).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Run Watch Scan", command=run_scan).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def _format_watchlists_for_editor(self, watchlists):
+        lines = []
+        for watchlist in watchlists:
+            for item in watchlist.items:
+                lines.append(
+                    " | ".join([
+                        item.name,
+                        item.watch_type,
+                        item.query,
+                        item.priority.value,
+                        "; ".join(item.keywords),
+                    ])
+                )
+        return "\n".join(lines) + ("\n" if lines else "")
+
+    def _parse_watchlists_from_editor(self, text):
+        watchlist = Watchlist(name="GUI Watchlists")
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = [part.strip() for part in line.split("|")]
+            while len(parts) < 5:
+                parts.append("")
+            name, watch_type, query, priority, keywords = parts[:5]
+            keyword_list = [keyword.strip() for keyword in keywords.replace(",", ";").split(";") if keyword.strip()]
+            watchlist.add_item(WatchlistItem(name=name, watch_type=watch_type, query=query, priority=priority, keywords=keyword_list))
+        return [watchlist] if watchlist.items else []
+
+    def _parse_watchlist_candidate_rows(self, text):
+        listings = []
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = [part.strip() for part in line.split("|")]
+            while len(parts) < 6:
+                parts.append("")
+            title, price, shipping, seller, source, url = parts[:6]
+            try:
+                price_value = float(price) if price else 0.0
+            except ValueError:
+                price_value = 0.0
+            try:
+                shipping_value = float(shipping) if shipping else 0.0
+            except ValueError:
+                shipping_value = 0.0
+            listings.append(DealListing(
+                title=title,
+                price_cad=price_value,
+                shipping_cad=shipping_value,
+                seller=seller,
+                source=source,
+                listing_url=url,
+            ))
+        return listings
 
     def open_portfolio_performance(self):
         """Open deterministic portfolio-level performance report."""
