@@ -14,6 +14,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 from deal_hunter import DealHunter, DealListing
 from deal_hunter_calibration import DealHunterCalibrationEngine
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, ImportProfile
+from field_test_framework import ScenarioRunner, default_field_test_scenarios
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
     LegacyPortfolioImporter,
@@ -180,6 +181,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Market Intelligence", command=self.open_market_intelligence)
         tools_menu.add_command(label="Market Intelligence Automation", command=self.open_market_intelligence_automation)
         tools_menu.add_command(label="Watchlists & Alerts", command=self.open_watchlists_and_alerts)
+        tools_menu.add_command(label="Field Test & Tuning", command=self.open_field_test_and_tuning)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3815,6 +3817,89 @@ Total Unique Dates: {total_unique_dates}
                 listing_url=url,
             ))
         return listings
+
+    def open_field_test_and_tuning(self):
+        """Open deterministic live pipeline field-test workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Field Test & Tuning")
+        dialog.geometry("980x800")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        scenarios = default_field_test_scenarios()
+        summary_var = tk.StringVar(value=f"Loaded {len(scenarios)} deterministic field-test scenario(s).")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Field Test Report", padding="8")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+        result_text.insert(
+            tk.END,
+            "Run field tests to measure validation failures, duplicates, alert volume, review escalations, and likely false positives.\n",
+        )
+
+        current_report = {"report": None}
+
+        def run_tests():
+            try:
+                runner = ScenarioRunner(
+                    collection_items=self._collection_items(),
+                    want_list_intents=self._active_want_list_intents(),
+                    market_awareness_engine=self.market_awareness_engine,
+                    watchlists=self.watchlists,
+                )
+                report = runner.run_scenarios(scenarios)
+                current_report["report"] = report
+                summary_var.set(
+                    f"Scenarios: {report.scenario_count}   PASS: {report.pass_count}   REVIEW: {report.review_count}"
+                )
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except Exception as exc:
+                messagebox.showerror("Field Test Error", f"Field test run failed: {str(exc)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                run_tests()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Field Test CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Field test CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                run_tests()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Field Test Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Field test Markdown exported to {file_path}")
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(8, 0))
+        ttk.Button(button_frame, text="Run Field Tests", command=run_tests).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_portfolio_performance(self):
         """Open deterministic portfolio-level performance report."""

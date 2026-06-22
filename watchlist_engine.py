@@ -554,6 +554,9 @@ class WatchlistEngine:
         if not searchable or not watch_item.active:
             return None
         confidence, reason = self._match_score(searchable, watch_item)
+        if confidence > 0 and any(term in searchable for term in ("souvenir", "token", "replica", "copy")):
+            confidence = max(25, confidence - 35)
+            reason = f"{reason}; caution: possible souvenir/token/copy wording"
         if confidence <= 0:
             return None
         relevance = _candidate_relevance(candidate)
