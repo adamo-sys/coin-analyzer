@@ -30,6 +30,7 @@ from live_deal_hunter import DEFAULT_EBAY_RSS_URL, LiveDealHunter, RSSListingCon
 from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
 from live_source_validation import LiveSourceValidator
 from market_intelligence import MarketIntelligenceEngine
+from mobile_collector_companion import MobileCollectorCompanion, WORKFLOW_COIN_SHOW
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
@@ -182,6 +183,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Market Intelligence Automation", command=self.open_market_intelligence_automation)
         tools_menu.add_command(label="Watchlists & Alerts", command=self.open_watchlists_and_alerts)
         tools_menu.add_command(label="Field Test & Tuning", command=self.open_field_test_and_tuning)
+        tools_menu.add_command(label="Mobile Collector Companion", command=self.open_mobile_collector_companion)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3897,6 +3899,95 @@ Total Unique Dates: {total_unique_dates}
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=2, column=0, sticky=tk.W, pady=(8, 0))
         ttk.Button(button_frame, text="Run Field Tests", command=run_tests).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_mobile_collector_companion(self):
+        """Open mobile-oriented Collector Companion workflow simulation."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Mobile Collector Companion")
+        dialog.geometry("980x800")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        ttk.Label(
+            main_frame,
+            text="Enter candidate rows as: title | price | shipping | seller | source | url. This is a desktop/local mobile workflow simulation.",
+        ).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        candidate_frame = ttk.LabelFrame(main_frame, text="Field Candidates", padding="8")
+        candidate_frame.grid(row=1, column=0, sticky=tk.EW, pady=(0, 8))
+        candidate_frame.columnconfigure(0, weight=1)
+        candidate_text = tk.Text(candidate_frame, height=8, wrap=tk.WORD)
+        candidate_text.grid(row=0, column=0, sticky=tk.EW)
+        candidate_text.insert(
+            tk.END,
+            "Newfoundland 1904H 50 cents EF40 | 145 | 12 | Dealer | Coin Show | https://field.test/nfld\n"
+            "Canada 1926 Near 6 nickel VF | 95 | 7 | Dealer | Coin Show | https://field.test/near6\n",
+        )
+
+        result_frame = ttk.LabelFrame(main_frame, text="Mobile Companion Report", padding="8")
+        result_frame.grid(row=2, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        current_report = {"report": None}
+
+        def generate():
+            try:
+                companion = MobileCollectorCompanion(
+                    collection_items=self._collection_items(),
+                    want_list_intents=self._active_want_list_intents(),
+                    market_awareness_engine=self.market_awareness_engine,
+                    watchlists=self.watchlists,
+                )
+                listings = self._parse_watchlist_candidate_rows(candidate_text.get("1.0", tk.END))
+                report = companion.generate_report(listings, workflow_type=WORKFLOW_COIN_SHOW, location="Field workflow")
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except Exception as exc:
+                messagebox.showerror("Mobile Companion Error", f"Mobile companion report failed: {str(exc)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                generate()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Mobile Companion CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Mobile Companion CSV exported to {file_path}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                generate()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Mobile Companion Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            current_report["report"].export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Mobile Companion Markdown exported to {file_path}")
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=tk.W, pady=(8, 0))
+        ttk.Button(button_frame, text="Generate Report", command=generate).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
