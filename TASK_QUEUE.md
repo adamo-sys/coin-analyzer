@@ -111,20 +111,25 @@ Work through this queue in priority order. Handle only one task at a time.
 79. `[x]` Build v4.2 Market Intelligence Automation
 80. `[x]` Build v4.3 Watchlists & Alerts
 81. `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
-82. `[ ]` Build v5.0 Mobile Collector Companion
+82. `[-]` Build v5.0 Mobile Collector Companion
 83. `[ ]` Build v5.1 Phone Photo Capture
 84. `[ ]` Build v5.2 OCR-Assisted Identification
-85. `[ ]` Build v6.0 Collector Cloud
+85. `[ ]` Build v5.3 Mobile Collection Entry
+86. `[ ]` Build v6.0 Collector Cloud
+87. `[ ]` Build v6.1 Sync & Backup
+88. `[ ]` Build v6.2 Multi-Device Collector Workspace
 
-## Official v4.4 Roadmap
+## Official v5 Roadmap
 
-1. `v4.4` Live Deal Hunter Field Test & Tuning
-2. `v5.0` Mobile Collector Companion
-3. `v5.1` Phone Photo Capture
-4. `v5.2` OCR-Assisted Identification
+1. `v5.0` Mobile Collector Companion
+2. `v5.1` Phone Photo Capture
+3. `v5.2` OCR-Assisted Identification
+4. `v5.3` Mobile Collection Entry
 5. `v6.0` Collector Cloud
+6. `v6.1` Sync & Backup
+7. `v6.2` Multi-Device Collector Workspace
 
-Roadmap rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts. Before mobile expansion, the live pipeline should be tuned using realistic scenarios and field-testing workflows.
+Roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -176,6 +181,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-21
+
+#### `[-]` Lock v5 roadmap
+
+- Date started: 2026-06-22
+- Roadmap locked:
+  - `v5.0` Mobile Collector Companion
+  - `v5.1` Phone Photo Capture
+  - `v5.2` OCR-Assisted Identification
+  - `v5.3` Mobile Collection Entry
+  - `v6.0` Collector Cloud
+  - `v6.1` Sync & Backup
+  - `v6.2` Multi-Device Collector Workspace
+- Rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning; the intelligence stack is mature enough for a mobile-focused workflow.
+- Files modified:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+- Commit hash: pending
 
 #### `[x]` Lock v4.4 roadmap
 

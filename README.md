@@ -260,17 +260,19 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v4.4 roadmap:
+Official v5 roadmap:
 
-- `v4.4` Live Deal Hunter Field Test & Tuning
 - `v5.0` Mobile Collector Companion
 - `v5.1` Phone Photo Capture
 - `v5.2` OCR-Assisted Identification
+- `v5.3` Mobile Collection Entry
 - `v6.0` Collector Cloud
+- `v6.1` Sync & Backup
+- `v6.2` Multi-Device Collector Workspace
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
-v4.4 roadmap rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts. Before mobile expansion, the live pipeline should be tuned using realistic scenarios and field-testing workflows.
+v5 roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
 
 Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 

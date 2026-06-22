@@ -5,7 +5,7 @@
 - Date: 2026-06-21
 - Branch: `main`
 - Current project state file reports release version: `v4.4`
-- Current active task completed: v4.4 Live Deal Hunter Field Test & Tuning
+- Current active task in progress: v5.0 Mobile Collector Companion
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,15 +16,17 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v4.4 Roadmap
+## Official v5 Roadmap
 
-1. `v4.4` Live Deal Hunter Field Test & Tuning
-2. `v5.0` Mobile Collector Companion
-3. `v5.1` Phone Photo Capture
-4. `v5.2` OCR-Assisted Identification
+1. `v5.0` Mobile Collector Companion
+2. `v5.1` Phone Photo Capture
+3. `v5.2` OCR-Assisted Identification
+4. `v5.3` Mobile Collection Entry
 5. `v6.0` Collector Cloud
+6. `v6.1` Sync & Backup
+7. `v6.2` Multi-Device Collector Workspace
 
-Roadmap rationale: `v4.0` introduced live opportunity discovery, `v4.1` introduced source validation, `v4.2` introduced automated market intelligence enrichment, and `v4.3` introduced watchlists and alerts. Before mobile expansion, the live pipeline should be tuned using realistic scenarios and field-testing workflows.
+Roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
