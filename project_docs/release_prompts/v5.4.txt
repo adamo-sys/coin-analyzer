@@ -1,0 +1,471 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.0.md
+* docs/releases/v5.1.md
+* docs/releases/v5.2.md
+* docs/releases/v5.3.md
+* current codebase
+
+Begin v5.4 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v5.4 = Collector Workflow Integration
+
+v6.0 = Collector Cloud Foundation
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+Record rationale:
+
+The v5.x series introduced:
+
+* Mobile Collector Companion
+* Phone Photo Capture
+* OCR-Assisted Identification
+* Mobile Collection Entry
+
+Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
+
+Commit:
+
+Lock v5.4 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v5.3 Mobile Collection Entry
+
+Latest Tag:
+
+v5.3
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Live Source Validation
+* Watchlists & Alerts
+* Field Testing & Tuning
+* Mobile Collector Companion
+* Phone Photo Capture
+* OCR-Assisted Identification
+* Mobile Collection Entry
+
+Locked Roadmap:
+
+v5.4 = Collector Workflow Integration
+
+v6.0 = Collector Cloud Foundation
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v5.4.txt
+
+Preserve all previous prompts.
+
+Update release prompt archive references in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v5.4.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create a complete end-to-end collector workflow.
+
+Purpose:
+
+Unify the major v5.x modules into a single guided workflow.
+
+This release is NOT:
+
+* cloud sync
+* internet services
+* automatic purchases
+* automatic collection mutation
+* AI grading
+
+Collector review remains mandatory.
+
+==================================================
+PHASE 2
+WORKFLOW INTEGRATION ENGINE
+===========================
+
+Create:
+
+collector_workflow_integration.py
+
+Implement:
+
+* CollectorWorkflowIntegrationEngine
+* WorkflowStage
+* WorkflowSession
+* WorkflowCompletionReport
+
+Purpose:
+
+Coordinate existing modules into one workflow.
+
+==================================================
+PHASE 3
+END-TO-END WORKFLOW
+===================
+
+Support:
+
+Photo Capture
+↓
+OCR Identification
+↓
+Evidence Review
+↓
+Collection Context
+↓
+Collection Entry Candidate
+↓
+Portfolio Impact Preview
+↓
+Final Review
+
+All stages remain reviewable.
+
+No automatic collection mutation.
+
+==================================================
+PHASE 4
+WORKFLOW SESSION MODEL
+======================
+
+Create:
+
+WorkflowSession
+
+Track:
+
+* session id
+* timestamps
+* photos
+* OCR candidates
+* evidence
+* collection context
+* entry candidates
+* portfolio previews
+* review decisions
+
+Support resume/reopen capability.
+
+==================================================
+PHASE 5
+REVIEW CHECKPOINTS
+==================
+
+Implement review gates at:
+
+* OCR review
+* Identification review
+* Collection context review
+* Entry review
+* Portfolio preview review
+
+Allow:
+
+APPROVE
+REJECT
+REVIEW
+
+for each stage.
+
+==================================================
+PHASE 6
+WORKFLOW HEALTH REPORTING
+=========================
+
+Create:
+
+WorkflowHealthReport
+
+Track:
+
+* completed workflows
+* abandoned workflows
+* review escalations
+* confidence distribution
+* stage completion rates
+
+Purpose:
+
+Measure workflow quality.
+
+==================================================
+PHASE 7
+PORTFOLIO IMPACT INTEGRATION
+============================
+
+Integrate:
+
+* Portfolio Performance
+* Collection Intelligence
+
+Provide:
+
+* value impact preview
+* collection gap impact
+* upgrade impact
+* want-list impact
+
+Preview only.
+
+==================================================
+PHASE 8
+MOBILE COMPANION INTEGRATION
+============================
+
+Expose workflow through:
+
+* Mobile Collector Companion
+* Quick Decision Mode
+* Field Work Mode
+
+Provide concise workflow summaries.
+
+==================================================
+PHASE 9
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Collector Workflow Integration
+
+Display:
+
+* active workflows
+* completed workflows
+* workflow stages
+* review checkpoints
+* portfolio previews
+* workflow health
+
+==================================================
+PHASE 10
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* WorkflowSession
+* WorkflowCompletionReport
+* WorkflowHealthReport
+
+==================================================
+PHASE 11
+TESTING
+=======
+
+Add tests for:
+
+* workflow creation
+* workflow progression
+* workflow resume
+* review checkpoints
+* portfolio preview integration
+* OCR integration
+* mobile integration
+* export generation
+
+Run:
+
+* Workflow Integration tests
+* Mobile Companion tests
+* OCR tests
+* Collection Entry tests
+* Portfolio tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 12
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.4.md
+
+Document:
+
+* end-to-end workflow
+* workflow session model
+* review checkpoints
+* workflow health reporting
+* limitations
+* release prompt archive status
+
+==================================================
+PHASE 13
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* prompt archive updated
+* release history updated
+* project snapshot updated
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* workflow integration works
+* workflow sessions work
+* review checkpoints work
+* portfolio previews work
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v5.4
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion provides a complete collector workflow:
+
+Capture
+↓
+OCR
+↓
+Identify
+↓
+Evidence Review
+↓
+Collection Context
+↓
+Collection Entry
+↓
+Portfolio Preview
+↓
+Final Review
+
+with workflow sessions, review checkpoints, health reporting, and export support.
+
+This completes the entire v5 Mobile Collector Workflow arc and prepares the project for the v6 cloud architecture series.
+
+v5.4 = Collector Workflow Integration
+
+v6.0 = Collector Cloud Foundation
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform

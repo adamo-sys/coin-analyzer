@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v5.3`
+* Current release version: `v5.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
 ## Last Release Tag
 
 * Most recent Git tag: `v5.3`
-* Summary of what was included: Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression coverage.
+* Summary of what was included: v5.4 Collector Workflow Integration development has started; latest released tag remains v5.3 Mobile Collection Entry.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -155,17 +155,16 @@
 
 ## Active Roadmap
 
-Official v5 roadmap:
+Official v5.4-to-v7.0 roadmap:
 
-1. `v5.0` Mobile Collector Companion
-2. `v5.1` Phone Photo Capture
-3. `v5.2` OCR-Assisted Identification
-4. `v5.3` Mobile Collection Entry
-5. `v6.0` Collector Cloud
-6. `v6.1` Sync & Backup
-7. `v6.2` Multi-Device Collector Workspace
+1. `v5.4` Collector Workflow Integration
+2. `v6.0` Collector Cloud Foundation
+3. `v6.1` Sync & Backup
+4. `v6.2` Multi-Device Collector Workspace
+5. `v6.3` Device Linking & Conflict Resolution
+6. `v7.0` Collector Platform
 
-Roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
+Roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -203,7 +202,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v6.0 Collector Cloud planning unless a release-blocking defect is found.
+Build v5.4 Collector Workflow Integration unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -215,6 +214,7 @@ Current archive status:
 * v5.1 prompt archived at `project_docs/release_prompts/v5.1.txt`.
 * v5.2 prompt archived at `project_docs/release_prompts/v5.2.txt` before v5.2 development.
 * v5.3 prompt archived at `project_docs/release_prompts/v5.3.txt` before v5.3 development.
+* v5.4 prompt archived at `project_docs/release_prompts/v5.4.txt` before v5.4 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 
@@ -299,6 +299,10 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Locked v5.4 roadmap: Collector Workflow Integration -> Collector Cloud Foundation -> Sync & Backup -> Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
+* v5.4 roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
+* Release prompt archived: `project_docs/release_prompts/v5.4.txt`.
 
 * Implemented v5.3 Mobile Collection Entry locally: `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, `CollectionEntryReport`, OCR-to-entry candidate pipeline, field confidence, collection/WANT_LIST/watchlist context, portfolio impact preview, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, and CSV/Markdown export.
 * Roadmap lock commit: `bf294c1`

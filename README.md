@@ -1,6 +1,6 @@
 # Coin Analyzer
 
-Current version: `v5.3`
+Current version: `v5.4`
 
 Latest tagged release: `v5.3`
 
@@ -211,7 +211,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/relea
 
 Release prompts are treated as project documentation and architecture history. They live under `project_docs/release_prompts/` and should be preserved instead of overwritten.
 
-Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, and `project_docs/release_prompts/v5.3.txt`. Release notes should state whether each release prompt was archived and where it was stored.
+Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, `project_docs/release_prompts/v5.3.txt`, and `project_docs/release_prompts/v5.4.txt`. Release notes should state whether each release prompt was archived and where it was stored.
 
 ## Which Tool To Use
 
@@ -277,19 +277,18 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v5 roadmap:
+Official v5.4-to-v7.0 roadmap:
 
-- `v5.0` Mobile Collector Companion
-- `v5.1` Phone Photo Capture
-- `v5.2` OCR-Assisted Identification
-- `v5.3` Mobile Collection Entry
-- `v6.0` Collector Cloud
+- `v5.4` Collector Workflow Integration
+- `v6.0` Collector Cloud Foundation
 - `v6.1` Sync & Backup
 - `v6.2` Multi-Device Collector Workspace
+- `v6.3` Device Linking & Conflict Resolution
+- `v7.0` Collector Platform
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
-v5 roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
+v5.4 roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
 
 Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 

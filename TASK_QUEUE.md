@@ -115,21 +115,23 @@ Work through this queue in priority order. Handle only one task at a time.
 83. `[x]` Build v5.1 Phone Photo Capture
 84. `[x]` Build v5.2 OCR-Assisted Identification
 85. `[x]` Build v5.3 Mobile Collection Entry
-86. `[ ]` Build v6.0 Collector Cloud
-87. `[ ]` Build v6.1 Sync & Backup
-88. `[ ]` Build v6.2 Multi-Device Collector Workspace
+86. `[-]` Build v5.4 Collector Workflow Integration
+87. `[ ]` Build v6.0 Collector Cloud Foundation
+88. `[ ]` Build v6.1 Sync & Backup
+89. `[ ]` Build v6.2 Multi-Device Collector Workspace
+90. `[ ]` Build v6.3 Device Linking & Conflict Resolution
+91. `[ ]` Build v7.0 Collector Platform
 
-## Official v5 Roadmap
+## Official v5.4-to-v7.0 Roadmap
 
-1. `v5.0` Mobile Collector Companion
-2. `v5.1` Phone Photo Capture
-3. `v5.2` OCR-Assisted Identification
-4. `v5.3` Mobile Collection Entry
-5. `v6.0` Collector Cloud
-6. `v6.1` Sync & Backup
-7. `v6.2` Multi-Device Collector Workspace
+1. `v5.4` Collector Workflow Integration
+2. `v6.0` Collector Cloud Foundation
+3. `v6.1` Sync & Backup
+4. `v6.2` Multi-Device Collector Workspace
+5. `v6.3` Device Linking & Conflict Resolution
+6. `v7.0` Collector Platform
 
-Roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
+Roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -181,6 +183,33 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-22
+
+#### `[-]` Lock v5.4 roadmap
+
+- Date started: 2026-06-22
+- Roadmap locked:
+  - `v5.4` Collector Workflow Integration
+  - `v6.0` Collector Cloud Foundation
+  - `v6.1` Sync & Backup
+  - `v6.2` Multi-Device Collector Workspace
+  - `v6.3` Device Linking & Conflict Resolution
+  - `v7.0` Collector Platform
+- Rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
+- Release prompt archive verified:
+  - `project_docs/release_prompts/v5.1.txt`
+  - `project_docs/release_prompts/v5.2.txt`
+  - `project_docs/release_prompts/v5.3.txt`
+  - `project_docs/release_prompts/v5.4.txt`
+- Files checked:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v5.0.md`
+  - `docs/releases/v5.1.md`
+  - `docs/releases/v5.2.md`
+  - `docs/releases/v5.3.md`
 
 #### `[x]` Lock v5.3 roadmap
 

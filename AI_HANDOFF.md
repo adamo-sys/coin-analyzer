@@ -4,8 +4,8 @@
 
 - Date: 2026-06-22
 - Branch: `main`
-- Current project state file reports release version: `v5.3`
-- Current active task completed: v5.3 Mobile Collection Entry
+- Current project state file reports release version: `v5.4`
+- Current active task: v5.4 Collector Workflow Integration
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,17 +16,16 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v5 Roadmap
+## Official v5.4-to-v7.0 Roadmap
 
-1. `v5.0` Mobile Collector Companion
-2. `v5.1` Phone Photo Capture
-3. `v5.2` OCR-Assisted Identification
-4. `v5.3` Mobile Collection Entry
-5. `v6.0` Collector Cloud
-6. `v6.1` Sync & Backup
-7. `v6.2` Multi-Device Collector Workspace
+1. `v5.4` Collector Workflow Integration
+2. `v6.0` Collector Cloud Foundation
+3. `v6.1` Sync & Backup
+4. `v6.2` Multi-Device Collector Workspace
+5. `v6.3` Device Linking & Conflict Resolution
+6. `v7.0` Collector Platform
 
-Roadmap rationale: v4.x completed Live Deal Hunter, Live Source Validation, Market Intelligence Automation, Watchlists & Alerts, and Field Testing & Tuning. The intelligence stack is now mature enough to be exposed through a mobile-focused workflow.
+Roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -39,11 +38,14 @@ v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened liv
 
 ## Release Prompt Archive
 
-Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, and `v5.3.txt`.
+Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, `v5.3.txt`, and `v5.4.txt`.
 
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Locked the v5.4 roadmap: Collector Workflow Integration, followed by v6.0 Collector Cloud Foundation, v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
+- Archived the v5.4 release prompt at `project_docs/release_prompts/v5.4.txt`.
 
 - Added `mobile_collection_entry.py` with `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, and `CollectionEntryReport`.
 - Mobile Collection Entry converts OCR identification output into review-only proposed collection-entry records with country, year, denomination, series, monarch, variety, grade estimate, certification number, notes, acquisition source, and per-field confidence.
