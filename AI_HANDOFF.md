@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v4.2`
-- Current active task in progress: v4.3 Watchlists & Alerts
+- Current project state file reports release version: `v4.3`
+- Current active task completed: v4.3 Watchlists & Alerts
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -35,6 +35,14 @@ v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trus
 v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened live source validation. v4.2 automates the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
 
 ## What Changed
+
+- Added `watchlist_engine.py` with `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`.
+- Watchlists support series, specific coin, keyword, and custom watches with `CRITICAL`, `HIGH`, `NORMAL`, and `LOW` priorities.
+- Added Adam starter presets for Newfoundland Coins, Newfoundland Silver, Canadian Silver, Canadian Banknotes, 1859 Large Cent Varieties, 1926 Near 6 Nickel, and 1973 Large Bust Quarter; presets are editable.
+- Watchlists scan existing Deal Hunter, Ranking, Live Deal Hunter, listing connector, and Market Intelligence Automation candidate outputs without duplicating recommendation logic.
+- Alerts are generated on demand only for watchlist matches, upgrade opportunities, collection-gap opportunities, high-priority opportunities, and rare target opportunities.
+- Added Tools -> Watchlists & Alerts with editable watch rows, candidate rows, scan/report display, and CSV/Markdown export.
+- Added `test_watchlist_engine.py` covering watch creation/removal, keyword watches, specific coin watches, series watches, priority ordering, presets, alert scoring, exports, and enriched-candidate pipeline integration.
 
 - Added `focused_collection_intelligence.py` with reusable deterministic candidate classification.
 - Added Tools -> Do I Own This in `coin_collection_gui.py`.

@@ -46,6 +46,7 @@
 | `v4.0` | See verified tag `v4.0` | Live Deal Hunter controlled beta with user-triggered RSS/XML ingestion, validation flags, listing normalization, CandidatePool/ranking/Market Intelligence integration, Tools -> Live Deal Hunter, CSV/Markdown export, and 589-test regression pass. |
 | `v4.1` | See verified tag `v4.1` | Live Source Validation with required-field checks, currency/freshness/URL validation, source health scoring, REVIEW escalation, Live Deal Hunter pipeline gating, Tools -> Live Source Validation, and 602-test regression pass. |
 | `v4.2` | See verified tag `v4.2` | Market Intelligence Automation with candidate enrichment, collection relevance summaries, fair-value evidence summaries, low-confidence review escalation, Live Deal Hunter integration, Tools -> Market Intelligence Automation, and 615-test regression pass. |
+| `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, CSV/Markdown export, and regression coverage. |
 
 ## Notes
 

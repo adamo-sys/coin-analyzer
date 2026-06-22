@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v4.2`
+* Current release version: `v4.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v4.2`
-* Summary of what was included: Market Intelligence Automation with deterministic candidate enrichment, collection relevance summaries, fair-value evidence summaries, review escalation, Live Deal Hunter integration, Tools -> Market Intelligence Automation, CSV/Markdown export, and 615-test regression pass.
+* Most recent Git tag: `v4.3`
+* Summary of what was included: Watchlists & Alerts with editable report-driven watchlists, Adam starter presets, on-demand alert generation, alert scoring, pipeline candidate matching, Tools -> Watchlists & Alerts, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -58,6 +58,7 @@
 * `v4.0` acceptance audit passed on 2026-06-21; tag `v4.0` verified during release.
 * `v4.1` acceptance audit passed on 2026-06-21; tag `v4.1` verified during release.
 * `v4.2` acceptance audit passed on 2026-06-21; tag `v4.2` verified during release.
+* `v4.3` acceptance audit passed on 2026-06-21; tag `v4.3` verified during release.
 
 ## Completed Features
 
@@ -130,6 +131,7 @@
 * Live Deal Hunter: controlled-beta user-triggered public RSS/XML ingestion that validates listings, flags stale/missing/non-CAD/duplicate/invalid data, normalizes listings into existing candidate models, ranks opportunities through CandidatePool/Deal Hunter Ranking, adds Market Intelligence context, provides Tools -> Live Deal Hunter, and exports CSV/Markdown reports without purchases, bids, background polling, scraping, browser automation, collection mutation, or live-pricing claims.
 * Live Source Validation: deterministic trust layer that checks live listings for missing title, price, URL, seller, source, non-CAD/unknown currency, stale/unknown freshness, duplicate URLs, malformed/unsupported URLs, high shipping, vague titles, missing descriptions, and suspicious metadata before listings enter Deal Hunter, Opportunity Engine, Ranking, or Market Intelligence.
 * Market Intelligence Automation: deterministic enrichment layer that applies existing Market Intelligence to Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates, preserving original recommendations while adding deal quality, confidence, fair-value evidence, collection relevance, risk warnings, counterarguments, and review escalation.
+* Watchlists & Alerts: report-driven collector target layer that lets users define series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports without background polling, notifications, purchasing, bidding, or collection mutation.
 
 ## Known Bugs
 
@@ -189,7 +191,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v4.3 Watchlists & Alerts unless a release-blocking defect is found.
+Prepare v5.0 Mobile Collector Companion unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -221,6 +223,7 @@ Build v4.3 Watchlists & Alerts unless a release-blocking defect is found.
 * Live Source Validation system: `live_source_validation.py` provides `LiveSourceValidator`, `ValidationResult`, `ValidationWarning`, `ValidationSummary`, `SourceHealthReport`, `LiveSourceValidationReport`, and `ListingFreshness`. It validates all live listings before pipeline entry, assigns source health (`HEALTHY`, `WATCH`, `UNHEALTHY`), escalates uncertain listings to review, and exports CSV/Markdown reports.
 * Market Intelligence system: `market_intelligence.py` provides `MarketIntelligenceEngine`, `MarketIntelligenceReport`, `FairValueEstimate`, `DealQuality`, `OpportunityConfidence`, `ComparableSale`, and `RiskSummary`. It reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness data for deterministic fair-value guidance without external fetching or collection mutation.
 * Market Intelligence Automation system: `market_intelligence_automation.py` provides `MarketIntelligenceAutomationEngine`, `MarketEnrichedCandidate`, `MarketEnrichmentBatchReport`, `FairValueEvidenceSummary`, and `CollectionRelevanceSummary`. It batch-enriches candidate listings through the existing Market Intelligence engine, preserves original recommendations, escalates uncertain cases to REVIEW, and exports CSV/Markdown reports without live price retrieval.
+* Watchlists & Alerts system: `watchlist_engine.py` provides `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`. It matches collector-defined watches against existing Deal Hunter, Ranking, Live Deal Hunter, listing connector, and Market Intelligence Automation outputs, then generates on-demand report alerts without polling, notifications, purchases, or collection mutation.
 * Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
@@ -267,6 +270,13 @@ Build v4.3 Watchlists & Alerts unless a release-blocking defect is found.
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v4.3 Watchlists & Alerts: `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, `AlertReport`, Adam starter presets, Tools -> Watchlists & Alerts, editable watch rows, on-demand candidate scanning, alert scoring, and CSV/Markdown export.
+* Roadmap lock commit: `14f09d6`
+* Implementation commit: `c793569`
+* Full test suite passed: 625 tests OK.
+* Coverage note: total passing tests increased from 615 to 625; existing regression suites remained green.
+* Limitation: report-driven, user-triggered alerts only; no push/email/SMS notifications, background polling, scheduled jobs, automatic purchasing, bidding, live pricing, or collection mutation.
 
 * Implemented v4.2 Market Intelligence Automation: `MarketIntelligenceAutomationEngine`, `MarketEnrichedCandidate`, `MarketEnrichmentBatchReport`, `FairValueEvidenceSummary`, `CollectionRelevanceSummary`, candidate pool enrichment, ranking report enrichment, Live Deal Hunter enrichment, Tools -> Market Intelligence Automation, CSV/Markdown export, collection relevance scoring, and confidence escalation while preserving original recommendations.
 * Roadmap lock commit: `473ffee`

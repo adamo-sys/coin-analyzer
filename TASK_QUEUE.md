@@ -109,7 +109,7 @@ Work through this queue in priority order. Handle only one task at a time.
 77. `[x]` Build v4.0 Live Deal Hunter (Controlled Beta)
 78. `[x]` Build v4.1 Live Source Validation
 79. `[x]` Build v4.2 Market Intelligence Automation
-80. `[-]` Build v4.3 Watchlists & Alerts
+80. `[x]` Build v4.3 Watchlists & Alerts
 81. `[ ]` Build v5.0 Mobile Collector Companion
 82. `[ ]` Build v5.1 Phone Photo Capture
 83. `[ ]` Build v5.2 OCR-Assisted Identification
@@ -194,6 +194,25 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `README.md`
   - `project_docs/release_prompts/v4.3.txt`
 - Commit hash: `14f09d6`
+
+#### `[x]` Build v4.3 Watchlists & Alerts
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `watchlist_engine.py` (new file)
+  - `test_watchlist_engine.py` (new file)
+  - `coin_collection_gui.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v4.3.md` (new file)
+- Roadmap lock commit hash: `14f09d6`
+- Implementation commit hash: `c793569`
+- Test coverage: total passing tests increased from 615 to 625; existing regression suites remained green.
+- Limitation: report-driven, user-triggered alerts only; no push/email/SMS notifications, background polling, scheduled jobs, automatic purchasing, bidding, live pricing, or collection mutation.
 
 #### `[x]` Lock v4.2 roadmap
 
