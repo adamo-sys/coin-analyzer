@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v5.2`
+Current version: `v5.3`
 
-Latest tagged release: `v5.2`
+Latest tagged release: `v5.2` (v5.3 release packaging in progress)
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -52,6 +52,7 @@ The app is especially tuned for Adam-specific priorities:
 - Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews with quick decisions, collection context, field work mode, dashboard summaries, and CSV/Markdown export.
 - Phone Photo Capture: metadata-only capture sessions for phone-captured coin, banknote, and listing photos with front/back pairing, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Tools -> Phone Photo Capture, and CSV/Markdown export.
 - OCR-Assisted Identification: review-only pipeline that turns captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
+- Mobile Collection Entry: review-only field workflow that converts OCR identification candidates into proposed collection-entry records with field confidence, collection/want-list/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Tools -> Mobile Collection Entry, and CSV/Markdown export without inserting records automatically.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -101,7 +102,8 @@ The app is especially tuned for Adam-specific priorities:
 11. Open Tools -> Collection Health Report when you want strengths, weaknesses, priorities, recommended actions, and persistence expectations in one report.
 12. For a coin-in-hand review, open Tools -> Photo-Assisted Entry, attach front/reverse/reference photo paths, enter manual details, and generate a review report.
 13. If you want advisory text extraction from a photo, open Tools -> OCR Experiment and manually review the suggestion report before using any result.
-14. Export reports when needed for collection planning or records.
+14. Open Tools -> Mobile Collection Entry to turn OCR identification candidates into review-only proposed entry records, then APPROVE, REJECT, or REVIEW before manually saving anything.
+15. Export reports when needed for collection planning or records.
 
 ## Installation
 
@@ -200,8 +202,9 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
 | `v5.2` | See verified tag `v5.2` | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
+| `v5.3` | Pending tag verification | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
 
-See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), and [docs/releases/v5.2.md](docs/releases/v5.2.md) for release documentation.
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), and [docs/releases/v5.3.md](docs/releases/v5.3.md) for release documentation.
 
 
 ## Release Prompt Archive

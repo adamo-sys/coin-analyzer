@@ -114,7 +114,7 @@ Work through this queue in priority order. Handle only one task at a time.
 82. `[x]` Build v5.0 Mobile Collector Companion
 83. `[x]` Build v5.1 Phone Photo Capture
 84. `[x]` Build v5.2 OCR-Assisted Identification
-85. `[ ]` Build v5.3 Mobile Collection Entry
+85. `[-]` Build v5.3 Mobile Collection Entry
 86. `[ ]` Build v6.0 Collector Cloud
 87. `[ ]` Build v6.1 Sync & Backup
 88. `[ ]` Build v6.2 Multi-Device Collector Workspace
@@ -182,9 +182,11 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
-#### `[-]` Lock v5.3 roadmap
+#### `[x]` Lock v5.3 roadmap
 
 - Date started: 2026-06-22
+- Date completed: 2026-06-22
+- Roadmap lock commit: `bf294c1`.
 - Roadmap locked:
   - `v5.3` Mobile Collection Entry
   - `v6.0` Collector Cloud
@@ -199,6 +201,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
+
+
+#### `[-]` Build v5.3 Mobile Collection Entry
+
+- Date started: 2026-06-22
+- Implementation status: code, documentation, and release audit complete; metadata commit, tag, push, and remote verification pending.
+- Added `mobile_collection_entry.py` with `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, and `CollectionEntryReport`.
+- Pipeline implemented: Photo/OCR text -> OCR Candidate -> Collection Entry Candidate -> Review -> Approved Entry Record preview.
+- Review decisions: APPROVE, REJECT, REVIEW; approval prepares a preview record only and never inserts it automatically.
+- Context checks: already owned, duplicate, possible upgrade, collection gap, WANT_LIST/watchlist match, review required.
+- Portfolio integration: preview-only collection size, priority, collection gap, and value-impact notes through Portfolio Performance.
+- Field workflows: Coin Show, Dealer Visit, Coin Shop, Auction Preview, Antique Market.
+- GUI: Tools -> Mobile Collection Entry with candidate generation, first-candidate review controls, confidence/evidence/context/impact display, and CSV/Markdown export.
+- Mobile Companion integration: companion reports can include latest Mobile Collection Entry summary.
+- Release prompt archived: `project_docs/release_prompts/v5.3.txt`.
+- Release notes: `docs/releases/v5.3.md`.
+- Tests passed: `python -m unittest test_mobile_collection_entry` -> 8 tests OK; adjacent v5.3 slice -> 48 tests OK; `python -m unittest test_melt_value_engine` -> 29 tests OK; `run_tests.bat` -> 669 tests OK.
 
 #### `[x]` Lock v5.2 roadmap
 

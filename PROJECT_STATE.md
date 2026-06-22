@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v5.2`
+* Current release version: `v5.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.2`
-* Summary of what was included: OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and regression coverage.
+* Most recent Git tag: `v5.2` (v5.3 release packaging in progress)
+* Summary of what was included: v5.3 Mobile Collection Entry implementation is in progress with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Collector Companion summary integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -140,6 +140,7 @@
 * Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews, with quick decision summaries, field work mode, mobile collection context, dashboard reporting, CSV/Markdown export, and integration with existing intelligence engines.
 * Phone Photo Capture: metadata-only field photo intake workflow for phone-captured coin, banknote, and listing photos with single-photo records, front/back sessions, missing-side checks, OCR/review readiness, Photo Vault records, OCR source adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, and CSV/Markdown export.
 * OCR-Assisted Identification: review-only pipeline that transforms captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Mobile Collector Companion summaries, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
+* Mobile Collection Entry: review-only field workflow that transforms OCR identification candidates into proposed collection-entry records with field confidence, collection/WANT_LIST/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Mobile Collector Companion summaries, Tools -> Mobile Collection Entry, and CSV/Markdown export without automatic record insertion.
 
 ## Known Bugs
 
@@ -201,7 +202,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v5.3 Mobile Collection Entry unless a release-blocking defect is found.
+Complete v5.3 Mobile Collection Entry release packaging, then begin v6.0 Collector Cloud planning unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive

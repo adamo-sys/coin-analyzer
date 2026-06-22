@@ -18,6 +18,7 @@ from field_test_framework import ScenarioRunner, default_field_test_scenarios
 from market_awareness import MarketAwarenessEngine
 from market_intelligence_automation import MarketEnrichedCandidate, MarketIntelligenceAutomationEngine
 from ocr_assisted_identification import OCRIdentificationReport
+from mobile_collection_entry import CollectionEntryReport
 from photo_capture_workflow import PhotoCaptureReport, PhotoCaptureSession, PhotoCaptureWorkflow
 from portfolio_performance import PortfolioPerformanceEngine
 from watchlist_engine import AlertEngine, AlertReport, Watchlist, WatchlistEngine
@@ -211,6 +212,7 @@ class MobileCompanionReport:
     quick_decisions: List[QuickDecisionSummary] = field(default_factory=list)
     photo_capture_report: Optional[PhotoCaptureReport] = None
     ocr_identification_report: Optional[OCRIdentificationReport] = None
+    mobile_entry_report: Optional[CollectionEntryReport] = None
     generated_at: str = ""
     limitations: List[str] = field(default_factory=list)
 
@@ -233,6 +235,7 @@ class MobileCompanionReport:
             "quick_decisions": [decision.to_dict() for decision in self.quick_decisions],
             "photo_capture_report": self.photo_capture_report.to_dict() if self.photo_capture_report else {},
             "ocr_identification_report": self.ocr_identification_report.to_dict() if self.ocr_identification_report else {},
+            "mobile_entry_report": self.mobile_entry_report.to_dict() if self.mobile_entry_report else {},
             "limitations": "; ".join(self.limitations),
         }
 
@@ -283,6 +286,22 @@ class MobileCompanionReport:
                 lines.append(f"- Candidate: {candidate.format_brief()}")
                 lines.append(f"  - Evidence: {candidate.confidence_reason}")
                 lines.append(f"  - Collection relevance: {candidate.collection_relevance}")
+        if self.mobile_entry_report:
+            lines.extend([
+                "",
+                "## Mobile Collection Entry",
+                "",
+                f"- Entry candidates: {self.mobile_entry_report.candidate_count}",
+                f"- Approved previews: {self.mobile_entry_report.approved_count}",
+                f"- Review decisions: {self.mobile_entry_report.review_count}",
+                f"- Rejected candidates: {self.mobile_entry_report.rejected_count}",
+                "- Collection mutation performed: NO",
+            ])
+            for candidate in self.mobile_entry_report.candidates[:5]:
+                lines.append(f"- Entry candidate: {candidate.title}")
+                lines.append(f"  - Review status: {candidate.review_status}")
+                lines.append(f"  - Confidence: {candidate.confidence_summary()}")
+                lines.append(f"  - Collection context: {candidate.collection_status}; {candidate.collection_context}")
         lines.extend(["", "## Limitations", ""])
         lines.extend(f"- {item}" for item in self.limitations)
         return "\n".join(lines).rstrip() + "\n"
@@ -440,6 +459,7 @@ class MobileCollectorCompanion:
         location: str = "",
         photo_capture_sessions: Optional[Sequence[PhotoCaptureSession]] = None,
         ocr_identification_report: Optional[OCRIdentificationReport] = None,
+        mobile_entry_report: Optional[CollectionEntryReport] = None,
     ) -> MobileCompanionReport:
         session = self.start_session(workflow_type=workflow_type, location=location)
         workflow = next((item for item in self.workflows() if item.name == workflow_type), self.workflows()[0])
@@ -462,6 +482,7 @@ class MobileCollectorCompanion:
             quick_decisions=decisions,
             photo_capture_report=PhotoCaptureReport(photo_capture_sessions) if photo_capture_sessions is not None else self.photo_capture_workflow.report(),
             ocr_identification_report=ocr_identification_report,
+            mobile_entry_report=mobile_entry_report,
         )
 
     def run_field_test_snapshot(self):

@@ -31,6 +31,17 @@ from live_deal_hunter_readiness import LiveDealHunterReadinessAudit
 from live_source_validation import LiveSourceValidator
 from market_intelligence import MarketIntelligenceEngine
 from mobile_collector_companion import MobileCollectorCompanion, WORKFLOW_COIN_SHOW
+from mobile_collection_entry import (
+    APPROVE as ENTRY_APPROVE,
+    REJECT as ENTRY_REJECT,
+    REVIEW as ENTRY_REVIEW,
+    WORKFLOW_ANTIQUE_MARKET as ENTRY_WORKFLOW_ANTIQUE_MARKET,
+    WORKFLOW_AUCTION_PREVIEW as ENTRY_WORKFLOW_AUCTION_PREVIEW,
+    WORKFLOW_COIN_SHOP as ENTRY_WORKFLOW_COIN_SHOP,
+    WORKFLOW_COIN_SHOW as ENTRY_WORKFLOW_COIN_SHOW,
+    WORKFLOW_DEALER_VISIT as ENTRY_WORKFLOW_DEALER_VISIT,
+    MobileCollectionEntryEngine,
+)
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
@@ -91,6 +102,7 @@ class CoinCollectionGUI:
         self.ocr_results = []
         self.ocr_reports = []
         self.ocr_identification_reports = []
+        self.mobile_entry_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -188,6 +200,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
         tools_menu.add_command(label="OCR-Assisted Identification", command=self.open_ocr_assisted_identification)
+        tools_menu.add_command(label="Mobile Collection Entry", command=self.open_mobile_collection_entry)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -2916,6 +2929,132 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
+    def open_mobile_collection_entry(self):
+        """Open review-only Mobile Collection Entry workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Mobile Collection Entry")
+        dialog.geometry("980x840")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Entry Candidate Source", padding="10")
+        form_frame.grid(row=0, column=0, sticky=tk.EW, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        source_var = tk.StringVar(value=ENTRY_WORKFLOW_COIN_SHOW)
+        use_latest_ocr_var = tk.BooleanVar(value=bool(self.ocr_identification_reports))
+        workflow_values = [
+            ENTRY_WORKFLOW_COIN_SHOW,
+            ENTRY_WORKFLOW_DEALER_VISIT,
+            ENTRY_WORKFLOW_COIN_SHOP,
+            ENTRY_WORKFLOW_AUCTION_PREVIEW,
+            ENTRY_WORKFLOW_ANTIQUE_MARKET,
+        ]
+
+        ttk.Label(form_frame, text="Field Workflow:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Combobox(form_frame, textvariable=source_var, values=workflow_values, state="readonly").grid(row=0, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Checkbutton(
+            form_frame,
+            text="Use latest OCR-assisted identification report",
+            variable=use_latest_ocr_var,
+        ).grid(row=1, column=1, sticky=tk.W, padx=(8, 0), pady=4)
+
+        ttk.Label(form_frame, text="Raw OCR Text:").grid(row=2, column=0, sticky=(tk.W, tk.N), pady=4)
+        raw_text = tk.Text(form_frame, height=7, wrap=tk.WORD)
+        raw_text.grid(row=2, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        raw_text.insert(tk.END, "Canada 1945 5 cents George VI")
+
+        ttk.Label(
+            form_frame,
+            text="Entry records are preview-only. Approval prepares a reviewed record but never inserts it into the collection automatically.",
+            wraplength=800,
+        ).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Mobile Collection Entry Report", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+
+        def engine():
+            return MobileCollectionEntryEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                watchlists=self.watchlists,
+            )
+
+        def show_report(report):
+            current_report["report"] = report
+            if not self.mobile_entry_reports or self.mobile_entry_reports[-1] is not report:
+                self.mobile_entry_reports.append(report)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def generate():
+            try:
+                source = source_var.get() or ENTRY_WORKFLOW_COIN_SHOW
+                entry_engine = engine()
+                if use_latest_ocr_var.get() and self.ocr_identification_reports:
+                    report = entry_engine.from_ocr_report(self.ocr_identification_reports[-1], acquisition_source=source)
+                else:
+                    supplied_text = raw_text.get("1.0", tk.END).strip()
+                    if not supplied_text:
+                        messagebox.showwarning("Input Required", "Provide OCR text or use the latest OCR-assisted identification report.")
+                        return
+                    report = entry_engine.identify_and_prepare(raw_text=supplied_text, acquisition_source=source)
+                show_report(report)
+            except Exception as exc:
+                messagebox.showerror("Mobile Collection Entry Error", f"Mobile collection entry failed: {str(exc)}")
+
+        def review_first(decision):
+            report = current_report.get("report")
+            if not report:
+                generate()
+                report = current_report.get("report")
+            if not report or not report.candidates:
+                return
+            review = engine().review_candidate(report.candidates[0], decision)
+            report.reviews = [existing for existing in report.reviews if existing.candidate_id != review.candidate_id]
+            report.reviews.insert(0, review)
+            show_report(report)
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate mobile entry candidates before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Mobile Collection Entry",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Mobile collection entry exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", "Could not export the mobile collection entry report.")
+
+        ttk.Button(button_frame, text="Generate Entry Candidates", command=generate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Approve First", command=lambda: review_first(ENTRY_APPROVE)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Reject First", command=lambda: review_first(ENTRY_REJECT)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Review First", command=lambda: review_first(ENTRY_REVIEW)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
         return CollectorWorkflowEngine(
@@ -4234,6 +4373,7 @@ Total Unique Dates: {total_unique_dates}
                     workflow_type=WORKFLOW_COIN_SHOW,
                     location="Field workflow",
                     ocr_identification_report=self.ocr_identification_reports[-1] if self.ocr_identification_reports else None,
+                    mobile_entry_report=self.mobile_entry_reports[-1] if self.mobile_entry_reports else None,
                 )
                 current_report["report"] = report
                 result_text.delete("1.0", tk.END)

@@ -4,8 +4,8 @@
 
 - Date: 2026-06-22
 - Branch: `main`
-- Current project state file reports release version: `v5.2`
-- Current active task completed: v5.2 OCR-Assisted Identification
+- Current project state file reports release version: `v5.3`
+- Current active task: v5.3 Mobile Collection Entry release packaging
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -44,6 +44,16 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Added `mobile_collection_entry.py` with `MobileCollectionEntryEngine`, `CollectionEntryCandidate`, `CollectionEntryReview`, and `CollectionEntryReport`.
+- Mobile Collection Entry converts OCR identification output into review-only proposed collection-entry records with country, year, denomination, series, monarch, variety, grade estimate, certification number, notes, acquisition source, and per-field confidence.
+- The workflow preserves manual control: APPROVE prepares an approved-entry preview, REJECT rejects the candidate, REVIEW keeps it in manual review, and no collection record is inserted automatically.
+- Collection context covers already owned, duplicate, possible upgrade, collection gap, WANT_LIST/watchlist matches, and review-required states.
+- Portfolio impact previews summarize collection size, priority, collection gap, and value-impact implications without valuation automation or mutation.
+- Added Tools -> Mobile Collection Entry with OCR text/latest-OCR report intake, field workflow selection, review controls, and CSV/Markdown export.
+- Mobile Collector Companion reports can include Mobile Collection Entry summaries.
+- Added `test_mobile_collection_entry.py` and expanded Mobile Collector Companion tests.
+- Archived the v5.3 release prompt at `project_docs/release_prompts/v5.3.txt`.
 
 - Added `ocr_assisted_identification.py` with `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, and `IdentificationEvidence`.
 - OCR-Assisted Identification turns captured photos or pasted OCR text into review-only identification candidates.

@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 from deal_hunter import DealListing
+from mobile_collection_entry import MobileCollectionEntryEngine
 from mobile_collector_companion import (
     MobileCollectorCompanion,
     MobileCompanionReport,
@@ -127,6 +128,18 @@ class TestMobileCollectorCompanion(unittest.TestCase):
         self.assertEqual(report.ocr_identification_report.candidate_count, 1)
         self.assertIn("OCR-Assisted Identification", report.format_markdown())
         self.assertIn("Canada 1945 5 cents", report.format_markdown())
+
+
+    def test_mobile_report_includes_mobile_collection_entry_summary(self):
+        entry_report = MobileCollectionEntryEngine().identify_and_prepare(raw_text="Canada 1945 5 cents George VI")
+        companion = MobileCollectorCompanion()
+
+        report = companion.generate_report([self.make_listing()], mobile_entry_report=entry_report)
+
+        self.assertEqual(report.mobile_entry_report.candidate_count, 1)
+        markdown = report.format_markdown()
+        self.assertIn("Mobile Collection Entry", markdown)
+        self.assertIn("Collection mutation performed: NO", markdown)
 
     def test_field_test_snapshot_integration(self):
         companion = MobileCollectorCompanion()
