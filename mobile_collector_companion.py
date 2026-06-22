@@ -17,6 +17,7 @@ from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, RankedDe
 from field_test_framework import ScenarioRunner, default_field_test_scenarios
 from market_awareness import MarketAwarenessEngine
 from market_intelligence_automation import MarketEnrichedCandidate, MarketIntelligenceAutomationEngine
+from ocr_assisted_identification import OCRIdentificationReport
 from photo_capture_workflow import PhotoCaptureReport, PhotoCaptureSession, PhotoCaptureWorkflow
 from portfolio_performance import PortfolioPerformanceEngine
 from watchlist_engine import AlertEngine, AlertReport, Watchlist, WatchlistEngine
@@ -209,6 +210,7 @@ class MobileCompanionReport:
     field_work_mode: FieldWorkMode
     quick_decisions: List[QuickDecisionSummary] = field(default_factory=list)
     photo_capture_report: Optional[PhotoCaptureReport] = None
+    ocr_identification_report: Optional[OCRIdentificationReport] = None
     generated_at: str = ""
     limitations: List[str] = field(default_factory=list)
 
@@ -230,6 +232,7 @@ class MobileCompanionReport:
             "field_work_mode": self.field_work_mode.to_dict(),
             "quick_decisions": [decision.to_dict() for decision in self.quick_decisions],
             "photo_capture_report": self.photo_capture_report.to_dict() if self.photo_capture_report else {},
+            "ocr_identification_report": self.ocr_identification_report.to_dict() if self.ocr_identification_report else {},
             "limitations": "; ".join(self.limitations),
         }
 
@@ -267,6 +270,19 @@ class MobileCompanionReport:
                 f"- Ready for OCR: {self.photo_capture_report.ready_for_ocr_count}",
                 f"- Ready for review: {self.photo_capture_report.ready_for_review_count}",
             ])
+        if self.ocr_identification_report:
+            lines.extend([
+                "",
+                "## OCR-Assisted Identification",
+                "",
+                f"- Identification candidates: {self.ocr_identification_report.candidate_count}",
+                f"- High confidence candidates: {self.ocr_identification_report.high_confidence_count}",
+                f"- Review required: {self.ocr_identification_report.review_required_count}",
+            ])
+            for candidate in self.ocr_identification_report.candidates[:5]:
+                lines.append(f"- Candidate: {candidate.format_brief()}")
+                lines.append(f"  - Evidence: {candidate.confidence_reason}")
+                lines.append(f"  - Collection relevance: {candidate.collection_relevance}")
         lines.extend(["", "## Limitations", ""])
         lines.extend(f"- {item}" for item in self.limitations)
         return "\n".join(lines).rstrip() + "\n"
@@ -423,6 +439,7 @@ class MobileCollectorCompanion:
         workflow_type: str = WORKFLOW_COIN_SHOW,
         location: str = "",
         photo_capture_sessions: Optional[Sequence[PhotoCaptureSession]] = None,
+        ocr_identification_report: Optional[OCRIdentificationReport] = None,
     ) -> MobileCompanionReport:
         session = self.start_session(workflow_type=workflow_type, location=location)
         workflow = next((item for item in self.workflows() if item.name == workflow_type), self.workflows()[0])
@@ -444,6 +461,7 @@ class MobileCollectorCompanion:
             field_work_mode=field_mode,
             quick_decisions=decisions,
             photo_capture_report=PhotoCaptureReport(photo_capture_sessions) if photo_capture_sessions is not None else self.photo_capture_workflow.report(),
+            ocr_identification_report=ocr_identification_report,
         )
 
     def run_field_test_snapshot(self):

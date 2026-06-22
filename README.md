@@ -1,6 +1,6 @@
 # Coin Analyzer
 
-Current version: `v5.1`
+Current version: `v5.2`
 
 Latest tagged release: `v5.1`
 
@@ -51,6 +51,7 @@ The app is especially tuned for Adam-specific priorities:
 - Field Test & Tuning: run deterministic live-pipeline scenarios through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, opportunity quality, alert quality, and likely false positives before mobile expansion.
 - Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews with quick decisions, collection context, field work mode, dashboard summaries, and CSV/Markdown export.
 - Phone Photo Capture: metadata-only capture sessions for phone-captured coin, banknote, and listing photos with front/back pairing, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Tools -> Phone Photo Capture, and CSV/Markdown export.
+- OCR-Assisted Identification: review-only pipeline that turns captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -198,8 +199,9 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, and regression coverage. |
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
+| `v5.2` | Pending release tag | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 
-See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), and [docs/releases/v5.1.md](docs/releases/v5.1.md) for release documentation.
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), and [docs/releases/v5.2.md](docs/releases/v5.2.md) for release documentation.
 
 
 ## Release Prompt Archive
@@ -832,6 +834,27 @@ Known limitations:
 - Metadata-only photo intake.
 - No image recognition, attribution, grading, OCR identification, cloud sync, automatic collection entry, purchasing, or collection mutation.
 
+## OCR-Assisted Identification
+
+Use Tools -> OCR-Assisted Identification when you want to turn a captured photo or pasted OCR text into a reviewable identification candidate.
+
+OCR-Assisted Identification adds:
+
+- `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, and `IdentificationEvidence`.
+- CapturedPhoto -> OCR Extraction -> OCR Validation -> Identification Candidate -> Review Report.
+- Candidate fields for year, denomination, country, monarch, banknote prefix, certification number, series/type, silver indicator, and possible variety keywords.
+- Evidence for OCR text used, validation score, trust level, supporting keywords, conflicts detected, and missing evidence.
+- HIGH/MEDIUM/LOW confidence classification with explicit reasoning.
+- Collection, WANT_LIST, and watchlist context that can surface already-owned, possible-upgrade, collection-gap, watchlist-match, and needs-review signals.
+- Mobile Collector Companion identification summary integration.
+- CSV and Markdown export.
+
+Known limitations:
+
+- OCR remains advisory only.
+- Manual review is mandatory.
+- No computer vision attribution, AI grading, automatic collection entry, automatic ownership decisions, automatic purchases, or collection mutation.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -877,6 +900,7 @@ Export support is intentionally report-specific:
 - Field Test & Tuning: CSV and Markdown export.
 - Mobile Collector Companion: CSV and Markdown export.
 - Phone Photo Capture: CSV and Markdown export.
+- OCR-Assisted Identification: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

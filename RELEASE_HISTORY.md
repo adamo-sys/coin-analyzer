@@ -50,6 +50,7 @@
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, CSV/Markdown export, and regression coverage. |
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, CSV/Markdown export, and regression coverage. |
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, coin/banknote front-back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, CSV/Markdown export, and 650-test regression pass. |
+| `v5.2` | Pending release tag | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 
 ## Notes
 

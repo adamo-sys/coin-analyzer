@@ -10,6 +10,7 @@ from mobile_collector_companion import (
     WORKFLOW_AUCTION_PREVIEW,
     WORKFLOW_COIN_SHOW,
 )
+from ocr_assisted_identification import OCRIdentificationEngine
 from photo_capture_workflow import PhotoCaptureWorkflow
 from watchlist_engine import Watchlist, WatchlistItem, WatchPriority, WATCH_TYPE_SERIES
 
@@ -116,6 +117,16 @@ class TestMobileCollectorCompanion(unittest.TestCase):
         self.assertEqual(report.photo_capture_report.total_photos, 1)
         self.assertEqual(report.photo_capture_report.missing_back_count, 1)
         self.assertIn("Phone Photo Capture", report.format_markdown())
+
+    def test_mobile_report_includes_ocr_identification_summary(self):
+        ocr_report = OCRIdentificationEngine().identify(raw_text="Canada 1945 5 cents George VI")
+        companion = MobileCollectorCompanion()
+
+        report = companion.generate_report([self.make_listing()], ocr_identification_report=ocr_report)
+
+        self.assertEqual(report.ocr_identification_report.candidate_count, 1)
+        self.assertIn("OCR-Assisted Identification", report.format_markdown())
+        self.assertIn("Canada 1945 5 cents", report.format_markdown())
 
     def test_field_test_snapshot_integration(self):
         companion = MobileCollectorCompanion()

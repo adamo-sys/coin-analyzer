@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v5.1`
+* Current release version: `v5.2`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
 ## Last Release Tag
 
 * Most recent Git tag: `v5.1`
-* Summary of what was included: Phone Photo Capture with metadata-only capture sessions, front/back pairing, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, CSV/Markdown export, and regression coverage.
+* Summary of what was included: v5.2 implementation is in progress locally: OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and regression coverage. Release tag verification is pending.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -138,6 +138,7 @@
 * Live Deal Hunter Field Test & Tuning: deterministic field-test framework that runs realistic scenario batches through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, recommendation quality, alert quality, and likely false positives before mobile expansion.
 * Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews, with quick decision summaries, field work mode, mobile collection context, dashboard reporting, CSV/Markdown export, and integration with existing intelligence engines.
 * Phone Photo Capture: metadata-only field photo intake workflow for phone-captured coin, banknote, and listing photos with single-photo records, front/back sessions, missing-side checks, OCR/review readiness, Photo Vault records, OCR source adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, and CSV/Markdown export.
+* OCR-Assisted Identification: review-only pipeline that transforms captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Mobile Collector Companion summaries, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -231,6 +232,7 @@ Current archive status:
 * Photo-Assisted Entry system: `photo_assisted_entry.py` provides `PhotoCandidate`, `PhotoAssistedEntry`, and `PhotoReviewReport` for metadata-only front/reverse/reference photo candidate workflows. It links photo paths through Photo Vault metadata, routes recommendations through Mobile Companion and existing acquisition engines, stores candidate metadata in app state, and exports review reports without copying, moving, reading, OCRing, classifying, or grading images.
 * OCR Experiment system: `ocr_experiment.py` provides `OCRResult`, `OCRConfidence`, `OCRSuggestionReport`, and `OCRExperiment` for advisory-only OCR text extraction and deterministic suggestion parsing. It can report possible years, denominations, countries, note prefixes, and certification numbers, persists OCR metadata through app state, exports CSV/Markdown reports, and always requires manual review.
 * OCR Validation system: `ocr_validation.py` provides `OCRValidationEngine`, `OCRValidationReport`, `OCRTrustLevel`, `OCRValidationScore`, and `OCRValidationExplanation` for deterministic OCR trust assessment. It validates year, denomination, country, certification, confidence, source warnings, and ambiguity, then exports CSV/Markdown validation reports.
+* OCR-Assisted Identification system: `ocr_assisted_identification.py` provides `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, and `IdentificationEvidence`. It reuses OCR Experiment, OCR Validation, Phone Photo Capture, Focused Collection Intelligence, and Watchlists to create review-only identification candidates with evidence, confidence, collection relevance, and CSV/Markdown export without mutating collection data.
 * Workflow Integration system: `collector_workflows.py` provides `CollectorWorkflowEngine`, guided `AcquisitionWorkflow`, `CollectionReviewWorkflow`, `PhotoReviewWorkflow`, `CollectorDailySummary`, `WorkflowStatus`, and `WorkflowSummary`. It orchestrates existing engines, persists lightweight workflow state, exposes Tools -> Acquisition Workflow, Tools -> Collection Review Workflow, and Tools -> Daily Collector Summary, and exports workflow Markdown/CSV summaries.
 * Collector Home Dashboard system: `collector_home_dashboard.py` provides `CollectorHomeDashboard`, `CollectorHomeReport`, `HomeStatusCard`, `DailyCollectorAction`, and `HomeStatusSeverity`. It aggregates existing workflow, dashboard, shopping, OCR validation, photo audit, integrity, backup, snapshot, series, and persistence signals into one daily report without adding recommendation logic or mutating collection data.
 * Collector Companion Readiness system: `collector_companion_readiness.py` provides `CollectorCompanionReadinessAuditor`, `CollectorCompanionReadinessReport`, `CollectorCompanionStatus`, `ExportConsistencyReport`, `ReportConsistencyReport`, `WorkflowAuditReport`, and `V3ReadinessChecklistItem`. It audits readiness, product status, workflow cohesion, report/export consistency, and v3.0 blockers without modifying collection data or decision logic.
@@ -293,6 +295,15 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Implemented v5.2 OCR-Assisted Identification locally: `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, `IdentificationEvidence`, captured-photo-to-OCR-to-validation-to-candidate pipeline, evidence/confidence model, collection/WANT_LIST/watchlist context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
+* Roadmap lock commit: `08c5cf2`
+* Release packaging status: implementation complete locally; commit/tag/push verification pending.
+* Full test suite passed: 660 tests OK.
+* Focused test slice passed: 50 tests OK (`test_ocr_assisted_identification.py`, `test_ocr_validation.py`, `test_photo_capture_workflow.py`, `test_mobile_collector_companion.py`, `test_collection_intelligence.py`).
+* Coverage note: total passing tests increased from 650 to 660; new v5.2 regression tests cover OCR candidate generation, confidence scoring, evidence reporting, OCR validation integration, photo capture integration, Mobile Companion integration, collection context integration, watchlist context, and export generation.
+* Release prompt archived: `project_docs/release_prompts/v5.2.txt`.
+* Limitation: OCR identification is advisory only; no computer vision attribution, AI grading, automatic collection entry, automatic ownership decisions, automatic purchases, or collection mutation.
 
 * Implemented v5.1 Phone Photo Capture locally: `PhotoCaptureWorkflow`, `CapturedPhoto`, `PhotoCaptureSession`, `PhotoCaptureReport`, coin/banknote front-back workflows, listing-photo workflow, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, and CSV/Markdown export.
 * Implementation commit: `f6946f3`

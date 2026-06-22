@@ -4,8 +4,8 @@
 
 - Date: 2026-06-22
 - Branch: `main`
-- Current project state file reports release version: `v5.1`
-- Current active task completed: v5.1 Phone Photo Capture
+- Current project state file reports release version: `v5.2`
+- Current active task completed: v5.2 OCR-Assisted Identification
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -44,6 +44,16 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Added `ocr_assisted_identification.py` with `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, and `IdentificationEvidence`.
+- OCR-Assisted Identification turns captured photos or pasted OCR text into review-only identification candidates.
+- The candidate model includes year, denomination, country, monarch, banknote prefix, certification number, series/type, silver indicator, possible variety keywords, confidence, evidence, collection relevance, watchlist matches, warnings, and mandatory review status.
+- The evidence model records OCR text used, validation score, trust level, supporting keywords, conflicts detected, and missing evidence.
+- OCR identification reuses OCR Experiment, OCR Validation, Phone Photo Capture, Focused Collection Intelligence, and Watchlists instead of mutating collection records or duplicating decision engines.
+- Added Tools -> OCR-Assisted Identification with Markdown/CSV export.
+- Mobile Collector Companion reports can include OCR-Assisted Identification summaries.
+- Added `test_ocr_assisted_identification.py` and expanded Mobile Collector Companion tests.
+- Archived the v5.2 release prompt at `project_docs/release_prompts/v5.2.txt`.
 
 - Added `mobile_collector_companion.py` with `MobileCollectorCompanion`, `MobileSession`, `MobileWorkflow`, `QuickDecisionSummary`, `MobileCollectionContext`, `MobileDashboard`, `FieldWorkMode`, and `MobileCompanionReport`.
 - Added mobile-oriented workflows for coin shows, dealer visits, antique markets, coin shops, and auction previews.

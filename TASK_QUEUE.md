@@ -113,7 +113,7 @@ Work through this queue in priority order. Handle only one task at a time.
 81. `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
 82. `[x]` Build v5.0 Mobile Collector Companion
 83. `[x]` Build v5.1 Phone Photo Capture
-84. `[ ]` Build v5.2 OCR-Assisted Identification
+84. `[x]` Build v5.2 OCR-Assisted Identification
 85. `[ ]` Build v5.3 Mobile Collection Entry
 86. `[ ]` Build v6.0 Collector Cloud
 87. `[ ]` Build v6.1 Sync & Backup
@@ -182,9 +182,10 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
-#### `[-]` Lock v5.2 roadmap
+#### `[x]` Lock v5.2 roadmap
 
 - Date started: 2026-06-22
+- Date completed: 2026-06-22
 - Roadmap locked:
   - `v5.2` OCR-Assisted Identification
   - `v5.3` Mobile Collection Entry
@@ -199,6 +200,29 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
+- Commit hash: `08c5cf2`
+
+#### `[x]` Build v5.2 OCR-Assisted Identification
+
+- Date started: 2026-06-22
+- Date completed: 2026-06-22
+- Files modified:
+  - `ocr_assisted_identification.py` (new file)
+  - `test_ocr_assisted_identification.py` (new file)
+  - `coin_collection_gui.py`
+  - `mobile_collector_companion.py`
+  - `test_mobile_collector_companion.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v5.2.md` (new file)
+- Roadmap lock commit hash: `08c5cf2`
+- Implementation commit hash: pending
+- Test coverage: total passing tests increased from 650 to 660; full suite passed.
+- Release prompt archived: `project_docs/release_prompts/v5.2.txt`.
+- Limitation: OCR-assisted identification is advisory only; no computer vision attribution, AI grading, automatic collection entry, automatic ownership decisions, automatic purchases, or collection mutation.
 
 ### 2026-06-21
 

@@ -47,6 +47,7 @@ from collector_operating_system import CollectorHome, CollectionHealthReportEngi
 from collector_workflows import CollectorWorkflowEngine
 from market_awareness import MarketAwarenessEngine
 from market_intelligence_automation import MarketIntelligenceAutomationEngine
+from ocr_assisted_identification import OCRIdentificationEngine
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
 from opportunity_engine import OpportunityEngine
@@ -89,6 +90,7 @@ class CoinCollectionGUI:
         self.photo_candidates = []
         self.ocr_results = []
         self.ocr_reports = []
+        self.ocr_identification_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -185,6 +187,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
         tools_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         tools_menu.add_command(label="OCR Experiment", command=self.open_ocr_experiment)
+        tools_menu.add_command(label="OCR-Assisted Identification", command=self.open_ocr_assisted_identification)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -2791,6 +2794,128 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_ocr_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
+    def open_ocr_assisted_identification(self):
+        """Open review-only OCR-assisted identification workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("OCR-Assisted Identification")
+        dialog.geometry("920x820")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Identification Source", padding="10")
+        form_frame.grid(row=0, column=0, sticky=tk.EW, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
+
+        image_var = tk.StringVar()
+        use_latest_capture_var = tk.BooleanVar(value=False)
+
+        def browse_image():
+            path = filedialog.askopenfilename(
+                title="Select Image for OCR-Assisted Identification",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if path:
+                image_var.set(path)
+
+        ttk.Label(form_frame, text="Image Path:").grid(row=0, column=0, sticky=tk.W, pady=4)
+        ttk.Entry(form_frame, textvariable=image_var).grid(row=0, column=1, sticky=tk.EW, padx=(8, 0), pady=4)
+        ttk.Button(form_frame, text="Browse", command=browse_image).grid(row=0, column=2, sticky=tk.W, padx=(6, 0), pady=4)
+        ttk.Checkbutton(
+            form_frame,
+            text="Use latest captured photo",
+            variable=use_latest_capture_var,
+        ).grid(row=1, column=1, sticky=tk.W, padx=(8, 0), pady=4)
+
+        ttk.Label(form_frame, text="Raw OCR Text:").grid(row=2, column=0, sticky=(tk.W, tk.N), pady=4)
+        raw_text = tk.Text(form_frame, height=6, wrap=tk.WORD)
+        raw_text.grid(row=2, column=1, columnspan=2, sticky=tk.EW, padx=(8, 0), pady=4)
+
+        ttk.Label(
+            form_frame,
+            text="Identification candidates are suggestions only. Manual review is mandatory and collection records are never changed.",
+            wraplength=760,
+        ).grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=(8, 0))
+
+        result_frame = ttk.LabelFrame(main_frame, text="OCR-Assisted Identification Report", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+
+        def latest_captured_photo():
+            for session in reversed(self.photo_capture_workflow.sessions):
+                if session.photos:
+                    return session.photos[-1]
+            return None
+
+        def engine():
+            return OCRIdentificationEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                watchlists=self.watchlists,
+            )
+
+        def run_identification():
+            try:
+                supplied_text = raw_text.get("1.0", tk.END).strip()
+                if use_latest_capture_var.get():
+                    photo = latest_captured_photo()
+                    if not photo:
+                        messagebox.showwarning("No Captured Photo", "Add a phone photo capture before using the latest captured photo.")
+                        return
+                    report = engine().identify_from_captured_photo(photo, raw_text=supplied_text if supplied_text else None)
+                else:
+                    if not image_var.get().strip() and not supplied_text:
+                        messagebox.showwarning("Input Required", "Provide an image path or pasted OCR text before running identification.")
+                        return
+                    report = engine().identify(
+                        image_path=image_var.get(),
+                        raw_text=supplied_text if supplied_text else None,
+                    )
+                current_report["report"] = report
+                self.ocr_identification_reports.append(report)
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, report.format_markdown())
+            except Exception as exc:
+                messagebox.showerror("OCR-Assisted Identification Error", f"OCR-assisted identification failed: {str(exc)}")
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Run OCR-assisted identification before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export OCR-Assisted Identification",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"OCR-assisted identification exported to {file_path}")
+            else:
+                messagebox.showerror("Export Failed", "Could not export the OCR-assisted identification report.")
+
+        ttk.Button(button_frame, text="Generate Candidates", command=run_identification).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
         return CollectorWorkflowEngine(
@@ -4104,7 +4229,12 @@ Total Unique Dates: {total_unique_dates}
                     photo_capture_workflow=self.photo_capture_workflow,
                 )
                 listings = self._parse_watchlist_candidate_rows(candidate_text.get("1.0", tk.END))
-                report = companion.generate_report(listings, workflow_type=WORKFLOW_COIN_SHOW, location="Field workflow")
+                report = companion.generate_report(
+                    listings,
+                    workflow_type=WORKFLOW_COIN_SHOW,
+                    location="Field workflow",
+                    ocr_identification_report=self.ocr_identification_reports[-1] if self.ocr_identification_reports else None,
+                )
                 current_report["report"] = report
                 result_text.delete("1.0", tk.END)
                 result_text.insert(tk.END, report.format_markdown())
