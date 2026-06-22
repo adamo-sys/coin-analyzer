@@ -1,0 +1,150 @@
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v5.0 Mobile Collector Companion
+
+Latest Tag:
+
+b73a008f50f52d6e78c1b6c510d58a2cd64bedff
+
+Total Tests:
+
+641
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Live Source Validation
+* Watchlists & Alerts
+* Field Testing & Tuning
+* Mobile Collector Companion
+
+Locked Roadmap:
+
+v5.1 = Phone Photo Capture
+
+v5.2 = OCR-Assisted Identification
+
+v5.3 = Mobile Collection Entry
+
+v6.0 = Collector Cloud
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+Project Rules:
+
+* Preserve existing behavior unless explicitly changed.
+* Reuse existing intelligence engines.
+* Prefer integration over duplication.
+* Maintain or increase test coverage.
+* Follow Release Rule:
+  Implement → Audit → Tag → Push → Verify.
+* Update roadmap documentation every release.
+* Update project snapshot every release.
+  ==================================================
+  END PROJECT SNAPSHOT
+  ==================================================
+
+v5.1 = Phone Photo Capture
+
+MISSION
+
+Allow Collector Companion to accept and manage phone-captured coin and banknote photos through a mobile-style workflow.
+
+This release is NOT:
+
+* image recognition
+* attribution
+* grading
+* OCR identification
+* cloud sync
+* automatic collection entry
+
+Those arrive later.
+
+v5.1 establishes photo intake and photo workflow architecture.
+
+Create:
+
+photo_capture_workflow.py
+
+Implement:
+
+* PhotoCaptureWorkflow
+* CapturedPhoto
+* PhotoCaptureSession
+* PhotoCaptureReport
+
+Support:
+
+* single photo capture record
+* multi-photo capture session
+* front/back coin workflows
+* note front/back workflows
+* optional listing-photo workflows
+
+Integrate with:
+
+* Mobile Collector Companion
+* Photo Vault
+* OCR Experiment framework
+* OCR Validation framework
+
+Provide:
+
+* capture timestamp
+* source type
+* photo role
+* workflow status
+* notes
+* review status
+
+Add:
+
+Tools -> Phone Photo Capture
+
+Display:
+
+* capture sessions
+* photos collected
+* missing front/back photos
+* ready-for-OCR status
+* ready-for-review status
+
+Support:
+
+* Markdown export
+* CSV export
+
+Testing:
+
+* photo capture session creation
+* front/back pairing
+* workflow state transitions
+* OCR readiness
+* export generation
+* Mobile Companion integration
+
+Run:
+
+* Photo Capture tests
+* Mobile Companion tests
+* OCR tests
+* Portfolio tests
+* Full suite
+
+Definition of Done:
+
+Collector Companion can manage and organize photos captured in the field and prepare them for future OCR and identification workflows without performing identification itself.
+

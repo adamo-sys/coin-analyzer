@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-06-21
+- Date: 2026-06-22
 - Branch: `main`
-- Current project state file reports release version: `v5.0`
-- Current active task completed: v5.0 Mobile Collector Companion
+- Current project state file reports release version: `v5.1`
+- Current active task completed: v5.1 Phone Photo Capture
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -35,6 +35,13 @@ v4.0 rationale: v3.x established Collection Intelligence, Deal Hunter, Opportuni
 v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trust, validation, reliability, and source quality before live listings enter Deal Hunter, Opportunity Engine, Ranking Engine, or Market Intelligence.
 
 v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened live source validation. v4.2 automates the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
+
+
+## Release Prompt Archive
+
+Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt` and `v5.2.txt`.
+
+Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
 

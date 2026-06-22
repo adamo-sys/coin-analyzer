@@ -199,7 +199,19 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Prepare v5.1 Phone Photo Capture unless a release-blocking defect is found.
+Begin v5.2 OCR-Assisted Identification unless a release-blocking defect is found.
+
+
+## Release Prompt Archive
+
+Release prompts are project documentation and architecture history. Archive them under `project_docs/release_prompts/`, preserve historical prompts, and version each prompt by release number.
+
+Current archive status:
+
+* v5.1 prompt archived at `project_docs/release_prompts/v5.1.txt`.
+* v5.2 prompt archived at `project_docs/release_prompts/v5.2.txt` before v5.2 development.
+* Existing historical prompts remain available in `project_docs/release_prompts/`.
+* Release notes should document whether the release prompt was archived and the archived prompt path.
 
 ## Project Architecture
 

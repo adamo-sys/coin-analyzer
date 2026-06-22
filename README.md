@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v5.0`
+Current version: `v5.1`
 
-Latest tagged release: `v5.0`
+Latest tagged release: `v5.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -199,7 +199,14 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
 | `v5.1` | See verified tag `v5.1` | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
 
-See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), and [docs/releases/v5.1.md](docs/releases/v5.1.md) for release documentation.
+
+
+## Release Prompt Archive
+
+Release prompts are treated as project documentation and architecture history. They live under `project_docs/release_prompts/` and should be preserved instead of overwritten.
+
+Current archived prompts include `project_docs/release_prompts/v5.1.txt` and `project_docs/release_prompts/v5.2.txt`. Release notes should state whether each release prompt was archived and where it was stored.
 
 ## Which Tool To Use
 

@@ -1,0 +1,442 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.0.md
+* docs/releases/v5.1.md
+* current codebase
+
+Begin v5.2 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v5.2 = OCR-Assisted Identification
+
+v5.3 = Mobile Collection Entry
+
+v6.0 = Collector Cloud
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+Commit:
+
+Lock v5.2 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v5.1 Phone Photo Capture
+
+Latest Tag:
+
+5be92d0612aec9c38bc2590266d7bf01e408b40e
+
+Total Tests:
+
+650
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Live Source Validation
+* Watchlists & Alerts
+* Field Testing & Tuning
+* Mobile Collector Companion
+* Phone Photo Capture
+
+Locked Roadmap:
+
+v5.2 = OCR-Assisted Identification
+
+v5.3 = Mobile Collection Entry
+
+v6.0 = Collector Cloud
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Release prompts are project documentation.
+
+Requirements:
+
+* Store release prompts in:
+
+  project_docs/release_prompts/
+
+* Preserve historical prompts.
+
+* Do not overwrite previous prompts.
+
+* Archive the current prompt as:
+
+  v5.2.txt
+
+Before release verify:
+
+* Current release prompt exists.
+* Prior prompts remain available.
+* AI_HANDOFF.md references the archive.
+* PROJECT_STATE.md references the archive if appropriate.
+
+Document archive status in release notes.
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Transform captured photos into OCR-assisted identification candidates.
+
+This release is NOT:
+
+* computer vision attribution
+* AI grading
+* automatic collection entry
+* automatic ownership decisions
+* automatic purchases
+* automatic collection mutation
+
+OCR remains advisory only.
+
+Manual review remains mandatory.
+
+==================================================
+PHASE 2
+OCR IDENTIFICATION ENGINE
+=========================
+
+Create:
+
+ocr_assisted_identification.py
+
+Implement:
+
+* OCRIdentificationEngine
+* OCRIdentificationCandidate
+* OCRIdentificationReport
+* IdentificationEvidence
+
+Integrate:
+
+* OCR Experiment
+* OCR Validation
+* Phone Photo Capture
+* Mobile Collector Companion
+
+==================================================
+PHASE 3
+PHOTO TO OCR PIPELINE
+=====================
+
+Support:
+
+CapturedPhoto
+↓
+OCR Extraction
+↓
+OCR Validation
+↓
+Identification Candidate
+↓
+Review Report
+
+Do not alter collection data.
+
+==================================================
+PHASE 4
+IDENTIFICATION CANDIDATES
+=========================
+
+Generate candidate fields:
+
+* year
+* denomination
+* country
+* monarch
+* banknote prefix
+* certification number
+* series/type
+* silver indicator
+* possible variety keywords
+
+Examples:
+
+* Near 6
+* Wide 9
+* Large Bust
+* Proof-Like
+* Specimen
+* Chartered Banknote
+
+All results remain suggestions.
+
+==================================================
+PHASE 5
+EVIDENCE MODEL
+==============
+
+Create:
+
+IdentificationEvidence
+
+Include:
+
+* OCR text used
+* validation score
+* trust level
+* supporting keywords
+* conflicts detected
+* missing evidence
+
+Purpose:
+
+Explain every suggestion.
+
+==================================================
+PHASE 6
+CONFIDENCE MODEL
+================
+
+Classify:
+
+* HIGH
+* MEDIUM
+* LOW
+
+Generate explicit reasoning.
+
+Escalate uncertain cases to REVIEW.
+
+==================================================
+PHASE 7
+COLLECTION CONTEXT INTEGRATION
+==============================
+
+Compare candidates against:
+
+* collection
+* want lists
+* watchlists
+* collection priorities
+
+Output:
+
+* already owned
+* possible upgrade
+* collection gap
+* watchlist match
+* needs review
+
+Do not mutate collection records.
+
+==================================================
+PHASE 8
+MOBILE COMPANION INTEGRATION
+============================
+
+Allow:
+
+Photo Capture
+↓
+OCR Identification
+↓
+Quick Decision Summary
+
+Display:
+
+* candidate details
+* confidence
+* evidence
+* collection relevance
+* review warnings
+
+==================================================
+PHASE 9
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> OCR-Assisted Identification
+
+Display:
+
+* OCR candidates
+* evidence
+* confidence
+* review status
+* collection relevance
+
+==================================================
+PHASE 10
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* OCRIdentificationReport
+* OCRIdentificationCandidate
+* IdentificationEvidence
+
+==================================================
+PHASE 11
+TESTING
+=======
+
+Add tests for:
+
+* OCR candidate generation
+* confidence scoring
+* evidence reporting
+* OCR validation integration
+* photo capture integration
+* mobile companion integration
+* collection context integration
+* export generation
+
+Run:
+
+* OCR Identification tests
+* OCR Validation tests
+* Photo Capture tests
+* Mobile Companion tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 12
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.2.md
+
+Document:
+
+* OCR identification workflow
+* evidence model
+* confidence model
+* limitations
+* release prompt archive status
+
+==================================================
+PHASE 13
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* release prompt archive updated
+* release history updated
+* project snapshot updated
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* OCR pipeline works
+* evidence model works
+* confidence model works
+* mobile integration works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v5.2
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can take captured photos, extract OCR information, generate explainable identification candidates, compare them against collection context, and present reviewable suggestions without automatically changing collection data.
+
+This completes the first end-to-end field workflow:
+
+Capture
+↓
+OCR
+↓
+Identify
+↓
+Review
+
+while preserving collector control.
