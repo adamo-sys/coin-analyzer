@@ -1,0 +1,451 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v5.0.md
+* docs/releases/v5.1.md
+* docs/releases/v5.2.md
+* docs/releases/v5.3.md
+* docs/releases/v5.4.md
+* current codebase
+
+Begin v6.0 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v6.0 = Collector Cloud Foundation
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+Record rationale:
+
+v5.x completed:
+
+* Mobile Companion
+* Photo Capture
+* OCR-Assisted Identification
+* Mobile Collection Entry
+* Collector Workflow Integration
+
+The collector workflow is now complete.
+
+The next stage is preparing the platform for future synchronization and multi-device operation.
+
+Commit:
+
+Lock v6 roadmap
+
+Report:
+
+* files changed
+* commit hash
+* working tree status
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v5.4 Collector Workflow Integration
+
+Latest Release:
+
+5d8949c25a4215d9bea71d888d696307608039a9
+
+Total Tests:
+
+677
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Live Source Validation
+* Watchlists & Alerts
+* Field Testing & Tuning
+* Mobile Collector Companion
+* Phone Photo Capture
+* OCR-Assisted Identification
+* Mobile Collection Entry
+* Collector Workflow Integration
+
+Locked Roadmap:
+
+v6.0 = Collector Cloud Foundation
+
+v6.1 = Sync & Backup
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v6.0.txt
+
+Preserve all previous prompts.
+
+Update archive references in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v6.0.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create the cloud architecture layer required for future synchronization.
+
+This release is NOT:
+
+* real cloud hosting
+* real user accounts
+* real authentication
+* internet connectivity
+* cloud providers
+* background synchronization
+
+Purpose:
+
+Prepare Collector Companion for future cloud operation.
+
+==================================================
+PHASE 2
+COLLECTOR CLOUD ENGINE
+======================
+
+Create:
+
+collector_cloud.py
+
+Implement:
+
+* CollectorCloud
+* CloudRecord
+* CloudCollectionSnapshot
+* CloudSyncPlan
+* CloudBackupPackage
+
+Purpose:
+
+Represent future cloud state locally.
+
+==================================================
+PHASE 3
+COLLECTION SNAPSHOTS
+====================
+
+Support:
+
+* snapshot creation
+* snapshot metadata
+* snapshot comparison
+* snapshot history
+
+Track:
+
+* timestamp
+* collection metrics
+* portfolio metrics
+* workflow metrics
+
+No network access.
+
+==================================================
+PHASE 4
+SYNC PLANNING
+=============
+
+Create:
+
+CloudSyncPlan
+
+Support:
+
+* source snapshot
+* destination snapshot
+* proposed changes
+* merge candidates
+* conflicts
+
+Generate plans only.
+
+Do not execute synchronization.
+
+==================================================
+PHASE 5
+BACKUP PACKAGES
+===============
+
+Create:
+
+CloudBackupPackage
+
+Support:
+
+* export package
+* restore package
+* validation report
+* package metadata
+
+Purpose:
+
+Future sync and recovery foundation.
+
+==================================================
+PHASE 6
+CONFLICT MODEL
+==============
+
+Create:
+
+CloudConflict
+
+Types:
+
+* record conflict
+* collection conflict
+* workflow conflict
+* settings conflict
+
+Generate review recommendations.
+
+No automatic resolution.
+
+==================================================
+PHASE 7
+CLOUD READINESS REPORT
+======================
+
+Create:
+
+CloudReadinessReport
+
+Track:
+
+* syncable modules
+* non-syncable modules
+* migration requirements
+* risk areas
+* conflict exposure
+
+Purpose:
+
+Measure readiness for future cloud adoption.
+
+==================================================
+PHASE 8
+MODULE INTEGRATION
+==================
+
+Integrate with:
+
+* Portfolio Performance
+* Collection Intelligence
+* Mobile Companion
+* Mobile Collection Entry
+* Workflow Integration
+
+Reuse existing logic.
+
+No duplicate implementations.
+
+==================================================
+PHASE 9
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Collector Cloud Foundation
+
+Display:
+
+* snapshots
+* sync plans
+* backup packages
+* readiness reports
+* conflict previews
+
+==================================================
+PHASE 10
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* CloudReadinessReport
+* CloudSyncPlan
+* CloudCollectionSnapshot
+* CloudBackupPackage
+
+==================================================
+PHASE 11
+TESTING
+=======
+
+Add tests for:
+
+* snapshot creation
+* snapshot comparison
+* sync planning
+* backup package generation
+* conflict generation
+* readiness reporting
+* workflow integration
+* export generation
+
+Run:
+
+* Collector Cloud tests
+* Workflow Integration tests
+* Mobile Companion tests
+* Portfolio tests
+* Collection Intelligence tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 12
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.0.md
+
+Document:
+
+* cloud architecture
+* snapshots
+* sync plans
+* backup packages
+* conflict model
+* readiness model
+* limitations
+* prompt archive status
+
+==================================================
+PHASE 13
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* prompt archive updated
+* release history updated
+* project snapshot updated
+
+==================================================
+PHASE 14
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* snapshots work
+* sync plans work
+* backup packages work
+* readiness reports work
+* conflict model works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 15
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v6.0
+
+Follow Release Rule:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+Report:
+
+* files changed
+* tests run
+* audit result
+* commit hashes
+* tag hash
+* push verification
+* remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can model cloud-ready collection data, snapshots, backups, synchronization plans, and conflict scenarios entirely offline.
+
+No internet services are required.
+
+No cloud provider is required.
+
+This release establishes the foundation upon which all future synchronization, backup, and multi-device capabilities will be built.

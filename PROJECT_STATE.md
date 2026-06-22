@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v5.4`
+* Current release version: `v6.0`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
 ## Last Release Tag
 
 * Most recent Git tag: `v5.4`
-* Summary of what was included: Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression coverage.
+* Summary of what was included: Latest released tag remains v5.4. v6.0 Collector Cloud Foundation development has started to add offline cloud-readiness architecture for future sync and multi-device operation.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -157,16 +157,15 @@
 
 ## Active Roadmap
 
-Official v5.4-to-v7.0 roadmap:
+Official v6.0-to-v7.0 roadmap:
 
-1. `v5.4` Collector Workflow Integration
-2. `v6.0` Collector Cloud Foundation
-3. `v6.1` Sync & Backup
-4. `v6.2` Multi-Device Collector Workspace
-5. `v6.3` Device Linking & Conflict Resolution
-6. `v7.0` Collector Platform
+1. `v6.0` Collector Cloud Foundation
+2. `v6.1` Sync & Backup
+3. `v6.2` Multi-Device Collector Workspace
+4. `v6.3` Device Linking & Conflict Resolution
+5. `v7.0` Collector Platform
 
-Roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
+Roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is now complete; the next stage prepares the platform for future synchronization and multi-device operation.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -204,7 +203,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v6.0 Collector Cloud Foundation planning unless a release-blocking defect is found.
+Build v6.0 Collector Cloud Foundation unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -217,6 +216,7 @@ Current archive status:
 * v5.2 prompt archived at `project_docs/release_prompts/v5.2.txt` before v5.2 development.
 * v5.3 prompt archived at `project_docs/release_prompts/v5.3.txt` before v5.3 development.
 * v5.4 prompt archived at `project_docs/release_prompts/v5.4.txt` before v5.4 development.
+* v6.0 prompt archived at `project_docs/release_prompts/v6.0.txt` before v6.0 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 
@@ -301,6 +301,12 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Locked v6 roadmap: Collector Cloud Foundation -> Sync & Backup -> Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
+* v6 roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is complete; v6 begins cloud-readiness architecture for future sync and multi-device operation.
+* Release prompt archived: `project_docs/release_prompts/v6.0.txt`.
+* Roadmap lock commit: pending.
+
 
 * Implementation commit: `f86d8ca` (`Implement v5.4 collector workflow integration`).
 * Release packaging status: v5.4 tag and push verification completed.

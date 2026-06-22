@@ -1,6 +1,6 @@
 # Coin Analyzer
 
-Current version: `v5.4`
+Current version: `v6.0`
 
 Latest tagged release: `v5.4`
 
@@ -206,14 +206,14 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 
-See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), and [docs/releases/v5.4.md](docs/releases/v5.4.md) for release documentation.
+See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), and [docs/releases/v6.0.md](docs/releases/v6.0.md) for release documentation.
 
 
 ## Release Prompt Archive
 
 Release prompts are treated as project documentation and architecture history. They live under `project_docs/release_prompts/` and should be preserved instead of overwritten.
 
-Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, `project_docs/release_prompts/v5.3.txt`, and `project_docs/release_prompts/v5.4.txt`. Release notes should state whether each release prompt was archived and where it was stored.
+Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, `project_docs/release_prompts/v5.3.txt`, `project_docs/release_prompts/v5.4.txt`, and `project_docs/release_prompts/v6.0.txt`. Release notes should state whether each release prompt was archived and where it was stored.
 
 ## Which Tool To Use
 
@@ -280,9 +280,8 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v5.4-to-v7.0 roadmap:
+Official v6.0-to-v7.0 roadmap:
 
-- `v5.4` Collector Workflow Integration
 - `v6.0` Collector Cloud Foundation
 - `v6.1` Sync & Backup
 - `v6.2` Multi-Device Collector Workspace
@@ -291,7 +290,7 @@ Official v5.4-to-v7.0 roadmap:
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
 
-v5.4 roadmap rationale: The v5.x series introduced Mobile Collector Companion, Phone Photo Capture, OCR-Assisted Identification, and Mobile Collection Entry. Before introducing cloud architecture, these capabilities should be unified into a complete collector workflow.
+v6 roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is now complete; the next stage is preparing the platform for future synchronization and multi-device operation.
 
 Post-v3.8 roadmap rationale: the platform can now evaluate, rank, explain, and calibrate opportunities. The next objective is understanding portfolio progress and collection development over time before live deal hunting begins.
 
