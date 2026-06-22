@@ -298,6 +298,10 @@ class OCRValidationEngine:
             review_recommendations=recommendations,
         )
 
+    def validate_captured_photo(self, captured_photo: Any, raw_text: Optional[str] = None) -> OCRValidationReport:
+        suggestion_report = OCRExperiment().from_captured_photo(captured_photo, raw_text=raw_text)
+        return self.validate(suggestion_report=suggestion_report)
+
     def validate_years(self, report: OCRSuggestionReport) -> List[OCRValidationFinding]:
         years = report.possible_years
         findings = []

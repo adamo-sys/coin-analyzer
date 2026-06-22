@@ -50,6 +50,7 @@ The app is especially tuned for Adam-specific priorities:
 - Watchlists & Alerts: define editable series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports.
 - Field Test & Tuning: run deterministic live-pipeline scenarios through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, opportunity quality, alert quality, and likely false positives before mobile expansion.
 - Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews with quick decisions, collection context, field work mode, dashboard summaries, and CSV/Markdown export.
+- Phone Photo Capture: metadata-only capture sessions for phone-captured coin, banknote, and listing photos with front/back pairing, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Tools -> Phone Photo Capture, and CSV/Markdown export.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -196,6 +197,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, and regression coverage. |
 | `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, and regression coverage. |
 | `v5.0` | See verified tag `v5.0` | Mobile Collector Companion with desktop/local mobile workflows, quick decisions, mobile collection context, field work mode, dashboard reporting, Tools -> Mobile Collector Companion, and regression coverage. |
+| `v5.1` | Pending release tag | Phone Photo Capture with metadata-only capture sessions, front/back workflows, listing-photo workflow, Photo Vault/OCR adapters, Mobile Companion summaries, Tools -> Phone Photo Capture, and 650-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -803,6 +805,26 @@ Known limitations:
 - No Android app, iOS app, web app, cloud sync, phone-camera integration, OCR identification, live fetching, purchasing, or collection mutation.
 - Quick decisions are compact summaries of existing deterministic engines and should be manually reviewed before spending money.
 
+## Phone Photo Capture
+
+Use Tools -> Phone Photo Capture when you want to organize photos captured in the field before later OCR or manual identification work.
+
+Phone Photo Capture adds:
+
+- `PhotoCaptureWorkflow`, `CapturedPhoto`, `PhotoCaptureSession`, and `PhotoCaptureReport`.
+- Single photo capture records with timestamp, source type, photo role, workflow status, review status, and notes.
+- Coin front/back and banknote front/back sessions with missing-side checks.
+- Optional listing-photo sessions for auction/dealer/listing intake.
+- OCR-ready and review-ready status summaries.
+- Photo Vault record conversion and OCR source adapters.
+- Mobile Collector Companion photo capture summary integration.
+- CSV and Markdown export.
+
+Known limitations:
+
+- Metadata-only photo intake.
+- No image recognition, attribution, grading, OCR identification, cloud sync, automatic collection entry, purchasing, or collection mutation.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -847,6 +869,7 @@ Export support is intentionally report-specific:
 - Watchlists & Alerts: CSV and Markdown export.
 - Field Test & Tuning: CSV and Markdown export.
 - Mobile Collector Companion: CSV and Markdown export.
+- Phone Photo Capture: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

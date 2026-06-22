@@ -112,7 +112,7 @@ Work through this queue in priority order. Handle only one task at a time.
 80. `[x]` Build v4.3 Watchlists & Alerts
 81. `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
 82. `[x]` Build v5.0 Mobile Collector Companion
-83. `[ ]` Build v5.1 Phone Photo Capture
+83. `[x]` Build v5.1 Phone Photo Capture
 84. `[ ]` Build v5.2 OCR-Assisted Identification
 85. `[ ]` Build v5.3 Mobile Collection Entry
 86. `[ ]` Build v6.0 Collector Cloud

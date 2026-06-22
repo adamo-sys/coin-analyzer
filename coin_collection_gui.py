@@ -51,6 +51,17 @@ from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
 from opportunity_engine import OpportunityEngine
 from persistence_manager import PersistenceManager
+from photo_capture_workflow import (
+    ROLE_COIN_BACK,
+    ROLE_COIN_FRONT,
+    ROLE_LISTING,
+    ROLE_NOTE_BACK,
+    ROLE_NOTE_FRONT,
+    SESSION_COIN_FRONT_BACK,
+    SESSION_LISTING_PHOTOS,
+    SESSION_NOTE_FRONT_BACK,
+    PhotoCaptureWorkflow,
+)
 from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
@@ -74,6 +85,7 @@ class CoinCollectionGUI:
         self.snapshot_manager = CollectionSnapshotManager()
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
+        self.photo_capture_workflow = PhotoCaptureWorkflow()
         self.photo_candidates = []
         self.ocr_results = []
         self.ocr_reports = []
@@ -184,6 +196,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Watchlists & Alerts", command=self.open_watchlists_and_alerts)
         tools_menu.add_command(label="Field Test & Tuning", command=self.open_field_test_and_tuning)
         tools_menu.add_command(label="Mobile Collector Companion", command=self.open_mobile_collector_companion)
+        tools_menu.add_command(label="Phone Photo Capture", command=self.open_phone_photo_capture)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
@@ -3903,6 +3916,148 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
+    def open_phone_photo_capture(self):
+        """Open metadata-only phone photo capture workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Phone Photo Capture")
+        dialog.geometry("980x760")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        form_frame = ttk.LabelFrame(main_frame, text="Capture Session", padding="8")
+        form_frame.grid(row=0, column=0, sticky=tk.EW, pady=(0, 8))
+        for col in range(1, 4):
+            form_frame.columnconfigure(col, weight=1)
+
+        session_type_var = tk.StringVar(value=SESSION_COIN_FRONT_BACK)
+        subject_var = tk.StringVar(value="Field capture")
+        location_var = tk.StringVar(value="Field workflow")
+        notes_var = tk.StringVar()
+        front_var = tk.StringVar()
+        back_var = tk.StringVar()
+        listing_var = tk.StringVar()
+
+        def browse(target_var):
+            file_path = filedialog.askopenfilename(
+                title="Select Phone Photo",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if file_path:
+                target_var.set(file_path)
+
+        ttk.Label(form_frame, text="Session Type:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Combobox(
+            form_frame,
+            textvariable=session_type_var,
+            values=[SESSION_COIN_FRONT_BACK, SESSION_NOTE_FRONT_BACK, SESSION_LISTING_PHOTOS],
+            state="readonly",
+            width=24,
+        ).grid(row=0, column=1, sticky=tk.EW, pady=2, padx=(4, 8))
+        ttk.Label(form_frame, text="Subject:").grid(row=0, column=2, sticky=tk.W, pady=2)
+        ttk.Entry(form_frame, textvariable=subject_var).grid(row=0, column=3, sticky=tk.EW, pady=2, padx=(4, 0))
+
+        ttk.Label(form_frame, text="Location:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(form_frame, textvariable=location_var).grid(row=1, column=1, sticky=tk.EW, pady=2, padx=(4, 8))
+        ttk.Label(form_frame, text="Notes:").grid(row=1, column=2, sticky=tk.W, pady=2)
+        ttk.Entry(form_frame, textvariable=notes_var).grid(row=1, column=3, sticky=tk.EW, pady=2, padx=(4, 0))
+
+        for row, label, variable in [
+            (2, "Front Photo:", front_var),
+            (3, "Back Photo:", back_var),
+            (4, "Listing Photo:", listing_var),
+        ]:
+            ttk.Label(form_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=2)
+            ttk.Entry(form_frame, textvariable=variable).grid(row=row, column=1, columnspan=2, sticky=tk.EW, pady=2, padx=(4, 8))
+            ttk.Button(form_frame, text="Browse", command=lambda var=variable: browse(var)).grid(row=row, column=3, sticky=tk.W, pady=2)
+
+        summary_var = tk.StringVar(value="No capture sessions yet.")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=1, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Capture Report", padding="8")
+        result_frame.grid(row=2, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        def refresh_report():
+            report = self.photo_capture_workflow.report()
+            summary_var.set(
+                f"Sessions: {report.total_sessions}   Photos: {report.total_photos}   "
+                f"Missing front/back: {report.missing_front_count}/{report.missing_back_count}   "
+                f"OCR-ready: {report.ready_for_ocr_count}   Review-ready: {report.ready_for_review_count}"
+            )
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+            return report
+
+        def add_session():
+            session_type = session_type_var.get()
+            subject = subject_var.get()
+            session = None
+            if session_type == SESSION_LISTING_PHOTOS:
+                if not listing_var.get().strip():
+                    messagebox.showwarning("Photo Required", "Select a listing photo before adding this session.")
+                    return
+                session = self.photo_capture_workflow.capture_listing_photo(subject, listing_var.get(), notes=notes_var.get())
+            else:
+                if not any([front_var.get().strip(), back_var.get().strip(), listing_var.get().strip()]):
+                    messagebox.showwarning("Photo Required", "Select at least one photo before adding this session.")
+                    return
+                session = self.photo_capture_workflow.start_session(
+                    session_type=session_type,
+                    subject=subject,
+                    location=location_var.get(),
+                    notes=notes_var.get(),
+                )
+                if front_var.get().strip():
+                    role = ROLE_NOTE_FRONT if session_type == SESSION_NOTE_FRONT_BACK else ROLE_COIN_FRONT
+                    session.add_photo(front_var.get(), role)
+                if back_var.get().strip():
+                    role = ROLE_NOTE_BACK if session_type == SESSION_NOTE_FRONT_BACK else ROLE_COIN_BACK
+                    session.add_photo(back_var.get(), role)
+                if listing_var.get().strip():
+                    session.add_photo(listing_var.get(), ROLE_LISTING, linked_coin_name=subject)
+            self.photo_records.extend(session.to_photo_records())
+            refresh_report()
+
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Phone Photo Capture CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            refresh_report().export_csv(file_path)
+            messagebox.showinfo("Export Complete", f"Phone photo capture CSV exported to {file_path}")
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Phone Photo Capture Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            refresh_report().export_markdown(file_path)
+            messagebox.showinfo("Export Complete", f"Phone photo capture Markdown exported to {file_path}")
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=tk.W, pady=(8, 0))
+        ttk.Button(button_frame, text="Add Capture Session", command=add_session).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Refresh Report", command=refresh_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+        refresh_report()
+
     def open_mobile_collector_companion(self):
         """Open mobile-oriented Collector Companion workflow simulation."""
         dialog = tk.Toplevel(self.root)
@@ -3946,6 +4101,7 @@ Total Unique Dates: {total_unique_dates}
                     want_list_intents=self._active_want_list_intents(),
                     market_awareness_engine=self.market_awareness_engine,
                     watchlists=self.watchlists,
+                    photo_capture_workflow=self.photo_capture_workflow,
                 )
                 listings = self._parse_watchlist_candidate_rows(candidate_text.get("1.0", tk.END))
                 report = companion.generate_report(listings, workflow_type=WORKFLOW_COIN_SHOW, location="Field workflow")

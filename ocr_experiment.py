@@ -322,6 +322,9 @@ class OCRExperiment:
     def from_photo_record(self, photo_record: Any, raw_text: Optional[str] = None) -> OCRSuggestionReport:
         return self.run(image_path=_clean_text(getattr(photo_record, "file_path", "")), raw_text=raw_text)
 
+    def from_captured_photo(self, captured_photo: Any, raw_text: Optional[str] = None) -> OCRSuggestionReport:
+        return self.run(image_path=_clean_text(getattr(captured_photo, "file_path", "")), raw_text=raw_text)
+
     def from_mobile_candidate(self, mobile_candidate: Any, raw_text: Optional[str] = None) -> OCRSuggestionReport:
         return self.run(image_path=_clean_text(getattr(mobile_candidate, "photo_reference_id", "")), raw_text=raw_text)
 

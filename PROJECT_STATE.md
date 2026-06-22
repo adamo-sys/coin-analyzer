@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v5.0`
+* Current release version: `v5.1`
 * Current Git branch: `main`
-* Last updated date: 2026-06-21
+* Last updated date: 2026-06-22
 
 ## Last Release Tag
 
 * Most recent Git tag: `v5.0`
-* Summary of what was included: Mobile Collector Companion with desktop/local mobile-oriented sessions, field workflows, quick decision summaries, mobile collection context, mobile dashboard, field work mode, Tools -> Mobile Collector Companion, CSV/Markdown export, and regression coverage.
+* Summary of what was included: v5.1 implementation is in progress locally: Phone Photo Capture with metadata-only capture sessions, front/back pairing, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, CSV/Markdown export, and regression coverage. Release tag verification is pending.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -136,6 +136,7 @@
 * Watchlists & Alerts: report-driven collector target layer that lets users define series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports without background polling, notifications, purchasing, bidding, or collection mutation.
 * Live Deal Hunter Field Test & Tuning: deterministic field-test framework that runs realistic scenario batches through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, recommendation quality, alert quality, and likely false positives before mobile expansion.
 * Mobile Collector Companion: desktop/local mobile-oriented workflow layer for coin shows, dealer visits, antique markets, coin shops, and auction previews, with quick decision summaries, field work mode, mobile collection context, dashboard reporting, CSV/Markdown export, and integration with existing intelligence engines.
+* Phone Photo Capture: metadata-only field photo intake workflow for phone-captured coin, banknote, and listing photos with single-photo records, front/back sessions, missing-side checks, OCR/review readiness, Photo Vault records, OCR source adapters, Mobile Collector Companion summaries, Tools -> Phone Photo Capture, and CSV/Markdown export.
 
 ## Known Bugs
 
@@ -232,6 +233,7 @@ Prepare v5.1 Phone Photo Capture unless a release-blocking defect is found.
 * Watchlists & Alerts system: `watchlist_engine.py` provides `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`. It matches collector-defined watches against existing Deal Hunter, Ranking, Live Deal Hunter, listing connector, and Market Intelligence Automation outputs, then generates on-demand report alerts without polling, notifications, purchases, or collection mutation.
 * Field Test & Tuning system: `field_test_framework.py` provides `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, and `FalsePositiveAudit`. It runs deterministic local scenarios through Live Source Validation, Live Deal Hunter, Deal Hunter Ranking, Market Intelligence Automation, Watchlists, and Alerts without fetching live sources or mutating collection data.
 * Mobile Collector Companion system: `mobile_collector_companion.py` provides `MobileCollectorCompanion`, `MobileSession`, `MobileWorkflow`, `QuickDecisionSummary`, `MobileCollectionContext`, `MobileDashboard`, `FieldWorkMode`, and `MobileCompanionReport`. It reuses Deal Hunter Ranking, Market Intelligence Automation, Watchlists, Alerts, Portfolio Performance, and Field Test Framework outputs for phone-like desktop workflows without adding a mobile app, camera integration, cloud sync, or collection mutation.
+* Phone Photo Capture system: `photo_capture_workflow.py` provides `PhotoCaptureWorkflow`, `CapturedPhoto`, `PhotoCaptureSession`, and `PhotoCaptureReport`. It creates phone-photo capture metadata, manages coin/note front-back pairing, listing-photo sessions, workflow/review status, OCR/review readiness, Photo Vault record conversion, OCR source conversion, and CSV/Markdown export.
 * Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
@@ -276,6 +278,15 @@ Prepare v5.1 Phone Photo Capture unless a release-blocking defect is found.
 * Never leave a completed version untagged.
 
 ## Recent Changes
+
+### 2026-06-22
+
+* Implemented v5.1 Phone Photo Capture locally: `PhotoCaptureWorkflow`, `CapturedPhoto`, `PhotoCaptureSession`, `PhotoCaptureReport`, coin/banknote front-back workflows, listing-photo workflow, missing-side checks, OCR/review readiness, Photo Vault/OCR adapters, Mobile Collector Companion summary integration, Tools -> Phone Photo Capture, and CSV/Markdown export.
+* Release packaging status: implementation complete locally; commit/tag/push verification pending.
+* Full test suite passed: 650 tests OK.
+* Focused test slice passed: 65 tests OK (`test_photo_capture_workflow.py`, `test_mobile_collector_companion.py`, `test_ocr_experiment.py`, `test_ocr_validation.py`, `test_photo_vault.py`, `test_portfolio_performance.py`).
+* Coverage note: total passing tests increased from 641 to 650; new v5.1 regression tests cover session creation, front/back pairing, note workflows, state transitions, OCR readiness, export generation, Mobile Companion integration, and OCR/validation adapters.
+* Limitation: metadata-only phone photo intake; no image recognition, attribution, grading, OCR identification, cloud sync, automatic collection entry, purchasing, or collection mutation.
 
 ### 2026-06-21
 

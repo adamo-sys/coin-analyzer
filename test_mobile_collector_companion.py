@@ -10,6 +10,7 @@ from mobile_collector_companion import (
     WORKFLOW_AUCTION_PREVIEW,
     WORKFLOW_COIN_SHOW,
 )
+from photo_capture_workflow import PhotoCaptureWorkflow
 from watchlist_engine import Watchlist, WatchlistItem, WatchPriority, WATCH_TYPE_SERIES
 
 
@@ -103,6 +104,18 @@ class TestMobileCollectorCompanion(unittest.TestCase):
                 self.assertIn("candidate_title", handle.readline())
             with open(md_path, encoding="utf-8") as handle:
                 self.assertIn("Mobile Collector Companion Report", handle.read())
+
+    def test_mobile_report_includes_phone_photo_capture_summary(self):
+        photo_workflow = PhotoCaptureWorkflow()
+        photo_workflow.capture_coin_pair("Canada 1911 10 cents", front_path="front.jpg")
+        companion = MobileCollectorCompanion(photo_capture_workflow=photo_workflow)
+
+        report = companion.generate_report([self.make_listing()])
+
+        self.assertEqual(report.photo_capture_report.total_sessions, 1)
+        self.assertEqual(report.photo_capture_report.total_photos, 1)
+        self.assertEqual(report.photo_capture_report.missing_back_count, 1)
+        self.assertIn("Phone Photo Capture", report.format_markdown())
 
     def test_field_test_snapshot_integration(self):
         companion = MobileCollectorCompanion()
