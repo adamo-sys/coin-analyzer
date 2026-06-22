@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v6.0`
-- Current active task: v6.0 Collector Cloud Foundation
+- Current active task: v6.0 Collector Cloud Foundation implementation complete locally; release metadata/tag/push pending
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -42,6 +42,16 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Added `collector_cloud.py` with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`.
+- Collector Cloud Foundation models future cloud state entirely offline: collection records, snapshot history, sync plans, backup packages, conflicts, and readiness reports.
+- Snapshot creation tracks collection metrics, portfolio metrics, workflow metrics, module counts, stable content hashes, and no-upload metadata.
+- Sync plans generate proposed changes, merge candidates, collection/workflow/settings/record conflicts, and manual-review recommendations without executing synchronization.
+- Backup packages include package metadata, validation findings, and restore previews without cloud storage or restore execution.
+- Tools -> Collector Cloud Foundation displays snapshots, sync plans, backup packages, readiness reports, conflict previews, and CSV/Markdown export.
+- Mobile Collector Companion reports can include Collector Cloud readiness summaries.
+- Added `test_collector_cloud.py`; focused Collector Cloud tests passed 8 OK; adjacent v6.0 slice passed 47 OK; full `run_tests.bat` passed 685 OK.
+- v6.0 implementation commit: pending.
 
 - Locked the v6 roadmap: v6.0 Collector Cloud Foundation, v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.0 release prompt at `project_docs/release_prompts/v6.0.txt`.
@@ -560,7 +570,7 @@ Supported statuses:
 
 ## Test Status
 
-- `.\run_tests.bat`: 579 tests OK for the v3.9 Portfolio Performance release line.
+- `run_tests.bat`: 685 tests OK for the v6.0 Collector Cloud Foundation release line.
 - Coverage note: total passing tests increased from 571 to 579; existing regression suites remained green.
 - Targeted Portfolio Performance, Snapshot, Collection Intelligence, Opportunity Engine, and Market Intelligence block: 50 tests OK.
 - Targeted Market Intelligence tests: 11 tests OK.

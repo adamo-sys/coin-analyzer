@@ -54,6 +54,7 @@ The app is especially tuned for Adam-specific priorities:
 - OCR-Assisted Identification: review-only pipeline that turns captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 - Mobile Collection Entry: review-only field workflow that converts OCR identification candidates into proposed collection-entry records with field confidence, collection/want-list/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Tools -> Mobile Collection Entry, and CSV/Markdown export without inserting records automatically.
 - Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, mobile collection entry candidates, portfolio preview, final review, workflow health reporting, Mobile Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without automatic collection mutation.
+- Collector Cloud Foundation: offline architecture layer that models future cloud-ready records, collection snapshots, sync plans, backup packages, conflict previews, readiness reports, Tools -> Collector Cloud Foundation, and CSV/Markdown export without real cloud services or synchronization.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -205,6 +206,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.2` | See verified tag `v5.2` | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
+| `v6.0` | Pending tag | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), and [docs/releases/v6.0.md](docs/releases/v6.0.md) for release documentation.
 
@@ -238,6 +240,7 @@ Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `proje
 - Use Field Test & Tuning when you want deterministic live-pipeline test scenarios, pipeline health metrics, opportunity quality summaries, alert quality checks, and false-positive audit findings before expanding live or mobile workflows.
 - Use Mobile Collector Companion when you want a desktop/local simulation of field decisions at a coin show, dealer visit, antique market, coin shop, or auction preview.
 - Use Collector Workflow Integration when you want one guided flow from photo/OCR intake through evidence, collection context, entry candidate, portfolio preview, and final review.
+- Use Collector Cloud Foundation when you want offline snapshots, readiness reports, sync-plan previews, conflict previews, or backup-package models for future cloud operation without using any real cloud service.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
@@ -1497,6 +1500,27 @@ Known limitations:
 - No scraping, URL fetching, market APIs, live pricing, market forecasting, OCR, image recognition, or Numista lookup.
 - Ranking is deterministic planning guidance from local data and provided opportunities only.
 - Smart Shopping Assistant does not modify collection data.
+
+
+## Collector Cloud Foundation
+
+v6.0 adds an offline cloud architecture foundation for future sync and multi-device releases. It represents future cloud state locally only.
+
+`collector_cloud.py` provides:
+
+- `CloudRecord` for syncable local record metadata, stable hashes, module ownership, and review-only sync status.
+- `CloudCollectionSnapshot` for timestamped local snapshots with collection, portfolio, workflow, and module metrics.
+- `CloudSyncPlan` for proposed future changes, merge candidates, and conflicts without executing synchronization.
+- `CloudBackupPackage` for local package metadata, validation findings, and restore previews without cloud storage or restore execution.
+- `CloudConflict` for record, collection, workflow, and settings conflicts with manual-review recommendations.
+- `CloudReadinessReport` for syncable modules, non-syncable modules, migration requirements, risk areas, and conflict exposure.
+
+Tools -> Collector Cloud Foundation can generate snapshots, sync plans, backup packages, readiness reports, conflict previews, and CSV/Markdown exports. Mobile Collector Companion reports can include the latest cloud readiness summary.
+
+Limitations:
+
+- No real cloud hosting, accounts, authentication, internet connectivity, cloud provider integration, background synchronization, automatic restore, or collection mutation.
+- Sync plans are review-only architecture artifacts for future releases.
 
 ## Data Safety
 

@@ -9,6 +9,7 @@ from PIL import Image, ImageTk
 import os
 import cv2
 from acquisition_workflow import AcquisitionWorkflow
+from collector_cloud import CollectorCloud
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
 from deal_hunter import DealHunter, DealListing
@@ -111,6 +112,10 @@ class CoinCollectionGUI:
         self.ocr_identification_reports = []
         self.mobile_entry_reports = []
         self.workflow_completion_reports = []
+        self.cloud_snapshots = []
+        self.cloud_sync_plans = []
+        self.cloud_backup_packages = []
+        self.cloud_readiness_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -210,6 +215,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="OCR-Assisted Identification", command=self.open_ocr_assisted_identification)
         tools_menu.add_command(label="Mobile Collection Entry", command=self.open_mobile_collection_entry)
         tools_menu.add_command(label="Collector Workflow Integration", command=self.open_collector_workflow_integration)
+        tools_menu.add_command(label="Collector Cloud Foundation", command=self.open_collector_cloud_foundation)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3197,6 +3203,132 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Health", command=lambda: export_health("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
+
+    def open_collector_cloud_foundation(self):
+        """Open offline Collector Cloud Foundation reports."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collector Cloud Foundation")
+        dialog.geometry("1040x820")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        summary_var = tk.StringVar(value="No cloud foundation report generated.")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Collector Cloud Foundation", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+
+        def engine():
+            return CollectorCloud(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+            )
+
+        def show_report(report, summary):
+            current_report["report"] = report
+            summary_var.set(summary)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def create_snapshot():
+            try:
+                cloud = engine()
+                snapshot = cloud.create_snapshot("GUI local workspace")
+                self.cloud_snapshots.append(snapshot)
+                show_report(snapshot, f"Snapshot records: {snapshot.record_count} | Hash: {snapshot.content_hash[:12]}")
+            except Exception as exc:
+                messagebox.showerror("Collector Cloud Error", f"Snapshot failed: {str(exc)}")
+
+        def create_sync_plan():
+            try:
+                if len(self.cloud_snapshots) < 2:
+                    create_snapshot()
+                    if len(self.cloud_snapshots) < 2:
+                        messagebox.showwarning("Snapshots Required", "Create at least two snapshots before generating a sync plan.")
+                        return
+                cloud = engine()
+                plan = cloud.create_sync_plan(self.cloud_snapshots[-2], self.cloud_snapshots[-1])
+                self.cloud_sync_plans.append(plan)
+                show_report(plan, f"Plan changes: {plan.proposed_change_count} | Conflicts: {plan.conflict_count}")
+            except Exception as exc:
+                messagebox.showerror("Collector Cloud Error", f"Sync plan failed: {str(exc)}")
+
+        def create_backup_package():
+            try:
+                cloud = engine()
+                snapshot = self.cloud_snapshots[-1] if self.cloud_snapshots else cloud.create_snapshot("GUI backup snapshot")
+                if not self.cloud_snapshots:
+                    self.cloud_snapshots.append(snapshot)
+                package = cloud.create_backup_package(snapshot, "GUI backup package")
+                self.cloud_backup_packages.append(package)
+                show_report(package, f"Backup package records: {package.snapshot.record_count} | Restore executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Collector Cloud Error", f"Backup package failed: {str(exc)}")
+
+        def create_readiness_report():
+            try:
+                cloud = engine()
+                for snapshot in self.cloud_snapshots:
+                    cloud.snapshots.append(snapshot)
+                report = cloud.cloud_readiness_report(self.cloud_snapshots)
+                self.cloud_readiness_reports.append(report)
+                show_report(report, f"Readiness: {report.readiness_score}/100 | Cloud services configured: NO")
+            except Exception as exc:
+                messagebox.showerror("Collector Cloud Error", f"Readiness report failed: {str(exc)}")
+
+        def show_conflicts():
+            try:
+                if not self.cloud_sync_plans:
+                    create_sync_plan()
+                if not self.cloud_sync_plans:
+                    return
+                plan = self.cloud_sync_plans[-1]
+                show_report(plan, f"Conflict preview: {plan.conflict_count} conflict(s); sync executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Collector Cloud Error", f"Conflict preview failed: {str(exc)}")
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate a cloud foundation report before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Collector Cloud Foundation",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Collector Cloud Foundation exported to {file_path}")
+
+        ttk.Button(button_frame, text="Create Snapshot", command=create_snapshot).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Sync Plan", command=create_sync_plan).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Backup Package", command=create_backup_package).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Readiness Report", command=create_readiness_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Conflict Preview", command=show_conflicts).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
         return CollectorWorkflowEngine(
@@ -4517,6 +4649,7 @@ Total Unique Dates: {total_unique_dates}
                     ocr_identification_report=self.ocr_identification_reports[-1] if self.ocr_identification_reports else None,
                     mobile_entry_report=self.mobile_entry_reports[-1] if self.mobile_entry_reports else None,
                     workflow_completion_report=self.workflow_completion_reports[-1] if self.workflow_completion_reports else None,
+                    cloud_readiness_report=self.cloud_readiness_reports[-1] if self.cloud_readiness_reports else None,
                 )
                 current_report["report"] = report
                 result_text.delete("1.0", tk.END)

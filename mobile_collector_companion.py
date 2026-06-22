@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from collector_cloud import CloudReadinessReport
 from collector_workflow_integration import WorkflowCompletionReport
 from deal_hunter import DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, RankedDeal
@@ -215,6 +216,7 @@ class MobileCompanionReport:
     ocr_identification_report: Optional[OCRIdentificationReport] = None
     mobile_entry_report: Optional[CollectionEntryReport] = None
     workflow_completion_report: Optional[WorkflowCompletionReport] = None
+    cloud_readiness_report: Optional[CloudReadinessReport] = None
     generated_at: str = ""
     limitations: List[str] = field(default_factory=list)
 
@@ -239,6 +241,7 @@ class MobileCompanionReport:
             "ocr_identification_report": self.ocr_identification_report.to_dict() if self.ocr_identification_report else {},
             "mobile_entry_report": self.mobile_entry_report.to_dict() if self.mobile_entry_report else {},
             "workflow_completion_report": self.workflow_completion_report.to_dict() if self.workflow_completion_report else {},
+            "cloud_readiness_report": self.cloud_readiness_report.to_dict() if self.cloud_readiness_report else {},
             "limitations": "; ".join(self.limitations),
         }
 
@@ -317,6 +320,18 @@ class MobileCompanionReport:
             ])
             for stage in self.workflow_completion_report.session.stages[:7]:
                 lines.append(f"- Stage: {stage.name} - {stage.decision}; {stage.summary}")
+        if self.cloud_readiness_report:
+            lines.extend([
+                "",
+                "## Collector Cloud Foundation",
+                "",
+                f"- Readiness score: {self.cloud_readiness_report.readiness_score}/100",
+                f"- Syncable modules: {len(self.cloud_readiness_report.syncable_modules)}",
+                f"- Risk areas: {len(self.cloud_readiness_report.risk_areas)}",
+                "- Cloud services configured: NO",
+            ])
+            for item in self.cloud_readiness_report.conflict_exposure[:5]:
+                lines.append(f"- Conflict exposure: {item}")
         lines.extend(["", "## Limitations", ""])
         lines.extend(f"- {item}" for item in self.limitations)
         return "\n".join(lines).rstrip() + "\n"
@@ -476,6 +491,7 @@ class MobileCollectorCompanion:
         ocr_identification_report: Optional[OCRIdentificationReport] = None,
         mobile_entry_report: Optional[CollectionEntryReport] = None,
         workflow_completion_report: Optional[WorkflowCompletionReport] = None,
+        cloud_readiness_report: Optional[CloudReadinessReport] = None,
     ) -> MobileCompanionReport:
         session = self.start_session(workflow_type=workflow_type, location=location)
         workflow = next((item for item in self.workflows() if item.name == workflow_type), self.workflows()[0])
@@ -500,6 +516,7 @@ class MobileCollectorCompanion:
             ocr_identification_report=ocr_identification_report,
             mobile_entry_report=mobile_entry_report,
             workflow_completion_report=workflow_completion_report,
+            cloud_readiness_report=cloud_readiness_report,
         )
 
     def run_field_test_snapshot(self):

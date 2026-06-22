@@ -53,6 +53,7 @@
 | `v5.2` | See verified tag `v5.2` | OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Companion integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and 660-test regression pass. |
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection/want-list/watchlist context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
+| `v6.0` | Pending tag | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
 
 ## Notes
 

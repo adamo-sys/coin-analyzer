@@ -9,7 +9,7 @@
 ## Last Release Tag
 
 * Most recent Git tag: `v5.4`
-* Summary of what was included: Latest released tag remains v5.4. v6.0 Collector Cloud Foundation development has started to add offline cloud-readiness architecture for future sync and multi-device operation.
+* Summary of what was included: Latest released tag remains v5.4 while v6.0 implementation is complete locally. v6.0 adds an offline Collector Cloud Foundation for cloud-ready records, snapshots, sync plans, backup packages, conflict previews, readiness reporting, GUI access, Mobile Companion integration, and CSV/Markdown export without real cloud services.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -144,6 +144,7 @@
 * OCR-Assisted Identification: review-only pipeline that transforms captured photos and OCR text into explainable identification candidates with evidence, confidence, collection relevance, watchlist/want-list context, Mobile Collector Companion summaries, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 * Mobile Collection Entry: review-only field workflow that transforms OCR identification candidates into proposed collection-entry records with field confidence, collection/WANT_LIST/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Mobile Collector Companion summaries, Tools -> Mobile Collection Entry, and CSV/Markdown export without automatic record insertion.
 * Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, collection entry candidates, portfolio impact preview, final review, workflow health reporting, Mobile Collector Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without collection mutation.
+* Collector Cloud Foundation: offline cloud-ready architecture with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`; snapshot comparison, sync planning, backup validation, restore previews, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, and CSV/Markdown export without network or cloud services.
 
 ## Known Bugs
 
@@ -302,10 +303,16 @@ Current archive status:
 
 ### 2026-06-22
 
+* Implemented v6.0 Collector Cloud Foundation locally: `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`; offline snapshot creation/comparison/history, sync planning, backup package validation and restore preview, conflict modeling, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, and CSV/Markdown export.
+* Implementation commit: pending (`Implement v6.0 collector cloud foundation`).
+* Tests passed: `python -m unittest test_collector_cloud.py` -> 8 tests OK; v6.0 adjacent slice -> 47 tests OK; `run_tests.bat` -> 685 tests OK.
+* Coverage note: total passing tests increased from 677 to 685.
+* Limitation: Collector Cloud Foundation is offline architecture only; no real cloud hosting, accounts, authentication, internet connectivity, cloud providers, background sync, automatic restore, or collection mutation.
+
 * Locked v6 roadmap: Collector Cloud Foundation -> Sync & Backup -> Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
 * v6 roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is complete; v6 begins cloud-readiness architecture for future sync and multi-device operation.
 * Release prompt archived: `project_docs/release_prompts/v6.0.txt`.
-* Roadmap lock commit: pending.
+* Roadmap lock commit: `761a296`.
 
 
 * Implementation commit: `f86d8ca` (`Implement v5.4 collector workflow integration`).

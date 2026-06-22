@@ -183,10 +183,11 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
-#### `[-]` Lock v6 roadmap
+#### `[x]` Lock v6 roadmap
 
 - Date started: 2026-06-22
-- Roadmap lock commit: pending.
+- Date completed: 2026-06-22
+- Roadmap lock commit: `761a296`.
 - Roadmap locked:
   - `v6.0` Collector Cloud Foundation
   - `v6.1` Sync & Backup
@@ -211,6 +212,23 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.2.md`
   - `docs/releases/v5.3.md`
   - `docs/releases/v5.4.md`
+
+#### `[-]` Build v6.0 Collector Cloud Foundation
+
+- Date started: 2026-06-22
+- Implementation status: code and local audit complete; release metadata, tag, push, and remote verification pending.
+- Implementation commit: pending.
+- Added `collector_cloud.py` with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`.
+- Snapshot model tracks collection metrics, portfolio metrics, workflow metrics, module counts, content hashes, metadata, and snapshot history.
+- Sync planning generates proposed changes, merge candidates, and manual-review conflicts without executing synchronization.
+- Backup package model provides package metadata, validation findings, and restore previews without cloud storage or restore execution.
+- Readiness reporting tracks syncable modules, non-syncable modules, migration requirements, risks, and conflict exposure.
+- GUI: Tools -> Collector Cloud Foundation with snapshots, sync plans, backup packages, readiness reports, conflict previews, and CSV/Markdown export.
+- Mobile Companion integration: companion reports can include latest Collector Cloud readiness summary.
+- Release prompt archived: `project_docs/release_prompts/v6.0.txt`.
+- Release notes: `docs/releases/v6.0.md`.
+- Tests passed: `python -m unittest test_collector_cloud.py` -> 8 tests OK; adjacent v6.0 slice -> 47 tests OK; `run_tests.bat` -> 685 tests OK.
+- Limitation: offline architecture only; no real cloud hosting, accounts, authentication, internet connectivity, cloud providers, background sync, automatic restore, or collection mutation.
 
 #### `[x]` Lock v5.4 roadmap
 
