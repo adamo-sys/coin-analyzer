@@ -177,9 +177,10 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-21
 
-#### `[-]` Lock v4.4 roadmap
+#### `[x]` Lock v4.4 roadmap
 
 - Date started: 2026-06-21
+- Date completed: 2026-06-21
 - Roadmap locked:
   - `v4.4` Live Deal Hunter Field Test & Tuning
   - `v5.0` Mobile Collector Companion
@@ -192,7 +193,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `TASK_QUEUE.md`
   - `AI_HANDOFF.md`
   - `README.md`
-- Commit hash: pending
+- Commit hash: `e21abe3`
 
 #### `[x]` Lock v4.3 roadmap
 
