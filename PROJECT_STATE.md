@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.1`
-* Summary of what was included: v5.2 implementation is in progress locally: OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and regression coverage. Release tag verification is pending.
+* Most recent Git tag: `v5.2`
+* Summary of what was included: OCR-Assisted Identification with captured-photo-to-OCR-to-identification candidates, evidence model, confidence scoring, collection context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -62,6 +62,7 @@
 * `v4.4` acceptance audit passed on 2026-06-21; tag `v4.4` verified during release.
 * `v5.0` acceptance audit passed on 2026-06-22; tag `v5.0` verified during release.
 * `v5.1` acceptance audit passed on 2026-06-22; tag `v5.1` verified during release.
+* `v5.2` acceptance audit passed on 2026-06-22; tag `v5.2` verified during release.
 
 ## Completed Features
 
@@ -298,7 +299,8 @@ Current archive status:
 
 * Implemented v5.2 OCR-Assisted Identification locally: `OCRIdentificationEngine`, `OCRIdentificationCandidate`, `OCRIdentificationReport`, `IdentificationEvidence`, captured-photo-to-OCR-to-validation-to-candidate pipeline, evidence/confidence model, collection/WANT_LIST/watchlist context, Mobile Collector Companion summary integration, Tools -> OCR-Assisted Identification, and CSV/Markdown export.
 * Roadmap lock commit: `08c5cf2`
-* Release packaging status: implementation complete locally; commit/tag/push verification pending.
+* Implementation commit: `96b65b9`
+* Release packaging status: v5.2 tag and push verification completed.
 * Full test suite passed: 660 tests OK.
 * Focused test slice passed: 50 tests OK (`test_ocr_assisted_identification.py`, `test_ocr_validation.py`, `test_photo_capture_workflow.py`, `test_mobile_collector_companion.py`, `test_collection_intelligence.py`).
 * Coverage note: total passing tests increased from 650 to 660; new v5.2 regression tests cover OCR candidate generation, confidence scoring, evidence reporting, OCR validation integration, photo capture integration, Mobile Companion integration, collection context integration, watchlist context, and export generation.

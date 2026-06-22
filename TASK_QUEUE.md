@@ -219,7 +219,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `RELEASE_HISTORY.md`
   - `docs/releases/v5.2.md` (new file)
 - Roadmap lock commit hash: `08c5cf2`
-- Implementation commit hash: pending
+- Implementation commit hash: `96b65b9`
 - Test coverage: total passing tests increased from 650 to 660; full suite passed.
 - Release prompt archived: `project_docs/release_prompts/v5.2.txt`.
 - Limitation: OCR-assisted identification is advisory only; no computer vision attribution, AI grading, automatic collection entry, automatic ownership decisions, automatic purchases, or collection mutation.
