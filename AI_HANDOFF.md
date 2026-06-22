@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v6.0`
-- Current active task: v6.0 Collector Cloud Foundation implementation complete locally; release metadata/tag/push pending
+- Current active task completed: v6.0 Collector Cloud Foundation
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -51,7 +51,7 @@ Before each release, verify the current release prompt exists, previous archived
 - Tools -> Collector Cloud Foundation displays snapshots, sync plans, backup packages, readiness reports, conflict previews, and CSV/Markdown export.
 - Mobile Collector Companion reports can include Collector Cloud readiness summaries.
 - Added `test_collector_cloud.py`; focused Collector Cloud tests passed 8 OK; adjacent v6.0 slice passed 47 OK; full `run_tests.bat` passed 685 OK.
-- v6.0 implementation commit: pending.
+- v6.0 implementation commit: `a35528b`.
 
 - Locked the v6 roadmap: v6.0 Collector Cloud Foundation, v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.0 release prompt at `project_docs/release_prompts/v6.0.txt`.

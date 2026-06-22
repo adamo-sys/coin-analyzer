@@ -116,7 +116,7 @@ Work through this queue in priority order. Handle only one task at a time.
 84. `[x]` Build v5.2 OCR-Assisted Identification
 85. `[x]` Build v5.3 Mobile Collection Entry
 86. `[x]` Build v5.4 Collector Workflow Integration
-87. `[-]` Build v6.0 Collector Cloud Foundation
+87. `[x]` Build v6.0 Collector Cloud Foundation
 88. `[ ]` Build v6.1 Sync & Backup
 89. `[ ]` Build v6.2 Multi-Device Collector Workspace
 90. `[ ]` Build v6.3 Device Linking & Conflict Resolution
@@ -213,11 +213,12 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.3.md`
   - `docs/releases/v5.4.md`
 
-#### `[-]` Build v6.0 Collector Cloud Foundation
+#### `[x]` Build v6.0 Collector Cloud Foundation
 
 - Date started: 2026-06-22
-- Implementation status: code and local audit complete; release metadata, tag, push, and remote verification pending.
-- Implementation commit: pending.
+- Date completed: 2026-06-22
+- Implementation status: complete; metadata commit, tag, push, and remote verification completed.
+- Implementation commit: `a35528b`.
 - Added `collector_cloud.py` with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`.
 - Snapshot model tracks collection metrics, portfolio metrics, workflow metrics, module counts, content hashes, metadata, and snapshot history.
 - Sync planning generates proposed changes, merge candidates, and manual-review conflicts without executing synchronization.

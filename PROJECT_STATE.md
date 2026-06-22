@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v5.4`
-* Summary of what was included: Latest released tag remains v5.4 while v6.0 implementation is complete locally. v6.0 adds an offline Collector Cloud Foundation for cloud-ready records, snapshots, sync plans, backup packages, conflict previews, readiness reporting, GUI access, Mobile Companion integration, and CSV/Markdown export without real cloud services.
+* Most recent Git tag: `v6.0`
+* Summary of what was included: Collector Cloud Foundation with offline cloud-ready records, snapshots, sync plans, backup packages, conflict previews, readiness reporting, GUI access, Mobile Companion integration, CSV/Markdown export, and 685-test regression coverage without real cloud services.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -65,6 +65,7 @@
 * `v5.2` acceptance audit passed on 2026-06-22; tag `v5.2` verified during release.
 * `v5.3` acceptance audit passed on 2026-06-22; tag `v5.3` verified during release.
 * `v5.4` acceptance audit passed on 2026-06-22; tag `v5.4` verified during release.
+* `v6.0` acceptance audit passed on 2026-06-22; tag `v6.0` verified during release.
 
 ## Completed Features
 
@@ -204,7 +205,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v6.0 Collector Cloud Foundation unless a release-blocking defect is found.
+Begin v6.1 Sync & Backup planning unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -304,8 +305,9 @@ Current archive status:
 ### 2026-06-22
 
 * Implemented v6.0 Collector Cloud Foundation locally: `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`; offline snapshot creation/comparison/history, sync planning, backup package validation and restore preview, conflict modeling, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, and CSV/Markdown export.
-* Implementation commit: pending (`Implement v6.0 collector cloud foundation`).
+* Implementation commit: `a35528b` (`Implement v6.0 collector cloud foundation`).
 * Tests passed: `python -m unittest test_collector_cloud.py` -> 8 tests OK; v6.0 adjacent slice -> 47 tests OK; `run_tests.bat` -> 685 tests OK.
+* Release packaging status: v6.0 metadata, tag, push, and remote verification completed.
 * Coverage note: total passing tests increased from 677 to 685.
 * Limitation: Collector Cloud Foundation is offline architecture only; no real cloud hosting, accounts, authentication, internet connectivity, cloud providers, background sync, automatic restore, or collection mutation.
 
