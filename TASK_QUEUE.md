@@ -110,7 +110,7 @@ Work through this queue in priority order. Handle only one task at a time.
 78. `[x]` Build v4.1 Live Source Validation
 79. `[x]` Build v4.2 Market Intelligence Automation
 80. `[x]` Build v4.3 Watchlists & Alerts
-81. `[-]` Build v4.4 Live Deal Hunter Field Test & Tuning
+81. `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
 82. `[ ]` Build v5.0 Mobile Collector Companion
 83. `[ ]` Build v5.1 Phone Photo Capture
 84. `[ ]` Build v5.2 OCR-Assisted Identification
@@ -194,6 +194,26 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `AI_HANDOFF.md`
   - `README.md`
 - Commit hash: `e21abe3`
+
+#### `[x]` Build v4.4 Live Deal Hunter Field Test & Tuning
+
+- Date started: 2026-06-21
+- Date completed: 2026-06-21
+- Files modified:
+  - `field_test_framework.py` (new file)
+  - `test_field_test_framework.py` (new file)
+  - `coin_collection_gui.py`
+  - `watchlist_engine.py`
+  - `README.md`
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v4.4.md` (new file)
+- Roadmap lock commit hash: `e21abe3`
+- Implementation commit hash: `1b5bfce`
+- Test coverage: total passing tests increased from 625 to 633; existing regression suites remained green.
+- Limitation: deterministic local field testing only; no new live sources, scraping, browser automation, API integrations, automatic purchasing, collection mutation, push notifications, or cloud sync.
 
 #### `[x]` Lock v4.3 roadmap
 

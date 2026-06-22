@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v4.3`
+* Current release version: `v4.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-21
 
 ## Last Release Tag
 
-* Most recent Git tag: `v4.3`
-* Summary of what was included: Watchlists & Alerts with editable report-driven watchlists, Adam starter presets, on-demand alert generation, alert scoring, pipeline candidate matching, Tools -> Watchlists & Alerts, CSV/Markdown export, and regression coverage.
+* Most recent Git tag: `v4.4`
+* Summary of what was included: Live Deal Hunter Field Test & Tuning with deterministic scenario library, field-test runner, opportunity quality reporting, pipeline health reporting, false-positive audit, Tools -> Field Test & Tuning, CSV/Markdown export, and regression coverage.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -59,6 +59,7 @@
 * `v4.1` acceptance audit passed on 2026-06-21; tag `v4.1` verified during release.
 * `v4.2` acceptance audit passed on 2026-06-21; tag `v4.2` verified during release.
 * `v4.3` acceptance audit passed on 2026-06-21; tag `v4.3` verified during release.
+* `v4.4` acceptance audit passed on 2026-06-21; tag `v4.4` verified during release.
 
 ## Completed Features
 
@@ -132,6 +133,7 @@
 * Live Source Validation: deterministic trust layer that checks live listings for missing title, price, URL, seller, source, non-CAD/unknown currency, stale/unknown freshness, duplicate URLs, malformed/unsupported URLs, high shipping, vague titles, missing descriptions, and suspicious metadata before listings enter Deal Hunter, Opportunity Engine, Ranking, or Market Intelligence.
 * Market Intelligence Automation: deterministic enrichment layer that applies existing Market Intelligence to Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates, preserving original recommendations while adding deal quality, confidence, fair-value evidence, collection relevance, risk warnings, counterarguments, and review escalation.
 * Watchlists & Alerts: report-driven collector target layer that lets users define series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports without background polling, notifications, purchasing, bidding, or collection mutation.
+* Live Deal Hunter Field Test & Tuning: deterministic field-test framework that runs realistic scenario batches through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, recommendation quality, alert quality, and likely false positives before mobile expansion.
 
 ## Known Bugs
 
@@ -191,7 +193,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v4.4 Live Deal Hunter Field Test & Tuning unless a release-blocking defect is found.
+Prepare v5.0 Mobile Collector Companion unless a release-blocking defect is found.
 
 ## Project Architecture
 
@@ -224,6 +226,7 @@ Build v4.4 Live Deal Hunter Field Test & Tuning unless a release-blocking defect
 * Market Intelligence system: `market_intelligence.py` provides `MarketIntelligenceEngine`, `MarketIntelligenceReport`, `FairValueEstimate`, `DealQuality`, `OpportunityConfidence`, `ComparableSale`, and `RiskSummary`. It reuses Deal Hunter, Opportunity Engine, Collection Intelligence, WANT_LIST context, and local Market Awareness data for deterministic fair-value guidance without external fetching or collection mutation.
 * Market Intelligence Automation system: `market_intelligence_automation.py` provides `MarketIntelligenceAutomationEngine`, `MarketEnrichedCandidate`, `MarketEnrichmentBatchReport`, `FairValueEvidenceSummary`, and `CollectionRelevanceSummary`. It batch-enriches candidate listings through the existing Market Intelligence engine, preserves original recommendations, escalates uncertain cases to REVIEW, and exports CSV/Markdown reports without live price retrieval.
 * Watchlists & Alerts system: `watchlist_engine.py` provides `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`. It matches collector-defined watches against existing Deal Hunter, Ranking, Live Deal Hunter, listing connector, and Market Intelligence Automation outputs, then generates on-demand report alerts without polling, notifications, purchases, or collection mutation.
+* Field Test & Tuning system: `field_test_framework.py` provides `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, and `FalsePositiveAudit`. It runs deterministic local scenarios through Live Source Validation, Live Deal Hunter, Deal Hunter Ranking, Market Intelligence Automation, Watchlists, and Alerts without fetching live sources or mutating collection data.
 * Portfolio Performance system: `portfolio_performance.py` provides `PortfolioPerformanceEngine`, `PortfolioPerformanceReport`, `CollectionGrowthReport`, `AcquisitionPerformanceReport`, `SeriesProgressReport`, `BudgetAllocationReport`, and `CollectionHealthScore`. It reuses Collection Snapshot, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Quality, Integrity, and Market Awareness records for local portfolio-development reporting.
 * Opportunity Engine system: `opportunity_engine.py` provides `OpportunityEngine`, `OpportunityScore`, `OpportunityReport`, and `TopOpportunitiesReport`. It reuses Collection Intelligence, Smart Shopping Assistant, Acquisition Impact, Collection Quality, Series Tracker, WANT_LIST, Deal Hunter, and local Market Awareness context to identify budget-aware collection opportunities without scraping, APIs, live pricing, market prediction, automatic purchasing, image recognition, or collection mutation.
 * Listing Analyzer system: `listing_analyzer.py` defines `ListingCandidate` and `ListingAnalyzer`, validates stored-only URLs, computes total cost, parses basic candidate fields from listing text, and routes recommendations through `AcquisitionWorkflow`.
@@ -270,6 +273,13 @@ Build v4.4 Live Deal Hunter Field Test & Tuning unless a release-blocking defect
 ## Recent Changes
 
 ### 2026-06-21
+
+* Implemented v4.4 Live Deal Hunter Field Test & Tuning: `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, `FalsePositiveAudit`, deterministic scenario library, Tools -> Field Test & Tuning, CSV/Markdown export, and souvenir/token watchlist confidence tuning.
+* Roadmap lock commit: `e21abe3`
+* Implementation commit: `1b5bfce`
+* Full test suite passed: 633 tests OK.
+* Coverage note: total passing tests increased from 625 to 633; existing regression suites remained green.
+* Limitation: deterministic local field testing only; no new live sources, scraping, browser automation, API integrations, automatic purchasing, collection mutation, push notifications, or cloud sync.
 
 * Implemented v4.3 Watchlists & Alerts: `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, `AlertReport`, Adam starter presets, Tools -> Watchlists & Alerts, editable watch rows, on-demand candidate scanning, alert scoring, and CSV/Markdown export.
 * Roadmap lock commit: `14f09d6`

@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v4.3`
+Current version: `v4.4`
 
-Latest tagged release: `v4.3`
+Latest tagged release: `v4.4`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -48,6 +48,7 @@ The app is especially tuned for Adam-specific priorities:
 - Market Intelligence: estimate fair-value bands from local comparable sales and existing internal deal guidance, classify deal quality, explain confidence/risk, generate counterarguments, and export reports without scraping, APIs, or live pricing.
 - Market Intelligence Automation: automatically enrich Deal Hunter, Ranking, Opportunity, Live Deal Hunter, and connector candidates with existing local Market Intelligence, collection relevance, evidence summaries, risk warnings, and review escalations while preserving original recommendations.
 - Watchlists & Alerts: define editable series, specific coin, keyword, and custom watches, use Adam starter presets, scan existing deal/ranking/live/market-enriched candidates, generate on-demand alerts, score alert relevance, and export CSV/Markdown reports.
+- Field Test & Tuning: run deterministic live-pipeline scenarios through validation, Deal Hunter, ranking, market enrichment, watchlists, and alerts to measure pipeline health, opportunity quality, alert quality, and likely false positives before mobile expansion.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -139,7 +140,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v4.3 Watchlists & Alerts suite passed with `625 tests OK`.
+The v4.4 Live Deal Hunter Field Test & Tuning suite passed with `633 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -192,6 +193,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v4.1` | See verified tag `v4.1` | Live Source Validation with listing trust checks, freshness, source health scoring, REVIEW escalation, Live Deal Hunter pipeline gating, Tools -> Live Source Validation, and 602-test regression pass. |
 | `v4.2` | See verified tag `v4.2` | Market Intelligence Automation with candidate enrichment, collection relevance summaries, fair-value evidence summaries, review escalation, Live Deal Hunter integration, Tools -> Market Intelligence Automation, and 615-test regression pass. |
 | `v4.3` | See verified tag `v4.3` | Watchlists & Alerts with editable collector watches, Adam presets, on-demand alert generation, alert scoring, Tools -> Watchlists & Alerts, and regression coverage. |
+| `v4.4` | See verified tag `v4.4` | Live Deal Hunter Field Test & Tuning with deterministic scenario library, pipeline health reporting, opportunity quality reporting, false-positive audit, Tools -> Field Test & Tuning, and regression coverage. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/releases/v1.0.md) for release documentation.
 
@@ -215,6 +217,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md) and [docs/releases/v1.0.md](docs/re
 - Use Market Intelligence when you want a local fair-value estimate, deal-quality label, confidence score, risk summary, counterargument, and buy rationale for one listing before live-source work exists.
 - Use Market Intelligence Automation when you want a batch of candidates enriched with deal quality, confidence, fair-value evidence, collection relevance, risks, and review escalation while preserving the original recommendation.
 - Use Watchlists & Alerts when you want to define collector targets and scan existing candidate outputs for on-demand watchlist matches, upgrade opportunities, collection gaps, high-priority opportunities, or rare target opportunities.
+- Use Field Test & Tuning when you want deterministic live-pipeline test scenarios, pipeline health metrics, opportunity quality summaries, alert quality checks, and false-positive audit findings before expanding live or mobile workflows.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
@@ -304,6 +307,7 @@ Future candidates:
 - Live Source Validation does not repair listings, convert currencies, fetch exchange rates, or guarantee source truth. It aggressively flags uncertainty and prefers REVIEW over false confidence.
 - Market Intelligence Automation reuses local Market Intelligence only. It does not create a second valuation engine, retrieve live prices, convert currencies, forecast markets, provide investment advice, purchase, bid, or mutate collection data.
 - Watchlists & Alerts are report-driven and user-triggered only. They do not send push, email, or SMS notifications, poll sources in the background, schedule jobs, purchase, bid, fetch live pricing, or mutate collection data.
+- Field Test & Tuning uses deterministic local fixtures only. It does not add live sources, scrape, automate browsers, call APIs, purchase, mutate collection data, send notifications, or sync to cloud services.
 - Market Intelligence estimates are deterministic local guidance from supplied comparable sales, local Market Awareness records, and existing internal deal guidance. They are not appraisals, live market pricing, or guarantees of value.
 - Experimental image/OCR modules exist in the repository but remain suggestion-only and manual-verification-only.
 - Shared Session Context can save and restore metadata through the Persistence Layer, but workbook-backed context still requires the referenced workbook to remain available.
@@ -733,6 +737,36 @@ Known limitations:
 - No push notifications, email, SMS, background polling, scheduled jobs, automatic purchasing, bidding, live pricing, or collection mutation.
 - Watchlist matching is deterministic text/metadata matching and should be reviewed before buying.
 
+## Field Test & Tuning
+
+Use Tools -> Field Test & Tuning when you want to measure the live opportunity pipeline against deterministic realistic scenarios.
+
+The field-test pipeline is:
+
+Live Source
+to Validation
+to Deal Hunter
+to Ranking
+to Market Intelligence
+to Watchlists
+to Alerts
+
+Field Test & Tuning adds:
+
+- `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, and `ScenarioRunner`.
+- Deterministic sample scenarios for Newfoundland upgrades and duplicates, 1859 variety candidates, 1926 Near 6, Canadian silver lots, banknotes, high shipping traps, non-CAD listings, weak titles, duplicate URLs, false-positive watchlist matches, and strong watchlist matches.
+- `OpportunityQualityReport` for BUY/REVIEW/PASS/WATCH/NEGOTIATE counts, escalation frequency, and confidence distribution.
+- `PipelineHealthReport` for listings processed, validation failures, duplicates, watchlist matches, alerts, review escalations, accepted listings, and rejected listings.
+- `FalsePositiveAudit` for duplicate misclassification risk, weak watchlist matches, weak keyword matches, weak upgrade signals, and noisy low-score alerts.
+- CSV and Markdown export.
+
+Known limitations:
+
+- No live network dependency and no live source fetching.
+- No automatic tuning changes are applied from audit findings.
+- Findings are review recommendations only.
+- No scraping, browser automation, API integrations, automatic purchasing, collection mutation, push notifications, or cloud sync.
+
 ## Opportunity Engine
 
 Use Workflows -> Opportunity Engine to identify the highest-impact collection opportunities from current holdings, active WANT_LIST context, optional manual candidates, and Deal Hunter results.
@@ -775,6 +809,7 @@ Export support is intentionally report-specific:
 - Market Intelligence: CSV and Markdown export.
 - Portfolio Performance: CSV and Markdown export.
 - Watchlists & Alerts: CSV and Markdown export.
+- Field Test & Tuning: CSV and Markdown export.
 - External Listing Connectors: CSV and Markdown export.
 - Collector Home: CSV and Markdown export.
 - Collection Health Report: CSV and Markdown export.

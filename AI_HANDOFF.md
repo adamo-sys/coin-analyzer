@@ -4,8 +4,8 @@
 
 - Date: 2026-06-21
 - Branch: `main`
-- Current project state file reports release version: `v4.3`
-- Current active task in progress: v4.4 Live Deal Hunter Field Test & Tuning
+- Current project state file reports release version: `v4.4`
+- Current active task completed: v4.4 Live Deal Hunter Field Test & Tuning
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -35,6 +35,13 @@ v4.1 rationale: v4.0 introduced live opportunity discovery. v4.1 focuses on trus
 v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened live source validation. v4.2 automates the connection between live/imported candidates and local Market Intelligence so collectors can understand deal quality faster and with greater consistency.
 
 ## What Changed
+
+- Added `field_test_framework.py` with `FieldTestScenario`, `FieldTestResult`, `FieldTestReport`, `ScenarioRunner`, `OpportunityQualityReport`, `PipelineHealthReport`, and `FalsePositiveAudit`.
+- Added deterministic field-test scenarios for Newfoundland upgrade, Newfoundland duplicate, 1859 variety candidate, 1926 Near 6 candidate, Canadian silver lot, banknote opportunity, high shipping trap, non-CAD listing, weak title listing, duplicate URL listing, false positive watchlist match, and strong watchlist match.
+- Field tests run local scenario batches through Live Source Validation, Live Deal Hunter, Deal Hunter Ranking, Market Intelligence Automation, Watchlists, and Alerts without fetching live sources.
+- Added Tools -> Field Test & Tuning with scenario results, pipeline health, opportunity quality, false positive audit, CSV export, and Markdown export.
+- Tuned watchlist confidence downward when candidate text contains souvenir/token/copy/replica wording so likely false-positive collector targets are easier to review.
+- Added `test_field_test_framework.py` covering scenario execution, pipeline health, alert tuning, opportunity quality, false-positive audit, report exports, and full scenario library execution.
 
 - Added `watchlist_engine.py` with `WatchlistEngine`, `Watchlist`, `WatchlistItem`, `WatchlistMatch`, `AlertEngine`, `AlertRecord`, `AlertScore`, `WatchlistReport`, and `AlertReport`.
 - Watchlists support series, specific coin, keyword, and custom watches with `CRITICAL`, `HIGH`, `NORMAL`, and `LOW` priorities.
