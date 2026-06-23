@@ -2,7 +2,7 @@
 
 Current version: `v6.1`
 
-Latest tagged release: `v6.0`
+Latest tagged release: `v6.1`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -208,7 +208,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.3` | See verified tag `v5.3` | Mobile Collection Entry with OCR-to-entry candidates, field confidence, collection context, portfolio impact previews, review decisions, Mobile Companion integration, Tools -> Mobile Collection Entry, CSV/Markdown export, and 669-test regression pass. |
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 | `v6.0` | See verified tag `v6.0` | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
-| `v6.1` | Pending tag | Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, CSV/Markdown export, and 694-test regression pass. |
+| `v6.1` | See verified tag `v6.1` | Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, CSV/Markdown export, and 694-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), [docs/releases/v6.0.md](docs/releases/v6.0.md), and [docs/releases/v6.1.md](docs/releases/v6.1.md) for release documentation.
 

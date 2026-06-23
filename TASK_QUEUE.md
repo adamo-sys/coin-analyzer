@@ -117,7 +117,7 @@ Work through this queue in priority order. Handle only one task at a time.
 85. `[x]` Build v5.3 Mobile Collection Entry
 86. `[x]` Build v5.4 Collector Workflow Integration
 87. `[x]` Build v6.0 Collector Cloud Foundation
-88. `[-]` Build v6.1 Sync & Backup
+88. `[x]` Build v6.1 Sync & Backup
 89. `[ ]` Build v6.2 Multi-Device Collector Workspace
 90. `[ ]` Build v6.3 Device Linking & Conflict Resolution
 91. `[ ]` Build v7.0 Collector Platform
@@ -236,11 +236,12 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.3.md`
   - `docs/releases/v5.4.md`
 
-#### `[-]` Build v6.1 Sync & Backup
+#### `[x]` Build v6.1 Sync & Backup
 
 - Date started: 2026-06-22
-- Implementation status: code and local audit complete; release metadata, tag, push, and remote verification pending.
-- Implementation commit: pending.
+- Date completed: 2026-06-22
+- Implementation status: complete; metadata commit, tag, push, and remote verification completed.
+- Implementation commit: `b884755`.
 - Added `sync_backup_engine.py` with `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`.
 - Backup archives cover collection, portfolio, watchlist, workflow, and settings scope with timestamps, version, source snapshot, checksum, metadata, and warnings.
 - Restore plans report affected modules, affected records, warnings, conflicts, validation results, and rollback options without overwriting existing data.

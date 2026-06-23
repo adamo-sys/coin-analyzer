@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v6.1`
-- Current active task: v6.1 Sync & Backup implementation complete locally; release metadata/tag/push pending
+- Current active task completed: v6.1 Sync & Backup
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -49,7 +49,7 @@ Before each release, verify the current release prompt exists, previous archived
 - Sync simulations compare local Device A and Device B snapshots and generate proposals, conflict analysis, and merge previews without synchronization.
 - Tools -> Sync & Backup displays backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, and CSV/Markdown export.
 - Added `test_sync_backup_engine.py`; focused Sync & Backup tests passed 9 OK; adjacent v6.1 slice passed 44 OK; full `run_tests.bat` passed 694 OK.
-- v6.1 implementation commit: pending.
+- v6.1 implementation commit: `b884755`.
 
 - Locked the v6.1 roadmap: v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.1 release prompt at `project_docs/release_prompts/v6.1.txt`.

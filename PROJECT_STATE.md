@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v6.0`
-* Summary of what was included: Latest released tag remains v6.0 while v6.1 implementation is complete locally. v6.1 adds offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, GUI access, and CSV/Markdown export without internet sync, cloud providers, automatic restore, or automatic conflict resolution.
+* Most recent Git tag: `v6.1`
+* Summary of what was included: Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, GUI access, CSV/Markdown export, and 694-test regression coverage without internet sync, cloud providers, automatic restore, or automatic conflict resolution.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -66,6 +66,7 @@
 * `v5.3` acceptance audit passed on 2026-06-22; tag `v5.3` verified during release.
 * `v5.4` acceptance audit passed on 2026-06-22; tag `v5.4` verified during release.
 * `v6.0` acceptance audit passed on 2026-06-22; tag `v6.0` verified during release.
+* `v6.1` acceptance audit passed on 2026-06-22; tag `v6.1` verified during release.
 
 ## Completed Features
 
@@ -205,7 +206,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v6.1 Sync & Backup unless a release-blocking defect is found.
+Begin v6.2 Multi-Device Collector Workspace planning unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -306,8 +307,9 @@ Current archive status:
 ### 2026-06-22
 
 * Implemented v6.1 Sync & Backup locally: `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`; offline backup archives, restore planning, snapshot history, sync simulations, conflict reporting, rollback planning, Collector Cloud integration, workflow/mobile-entry integration, Tools -> Sync & Backup, and CSV/Markdown export.
-* Implementation commit: pending (`Implement v6.1 sync and backup`).
+* Implementation commit: `b884755` (`Implement v6.1 sync and backup`).
 * Tests passed: `python -m unittest test_sync_backup_engine.py` -> 9 tests OK; v6.1 adjacent slice -> 44 tests OK; `run_tests.bat` -> 694 tests OK.
+* Release packaging status: v6.1 metadata, tag, push, and remote verification completed.
 * Coverage note: total passing tests increased from 685 to 694.
 * Limitation: Sync & Backup is offline planning only; no internet synchronization, cloud providers, user accounts, authentication, automatic conflict resolution, automatic restore, background sync, or collection mutation.
 
