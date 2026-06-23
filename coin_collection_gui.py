@@ -86,6 +86,7 @@ from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
+from sync_backup_engine import SyncBackupEngine
 from watchlist_engine import AlertEngine, Watchlist, WatchlistEngine, WatchlistItem
 
 
@@ -116,6 +117,12 @@ class CoinCollectionGUI:
         self.cloud_sync_plans = []
         self.cloud_backup_packages = []
         self.cloud_readiness_reports = []
+        self.backup_archives = []
+        self.restore_plans = []
+        self.backup_histories = []
+        self.sync_simulations = []
+        self.sync_conflict_reports = []
+        self.rollback_plans = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -216,6 +223,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Mobile Collection Entry", command=self.open_mobile_collection_entry)
         tools_menu.add_command(label="Collector Workflow Integration", command=self.open_collector_workflow_integration)
         tools_menu.add_command(label="Collector Cloud Foundation", command=self.open_collector_cloud_foundation)
+        tools_menu.add_command(label="Sync & Backup", command=self.open_sync_backup)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3328,6 +3336,157 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_sync_backup(self):
+        """Open offline Sync & Backup planning reports."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Sync & Backup")
+        dialog.geometry("1040x820")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        summary_var = tk.StringVar(value="No sync or backup report generated.")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Sync & Backup", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+
+        def cloud():
+            return CollectorCloud(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+            )
+
+        def engine():
+            return SyncBackupEngine(collector_cloud=cloud())
+
+        def show_report(report, summary):
+            current_report["report"] = report
+            summary_var.set(summary)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def ensure_snapshot(label):
+            if self.cloud_snapshots:
+                return self.cloud_snapshots[-1]
+            snapshot = cloud().create_snapshot(label)
+            self.cloud_snapshots.append(snapshot)
+            return snapshot
+
+        def create_archive():
+            try:
+                backup = engine().create_backup_archive(source_snapshot=ensure_snapshot("sync-backup-gui"))
+                self.backup_archives.append(backup)
+                show_report(backup, f"Backup archive: {backup.record_count} record(s) | checksum {backup.checksum[:12]}")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Backup archive failed: {str(exc)}")
+
+        def create_restore_plan():
+            try:
+                if not self.backup_archives:
+                    create_archive()
+                if not self.backup_archives:
+                    return
+                plan = engine().plan_restore(self.backup_archives[-1], current_snapshot=ensure_snapshot("restore-current-gui"))
+                self.restore_plans.append(plan)
+                show_report(plan, f"Restore plan: {len(plan.affected_records)} affected record(s); restore executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Restore plan failed: {str(exc)}")
+
+        def create_history():
+            try:
+                if not self.backup_archives:
+                    create_archive()
+                history = engine().backup_history(self.backup_archives)
+                self.backup_histories.append(history)
+                show_report(history, f"Backup history: {len(history.archives)} archive(s)")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Backup history failed: {str(exc)}")
+
+        def create_simulation():
+            try:
+                if len(self.cloud_snapshots) < 2:
+                    self.cloud_snapshots.append(cloud().create_snapshot("device-a-gui"))
+                    self.cloud_snapshots.append(cloud().create_snapshot("device-b-gui"))
+                simulation = engine().simulate_sync(self.cloud_snapshots[-2], self.cloud_snapshots[-1])
+                self.sync_simulations.append(simulation)
+                self.sync_conflict_reports.append(simulation.conflict_report)
+                show_report(simulation, f"Sync simulation: {simulation.sync_plan.proposed_change_count} change(s), {simulation.conflict_report.conflict_count} conflict(s)")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Sync simulation failed: {str(exc)}")
+
+        def create_conflict_report():
+            try:
+                if not self.sync_simulations:
+                    create_simulation()
+                if not self.sync_simulations:
+                    return
+                report = self.sync_simulations[-1].conflict_report
+                self.sync_conflict_reports.append(report)
+                show_report(report, f"Conflict report: {report.conflict_count} conflict(s); auto-resolution: NO")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Conflict report failed: {str(exc)}")
+
+        def create_rollback_plan():
+            try:
+                if not self.backup_archives:
+                    create_archive()
+                simulation = self.sync_simulations[-1] if self.sync_simulations else None
+                restore_plan = self.restore_plans[-1] if self.restore_plans else None
+                plan = engine().plan_rollback(
+                    "sync" if simulation else "backup",
+                    archive=self.backup_archives[-1] if self.backup_archives else None,
+                    restore_plan=restore_plan,
+                    sync_simulation=simulation,
+                )
+                self.rollback_plans.append(plan)
+                show_report(plan, f"Rollback plan: {len(plan.rollback_targets)} target(s); rollback executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Sync & Backup Error", f"Rollback plan failed: {str(exc)}")
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate a Sync & Backup report before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Sync & Backup",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Sync & Backup exported to {file_path}")
+
+        ttk.Button(button_frame, text="Backup Archive", command=create_archive).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Restore Plan", command=create_restore_plan).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="History", command=create_history).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Sync Simulation", command=create_simulation).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Conflict Report", command=create_conflict_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Rollback Plan", command=create_rollback_plan).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
 
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""

@@ -9,7 +9,7 @@
 ## Last Release Tag
 
 * Most recent Git tag: `v6.0`
-* Summary of what was included: Latest released tag remains v6.0. v6.1 Sync & Backup development has started to add offline backup archives, restore planning, snapshot history, rollback planning, and synchronization simulation.
+* Summary of what was included: Latest released tag remains v6.0 while v6.1 implementation is complete locally. v6.1 adds offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, GUI access, and CSV/Markdown export without internet sync, cloud providers, automatic restore, or automatic conflict resolution.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -146,6 +146,7 @@
 * Mobile Collection Entry: review-only field workflow that transforms OCR identification candidates into proposed collection-entry records with field confidence, collection/WANT_LIST/watchlist context, portfolio impact previews, APPROVE/REJECT/REVIEW decisions, Mobile Collector Companion summaries, Tools -> Mobile Collection Entry, and CSV/Markdown export without automatic record insertion.
 * Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, collection entry candidates, portfolio impact preview, final review, workflow health reporting, Mobile Collector Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without collection mutation.
 * Collector Cloud Foundation: offline cloud-ready architecture with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`; snapshot comparison, sync planning, backup validation, restore previews, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, and CSV/Markdown export without network or cloud services.
+* Sync & Backup: offline disaster-recovery and sync-planning layer with `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`; integrates Collector Cloud snapshots, workflow reports, mobile entry reports, portfolio metrics, and collection intelligence outputs; Tools -> Sync & Backup; CSV/Markdown export; no internet sync, cloud provider, automatic restore, or automatic conflict resolution.
 
 ## Known Bugs
 
@@ -304,10 +305,17 @@ Current archive status:
 
 ### 2026-06-22
 
+* Implemented v6.1 Sync & Backup locally: `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`; offline backup archives, restore planning, snapshot history, sync simulations, conflict reporting, rollback planning, Collector Cloud integration, workflow/mobile-entry integration, Tools -> Sync & Backup, and CSV/Markdown export.
+* Implementation commit: pending (`Implement v6.1 sync and backup`).
+* Tests passed: `python -m unittest test_sync_backup_engine.py` -> 9 tests OK; v6.1 adjacent slice -> 44 tests OK; `run_tests.bat` -> 694 tests OK.
+* Coverage note: total passing tests increased from 685 to 694.
+* Limitation: Sync & Backup is offline planning only; no internet synchronization, cloud providers, user accounts, authentication, automatic conflict resolution, automatic restore, background sync, or collection mutation.
+
+
 * Locked v6.1 roadmap: Sync & Backup -> Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
 * v6.1 roadmap rationale: v6.0 established the cloud architecture layer with CollectorCloud, CloudCollectionSnapshot, CloudSyncPlan, CloudBackupPackage, and CloudReadinessReport; v6.1 adds offline backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
 * Release prompt archived: `project_docs/release_prompts/v6.1.txt`.
-* Roadmap lock commit: pending.
+* Roadmap lock commit: `3e35f3c`.
 
 
 * Implemented v6.0 Collector Cloud Foundation locally: `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`; offline snapshot creation/comparison/history, sync planning, backup package validation and restore preview, conflict modeling, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, and CSV/Markdown export.

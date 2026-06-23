@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v6.1`
-- Current active task: v6.1 Sync & Backup
+- Current active task: v6.1 Sync & Backup implementation complete locally; release metadata/tag/push pending
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -41,6 +41,15 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Added `sync_backup_engine.py` with `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`.
+- Sync & Backup creates offline backup archives, restore plans, backup history, sync simulations, conflict reports, and rollback plans on top of Collector Cloud snapshots.
+- Backup archives track version, timestamp, source snapshot, checksum, metadata, and backup scope for collection, portfolio, watchlists, workflow, and settings.
+- Restore plans preview affected modules/records, warnings, conflicts, validation results, and rollback options without overwriting data.
+- Sync simulations compare local Device A and Device B snapshots and generate proposals, conflict analysis, and merge previews without synchronization.
+- Tools -> Sync & Backup displays backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, and CSV/Markdown export.
+- Added `test_sync_backup_engine.py`; focused Sync & Backup tests passed 9 OK; adjacent v6.1 slice passed 44 OK; full `run_tests.bat` passed 694 OK.
+- v6.1 implementation commit: pending.
 
 - Locked the v6.1 roadmap: v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.1 release prompt at `project_docs/release_prompts/v6.1.txt`.
@@ -573,7 +582,7 @@ Supported statuses:
 
 ## Test Status
 
-- `run_tests.bat`: 685 tests OK for the v6.0 Collector Cloud Foundation release line.
+- `run_tests.bat`: 694 tests OK for the v6.1 Sync & Backup release line.
 - Coverage note: total passing tests increased from 571 to 579; existing regression suites remained green.
 - Targeted Portfolio Performance, Snapshot, Collection Intelligence, Opportunity Engine, and Market Intelligence block: 50 tests OK.
 - Targeted Market Intelligence tests: 11 tests OK.

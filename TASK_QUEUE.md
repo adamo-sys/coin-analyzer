@@ -182,10 +182,11 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
-#### `[-]` Lock v6.1 roadmap
+#### `[x]` Lock v6.1 roadmap
 
 - Date started: 2026-06-22
-- Roadmap lock commit: pending.
+- Date completed: 2026-06-22
+- Roadmap lock commit: `3e35f3c`.
 - Roadmap locked:
   - `v6.1` Sync & Backup
   - `v6.2` Multi-Device Collector Workspace
@@ -234,6 +235,24 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v5.2.md`
   - `docs/releases/v5.3.md`
   - `docs/releases/v5.4.md`
+
+#### `[-]` Build v6.1 Sync & Backup
+
+- Date started: 2026-06-22
+- Implementation status: code and local audit complete; release metadata, tag, push, and remote verification pending.
+- Implementation commit: pending.
+- Added `sync_backup_engine.py` with `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`.
+- Backup archives cover collection, portfolio, watchlist, workflow, and settings scope with timestamps, version, source snapshot, checksum, metadata, and warnings.
+- Restore plans report affected modules, affected records, warnings, conflicts, validation results, and rollback options without overwriting existing data.
+- Backup history provides timeline, snapshot comparisons, collection delta, portfolio delta, and workflow delta.
+- Sync simulations compare two local snapshots, generate sync proposals, conflict analysis, and merge previews without synchronization.
+- Conflict reports detect duplicate entries, collection/workflow/settings mismatches, snapshot divergence, backup incompatibilities, and MERGE/REVIEW/REJECT recommendations.
+- Rollback plans cover backup, restore, and sync rollback targets, scope, risks, and recommendations.
+- GUI: Tools -> Sync & Backup with backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, and CSV/Markdown export.
+- Release prompt archived: `project_docs/release_prompts/v6.1.txt`.
+- Release notes: `docs/releases/v6.1.md`.
+- Tests passed: `python -m unittest test_sync_backup_engine.py` -> 9 tests OK; adjacent v6.1 slice -> 44 tests OK; `run_tests.bat` -> 694 tests OK.
+- Limitation: offline planning only; no internet synchronization, cloud providers, user accounts, authentication, automatic conflict resolution, automatic restore, background sync, or collection mutation.
 
 #### `[x]` Build v6.0 Collector Cloud Foundation
 
