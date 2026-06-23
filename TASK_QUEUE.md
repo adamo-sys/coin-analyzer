@@ -119,16 +119,15 @@ Work through this queue in priority order. Handle only one task at a time.
 87. `[x]` Build v6.0 Collector Cloud Foundation
 88. `[x]` Build v6.1 Sync & Backup
 89. `[x]` Build v6.2 Multi-Device Collector Workspace
-90. `[ ]` Build v6.3 Device Linking & Conflict Resolution
+90. `[-]` Build v6.3 Device Linking & Conflict Resolution
 91. `[ ]` Build v7.0 Collector Platform
 
-## Official v6.2-to-v7.0 Roadmap
+## Official v6.3-to-v7.0 Roadmap
 
-1. `v6.2` Multi-Device Collector Workspace
-2. `v6.3` Device Linking & Conflict Resolution
-3. `v7.0` Collector Platform
+1. `v6.3` Device Linking & Conflict Resolution
+2. `v7.0` Collector Platform
 
-Roadmap rationale: v6.0 established the cloud architecture layer. v6.1 established backup archives, restore planning, snapshot history, sync simulation, rollback planning, and conflict reporting. The next step is modeling how collectors work across desktop, laptop, phone, and tablet while remaining completely offline.
+Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -180,6 +179,31 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-22
+
+#### `[x]` Lock v6.3 roadmap
+
+- Date started: 2026-06-22
+- Date completed: 2026-06-22
+- Roadmap lock commit: pending commit creation.
+- Roadmap locked:
+  - `v6.3` Device Linking & Conflict Resolution
+  - `v7.0` Collector Platform
+- Rationale: v6.0 established cloud architecture. v6.1 established backup and sync planning. v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
+- Release prompt archive verified:
+  - `project_docs/release_prompts/v5.4.txt`
+  - `project_docs/release_prompts/v6.0.txt`
+  - `project_docs/release_prompts/v6.1.txt`
+  - `project_docs/release_prompts/v6.2.txt`
+  - `project_docs/release_prompts/v6.3.txt`
+- Files checked:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v6.0.md`
+  - `docs/releases/v6.1.md`
+  - `docs/releases/v6.2.md`
 
 #### `[x]` Build v6.2 Multi-Device Collector Workspace
 

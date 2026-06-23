@@ -1,0 +1,438 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.0.md
+* docs/releases/v6.1.md
+* docs/releases/v6.2.md
+* current codebase
+
+Begin v6.3 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+Record rationale:
+
+v6.0 established cloud architecture.
+
+v6.1 established backup and sync planning.
+
+v6.2 established multi-device workspaces.
+
+The final v6 milestone is linking devices and resolving cross-device conflicts safely.
+
+Commit:
+
+Lock v6.3 roadmap
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v6.2 Multi-Device Collector Workspace
+
+Latest Release:
+
+v6.2
+
+Total Tests:
+
+(autodetect current count)
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Watchlists & Alerts
+* Mobile Companion
+* Phone Photo Capture
+* OCR Identification
+* Mobile Collection Entry
+* Workflow Integration
+* Collector Cloud Foundation
+* Sync & Backup
+* Multi-Device Workspace
+
+Locked Roadmap:
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v6.3.txt
+
+Preserve all previous prompts.
+
+Update archive references in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v6.3.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create the device-linking and conflict-resolution layer.
+
+Purpose:
+
+Allow Collector Companion to model how multiple devices interact with the same collector workspace.
+
+This release is NOT:
+
+* internet sync
+* real cloud providers
+* user accounts
+* authentication services
+* automatic conflict resolution
+
+Collector review remains mandatory.
+
+==================================================
+PHASE 2
+DEVICE LINKING ENGINE
+=====================
+
+Create:
+
+device_linking.py
+
+Implement:
+
+* DeviceLinkingEngine
+* LinkedDevice
+* DeviceRelationship
+* DeviceLinkReport
+* WorkspaceLinkMap
+
+==================================================
+PHASE 3
+DEVICE RELATIONSHIPS
+====================
+
+Support:
+
+* Primary Device
+* Secondary Device
+* Mobile Device
+* Tablet Device
+* Backup Device
+
+Track:
+
+* link status
+* last activity
+* capability overlap
+* sync readiness
+
+==================================================
+PHASE 4
+CONFLICT RESOLUTION ENGINE
+==========================
+
+Create:
+
+ConflictResolutionEngine
+
+Implement:
+
+* ConflictCase
+* ConflictAnalysis
+* ConflictRecommendation
+* ConflictResolutionReport
+
+==================================================
+PHASE 5
+CONFLICT TYPES
+==============
+
+Detect:
+
+* collection conflicts
+* workflow conflicts
+* portfolio conflicts
+* watchlist conflicts
+* settings conflicts
+* snapshot conflicts
+
+Classify:
+
+* LOW
+* MEDIUM
+* HIGH
+
+==================================================
+PHASE 6
+RESOLUTION RECOMMENDATIONS
+==========================
+
+Generate:
+
+* MERGE
+* KEEP_PRIMARY
+* KEEP_SECONDARY
+* REVIEW_REQUIRED
+* REJECT
+
+Generate reasoning.
+
+No automatic application.
+
+==================================================
+PHASE 7
+WORKSPACE LINK MAP
+==================
+
+Create:
+
+WorkspaceLinkMap
+
+Display:
+
+* linked devices
+* relationships
+* capability overlap
+* conflict exposure
+* sync readiness
+
+==================================================
+PHASE 8
+READINESS REPORTING
+===================
+
+Create:
+
+DeviceLinkReadinessReport
+
+Track:
+
+* linked devices
+* unresolved conflicts
+* merge exposure
+* backup coverage
+* workspace health
+
+Generate recommendations.
+
+==================================================
+PHASE 9
+MODULE INTEGRATION
+==================
+
+Integrate with:
+
+* Collector Cloud Foundation
+* Sync & Backup
+* Multi-Device Workspace
+* Workflow Integration
+* Mobile Companion
+
+Reuse existing logic.
+
+Avoid duplicate implementations.
+
+==================================================
+PHASE 10
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Device Linking & Conflict Resolution
+
+Display:
+
+* linked devices
+* conflicts
+* recommendations
+* readiness reports
+* workspace maps
+
+==================================================
+PHASE 11
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* DeviceLinkReport
+* WorkspaceLinkMap
+* ConflictResolutionReport
+* DeviceLinkReadinessReport
+
+==================================================
+PHASE 12
+TESTING
+=======
+
+Create:
+
+test_device_linking.py
+
+Add tests for:
+
+* device linking
+* relationship mapping
+* conflict detection
+* conflict classification
+* recommendation generation
+* readiness reporting
+* export generation
+* workspace integration
+* sync integration
+
+Run:
+
+* Device Linking tests
+* Workspace tests
+* Sync & Backup tests
+* Collector Cloud tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 13
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.3.md
+
+Document:
+
+* device linking architecture
+* conflict resolution model
+* readiness reporting
+* workspace mapping
+* limitations
+* prompt archive status
+
+==================================================
+PHASE 14
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* prompt archive updated
+* release history updated
+* project snapshot updated
+
+==================================================
+PHASE 15
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* device linking works
+* conflict detection works
+* recommendation engine works
+* readiness reports work
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 16
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v6.3
+
+Follow:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can model:
+
+* multiple linked devices
+* device relationships
+* conflict scenarios
+* conflict recommendations
+* workspace readiness
+
+while remaining completely offline and review-driven.
+
+This completes the v6 architecture arc:
+
+Cloud Foundation
+↓
+Sync & Backup
+↓
+Multi-Device Workspace
+↓
+Device Linking & Conflict Resolution
+
+and prepares the project for:
+
+# v7.0 = Collector Platform

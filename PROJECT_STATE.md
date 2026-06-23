@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v6.2`
+* Current release version: `v6.3`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
@@ -162,13 +162,12 @@
 
 ## Active Roadmap
 
-Official v6.2-to-v7.0 roadmap:
+Official v6.3-to-v7.0 roadmap:
 
-1. `v6.2` Multi-Device Collector Workspace
-2. `v6.3` Device Linking & Conflict Resolution
-3. `v7.0` Collector Platform
+1. `v6.3` Device Linking & Conflict Resolution
+2. `v7.0` Collector Platform
 
-Roadmap rationale: v6.0 established the cloud architecture layer. v6.1 established backup archives, restore planning, snapshot history, sync simulation, rollback planning, and conflict reporting. The next step is modeling how collectors work across desktop, laptop, phone, and tablet while remaining completely offline.
+Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -206,7 +205,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v6.3 Device Linking & Conflict Resolution planning unless a release-blocking defect is found.
+Build v6.3 Device Linking & Conflict Resolution unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -222,6 +221,7 @@ Current archive status:
 * v6.0 prompt archived at `project_docs/release_prompts/v6.0.txt` before v6.0 development.
 * v6.1 prompt archived at `project_docs/release_prompts/v6.1.txt` before v6.1 development.
 * v6.2 prompt archived at `project_docs/release_prompts/v6.2.txt` before v6.2 development.
+* v6.3 prompt archived at `project_docs/release_prompts/v6.3.txt` before v6.3 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 
@@ -307,6 +307,11 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Locked v6.3 roadmap: Device Linking & Conflict Resolution -> Collector Platform.
+* v6.3 roadmap rationale: v6.0 established cloud architecture; v6.1 established backup and sync planning; v6.2 established multi-device workspaces; v6.3 links devices and resolves cross-device conflicts safely while keeping collector review mandatory.
+* Release prompt archived: `project_docs/release_prompts/v6.3.txt`.
+* Roadmap lock commit: pending commit creation.
 
 * Implemented v6.2 Multi-Device Collector Workspace locally: `MultiDeviceWorkspaceEngine`, `CollectorWorkspace`, `DeviceProfile`, `WorkspaceSnapshot`, `WorkspaceActivity`, and `WorkspaceHealthReport`; desktop/laptop/phone/tablet modeling, device capability reports, workspace snapshots, drift analysis, activity summaries, health reports, scenario simulations, Collector Cloud integration, Sync & Backup integration, Tools -> Multi-Device Workspace, and CSV/Markdown export.
 * Implementation commit: `735c4bf` (`Implement v6.2 multi-device workspace`).
