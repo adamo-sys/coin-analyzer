@@ -117,20 +117,19 @@ Work through this queue in priority order. Handle only one task at a time.
 85. `[x]` Build v5.3 Mobile Collection Entry
 86. `[x]` Build v5.4 Collector Workflow Integration
 87. `[x]` Build v6.0 Collector Cloud Foundation
-88. `[ ]` Build v6.1 Sync & Backup
+88. `[-]` Build v6.1 Sync & Backup
 89. `[ ]` Build v6.2 Multi-Device Collector Workspace
 90. `[ ]` Build v6.3 Device Linking & Conflict Resolution
 91. `[ ]` Build v7.0 Collector Platform
 
-## Official v6.0-to-v7.0 Roadmap
+## Official v6.1-to-v7.0 Roadmap
 
-1. `v6.0` Collector Cloud Foundation
-2. `v6.1` Sync & Backup
-3. `v6.2` Multi-Device Collector Workspace
-4. `v6.3` Device Linking & Conflict Resolution
-5. `v7.0` Collector Platform
+1. `v6.1` Sync & Backup
+2. `v6.2` Multi-Device Collector Workspace
+3. `v6.3` Device Linking & Conflict Resolution
+4. `v7.0` Collector Platform
 
-Roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is now complete; the next stage is preparing the platform for future synchronization and multi-device operation.
+Roadmap rationale: v6.0 established the cloud architecture layer with CollectorCloud, CloudCollectionSnapshot, CloudSyncPlan, CloudBackupPackage, and CloudReadinessReport. The next step is implementing backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -182,6 +181,29 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 ## Project Changelog
 
 ### 2026-06-22
+
+#### `[-]` Lock v6.1 roadmap
+
+- Date started: 2026-06-22
+- Roadmap lock commit: pending.
+- Roadmap locked:
+  - `v6.1` Sync & Backup
+  - `v6.2` Multi-Device Collector Workspace
+  - `v6.3` Device Linking & Conflict Resolution
+  - `v7.0` Collector Platform
+- Rationale: v6.0 established the cloud architecture layer with CollectorCloud, CloudCollectionSnapshot, CloudSyncPlan, CloudBackupPackage, and CloudReadinessReport. The next step is implementing backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
+- Release prompt archive verified:
+  - `project_docs/release_prompts/v5.4.txt`
+  - `project_docs/release_prompts/v6.0.txt`
+  - `project_docs/release_prompts/v6.1.txt`
+- Files checked:
+  - `PROJECT_STATE.md`
+  - `TASK_QUEUE.md`
+  - `AI_HANDOFF.md`
+  - `README.md`
+  - `RELEASE_HISTORY.md`
+  - `docs/releases/v5.4.md`
+  - `docs/releases/v6.0.md`
 
 #### `[x]` Lock v6 roadmap
 

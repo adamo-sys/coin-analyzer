@@ -4,8 +4,8 @@
 
 - Date: 2026-06-22
 - Branch: `main`
-- Current project state file reports release version: `v6.0`
-- Current active task completed: v6.0 Collector Cloud Foundation
+- Current project state file reports release version: `v6.1`
+- Current active task: v6.1 Sync & Backup
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,15 +16,14 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v6.0-to-v7.0 Roadmap
+## Official v6.1-to-v7.0 Roadmap
 
-1. `v6.0` Collector Cloud Foundation
-2. `v6.1` Sync & Backup
-3. `v6.2` Multi-Device Collector Workspace
-4. `v6.3` Device Linking & Conflict Resolution
-5. `v7.0` Collector Platform
+1. `v6.1` Sync & Backup
+2. `v6.2` Multi-Device Collector Workspace
+3. `v6.3` Device Linking & Conflict Resolution
+4. `v7.0` Collector Platform
 
-Roadmap rationale: v5.x completed Mobile Companion, Phone Photo Capture, OCR-Assisted Identification, Mobile Collection Entry, and Collector Workflow Integration. The collector workflow is now complete; the next stage is preparing the platform for future synchronization and multi-device operation.
+Roadmap rationale: v6.0 established the cloud architecture layer with CollectorCloud, CloudCollectionSnapshot, CloudSyncPlan, CloudBackupPackage, and CloudReadinessReport. The next step is implementing backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -37,11 +36,15 @@ v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened liv
 
 ## Release Prompt Archive
 
-Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, `v5.3.txt`, `v5.4.txt`, and `v6.0.txt`.
+Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, `v5.3.txt`, `v5.4.txt`, `v6.0.txt`, and `v6.1.txt`.
 
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Locked the v6.1 roadmap: v6.1 Sync & Backup, v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
+- Archived the v6.1 release prompt at `project_docs/release_prompts/v6.1.txt`.
+- v6.1 roadmap rationale: v6.0 established the cloud architecture layer; the next step is offline backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
 
 - Added `collector_cloud.py` with `CollectorCloud`, `CloudRecord`, `CloudCollectionSnapshot`, `CloudSyncPlan`, `CloudBackupPackage`, `CloudConflict`, and `CloudReadinessReport`.
 - Collector Cloud Foundation models future cloud state entirely offline: collection records, snapshot history, sync plans, backup packages, conflicts, and readiness reports.
