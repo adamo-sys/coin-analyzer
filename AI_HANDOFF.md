@@ -5,7 +5,7 @@
 - Date: 2026-06-22
 - Branch: `main`
 - Current project state file reports release version: `v6.2`
-- Current active task: v6.2 Multi-Device Collector Workspace
+- Current active task completed: v6.2 Multi-Device Collector Workspace
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -46,7 +46,7 @@ Before each release, verify the current release prompt exists, previous archived
 - Workspace snapshots reuse Collector Cloud snapshots and Sync & Backup archives so collection, portfolio, workflow, watchlist, cloud snapshot, and backup state stay aligned with v6.0/v6.1 architecture.
 - Tools -> Multi-Device Workspace displays workspaces, devices, snapshots, capability reports, activity summaries, health reports, Desktop -> Phone -> Laptop simulation, Phone -> Tablet -> Desktop simulation, and CSV/Markdown export.
 - Added `test_multi_device_workspace.py`; focused Multi-Device tests passed 10 OK; adjacent v6.2 slice passed 62 OK; full `run_tests.bat` passed 704 OK.
-- v6.2 implementation commit: pending commit creation.
+- v6.2 implementation commit: `735c4bf`.
 
 - Locked the v6.2 roadmap: v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.2 release prompt at `project_docs/release_prompts/v6.2.txt`.
