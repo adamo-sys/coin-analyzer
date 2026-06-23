@@ -184,7 +184,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 - Date started: 2026-06-22
 - Date completed: 2026-06-22
-- Roadmap lock commit: pending commit creation.
+- Roadmap lock commit: `6a78771`.
 - Roadmap locked:
   - `v6.3` Device Linking & Conflict Resolution
   - `v7.0` Collector Platform
@@ -204,6 +204,26 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `docs/releases/v6.0.md`
   - `docs/releases/v6.1.md`
   - `docs/releases/v6.2.md`
+
+#### `[-]` Build v6.3 Device Linking & Conflict Resolution
+
+- Date started: 2026-06-22
+- Implementation status: locally implemented; full-suite audit passed.
+- Implementation commit: pending commit creation.
+- Added `device_linking.py` with `DeviceLinkingEngine`, `LinkedDevice`, `DeviceRelationship`, `DeviceLinkReport`, `WorkspaceLinkMap`, `ConflictResolutionEngine`, `ConflictCase`, `ConflictAnalysis`, `ConflictRecommendation`, `ConflictResolutionReport`, and `DeviceLinkReadinessReport`.
+- Device relationships cover Primary Device, Secondary Device, Mobile Device, Tablet Device, and Backup Device.
+- Conflict detection covers collection, workflow, portfolio, watchlist, settings, and snapshot conflicts.
+- Conflict classification covers LOW, MEDIUM, and HIGH.
+- Recommendations cover MERGE, KEEP_PRIMARY, KEEP_SECONDARY, REVIEW_REQUIRED, and REJECT without automatic application.
+- Workspace link maps display linked devices, relationships, capability overlap, conflict exposure, and sync readiness.
+- Readiness reports track linked devices, unresolved conflicts, merge exposure, backup coverage, workspace health, and recommendations.
+- Integration: Multi-Device Workspace snapshots, Collector Cloud, and Sync & Backup are reused.
+- GUI: Tools -> Device Linking & Conflict Resolution with link reports, conflicts, workspace maps, readiness, full review, and export actions.
+- Release prompt archived: `project_docs/release_prompts/v6.3.txt`.
+- Release notes: `docs/releases/v6.3.md`.
+- Tests passed: `python -m unittest test_device_linking.py` -> 11 tests OK; adjacent v6.3 slice -> 73 tests OK; `run_tests.bat` -> 715 tests OK.
+- Full-suite audit status: PASS.
+- Limitation: offline planning only; no internet sync, real cloud providers, user accounts, authentication services, automatic conflict resolution, background sync, or collection mutation.
 
 #### `[x]` Build v6.2 Multi-Device Collector Workspace
 

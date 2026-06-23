@@ -40,6 +40,13 @@ Before each release, verify the current release prompt exists, previous archived
 
 ## What Changed
 
+- Added `device_linking.py` with `DeviceLinkingEngine`, `LinkedDevice`, `DeviceRelationship`, `DeviceLinkReport`, `WorkspaceLinkMap`, `ConflictResolutionEngine`, `ConflictCase`, `ConflictAnalysis`, `ConflictRecommendation`, `ConflictResolutionReport`, and `DeviceLinkReadinessReport`.
+- Device Linking & Conflict Resolution models linked devices, relationship roles, capability overlap, workspace link maps, conflict exposure, readiness, and review-only recommendations entirely offline.
+- Conflict detection covers collection, workflow, portfolio, watchlist, settings, and snapshot conflicts with LOW/MEDIUM/HIGH classification and MERGE, KEEP_PRIMARY, KEEP_SECONDARY, REVIEW_REQUIRED, and REJECT recommendations.
+- Tools -> Device Linking & Conflict Resolution displays linked devices, conflicts, recommendations, readiness reports, workspace maps, full review output, and CSV/Markdown export.
+- Added `test_device_linking.py`; focused Device Linking tests passed 11 OK; adjacent v6.3 slice passed 73 OK; full `run_tests.bat` passed 715 OK.
+- v6.3 implementation commit: pending commit creation.
+
 - Locked the v6.3 roadmap: v6.3 Device Linking & Conflict Resolution and v7.0 Collector Platform.
 - Archived the v6.3 release prompt at `project_docs/release_prompts/v6.3.txt`.
 - v6.3 roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces; v6.3 links devices and resolves cross-device conflicts safely while keeping collector review mandatory.

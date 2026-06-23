@@ -15,6 +15,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 from deal_hunter import DealHunter, DealListing
 from deal_hunter_calibration import DealHunterCalibrationEngine
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, ImportProfile
+from device_linking import DeviceLinkingEngine
 from field_test_framework import ScenarioRunner, default_field_test_scenarios
 from focused_collection_intelligence import CandidateItem, FocusedCollectionIntelligenceEngine
 from legacy_portfolio_importer import (
@@ -134,6 +135,10 @@ class CoinCollectionGUI:
         self.workspace_snapshots = []
         self.workspace_activities = []
         self.workspace_health_reports = []
+        self.device_link_reports = []
+        self.workspace_link_maps = []
+        self.conflict_resolution_reports = []
+        self.device_link_readiness_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -236,6 +241,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Collector Cloud Foundation", command=self.open_collector_cloud_foundation)
         tools_menu.add_command(label="Sync & Backup", command=self.open_sync_backup)
         tools_menu.add_command(label="Multi-Device Workspace", command=self.open_multi_device_workspace)
+        tools_menu.add_command(label="Device Linking & Conflict Resolution", command=self.open_device_linking)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3705,6 +3711,167 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Health", command=health_report).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Desktop -> Phone -> Laptop", command=scenario_desktop_phone_laptop).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Phone -> Tablet -> Desktop", command=scenario_phone_tablet_desktop).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_device_linking(self):
+        """Open offline Device Linking & Conflict Resolution reports."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Device Linking & Conflict Resolution")
+        dialog.geometry("1080x840")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        summary_var = tk.StringVar(value="No device-linking report generated.")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Device Linking & Conflict Resolution", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+        button_frame_2 = ttk.Frame(main_frame)
+        button_frame_2.grid(row=3, column=0, sticky=tk.W, pady=(6, 0))
+
+        def cloud_and_sync():
+            cloud = CollectorCloud(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+            )
+            return cloud, SyncBackupEngine(collector_cloud=cloud)
+
+        def workspace_engine():
+            cloud, sync = cloud_and_sync()
+            return MultiDeviceWorkspaceEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+                collector_cloud=cloud,
+                sync_backup_engine=sync,
+            )
+
+        def engine():
+            ws_engine = workspace_engine()
+            return DeviceLinkingEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+                workspace_engine=ws_engine,
+                collector_cloud=ws_engine.collector_cloud,
+                sync_backup_engine=ws_engine.sync_backup_engine,
+            )
+
+        def show_report(report, summary):
+            current_report["report"] = report
+            summary_var.set(summary)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def ensure_workspace():
+            if self.multi_device_workspaces:
+                return self.multi_device_workspaces[-1]
+            ws_engine = workspace_engine()
+            workspace = ws_engine.default_workspace("Device Linking Workspace")
+            self.multi_device_workspaces.append(workspace)
+            return workspace
+
+        def ensure_conflict_ready_workspace(workspace):
+            ws_engine = workspace_engine()
+            if len(workspace.workspace_snapshots) < 2:
+                if not workspace.workspace_snapshots:
+                    self.workspace_snapshots.append(ws_engine.create_snapshot(workspace, "device-link-primary-gui"))
+                workspace.register_device(ws_engine.create_device_profile(DEVICE_TABLET, "Collector Tablet"))
+                self.workspace_snapshots.append(ws_engine.create_snapshot(workspace, "device-link-secondary-gui"))
+            return workspace
+
+        def create_link_report():
+            try:
+                workspace = ensure_workspace()
+                report = engine().link_workspace(workspace)
+                self.device_link_reports.append(report)
+                show_report(report, f"Linked devices: {len(report.linked_devices)} | Relationships: {len(report.relationships)}")
+            except Exception as exc:
+                messagebox.showerror("Device Linking Error", f"Device link report failed: {str(exc)}")
+
+        def create_conflict_report():
+            try:
+                workspace = ensure_conflict_ready_workspace(ensure_workspace())
+                report = engine().analyze_workspace_conflicts(workspace)
+                self.conflict_resolution_reports.append(report)
+                show_report(report, f"Conflicts: {report.conflict_count} | Automatic resolution: NO")
+            except Exception as exc:
+                messagebox.showerror("Device Linking Error", f"Conflict report failed: {str(exc)}")
+
+        def create_link_map():
+            try:
+                workspace = ensure_conflict_ready_workspace(ensure_workspace())
+                linking = engine()
+                link_report = self.device_link_reports[-1] if self.device_link_reports else linking.link_workspace(workspace)
+                conflict_report = self.conflict_resolution_reports[-1] if self.conflict_resolution_reports else linking.analyze_workspace_conflicts(workspace)
+                link_map = linking.create_link_map(workspace, link_report, conflict_report)
+                self.workspace_link_maps.append(link_map)
+                show_report(link_map, f"Workspace map: {len(link_map.linked_devices)} devices | {link_map.sync_readiness}")
+            except Exception as exc:
+                messagebox.showerror("Device Linking Error", f"Workspace link map failed: {str(exc)}")
+
+        def create_readiness_report():
+            try:
+                workspace = ensure_conflict_ready_workspace(ensure_workspace())
+                linking = engine()
+                conflict_report = self.conflict_resolution_reports[-1] if self.conflict_resolution_reports else linking.analyze_workspace_conflicts(workspace)
+                link_map = self.workspace_link_maps[-1] if self.workspace_link_maps else linking.create_link_map(workspace, conflict_report=conflict_report)
+                report = linking.readiness_report(workspace, link_map, conflict_report)
+                self.device_link_readiness_reports.append(report)
+                show_report(report, f"Readiness: {report.readiness_score}/100 | Unresolved conflicts: {report.unresolved_conflicts}")
+            except Exception as exc:
+                messagebox.showerror("Device Linking Error", f"Readiness report failed: {str(exc)}")
+
+        def create_full_review():
+            create_link_report()
+            create_conflict_report()
+            create_link_map()
+            create_readiness_report()
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate a Device Linking report before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Device Linking",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Device Linking exported to {file_path}")
+
+        ttk.Button(button_frame, text="Link Devices", command=create_link_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Conflicts", command=create_conflict_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Workspace Map", command=create_link_map).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Readiness", command=create_readiness_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Full Review", command=create_full_review).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
