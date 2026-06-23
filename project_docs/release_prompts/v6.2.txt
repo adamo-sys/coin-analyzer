@@ -1,0 +1,491 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.0.md
+* docs/releases/v6.1.md
+* current codebase
+
+Begin v6.2 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v6.2 = Multi-Device Collector Workspace
+
+v6.3 = Device Linking & Conflict Resolution
+
+v7.0 = Collector Platform
+
+Record rationale:
+
+v6.0 established cloud architecture.
+
+v6.1 established:
+
+* backup archives
+* restore planning
+* snapshot history
+* sync simulation
+* rollback planning
+* conflict reporting
+
+The next step is modeling how collectors work across multiple devices.
+
+Commit:
+
+Lock v6.2 roadmap
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v6.1 Sync & Backup
+
+Latest Release:
+
+v6.1
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Watchlists & Alerts
+* Mobile Companion
+* Phone Photo Capture
+* OCR-Assisted Identification
+* Mobile Collection Entry
+* Collector Workflow Integration
+* Collector Cloud Foundation
+* Sync & Backup
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v6.2.txt
+
+Preserve all prior prompts.
+
+Update archive references in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v6.2.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create a multi-device workspace architecture.
+
+Purpose:
+
+Allow Collector Companion to model how a collector uses:
+
+* desktop
+* laptop
+* phone
+* tablet
+
+while remaining completely offline.
+
+This release is NOT:
+
+* real synchronization
+* real accounts
+* authentication
+* internet services
+* cloud providers
+
+==================================================
+PHASE 2
+MULTI-DEVICE WORKSPACE ENGINE
+=============================
+
+Create:
+
+multi_device_workspace.py
+
+Implement:
+
+* MultiDeviceWorkspaceEngine
+* CollectorWorkspace
+* DeviceProfile
+* WorkspaceSnapshot
+* WorkspaceActivity
+* WorkspaceHealthReport
+
+==================================================
+PHASE 3
+DEVICE PROFILES
+===============
+
+Create:
+
+DeviceProfile
+
+Support:
+
+* Desktop
+* Laptop
+* Phone
+* Tablet
+
+Track:
+
+* device id
+* device name
+* device type
+* capabilities
+* supported modules
+* last activity
+
+==================================================
+PHASE 4
+COLLECTOR WORKSPACES
+====================
+
+Create:
+
+CollectorWorkspace
+
+Track:
+
+* workspace id
+* workspace name
+* registered devices
+* workspace snapshots
+* sync readiness
+* backup readiness
+
+Purpose:
+
+Represent the collector's ecosystem.
+
+==================================================
+PHASE 5
+WORKSPACE SNAPSHOTS
+===================
+
+Create:
+
+WorkspaceSnapshot
+
+Track:
+
+* devices
+* collection state
+* portfolio state
+* workflow state
+* watchlist state
+
+Support:
+
+* snapshot comparison
+* snapshot history
+* workspace drift analysis
+
+==================================================
+PHASE 6
+DEVICE CAPABILITY MODEL
+=======================
+
+Track capability support for:
+
+* Photo Capture
+* OCR Identification
+* Collection Entry
+* Workflow Integration
+* Deal Hunter
+* Portfolio Analysis
+* Backup Operations
+
+Generate capability reports.
+
+==================================================
+PHASE 7
+WORKSPACE ACTIVITY MODEL
+========================
+
+Create:
+
+WorkspaceActivity
+
+Track:
+
+* device activity
+* workflow activity
+* backup activity
+* collection activity
+
+Generate activity summaries.
+
+==================================================
+PHASE 8
+WORKSPACE HEALTH REPORTING
+==========================
+
+Create:
+
+WorkspaceHealthReport
+
+Track:
+
+* device coverage
+* backup coverage
+* sync readiness
+* snapshot freshness
+* conflict exposure
+* workflow coverage
+
+Generate recommendations.
+
+==================================================
+PHASE 9
+MULTI-DEVICE SCENARIOS
+======================
+
+Support simulation of:
+
+Desktop
+↓
+Phone
+↓
+Laptop
+
+and
+
+Phone
+↓
+Tablet
+↓
+Desktop
+
+Generate:
+
+* readiness analysis
+* workspace reports
+* conflict exposure reports
+
+No actual synchronization.
+
+==================================================
+PHASE 10
+MODULE INTEGRATION
+==================
+
+Integrate with:
+
+* Collector Cloud Foundation
+* Sync & Backup
+* Workflow Integration
+* Mobile Companion
+* Portfolio Performance
+
+Reuse existing logic.
+
+Avoid duplication.
+
+==================================================
+PHASE 11
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Multi-Device Workspace
+
+Display:
+
+* workspaces
+* devices
+* activity
+* capability reports
+* health reports
+* snapshot summaries
+
+==================================================
+PHASE 12
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* CollectorWorkspace
+* DeviceProfile
+* WorkspaceSnapshot
+* WorkspaceActivity
+* WorkspaceHealthReport
+
+==================================================
+PHASE 13
+TESTING
+=======
+
+Create:
+
+test_multi_device_workspace.py
+
+Add tests for:
+
+* device creation
+* workspace creation
+* workspace snapshots
+* capability reporting
+* activity tracking
+* health reporting
+* export generation
+* sync/backup integration
+* cloud integration
+
+Run:
+
+* Multi-Device tests
+* Sync & Backup tests
+* Collector Cloud tests
+* Workflow tests
+* Mobile tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 14
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.2.md
+
+Document:
+
+* workspace architecture
+* device profiles
+* capability model
+* health reporting
+* activity tracking
+* limitations
+* prompt archive status
+
+==================================================
+PHASE 15
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* release history updated
+* prompt archive updated
+* project snapshot updated
+
+==================================================
+PHASE 16
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* workspaces work
+* device profiles work
+* snapshots work
+* capability reporting works
+* activity tracking works
+* health reporting works
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 17
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v6.2
+
+Follow:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Companion can model a collector's complete multi-device ecosystem:
+
+Desktop
+Laptop
+Phone
+Tablet
+
+including:
+
+* device profiles
+* workspace snapshots
+* capability reporting
+* activity tracking
+* workspace health analysis
+
+while remaining completely offline.
+
+This prepares the project for:
+
+v6.3 = Device Linking & Conflict Resolution
+
+and ultimately:
+
+# v7.0 = Collector Platform

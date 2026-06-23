@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v6.1`
+* Current release version: `v6.2`
 * Current Git branch: `main`
 * Last updated date: 2026-06-22
 
@@ -161,14 +161,13 @@
 
 ## Active Roadmap
 
-Official v6.1-to-v7.0 roadmap:
+Official v6.2-to-v7.0 roadmap:
 
-1. `v6.1` Sync & Backup
-2. `v6.2` Multi-Device Collector Workspace
-3. `v6.3` Device Linking & Conflict Resolution
-4. `v7.0` Collector Platform
+1. `v6.2` Multi-Device Collector Workspace
+2. `v6.3` Device Linking & Conflict Resolution
+3. `v7.0` Collector Platform
 
-Roadmap rationale: v6.0 established the cloud architecture layer with CollectorCloud, CloudCollectionSnapshot, CloudSyncPlan, CloudBackupPackage, and CloudReadinessReport. The next step is implementing backup, restore planning, snapshot history, rollback planning, and synchronization simulation.
+Roadmap rationale: v6.0 established the cloud architecture layer. v6.1 established backup archives, restore planning, snapshot history, sync simulation, rollback planning, and conflict reporting. The next step is modeling how collectors work across desktop, laptop, phone, and tablet while remaining completely offline.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -206,7 +205,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v6.2 Multi-Device Collector Workspace planning unless a release-blocking defect is found.
+Build v6.2 Multi-Device Collector Workspace unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -221,6 +220,7 @@ Current archive status:
 * v5.4 prompt archived at `project_docs/release_prompts/v5.4.txt` before v5.4 development.
 * v6.0 prompt archived at `project_docs/release_prompts/v6.0.txt` before v6.0 development.
 * v6.1 prompt archived at `project_docs/release_prompts/v6.1.txt` before v6.1 development.
+* v6.2 prompt archived at `project_docs/release_prompts/v6.2.txt` before v6.2 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 
@@ -305,6 +305,11 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-22
+
+* Locked v6.2 roadmap: Multi-Device Collector Workspace -> Device Linking & Conflict Resolution -> Collector Platform.
+* v6.2 roadmap rationale: v6.0 established cloud architecture; v6.1 established backup archives, restore planning, snapshot history, sync simulation, rollback planning, and conflict reporting; v6.2 models offline collector work across desktop, laptop, phone, and tablet.
+* Release prompt archived: `project_docs/release_prompts/v6.2.txt`.
+* Roadmap lock commit: pending commit creation.
 
 * Implemented v6.1 Sync & Backup locally: `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`; offline backup archives, restore planning, snapshot history, sync simulations, conflict reporting, rollback planning, Collector Cloud integration, workflow/mobile-entry integration, Tools -> Sync & Backup, and CSV/Markdown export.
 * Implementation commit: `b884755` (`Implement v6.1 sync and backup`).
