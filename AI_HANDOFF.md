@@ -41,6 +41,13 @@ Before each release, verify the current release prompt exists, previous archived
 
 ## What Changed
 
+- Added `multi_device_workspace.py` with `MultiDeviceWorkspaceEngine`, `CollectorWorkspace`, `DeviceProfile`, `WorkspaceSnapshot`, `WorkspaceActivity`, and `WorkspaceHealthReport`.
+- Multi-Device Collector Workspace models desktop, laptop, phone, and tablet use entirely offline with device profiles, capability coverage, workspace snapshots, drift analysis, activities, health reports, and scenario simulations.
+- Workspace snapshots reuse Collector Cloud snapshots and Sync & Backup archives so collection, portfolio, workflow, watchlist, cloud snapshot, and backup state stay aligned with v6.0/v6.1 architecture.
+- Tools -> Multi-Device Workspace displays workspaces, devices, snapshots, capability reports, activity summaries, health reports, Desktop -> Phone -> Laptop simulation, Phone -> Tablet -> Desktop simulation, and CSV/Markdown export.
+- Added `test_multi_device_workspace.py`; focused Multi-Device tests passed 10 OK; adjacent v6.2 slice passed 62 OK; full `run_tests.bat` passed 704 OK.
+- v6.2 implementation commit: pending commit creation.
+
 - Locked the v6.2 roadmap: v6.2 Multi-Device Collector Workspace, v6.3 Device Linking & Conflict Resolution, and v7.0 Collector Platform.
 - Archived the v6.2 release prompt at `project_docs/release_prompts/v6.2.txt`.
 - v6.2 roadmap rationale: v6.0 established cloud architecture; v6.1 established backup archives, restore planning, snapshot history, sync simulation, rollback planning, and conflict reporting; v6.2 models offline collector work across desktop, laptop, phone, and tablet.

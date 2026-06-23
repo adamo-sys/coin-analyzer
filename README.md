@@ -56,6 +56,7 @@ The app is especially tuned for Adam-specific priorities:
 - Collector Workflow Integration: end-to-end workflow session layer that coordinates photo capture, OCR identification, evidence review, collection context, mobile collection entry candidates, portfolio preview, final review, workflow health reporting, Mobile Companion summaries, Tools -> Collector Workflow Integration, and CSV/Markdown export without automatic collection mutation.
 - Collector Cloud Foundation: offline architecture layer that models future cloud-ready records, collection snapshots, sync plans, backup packages, conflict previews, readiness reports, Tools -> Collector Cloud Foundation, and CSV/Markdown export without real cloud services or synchronization.
 - Sync & Backup: offline disaster-recovery and sync-planning layer with backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, and CSV/Markdown export without internet sync, cloud providers, automatic restore, or automatic conflict resolution.
+- Multi-Device Collector Workspace: offline workspace architecture for desktop, laptop, phone, and tablet use with device profiles, workspace snapshots, capability reports, activity summaries, health reports, scenario simulations, Tools -> Multi-Device Workspace, and CSV/Markdown export without real sync, accounts, cloud providers, or automatic conflict resolution.
 - Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
@@ -209,6 +210,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 | `v6.0` | See verified tag `v6.0` | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
 | `v6.1` | See verified tag `v6.1` | Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, CSV/Markdown export, and 694-test regression pass. |
+| `v6.2` | Pending release tag | Multi-Device Collector Workspace with desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, Tools -> Multi-Device Workspace, CSV/Markdown export, and 704-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), [docs/releases/v6.0.md](docs/releases/v6.0.md), [docs/releases/v6.1.md](docs/releases/v6.1.md), and [docs/releases/v6.2.md](docs/releases/v6.2.md) for release documentation.
 
@@ -244,6 +246,7 @@ Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `proje
 - Use Collector Workflow Integration when you want one guided flow from photo/OCR intake through evidence, collection context, entry candidate, portfolio preview, and final review.
 - Use Collector Cloud Foundation when you want offline snapshots, readiness reports, sync-plan previews, conflict previews, or backup-package models for future cloud operation without using any real cloud service.
 - Use Sync & Backup when you want offline backup archives, restore-plan previews, backup history, sync simulations, conflict reports, or rollback plans without executing restore or synchronization.
+- Use Multi-Device Workspace when you want to model desktop, laptop, phone, and tablet coverage, device capabilities, workspace snapshots, activity, health, and conflict exposure before future device linking.
 - Use Portfolio Performance when you want portfolio-level growth, health, series progress, acquisition performance, budget allocation, and focus recommendations from local collection data.
 - Use External Listing Connectors when importing local CSV files from multiple offline source formats before sending the normalized listings to Deal Hunter Ranking.
 - Use Opportunity Engine when you want a budget-aware answer to "What should I buy next?" using existing collection intelligence and candidate inputs.
@@ -1522,6 +1525,25 @@ Tools -> Sync & Backup can generate backup archives, restore plans, backup histo
 Limitations:
 
 - No internet synchronization, cloud provider, user account, authentication, automatic conflict resolution, automatic restore, background sync, or collection mutation.
+
+## Multi-Device Collector Workspace
+
+v6.2 adds an offline workspace architecture for modeling desktop, laptop, phone, and tablet use.
+
+`multi_device_workspace.py` provides:
+
+- `DeviceProfile` for device id, name, type, capabilities, supported modules, and last activity.
+- `CollectorWorkspace` for registered devices, workspace snapshots, sync readiness, backup readiness, and activities.
+- `WorkspaceSnapshot` for device, collection, portfolio, workflow, watchlist, cloud snapshot, backup archive, comparison, and drift data.
+- `WorkspaceActivity` for device, workflow, backup, and collection activity summaries.
+- `WorkspaceHealthReport` for device coverage, backup coverage, sync readiness, snapshot freshness, conflict exposure, workflow coverage, and recommendations.
+- `MultiDeviceWorkspaceEngine` for workspace creation, capability reports, activity tracking, cloud/backup-backed snapshots, health reports, and scenario simulations.
+
+Tools -> Multi-Device Workspace can create workspaces, add default devices, create workspace snapshots, show capability reports, show activity summaries, generate health reports, simulate Desktop -> Phone -> Laptop, simulate Phone -> Tablet -> Desktop, and export CSV/Markdown reports.
+
+Limitations:
+
+- No real synchronization, device linking, user accounts, authentication, internet services, cloud providers, automatic restore, automatic conflict resolution, background sync, or collection mutation.
 
 ## Collector Cloud Foundation
 

@@ -43,6 +43,13 @@ from mobile_collection_entry import (
     WORKFLOW_DEALER_VISIT as ENTRY_WORKFLOW_DEALER_VISIT,
     MobileCollectionEntryEngine,
 )
+from multi_device_workspace import (
+    DEVICE_DESKTOP,
+    DEVICE_LAPTOP,
+    DEVICE_PHONE,
+    DEVICE_TABLET,
+    MultiDeviceWorkspaceEngine,
+)
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from upgrade_advisor import UpgradeAdvisor
@@ -123,6 +130,10 @@ class CoinCollectionGUI:
         self.sync_simulations = []
         self.sync_conflict_reports = []
         self.rollback_plans = []
+        self.multi_device_workspaces = []
+        self.workspace_snapshots = []
+        self.workspace_activities = []
+        self.workspace_health_reports = []
         self.shopping_candidates = []
         self.workflow_statuses = []
         self.workflow_summaries = []
@@ -224,6 +235,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Collector Workflow Integration", command=self.open_collector_workflow_integration)
         tools_menu.add_command(label="Collector Cloud Foundation", command=self.open_collector_cloud_foundation)
         tools_menu.add_command(label="Sync & Backup", command=self.open_sync_backup)
+        tools_menu.add_command(label="Multi-Device Workspace", command=self.open_multi_device_workspace)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3486,6 +3498,216 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_multi_device_workspace(self):
+        """Open offline Multi-Device Collector Workspace reports."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Multi-Device Workspace")
+        dialog.geometry("1080x840")
+
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+
+        summary_var = tk.StringVar(value="No multi-device workspace report generated.")
+        ttk.Label(main_frame, textvariable=summary_var).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
+
+        result_frame = ttk.LabelFrame(main_frame, text="Multi-Device Workspace", padding="10")
+        result_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.grid(row=0, column=0, sticky=tk.NSEW)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+        button_frame_2 = ttk.Frame(main_frame)
+        button_frame_2.grid(row=3, column=0, sticky=tk.W, pady=(6, 0))
+
+        def engine():
+            cloud = CollectorCloud(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+            )
+            return MultiDeviceWorkspaceEngine(
+                collection_items=self._collection_items(),
+                want_list_intents=self._active_want_list_intents(),
+                workflow_completion_reports=self.workflow_completion_reports,
+                mobile_entry_reports=self.mobile_entry_reports,
+                settings=self.app_preferences,
+                collector_cloud=cloud,
+                sync_backup_engine=SyncBackupEngine(collector_cloud=cloud),
+            )
+
+        def show_report(report, summary):
+            current_report["report"] = report
+            summary_var.set(summary)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, report.format_markdown())
+
+        def show_text(markdown, summary, export_report=None):
+            current_report["report"] = export_report
+            summary_var.set(summary)
+            result_text.delete("1.0", tk.END)
+            result_text.insert(tk.END, markdown)
+
+        def ensure_workspace():
+            if self.multi_device_workspaces:
+                return self.multi_device_workspaces[-1]
+            workspace = engine().default_workspace("Collector Multi-Device Workspace")
+            self.multi_device_workspaces.append(workspace)
+            return workspace
+
+        def create_workspace():
+            try:
+                workspace = engine().default_workspace("Collector Multi-Device Workspace")
+                self.multi_device_workspaces.append(workspace)
+                show_report(workspace, f"Workspace devices: {len(workspace.registered_devices)} | Sync readiness: {workspace.sync_readiness}")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Workspace creation failed: {str(exc)}")
+
+        def add_default_devices():
+            try:
+                workspace = ensure_workspace()
+                workspace_engine = engine()
+                for device_type, name in [
+                    (DEVICE_DESKTOP, "Collector Desktop"),
+                    (DEVICE_LAPTOP, "Collector Laptop"),
+                    (DEVICE_PHONE, "Collector Phone"),
+                    (DEVICE_TABLET, "Collector Tablet"),
+                ]:
+                    workspace.register_device(workspace_engine.create_device_profile(device_type, name))
+                show_report(workspace, f"Devices: {len(workspace.registered_devices)} | Backup readiness: {workspace.backup_readiness}")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Device registration failed: {str(exc)}")
+
+        def create_snapshot():
+            try:
+                workspace = ensure_workspace()
+                snapshot = engine().create_snapshot(workspace, "multi-device-gui")
+                self.workspace_snapshots.append(snapshot)
+                show_report(snapshot, f"Snapshot devices: {len(snapshot.devices)} | Cloud snapshot: {snapshot.cloud_snapshot_id}")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Snapshot failed: {str(exc)}")
+
+        def capability_report():
+            try:
+                workspace = ensure_workspace()
+                report = engine().capability_report(workspace.registered_devices)
+                lines = [
+                    "# Device Capability Report",
+                    "",
+                    f"- Devices: {report['device_count']}",
+                    f"- Readiness: {report['readiness']}",
+                    "- Real synchronization configured: NO",
+                    "",
+                    "## Capability Coverage",
+                    "",
+                ]
+                for capability, count in sorted(report["capability_coverage"].items()):
+                    lines.append(f"- {capability}: {count}")
+                lines.extend(["", "## Missing Capabilities", ""])
+                lines.extend(f"- {capability}" for capability in report["missing_capabilities"]) if report["missing_capabilities"] else lines.append("- None")
+                show_text("\n".join(lines).rstrip() + "\n", f"Capabilities covered: {len(report['capability_coverage'])}", workspace)
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Capability report failed: {str(exc)}")
+
+        def activity_summary():
+            try:
+                workspace = ensure_workspace()
+                workspace_engine = engine()
+                if not workspace.activities and workspace.registered_devices:
+                    activity = workspace_engine.record_activity(
+                        workspace,
+                        workspace.registered_devices[0],
+                        "workspace",
+                        "Opened Multi-Device Workspace report",
+                    )
+                    self.workspace_activities.append(activity)
+                summary = workspace_engine.activity_summary(workspace)
+                lines = [
+                    "# Workspace Activity Summary",
+                    "",
+                    f"- Activities: {summary['activity_count']}",
+                    f"- Active devices: {summary['devices_active']}",
+                    f"- Latest activity: {summary['latest_activity'] or 'None'}",
+                    "- Background sync: NO",
+                    "",
+                    "## Activity By Type",
+                    "",
+                ]
+                lines.extend(f"- {key}: {value}" for key, value in sorted(summary["activity_by_type"].items())) if summary["activity_by_type"] else lines.append("- None")
+                lines.extend(["", "## Activity By Device", ""])
+                lines.extend(f"- {key}: {value}" for key, value in sorted(summary["activity_by_device"].items())) if summary["activity_by_device"] else lines.append("- None")
+                show_text("\n".join(lines).rstrip() + "\n", f"Activities: {summary['activity_count']}", workspace)
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Activity summary failed: {str(exc)}")
+
+        def health_report():
+            try:
+                workspace = ensure_workspace()
+                if not workspace.workspace_snapshots:
+                    snapshot = engine().create_snapshot(workspace, "multi-device-health-gui")
+                    self.workspace_snapshots.append(snapshot)
+                report = engine().health_report(workspace)
+                self.workspace_health_reports.append(report)
+                show_report(report, f"Health: {report.health_score}/100 | Sync readiness: {report.sync_readiness.get('status')}")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Health report failed: {str(exc)}")
+
+        def scenario_desktop_phone_laptop():
+            try:
+                result = engine().simulate_desktop_phone_laptop(ensure_workspace())
+                self.workspace_snapshots.append(result["snapshot"])
+                self.workspace_health_reports.append(result["health_report"])
+                show_report(result["health_report"], "Scenario: Desktop -> Phone -> Laptop | sync executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Scenario failed: {str(exc)}")
+
+        def scenario_phone_tablet_desktop():
+            try:
+                result = engine().simulate_phone_tablet_desktop(ensure_workspace())
+                self.workspace_snapshots.append(result["snapshot"])
+                self.workspace_health_reports.append(result["health_report"])
+                show_report(result["health_report"], "Scenario: Phone -> Tablet -> Desktop | sync executed: NO")
+            except Exception as exc:
+                messagebox.showerror("Multi-Device Workspace Error", f"Scenario failed: {str(exc)}")
+
+        def export_report(export_type):
+            report = current_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Generate a Multi-Device Workspace report before exporting.")
+                return
+            extension = ".md" if export_type == "markdown" else ".csv"
+            filetypes = [("Markdown files", "*.md")] if export_type == "markdown" else [("CSV files", "*.csv")]
+            file_path = filedialog.asksaveasfilename(
+                title="Export Multi-Device Workspace",
+                defaultextension=extension,
+                filetypes=filetypes + [("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Multi-Device Workspace exported to {file_path}")
+
+        ttk.Button(button_frame, text="Create Workspace", command=create_workspace).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Add Devices", command=add_default_devices).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Snapshot", command=create_snapshot).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Capabilities", command=capability_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Activity", command=activity_summary).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Health", command=health_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Desktop -> Phone -> Laptop", command=scenario_desktop_phone_laptop).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Phone -> Tablet -> Desktop", command=scenario_phone_tablet_desktop).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame_2, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
 
     def _workflow_engine(self):

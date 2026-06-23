@@ -181,6 +181,27 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 ### 2026-06-22
 
+#### `[-]` Build v6.2 Multi-Device Collector Workspace
+
+- Date started: 2026-06-22
+- Implementation status: locally implemented; full-suite audit passed.
+- Implementation commit: pending commit creation.
+- Added `multi_device_workspace.py` with `MultiDeviceWorkspaceEngine`, `CollectorWorkspace`, `DeviceProfile`, `WorkspaceSnapshot`, `WorkspaceActivity`, and `WorkspaceHealthReport`.
+- Device profiles cover Desktop, Laptop, Phone, and Tablet with capability and module coverage.
+- Workspaces track registered devices, snapshots, sync readiness, backup readiness, and activities.
+- Workspace snapshots track device, collection, portfolio, workflow, watchlist, cloud snapshot, and backup archive state with comparison and drift analysis.
+- Capability reports cover Photo Capture, OCR Identification, Collection Entry, Workflow Integration, Deal Hunter, Portfolio Analysis, and Backup Operations.
+- Activity summaries track device, workflow, backup, and collection activity.
+- Health reports track device coverage, backup coverage, sync readiness, snapshot freshness, conflict exposure, workflow coverage, and recommendations.
+- Scenario simulations cover Desktop -> Phone -> Laptop and Phone -> Tablet -> Desktop without synchronization.
+- Integration: Collector Cloud snapshots and Sync & Backup archives are reused for workspace snapshots.
+- GUI: Tools -> Multi-Device Workspace with workspace, device, snapshot, capability, activity, health, scenario, and export actions.
+- Release prompt archived: `project_docs/release_prompts/v6.2.txt`.
+- Release notes: `docs/releases/v6.2.md`.
+- Tests passed: `python -m unittest test_multi_device_workspace.py` -> 10 tests OK; adjacent v6.2 slice -> 62 tests OK; `run_tests.bat` -> 704 tests OK.
+- Full-suite audit status: PASS.
+- Limitation: offline planning only; no real synchronization, device linking, accounts, authentication, internet services, cloud providers, automatic restore, automatic conflict resolution, background sync, or collection mutation.
+
 #### `[x]` Lock v6.2 roadmap
 
 - Date started: 2026-06-22

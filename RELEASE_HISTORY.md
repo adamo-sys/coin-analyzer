@@ -55,6 +55,7 @@
 | `v5.4` | See verified tag `v5.4` | Collector Workflow Integration with end-to-end workflow sessions, review checkpoints, resume support, workflow health reporting, Mobile Companion integration, Tools -> Collector Workflow Integration, CSV/Markdown export, and 677-test regression pass. |
 | `v6.0` | See verified tag `v6.0` | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
 | `v6.1` | See verified tag `v6.1` | Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, CSV/Markdown export, and 694-test regression pass. |
+| `v6.2` | Pending release tag | Multi-Device Collector Workspace with desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, Tools -> Multi-Device Workspace, CSV/Markdown export, and 704-test regression pass. |
 
 ## Notes
 
