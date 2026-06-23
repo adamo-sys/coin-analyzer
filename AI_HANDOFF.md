@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-06-22
+- Date: 2026-06-23
 - Branch: `main`
-- Current project state file reports release version: `v6.3`
-- Current active task: v6.3 Device Linking & Conflict Resolution
+- Current project state file reports release version: `v7.0`
+- Current active task: v7.1 Platform Analytics
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,12 +16,13 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v6.3-to-v7.0 Roadmap
+## Official v7.0-to-v7.2 Roadmap
 
-1. `v6.3` Device Linking & Conflict Resolution
-2. `v7.0` Collector Platform
+1. `v7.0` Collector Platform
+2. `v7.1` Platform Analytics
+3. `v7.2` Collection Insights
 
-Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
+Roadmap rationale: v7.0 establishes the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights. v7.2 adds collection-specific insights and reporting.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -40,14 +41,20 @@ Before each release, verify the current release prompt exists, previous archived
 
 ## What Changed
 
-- Added `device_linking.py` with `DeviceLinkingEngine`, `LinkedDevice`, `DeviceRelationship`, `DeviceLinkReport`, `WorkspaceLinkMap`, `ConflictResolutionEngine`, `ConflictCase`, `ConflictAnalysis`, `ConflictRecommendation`, `ConflictResolutionReport`, and `DeviceLinkReadinessReport`.
-- Device Linking & Conflict Resolution models linked devices, relationship roles, capability overlap, workspace link maps, conflict exposure, readiness, and review-only recommendations entirely offline.
-- Conflict detection covers collection, workflow, portfolio, watchlist, settings, and snapshot conflicts with LOW/MEDIUM/HIGH classification and MERGE, KEEP_PRIMARY, KEEP_SECONDARY, REVIEW_REQUIRED, and REJECT recommendations.
-- Tools -> Device Linking & Conflict Resolution displays linked devices, conflicts, recommendations, readiness reports, workspace maps, full review output, and CSV/Markdown export.
-- Added `test_device_linking.py`; focused Device Linking tests passed 11 OK; adjacent v6.3 slice passed 73 OK; full `run_tests.bat` passed 715 OK.
-- v6.3 implementation commit: pending commit creation.
-
-- Locked the v6.3 roadmap: v6.3 Device Linking & Conflict Resolution and v7.0 Collector Platform.
+- Added `platform_core.py`, `plugin_system.py`, `command_framework.py`, `event_bus.py`, `unified_models.py`, `ui_patterns.py`, `platform_config.py`, `platform_state.py`, and `platform_integration.py` establishing the Collector Platform architecture.
+- Service Registry for registering, managing, and querying platform services with dependency tracking and health checks.
+- Plugin System for dynamic plugin loading, validation, dependency management, and lifecycle control.
+- Command Framework for structured command execution with validation, history tracking, rollback support, and statistics.
+- Event Bus for publish/subscribe communication with priority handling, filtering, history tracking, and statistics.
+- Unified Data Models for standardizing data structures across collection, market, portfolio, workspace, cloud, and device domains.
+- UI Patterns for consistent dialogs, reports, workflows, and forms with standardized styling and state management.
+- Platform Configuration for centralized configuration management with validation, persistence, backup, and migration support.
+- Platform State Management for state persistence, snapshots, restoration, and migration.
+- Platform Integration layer for connecting existing collector services as platform services.
+- Platform Management GUI tool (Tools -> Platform Management) with tabs for Services, Plugins, Event Bus, Commands, and Configuration.
+- Added `test_platform_core.py`, `test_plugin_system.py`, `test_command_framework.py`, and `test_event_bus.py`; platform tests passed 37 OK; full `run_tests.bat` passed 768 OK.
+- v7.0 implementation commit: `9674de5`.
+- v7.0 release tag: `v7.0`.
 - Archived the v6.3 release prompt at `project_docs/release_prompts/v6.3.txt`.
 - v6.3 roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces; v6.3 links devices and resolves cross-device conflicts safely while keeping collector review mandatory.
 

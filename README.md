@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v6.3`
+Current version: `v7.0`
 
-Latest tagged release: `v6.2`
+Latest tagged release: `v7.0`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
