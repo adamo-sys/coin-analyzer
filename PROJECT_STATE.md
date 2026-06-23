@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v6.3`
+* Current release version: `v7.0`
 * Current Git branch: `main`
-* Last updated date: 2026-06-22
+* Last updated date: 2026-06-23
 
 ## Last Release Tag
 
-* Most recent Git tag: `v6.2`
-* Summary of what was included: Multi-Device Collector Workspace with offline desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, GUI access, Collector Cloud and Sync & Backup integration, CSV/Markdown export, and 704-test regression coverage without real synchronization, device linking, accounts, authentication, cloud providers, automatic conflict resolution, or collection mutation.
+* Most recent Git tag: `v6.3`
+* Summary of what was included: Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression coverage without automatic resolution or sync.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -163,12 +163,26 @@
 
 ## Active Roadmap
 
-Official v6.3-to-v7.0 roadmap:
+Official v7.0 roadmap:
 
-1. `v6.3` Device Linking & Conflict Resolution
-2. `v7.0` Collector Platform
+v7.0 = Collector Platform
 
-Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
+v7.1 = Platform Analytics
+v7.2 = Collection Insights
+v7.3 = Acquisition Strategy
+v7.4 = Advanced Reporting
+v7.5 = Collection Command Center
+
+v8.0 = Connected Collector
+
+v8.1 = External Data Connectors
+v8.2 = Marketplace Integration
+v8.3 = Dealer & Auction Intelligence
+v8.4 = Price History Engine
+
+v9.0 = Collector Ecosystem
+
+Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, v6.2 established multi-device workspaces, and v6.3 established device linking and conflict resolution. The v6 series completed the offline multi-device foundation. v7.0 begins the platform layer: unifying all collector tools into a cohesive, extensible platform architecture.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -206,7 +220,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v6.3 Device Linking & Conflict Resolution unless a release-blocking defect is found.
+Build v7.0 Collector Platform unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -223,6 +237,7 @@ Current archive status:
 * v6.1 prompt archived at `project_docs/release_prompts/v6.1.txt` before v6.1 development.
 * v6.2 prompt archived at `project_docs/release_prompts/v6.2.txt` before v6.2 development.
 * v6.3 prompt archived at `project_docs/release_prompts/v6.3.txt` before v6.3 development.
+* v7.0 prompt archived at `project_docs/release_prompts/v7.0.txt` before v7.0 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 

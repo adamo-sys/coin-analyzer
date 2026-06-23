@@ -1,0 +1,579 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v6.0.md
+* docs/releases/v6.1.md
+* docs/releases/v6.2.md
+* docs/releases/v6.3.md
+* current codebase
+
+Begin v7.0 development.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update source-of-truth documentation:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v6.3 = Device Linking & Conflict Resolution (completed)
+
+v7.0 = Collector Platform
+
+v7.1 = Platform Analytics
+v7.2 = Collection Insights
+v7.3 = Acquisition Strategy
+v7.4 = Advanced Reporting
+v7.5 = Collection Command Center
+
+v8.0 = Connected Collector
+
+v8.1 = External Data Connectors
+v8.2 = Marketplace Integration
+v8.3 = Dealer & Auction Intelligence
+v8.4 = Price History Engine
+
+v9.0 = Collector Ecosystem
+
+Record rationale:
+
+v6.0 established cloud architecture.
+v6.1 established backup and sync planning.
+v6.2 established multi-device workspaces.
+v6.3 established device linking and conflict resolution.
+
+The v6 series completed the offline multi-device foundation.
+
+v7.0 begins the platform layer: unifying all collector tools into a cohesive, extensible platform architecture.
+
+Commit:
+
+Lock v7.0 roadmap
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v6.3 Device Linking & Conflict Resolution
+
+Latest Release:
+
+v6.3
+
+Total Tests:
+
+(autodetect current count)
+
+Major Modules:
+
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Watchlists & Alerts
+* Mobile Companion
+* Phone Photo Capture
+* OCR Identification
+* Mobile Collection Entry
+* Workflow Integration
+* Collector Cloud Foundation
+* Sync & Backup
+* Multi-Device Workspace
+* Device Linking & Conflict Resolution
+
+Locked Roadmap:
+
+v7.0 = Collector Platform
+v7.1 = Platform Analytics
+v7.2 = Collection Insights
+
+==================================================
+RELEASE PROMPT ARCHIVE POLICY
+=============================
+
+Archive this prompt as:
+
+project_docs/release_prompts/v7.0.txt
+
+Preserve all previous prompts.
+
+Update archive references in:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* docs/releases/v7.0.md
+
+==================================================
+PHASE 1
+MISSION
+=======
+
+Create the Collector Platform layer.
+
+Purpose:
+
+Unify all existing collector tools into a cohesive, extensible platform architecture that provides:
+
+* centralized service registry
+* unified plugin system
+* extensible command framework
+* platform-wide event bus
+* consistent UI patterns
+* shared data models
+* modular architecture
+
+This release is NOT:
+
+* new collector features
+* new analysis engines
+* new data sources
+* cloud services
+* user accounts
+* authentication
+
+The platform layer enables future v7.x and v8.x features to be added cleanly.
+
+==================================================
+PHASE 2
+PLATFORM CORE
+=============
+
+Create:
+
+platform_core.py
+
+Implement:
+
+* Platform
+* PlatformService
+* ServiceRegistry
+* PlatformConfig
+* PlatformState
+
+==================================================
+PHASE 3
+SERVICE REGISTRY
+================
+
+Implement:
+
+* service registration
+* service discovery
+* service lifecycle
+* service dependencies
+* service health checks
+* service versioning
+
+Support:
+
+* Collection Intelligence service
+* Deal Hunter service
+* Market Intelligence service
+* Portfolio Performance service
+* Mobile Companion service
+* Cloud Foundation service
+* Sync & Backup service
+* Multi-Device Workspace service
+* Device Linking service
+
+==================================================
+PHASE 4
+PLUGIN SYSTEM
+==============
+
+Create:
+
+plugin_system.py
+
+Implement:
+
+* Plugin
+* PluginManager
+* PluginManifest
+* PluginContext
+* PluginLifecycle
+
+Support:
+
+* dynamic plugin loading
+* plugin dependencies
+* plugin configuration
+* plugin hot-reload (optional)
+* plugin sandboxing
+
+==================================================
+PHASE 5
+COMMAND FRAMEWORK
+==================
+
+Create:
+
+command_framework.py
+
+Implement:
+
+* Command
+* CommandBus
+* CommandHandler
+* CommandResult
+* CommandHistory
+
+Support:
+
+* command registration
+* command execution
+* command validation
+* command rollback
+* command auditing
+
+==================================================
+PHASE 6
+EVENT BUS
+==========
+
+Create:
+
+event_bus.py
+
+Implement:
+
+* Event
+* EventBus
+* EventHandler
+* EventSubscription
+* EventFilter
+
+Support:
+
+* publish/subscribe
+* event filtering
+* event prioritization
+* event history
+* event replay
+
+==================================================
+PHASE 7
+UNIFIED DATA MODELS
+===================
+
+Create:
+
+unified_models.py
+
+Implement:
+
+* PlatformModel
+* ModelRegistry
+* ModelValidator
+* ModelTransformer
+
+Unify:
+
+* collection models
+* market models
+* portfolio models
+* workspace models
+* cloud models
+* device models
+
+==================================================
+PHASE 8
+CONSISTENT UI PATTERNS
+======================
+
+Create:
+
+ui_patterns.py
+
+Implement:
+
+* PlatformUI
+* UIComponent
+* UIController
+* UIStateManager
+
+Standardize:
+
+* dialog patterns
+* report patterns
+* export patterns
+* import patterns
+* workflow patterns
+
+==================================================
+PHASE 9
+PLATFORM CONFIGURATION
+======================
+
+Create:
+
+platform_config.py
+
+Implement:
+
+* PlatformConfig
+* ConfigManager
+* ConfigValidator
+* ConfigMigration
+
+Support:
+
+* centralized configuration
+* environment-specific configs
+* config validation
+* config versioning
+* config migration
+
+==================================================
+PHASE 10
+PLATFORM STATE MANAGEMENT
+==========================
+
+Create:
+
+platform_state.py
+
+Implement:
+
+* PlatformStateManager
+* StateSnapshot
+* StateMigration
+* StateValidation
+
+Support:
+
+* platform-wide state
+* state persistence
+* state versioning
+* state migration
+* state validation
+
+==================================================
+PHASE 11
+SERVICE INTEGRATION
+====================
+
+Integrate existing services:
+
+* Collection Intelligence Engine
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Watchlists & Alerts
+* Mobile Companion
+* Collector Cloud Foundation
+* Sync & Backup
+* Multi-Device Workspace
+* Device Linking & Conflict Resolution
+
+Register each as a platform service.
+
+==================================================
+PHASE 12
+GUI INTEGRATION
+===============
+
+Add:
+
+Tools -> Platform Management
+
+Display:
+
+* registered services
+* service health
+* plugin status
+* event bus activity
+* command history
+* platform configuration
+
+==================================================
+PHASE 13
+EXPORT SUPPORT
+==============
+
+Support:
+
+* Markdown export
+* CSV export
+
+Export:
+
+* ServiceRegistry
+* PluginManifest
+* EventBus state
+* CommandHistory
+* PlatformConfig
+* PlatformState
+
+==================================================
+PHASE 14
+TESTING
+=======
+
+Create:
+
+test_platform_core.py
+test_plugin_system.py
+test_command_framework.py
+test_event_bus.py
+
+Add tests for:
+
+* service registration and discovery
+* plugin loading and lifecycle
+* command execution and validation
+* event publishing and subscription
+* data model unification
+* UI pattern consistency
+* platform configuration
+* state management
+* service integration
+
+Run:
+
+* Platform Core tests
+* Plugin System tests
+* Command Framework tests
+* Event Bus tests
+* Service integration tests
+* Full suite
+
+Requirement:
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 15
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v7.0.md
+
+Document:
+
+* platform architecture
+* service registry design
+* plugin system design
+* command framework design
+* event bus design
+* unified data models
+* UI patterns
+* configuration management
+* state management
+* migration guide
+* prompt archive status
+
+==================================================
+PHASE 16
+ROADMAP CONSISTENCY CHECK
+=========================
+
+Verify:
+
+* roadmap matches across all docs
+* prompt archive updated
+* release history updated
+* project snapshot updated
+
+==================================================
+PHASE 17
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* platform core works
+* service registry works
+* plugin system works
+* command framework works
+* event bus works
+* unified models work
+* UI patterns consistent
+* configuration works
+* state management works
+* existing services integrated
+* exports work
+* existing behavior preserved
+* full suite passes
+
+Fix defects only.
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 18
+RELEASE
+=======
+
+If audit result is PASS:
+
+Tag:
+
+v7.0
+
+Follow:
+
+Implement
+↓
+Audit
+↓
+Tag
+↓
+Push
+↓
+Verify
+
+==================================================
+DEFINITION OF DONE
+==================
+
+Collector Platform provides:
+
+* unified service registry
+* extensible plugin system
+* consistent command framework
+* platform-wide event bus
+* unified data models
+* consistent UI patterns
+* centralized configuration
+* platform state management
+
+while preserving all existing collector tools and behavior.
+
+This establishes the platform foundation for:
+
+v7.1 = Platform Analytics
+v7.2 = Collection Insights
+v7.3 = Acquisition Strategy
+v7.4 = Advanced Reporting
+v7.5 = Collection Command Center
+
+and prepares the project for:
+
+v8.0 = Connected Collector

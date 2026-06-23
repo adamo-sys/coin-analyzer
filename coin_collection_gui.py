@@ -96,6 +96,8 @@ from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
 from sync_backup_engine import SyncBackupEngine
 from watchlist_engine import AlertEngine, Watchlist, WatchlistEngine, WatchlistItem
+from platform_core import Platform
+from platform_integration import PlatformIntegration
 
 
 class CoinCollectionGUI:
@@ -118,6 +120,11 @@ class CoinCollectionGUI:
         self.photo_candidates = []
         self.ocr_results = []
         self.ocr_reports = []
+        
+        # Initialize Platform
+        self.platform = Platform()
+        self.platform_integration = PlatformIntegration(self.platform)
+        self.platform_integration.initialize()
         self.ocr_identification_reports = []
         self.mobile_entry_reports = []
         self.workflow_completion_reports = []
@@ -242,6 +249,8 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Sync & Backup", command=self.open_sync_backup)
         tools_menu.add_command(label="Multi-Device Workspace", command=self.open_multi_device_workspace)
         tools_menu.add_command(label="Device Linking & Conflict Resolution", command=self.open_device_linking)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Platform Management", command=self.open_platform_management)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3859,22 +3868,137 @@ Total Unique Dates: {total_unique_dates}
             file_path = filedialog.asksaveasfilename(
                 title="Export Device Linking",
                 defaultextension=extension,
-                filetypes=filetypes + [("All files", "*.*")],
+                filetypes=filetypes,
             )
-            if not file_path:
-                return
-            ok = report.export_markdown(file_path) if export_type == "markdown" else report.export_csv(file_path)
-            if ok:
-                messagebox.showinfo("Export Complete", f"Device Linking exported to {file_path}")
+            if file_path:
+                try:
+                    if export_type == "markdown":
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            f.write(report.format_markdown())
+                    else:
+                        report.export_csv(file_path)
+                    messagebox.showinfo("Export Success", f"Device Linking report exported to {file_path}")
+                except Exception as exc:
+                    messagebox.showerror("Export Error", f"Failed to export report: {str(exc)}")
 
         ttk.Button(button_frame, text="Link Devices", command=create_link_report).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame, text="Conflicts", command=create_conflict_report).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame, text="Workspace Map", command=create_link_map).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame, text="Readiness", command=create_readiness_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Analyze Conflicts", command=create_conflict_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Create Link Map", command=create_link_map).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Readiness Report", command=create_readiness_report).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Full Review", command=create_full_review).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame_2, text="Export Markdown", command=lambda: export_report("markdown")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Export CSV", command=lambda: export_report("csv")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame_2, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_platform_management(self):
+        """Open Platform Management dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Platform Management")
+        dialog.geometry("1000x700")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Services tab
+        services_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(services_frame, text="Services")
+
+        services_text = tk.Text(services_frame, wrap=tk.WORD)
+        services_text.pack(fill=tk.BOTH, expand=True)
+
+        # Plugins tab
+        plugins_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(plugins_frame, text="Plugins")
+
+        plugins_text = tk.Text(plugins_frame, wrap=tk.WORD)
+        plugins_text.pack(fill=tk.BOTH, expand=True)
+
+        # Event Bus tab
+        events_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(events_frame, text="Event Bus")
+
+        events_text = tk.Text(events_frame, wrap=tk.WORD)
+        events_text.pack(fill=tk.BOTH, expand=True)
+
+        # Commands tab
+        commands_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(commands_frame, text="Commands")
+
+        commands_text = tk.Text(commands_frame, wrap=tk.WORD)
+        commands_text.pack(fill=tk.BOTH, expand=True)
+
+        # Config tab
+        config_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(config_frame, text="Configuration")
+
+        config_text = tk.Text(config_frame, wrap=tk.WORD)
+        config_text.pack(fill=tk.BOTH, expand=True)
+
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def refresh_all():
+            # Refresh services
+            services = self.platform.get_all_services()
+            services_text.delete("1.0", tk.END)
+            services_text.insert(tk.END, f"Registered Services ({len(services)}):\n\n")
+            for service in services:
+                services_text.insert(tk.END, f"Name: {service.name}\n")
+                services_text.insert(tk.END, f"Version: {service.version}\n")
+                services_text.insert(tk.END, f"Description: {service.description}\n")
+                services_text.insert(tk.END, f"Status: {service.status}\n")
+                services_text.insert(tk.END, f"Dependencies: {', '.join(service.dependencies)}\n")
+                services_text.insert(tk.END, "-" * 50 + "\n\n")
+
+            # Refresh plugins
+            plugins = self.platform_integration.plugin_manager.get_all_plugins()
+            plugins_text.delete("1.0", tk.END)
+            plugins_text.insert(tk.END, f"Plugins ({len(plugins)}):\n\n")
+            for plugin in plugins:
+                plugins_text.insert(tk.END, f"Name: {plugin.manifest.name}\n")
+                plugins_text.insert(tk.END, f"Version: {plugin.manifest.version}\n")
+                plugins_text.insert(tk.END, f"Description: {plugin.manifest.description}\n")
+                plugins_text.insert(tk.END, f"Author: {plugin.manifest.author}\n")
+                plugins_text.insert(tk.END, f"Status: {plugin.status}\n")
+                plugins_text.insert(tk.END, "-" * 50 + "\n\n")
+
+            # Refresh event bus
+            event_stats = self.platform_integration.event_bus.get_statistics()
+            events_text.delete("1.0", tk.END)
+            events_text.insert(tk.END, "Event Bus Statistics:\n\n")
+            for key, value in event_stats.items():
+                events_text.insert(tk.END, f"{key}: {value}\n")
+
+            # Refresh commands
+            commands = self.platform_integration.command_bus.get_all()
+            command_stats = self.platform_integration.command_bus.get_statistics()
+            commands_text.delete("1.0", tk.END)
+            commands_text.insert(tk.END, f"Registered Commands ({len(commands)}):\n\n")
+            for command in commands:
+                commands_text.insert(tk.END, f"Name: {command.name}\n")
+                commands_text.insert(tk.END, f"Description: {command.description}\n")
+                commands_text.insert(tk.END, f"Can Rollback: {command.can_rollback}\n")
+                commands_text.insert(tk.END, "-" * 50 + "\n\n")
+            commands_text.insert(tk.END, "\nCommand Statistics:\n\n")
+            for key, value in command_stats.items():
+                commands_text.insert(tk.END, f"{key}: {value}\n")
+
+            # Refresh config
+            config = self.platform_integration.config_manager.get_all_settings()
+            config_text.delete("1.0", tk.END)
+            config_text.insert(tk.END, "Platform Configuration:\n\n")
+            for key, value in config.items():
+                config_text.insert(tk.END, f"{key}: {value}\n")
+
+        ttk.Button(button_frame, text="Refresh", command=refresh_all).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        # Initial refresh
+        refresh_all()
 
 
     def _workflow_engine(self):
