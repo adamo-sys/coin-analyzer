@@ -158,7 +158,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
-| `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor release with CI dependency compatibility fix. |
+| `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor milestone with CI dependency compatibility fix. |
 | `v0.6` | `d976f9ec3d0e95124013db5f10cffd503b1acb03` | Focused Collection Intelligence Engine and Do I Own This foundation. |
 | `v0.7` | `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0` | Advisor decision-source consolidation on Collection Intelligence. |
 | `v0.8` | `f3acc605024712a867046be24e3c32db3f18d854` | WANT_LIST context integration in candidate analysis. |
@@ -212,7 +212,8 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v6.0` | See verified tag `v6.0` | Collector Cloud Foundation with offline cloud-ready records, collection snapshots, sync plans, backup packages, conflict model, readiness reporting, Mobile Companion integration, Tools -> Collector Cloud Foundation, CSV/Markdown export, and 685-test regression pass. |
 | `v6.1` | See verified tag `v6.1` | Sync & Backup with offline backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, CSV/Markdown export, and 694-test regression pass. |
 | `v6.2` | See verified tag `v6.2` | Multi-Device Collector Workspace with desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, Tools -> Multi-Device Workspace, CSV/Markdown export, and 704-test regression pass. |
-| `v6.3` | Pending release tag | Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression pass. |
+| `v6.3` | `dd91e7d` | Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression pass. |
+| `v7.0` | `9674de5` | Collector Platform with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), [docs/releases/v6.0.md](docs/releases/v6.0.md), [docs/releases/v6.1.md](docs/releases/v6.1.md), and [docs/releases/v6.2.md](docs/releases/v6.2.md) for release documentation.
 

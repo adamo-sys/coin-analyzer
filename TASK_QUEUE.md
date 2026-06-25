@@ -122,12 +122,21 @@ Work through this queue in priority order. Handle only one task at a time.
 90. `[-]` Build v6.3 Device Linking & Conflict Resolution
 91. `[ ]` Build v7.0 Collector Platform
 
-## Official v6.3-to-v7.0 Roadmap
+## Official v7.1 Roadmap
 
-1. `v6.3` Device Linking & Conflict Resolution
-2. `v7.0` Collector Platform
+1. `v7.1` Platform Analytics
+2. `v7.2` Collection Insights
+3. `v7.3` Acquisition Strategy
+4. `v7.4` Advanced Reporting
+5. `v7.5` Collection Command Center
+6. `v8.0` Connected Collector
+7. `v8.1` External Data Connectors
+8. `v8.2` Marketplace Integration
+9. `v8.3` Dealer & Auction Intelligence
+10. `v8.4` Price History Engine
+11. `v9.0` Collector Ecosystem
 
-Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
+Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 

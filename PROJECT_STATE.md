@@ -163,9 +163,7 @@
 
 ## Active Roadmap
 
-Official v7.0 roadmap:
-
-v7.0 = Collector Platform
+Official v7.1 roadmap:
 
 v7.1 = Platform Analytics
 v7.2 = Collection Insights
@@ -182,7 +180,7 @@ v8.4 = Price History Engine
 
 v9.0 = Collector Ecosystem
 
-Roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, v6.2 established multi-device workspaces, and v6.3 established device linking and conflict resolution. The v6 series completed the offline multi-device foundation. v7.0 begins the platform layer: unifying all collector tools into a cohesive, extensible platform architecture.
+Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
