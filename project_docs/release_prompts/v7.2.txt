@@ -1,0 +1,191 @@
+# v7.2 Collection Insights - Release Prompt
+
+## Objective
+
+Implement Collection Insights that transform deterministic platform analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy without AI reasoning, forecasting, machine learning, or external APIs.
+
+## Scope
+
+### Phase 0: Lock v7.2 Roadmap
+- Update PROJECT_STATE.md with v7.2 roadmap
+- Update TASK_QUEUE.md with v7.2 roadmap
+- Update AI_HANDOFF.md with v7.2 roadmap
+- Update README.md with current version
+- Commit roadmap lock with message "Lock v7.2 roadmap"
+
+### Phase 1: Create collection_insights.py with CollectionInsightsEngine
+- Create InsightCategory enum (collection, portfolio, acquisition, workflow, health)
+- Create InsightPriority enum (critical, high, medium, low, informational)
+- Create InsightEvidence dataclass
+- Create CollectionInsight dataclass
+- Create CollectorHealthReport dataclass
+- Create CollectionInsightReport dataclass
+- Create InsightsDashboard dataclass
+- Create CollectionInsightsEngine class
+
+### Phase 2: Generate Collection Insights
+- Implement _generate_collection_insights() method
+- Generate collection size insight
+- Generate diversity insight (countries, denominations)
+- Generate grade coverage insight
+- Generate year span insight
+- Generate empty collection insight
+
+### Phase 3: Generate Portfolio Insights
+- Implement _generate_portfolio_insights() method
+- Generate portfolio value insight
+- Generate unrealized gain/loss insight
+- Generate silver exposure insight
+
+### Phase 4: Generate Acquisition Insights
+- Implement _generate_acquisition_insights() method
+- Generate watchlist progress insight
+- Generate duplicate concentration insight
+
+### Phase 5: Create CollectorHealthReport
+- Implement _generate_health_report() method
+- Calculate metadata completeness score
+- Calculate photo coverage score
+- Calculate OCR coverage score
+- Calculate grading completeness score
+- Calculate collection documentation score
+- Calculate workflow completion score
+- Calculate overall health score
+- Generate improvement suggestions
+- Generate strengths
+- Generate weaknesses
+
+### Phase 6: Implement Insight Prioritization
+- Implement _prioritize_insights() method
+- Sort by priority (critical > high > medium > low > informational)
+- Sort by confidence within priority
+- Return top 10 priorities
+
+### Phase 7: Implement InsightsDashboard
+- Implement generate_dashboard() method
+- Count insights by priority
+- Generate category breakdown
+- Generate summary string
+
+### Phase 8: GUI Integration - Tools -> Collection Insights
+- Add import for CollectionInsightsEngine to coin_collection_gui.py
+- Add "Collection Insights" menu item to Tools menu
+- Implement open_collection_insights() method
+- Create dialog with notebook tabs:
+  - Dashboard tab
+  - Health Report tab
+  - Collection Insights tab
+  - Portfolio Insights tab
+  - Acquisition Insights tab
+  - Workflow Insights tab
+  - Top Priorities tab
+- Implement generate_insights() function
+- Implement export_report_markdown() function
+- Implement export_report_csv() function
+- Implement export_health_markdown() function
+- Implement export_health_csv() function
+- Add buttons for Generate Insights, Export Report (MD), Export Report (CSV), Export Health (MD), Export Health (CSV), Close
+
+### Phase 9: Export Support (Markdown/CSV)
+- Implement export_report_markdown() method
+- Implement export_report_csv() method
+- Implement export_health_markdown() method
+- Implement export_health_csv() method
+
+### Phase 10: Integration with Existing Modules
+- Integrate with collection data from _collection_items()
+- Integrate with photo_records for photo coverage
+- Integrate with ocr_reports for OCR coverage
+- Integrate with watchlist data
+
+### Phase 11: Create test_collection_insights.py and Run Tests
+- Create test_collection_insights.py
+- Test InsightEvidence creation
+- Test CollectionInsight creation
+- Test CollectorHealthReport creation
+- Test CollectionInsightsEngine initialization
+- Test generate_insights with empty collection
+- Test generate_insights with collection data
+- Test generate_portfolio_insights
+- Test generate_acquisition_insights
+- Test generate_workflow_insights
+- Test generate_health_report
+- Test prioritize_insights
+- Test generate_dashboard
+- Test export_report_markdown
+- Test export_report_csv
+- Test export_health_markdown
+- Test export_health_csv
+- Test insights_history
+- Test duplicate_concentration_insight
+- Test low_grade_coverage_insight
+- Test InsightsDashboard creation
+- Run full regression suite
+- Verify 806 tests pass (increase of 20 from v7.1)
+
+### Phase 12: Update Documentation for v7.2
+- Create docs/releases/v7.2.md with release notes
+- Update README.md current version to v7.2
+- Update PROJECT_STATE.md current version to v7.2
+- Update TASK_QUEUE.md with v7.2 changelog entry
+- Update AI_HANDOFF.md current version to v7.2
+- Update RELEASE_HISTORY.md with v7.2 entry
+- Archive release prompt to project_docs/release_prompts/v7.2.txt
+
+### Phase 13: Roadmap Consistency Check
+- Verify PROJECT_STATE.md shows v7.2 roadmap
+- Verify TASK_QUEUE.md shows v7.2 roadmap
+- Verify AI_HANDOFF.md shows v7.2 roadmap
+- Verify README.md shows current version v7.2
+- Verify all documentation is consistent
+
+### Phase 14: Acceptance Audit
+- Verify collection_insights.py exists and is complete
+- Verify test_collection_insights.py exists and passes
+- Verify GUI integration is complete
+- Verify export functions work
+- Verify all 20 new tests pass
+- Verify full regression suite passes (806 tests)
+- Verify documentation is complete
+- Verify guardrails are followed (no AI, no external APIs)
+
+### Phase 15: Release v7.2
+- Commit implementation with message "Implement v7.2 Collection Insights"
+- Commit release metadata with message "Add v7.2 release metadata"
+- Tag commit as v7.2
+- Push main to origin
+- Push v7.2 tag to origin
+- Verify working tree clean
+- Verify local HEAD commit hash
+- Verify local tag hash
+- Verify remote main commit hash
+- Verify remote tag hash
+- Verify peeled tag target matches commit
+
+## Guardrails
+
+**Strictly Forbidden:**
+- AI reasoning, forecasting, or machine learning
+- External APIs or web services
+- Automatic collection mutations
+- Automatic purchasing or bidding
+- Background jobs
+- Non-deterministic insights
+
+**Required:**
+- All insights must be deterministic and explainable
+- All insights must derive from local collection data only
+- Confidence scores based on data completeness, not AI certainty
+- Insights must be evidence-based with supporting metrics
+- Insights must be actionable with clear explanations
+
+## Success Criteria
+
+- collection_insights.py implements all required data structures and methods
+- test_collection_insights.py has 20 passing unit tests
+- GUI integration provides full-featured Collection Insights dialog
+- Export functions work for both Markdown and CSV formats
+- Full regression suite passes with 806 tests (increase of 20)
+- Documentation is complete and consistent
+- All guardrails are followed
+- Release is tagged and pushed to remote

@@ -253,6 +253,7 @@ class CoinCollectionGUI:
         tools_menu.add_separator()
         tools_menu.add_command(label="Platform Management", command=self.open_platform_management)
         tools_menu.add_command(label="Platform Analytics", command=self.open_platform_analytics)
+        tools_menu.add_command(label="Collection Insights", command=self.open_collection_insights)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -4181,6 +4182,267 @@ Total Unique Dates: {total_unique_dates}
         # Initialize analytics engine for export functions
         engine = PlatformAnalyticsEngine()
 
+    def open_collection_insights(self):
+        """Open Collection Insights dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Insights")
+        dialog.geometry("1200x800")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Dashboard tab
+        dashboard_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(dashboard_frame, text="Dashboard")
+
+        dashboard_text = tk.Text(dashboard_frame, wrap=tk.WORD)
+        dashboard_text.pack(fill=tk.BOTH, expand=True)
+
+        # Health Report tab
+        health_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(health_frame, text="Health Report")
+
+        health_text = tk.Text(health_frame, wrap=tk.WORD)
+        health_text.pack(fill=tk.BOTH, expand=True)
+
+        # Collection Insights tab
+        collection_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(collection_frame, text="Collection Insights")
+
+        collection_text = tk.Text(collection_frame, wrap=tk.WORD)
+        collection_text.pack(fill=tk.BOTH, expand=True)
+
+        # Portfolio Insights tab
+        portfolio_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(portfolio_frame, text="Portfolio Insights")
+
+        portfolio_text = tk.Text(portfolio_frame, wrap=tk.WORD)
+        portfolio_text.pack(fill=tk.BOTH, expand=True)
+
+        # Acquisition Insights tab
+        acquisition_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(acquisition_frame, text="Acquisition Insights")
+
+        acquisition_text = tk.Text(acquisition_frame, wrap=tk.WORD)
+        acquisition_text.pack(fill=tk.BOTH, expand=True)
+
+        # Workflow Insights tab
+        workflow_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(workflow_frame, text="Workflow Insights")
+
+        workflow_text = tk.Text(workflow_frame, wrap=tk.WORD)
+        workflow_text.pack(fill=tk.BOTH, expand=True)
+
+        # Top Priorities tab
+        priorities_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(priorities_frame, text="Top Priorities")
+
+        priorities_text = tk.Text(priorities_frame, wrap=tk.WORD)
+        priorities_text.pack(fill=tk.BOTH, expand=True)
+
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def generate_insights():
+            """Generate and display insights."""
+            engine = CollectionInsightsEngine()
+
+            # Gather data from current state
+            collection_data = {"items": self._collection_items()} if hasattr(self, '_collection_items') else {}
+            portfolio_data = {"total_estimated_value": 0, "total_acquisition_cost": 0, "silver_value": 0}
+            workflow_data = {"photos_captured": len(self.photo_records) if hasattr(self, 'photo_records') else 0,
+                           "ocr_sessions": len(self.ocr_reports) if hasattr(self, 'ocr_reports') else 0,
+                           "completed_workflows": 0, "workflow_sessions": 0}
+            watchlist_data = {"watchlists": []}
+            market_data = {}
+
+            # Generate report
+            report = engine.generate_insights(
+                collection_data=collection_data,
+                portfolio_data=portfolio_data,
+                workflow_data=workflow_data,
+                watchlist_data=watchlist_data,
+                market_data=market_data
+            )
+
+            # Generate dashboard
+            dashboard = engine.generate_dashboard(report)
+
+            # Display dashboard
+            dashboard_text.delete("1.0", tk.END)
+            dashboard_text.insert(tk.END, "# Collection Insights Dashboard\n\n")
+            dashboard_text.insert(tk.END, f"Generated: {dashboard.report.generated_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            dashboard_text.insert(tk.END, f"Summary: {dashboard.summary}\n\n")
+            dashboard_text.insert(tk.END, f"Critical Insights: {dashboard.critical_count}\n")
+            dashboard_text.insert(tk.END, f"High Priority: {dashboard.high_count}\n")
+            dashboard_text.insert(tk.END, f"Medium Priority: {dashboard.medium_count}\n")
+            dashboard_text.insert(tk.END, f"Low Priority: {dashboard.low_count}\n")
+            dashboard_text.insert(tk.END, f"Informational: {dashboard.informational_count}\n\n")
+
+            dashboard_text.insert(tk.END, "## Category Breakdown\n\n")
+            for category, count in dashboard.category_breakdown.items():
+                dashboard_text.insert(tk.END, f"- {category}: {count}\n")
+
+            # Display health report
+            health_text.delete("1.0", tk.END)
+            health_md = engine.export_health_markdown(report.health_report)
+            health_text.insert(tk.END, health_md)
+
+            # Display collection insights
+            collection_text.delete("1.0", tk.END)
+            collection_text.insert(tk.END, "# Collection Insights\n\n")
+            for insight in report.collection_insights:
+                collection_text.insert(tk.END, f"## {insight.title}\n\n")
+                collection_text.insert(tk.END, f"Priority: {insight.priority.value}\n")
+                collection_text.insert(tk.END, f"Confidence: {insight.confidence:.1%}\n\n")
+                collection_text.insert(tk.END, f"{insight.description}\n\n")
+                collection_text.insert(tk.END, f"{insight.explanation}\n\n")
+
+            # Display portfolio insights
+            portfolio_text.delete("1.0", tk.END)
+            portfolio_text.insert(tk.END, "# Portfolio Insights\n\n")
+            for insight in report.portfolio_insights:
+                portfolio_text.insert(tk.END, f"## {insight.title}\n\n")
+                portfolio_text.insert(tk.END, f"Priority: {insight.priority.value}\n")
+                portfolio_text.insert(tk.END, f"Confidence: {insight.confidence:.1%}\n\n")
+                portfolio_text.insert(tk.END, f"{insight.description}\n\n")
+                portfolio_text.insert(tk.END, f"{insight.explanation}\n\n")
+
+            # Display acquisition insights
+            acquisition_text.delete("1.0", tk.END)
+            acquisition_text.insert(tk.END, "# Acquisition Insights\n\n")
+            for insight in report.acquisition_insights:
+                acquisition_text.insert(tk.END, f"## {insight.title}\n\n")
+                acquisition_text.insert(tk.END, f"Priority: {insight.priority.value}\n")
+                acquisition_text.insert(tk.END, f"Confidence: {insight.confidence:.1%}\n\n")
+                acquisition_text.insert(tk.END, f"{insight.description}\n\n")
+                acquisition_text.insert(tk.END, f"{insight.explanation}\n\n")
+
+            # Display workflow insights
+            workflow_text.delete("1.0", tk.END)
+            workflow_text.insert(tk.END, "# Workflow Insights\n\n")
+            for insight in report.workflow_insights:
+                workflow_text.insert(tk.END, f"## {insight.title}\n\n")
+                workflow_text.insert(tk.END, f"Priority: {insight.priority.value}\n")
+                workflow_text.insert(tk.END, f"Confidence: {insight.confidence:.1%}\n\n")
+                workflow_text.insert(tk.END, f"{insight.description}\n\n")
+                workflow_text.insert(tk.END, f"{insight.explanation}\n\n")
+
+            # Display top priorities
+            priorities_text.delete("1.0", tk.END)
+            priorities_text.insert(tk.END, "# Top Priorities\n\n")
+            for insight in report.top_priorities:
+                priorities_text.insert(tk.END, f"## {insight.title}\n\n")
+                priorities_text.insert(tk.END, f"Priority: {insight.priority.value}\n")
+                priorities_text.insert(tk.END, f"Category: {insight.category.value}\n")
+                priorities_text.insert(tk.END, f"Confidence: {insight.confidence:.1%}\n\n")
+                priorities_text.insert(tk.END, f"{insight.description}\n\n")
+                priorities_text.insert(tk.END, f"{insight.explanation}\n\n")
+                if insight.evidence:
+                    priorities_text.insert(tk.END, "**Evidence:**\n")
+                    for evidence in insight.evidence:
+                        priorities_text.insert(tk.END, f"- {evidence.metric_name}: {evidence.metric_value} - {evidence.description}\n")
+                    priorities_text.insert(tk.END, "\n")
+
+            # Store for export
+            dialog.current_report = report
+            dialog.current_dashboard = dashboard
+
+        def export_report_markdown():
+            """Export report as Markdown."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No insights data to export. Generate insights first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Insights Report as Markdown"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(engine.export_report_markdown(dialog.current_report))
+                    messagebox.showinfo("Export", f"Report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_report_csv():
+            """Export report as CSV."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No insights data to export. Generate insights first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                title="Export Insights Report as CSV"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(engine.export_report_csv(dialog.current_report))
+                    messagebox.showinfo("Export", f"Report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_health_markdown():
+            """Export health report as Markdown."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No health data to export. Generate insights first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Health Report as Markdown"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(engine.export_health_markdown(dialog.current_report.health_report))
+                    messagebox.showinfo("Export", f"Health report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_health_csv():
+            """Export health report as CSV."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No health data to export. Generate insights first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                title="Export Health Report as CSV"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(engine.export_health_csv(dialog.current_report.health_report))
+                    messagebox.showinfo("Export", f"Health report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        ttk.Button(button_frame, text="Generate Insights", command=generate_insights).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Report (MD)", command=export_report_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Report (CSV)", command=export_report_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Health (MD)", command=export_health_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Health (CSV)", command=export_health_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        # Initialize insights engine for export functions
+        engine = CollectionInsightsEngine()
+
 
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
@@ -6589,4 +6851,5 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
     main()

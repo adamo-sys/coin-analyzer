@@ -122,6 +122,7 @@ Work through this queue in priority order. Handle only one task at a time.
 90. `[-]` Build v6.3 Device Linking & Conflict Resolution
 91. `[x]` Build v7.0 Collector Platform
 92. `[x]` Build v7.1 Platform Analytics
+93. `[x]` Build v7.2 Collection Insights
 
 ## Official v7.2 Roadmap
 
@@ -239,6 +240,33 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 - Test results: 786 tests OK (up from 768).
 - Release prompt archived: `project_docs/release_prompts/v7.1.txt`.
 - Release documentation: `docs/releases/v7.1.md`.
+
+### 2026-06-25
+
+#### `[x]` Implement v7.2 Collection Insights
+
+- Date started: 2026-06-25
+- Date completed: 2026-06-25
+- Release commit: TBD.
+- Release tag: `v7.2`.
+- Features implemented:
+  - Collection Insights Engine with deterministic, explainable observations
+  - InsightCategory, InsightPriority, InsightEvidence dataclasses
+  - CollectionInsight with category, priority, evidence, confidence, actionability
+  - CollectorHealthReport with overall score and component scores
+  - CollectionInsightReport with categorized insights and health report
+  - InsightsDashboard with summary, priority counts, category breakdown
+  - Collection insights: size, diversity, grade coverage, year span, empty collection
+  - Portfolio insights: value, unrealized gain/loss, silver exposure
+  - Acquisition insights: watchlist progress, duplicate concentration
+  - Workflow insights: completion rate, photo coverage, OCR utilization
+  - Health report: metadata, photo, OCR, grading, documentation, workflow scores
+  - Insight prioritization by priority and confidence
+  - GUI integration: Tools -> Collection Insights dialog with 7 tabs
+  - Export support: Markdown and CSV for reports and health reports
+- Test results: 806 tests OK (up from 786).
+- Release prompt archived: `project_docs/release_prompts/v7.2.txt`.
+- Release documentation: `docs/releases/v7.2.md`.
 
 ### 2026-06-22
 
