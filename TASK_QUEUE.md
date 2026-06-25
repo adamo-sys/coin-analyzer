@@ -120,7 +120,8 @@ Work through this queue in priority order. Handle only one task at a time.
 88. `[x]` Build v6.1 Sync & Backup
 89. `[x]` Build v6.2 Multi-Device Collector Workspace
 90. `[-]` Build v6.3 Device Linking & Conflict Resolution
-91. `[ ]` Build v7.0 Collector Platform
+91. `[x]` Build v7.0 Collector Platform
+92. `[x]` Build v7.1 Platform Analytics
 
 ## Official v7.1 Roadmap
 
@@ -209,6 +210,36 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 - Test results: 768 tests OK.
 - Release prompt archived: `project_docs/release_prompts/v7.0.txt`.
 - Release documentation: `docs/releases/v7.0.md`.
+
+### 2026-06-23
+
+#### `[x]` Implement v7.1 Platform Analytics
+
+- Date started: 2026-06-23
+- Date completed: 2026-06-23
+- Release commit: pending.
+- Release tag: pending.
+- Features implemented:
+  - Platform Analytics Engine with deterministic metrics for all major subsystems
+  - AnalyticsMetric, AnalyticsTrend, ModuleMetrics, AnalyticsSnapshot dataclasses
+  - AnalyticsSummary and PlatformHealthScore with component scores
+  - AnalyticsDashboard with snapshot, summary, health score, and trends
+  - Collection metrics: total items, countries, denominations, grades, coverage
+  - Portfolio metrics: value, cost, gain/loss, silver exposure
+  - Workflow metrics: photos, OCR, success rates, completion rates
+  - Deal Hunter metrics: listings processed, recommendation rates, risk flags
+  - Opportunity Engine metrics: opportunities, high-priority rate
+  - Market Intelligence metrics: records, comparable sales
+  - Watchlist metrics: watchlists, items, alerts
+  - Cloud metrics: snapshots, sync plans
+  - Sync & Backup metrics: backups, last backup age, readiness
+  - Workspace metrics: devices, snapshots
+  - Device Linking metrics: linked devices, conflicts
+  - GUI integration: Tools -> Platform Analytics dialog with 4 tabs
+  - Export support: Markdown and CSV for snapshots and health scores
+- Test results: 786 tests OK (up from 768).
+- Release prompt archived: `project_docs/release_prompts/v7.1.txt`.
+- Release documentation: `docs/releases/v7.1.md`.
 
 ### 2026-06-22
 

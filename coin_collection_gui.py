@@ -12,6 +12,7 @@ from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
 from coin_collection import CoinCollectionApp, CoinItem
 from collection_intelligence import CollectionIntelligenceEngine
+from platform_analytics import PlatformAnalyticsEngine
 from deal_hunter import DealHunter, DealListing
 from deal_hunter_calibration import DealHunterCalibrationEngine
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, ImportProfile
@@ -251,6 +252,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Device Linking & Conflict Resolution", command=self.open_device_linking)
         tools_menu.add_separator()
         tools_menu.add_command(label="Platform Management", command=self.open_platform_management)
+        tools_menu.add_command(label="Platform Analytics", command=self.open_platform_analytics)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -3999,6 +4001,185 @@ Total Unique Dates: {total_unique_dates}
 
         # Initial refresh
         refresh_all()
+
+    def open_platform_analytics(self):
+        """Open Platform Analytics dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Platform Analytics")
+        dialog.geometry("1200x800")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Dashboard tab
+        dashboard_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(dashboard_frame, text="Dashboard")
+
+        dashboard_text = tk.Text(dashboard_frame, wrap=tk.WORD)
+        dashboard_text.pack(fill=tk.BOTH, expand=True)
+
+        # Health Score tab
+        health_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(health_frame, text="Health Score")
+
+        health_text = tk.Text(health_frame, wrap=tk.WORD)
+        health_text.pack(fill=tk.BOTH, expand=True)
+
+        # Module Metrics tab
+        metrics_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(metrics_frame, text="Module Metrics")
+
+        metrics_text = tk.Text(metrics_frame, wrap=tk.WORD)
+        metrics_text.pack(fill=tk.BOTH, expand=True)
+
+        # Trends tab
+        trends_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(trends_frame, text="Trends")
+
+        trends_text = tk.Text(trends_frame, wrap=tk.WORD)
+        trends_text.pack(fill=tk.BOTH, expand=True)
+
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def generate_analytics():
+            """Generate and display analytics."""
+            engine = PlatformAnalyticsEngine()
+
+            # Gather data from current state
+            collection_data = {"items": self._collection_items()} if hasattr(self, '_collection_items') else None
+            portfolio_data = {"total_estimated_value": 0, "total_acquisition_cost": 0, "silver_value": 0}
+            workflow_data = {"photos_captured": 0, "ocr_sessions": 0, "total_ocr_attempts": 0, 
+                          "successful_identifications": 0, "entry_attempts": 0, 
+                          "completed_entries": 0, "workflow_sessions": 0, "completed_workflows": 0}
+            deal_hunter_data = {"total_listings_processed": 0, "buy_recommendations": 0, 
+                             "pass_recommendations": 0, "risk_flags": 0}
+            opportunity_data = {"total_opportunities": 0, "high_priority_opportunities": 0}
+            market_data = {"total_market_records": 0, "comparable_sales": 0}
+            watchlist_data = {"total_watchlists": 0, "total_watchlist_items": 0, "alerts_generated": 0}
+            cloud_data = {"snapshots_created": 0, "sync_plans_generated": 0}
+            sync_data = {"backup_archives_created": 0, "last_backup_hours_ago": 0, 
+                       "sync_simulations_run": 0, "backup_ready": True}
+            workspace_data = {"registered_devices": 0, "workspace_snapshots": 0}
+            device_data = {"linked_devices": 0, "unresolved_conflicts": 0}
+
+            # Generate snapshot
+            snapshot = engine.generate_snapshot(
+                collection_data=collection_data,
+                portfolio_data=portfolio_data,
+                workflow_data=workflow_data,
+                deal_hunter_data=deal_hunter_data,
+                opportunity_data=opportunity_data,
+                market_data=market_data,
+                watchlist_data=watchlist_data,
+                cloud_data=cloud_data,
+                sync_data=sync_data,
+                workspace_data=workspace_data,
+                device_data=device_data
+            )
+
+            # Generate dashboard
+            dashboard = engine.generate_dashboard(snapshot)
+
+            # Display dashboard
+            dashboard_text.delete("1.0", tk.END)
+            dashboard_text.insert(tk.END, "# Platform Analytics Dashboard\n\n")
+            dashboard_text.insert(tk.END, f"Generated: {dashboard.generated_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            dashboard_text.insert(tk.END, f"Overall Health Score: {dashboard.health_score.score:.1f}% ({dashboard.health_score.category.upper()})\n\n")
+            dashboard_text.insert(tk.END, f"Active Modules: {dashboard.summary.active_modules}/{dashboard.summary.total_modules}\n")
+            dashboard_text.insert(tk.END, f"Healthy Modules: {dashboard.summary.healthy_modules}\n\n")
+            
+            dashboard_text.insert(tk.END, "## Top Strengths\n\n")
+            for strength in dashboard.summary.top_strengths:
+                dashboard_text.insert(tk.END, f"- {strength}\n")
+            
+            dashboard_text.insert(tk.END, "\n## Top Improvements\n\n")
+            for improvement in dashboard.summary.top_improvements:
+                dashboard_text.insert(tk.END, f"- {improvement}\n")
+
+            # Display health score
+            health_text.delete("1.0", tk.END)
+            health_md = engine.export_health_score_markdown(dashboard.health_score)
+            health_text.insert(tk.END, health_md)
+
+            # Display module metrics
+            metrics_text.delete("1.0", tk.END)
+            metrics_md = engine.export_snapshot_markdown(snapshot)
+            metrics_text.insert(tk.END, metrics_md)
+
+            # Display trends
+            trends_text.delete("1.0", tk.END)
+            trends_text.insert(tk.END, "# Analytics Trends\n\n")
+            if dashboard.trends:
+                for trend in dashboard.trends:
+                    trends_text.insert(tk.END, f"## {trend.metric_name}\n")
+                    trends_text.insert(tk.END, f"Direction: {trend.direction}\n")
+                    trends_text.insert(tk.END, f"Change: {trend.change_percent:.1f}%\n")
+                    trends_text.insert(tk.END, f"Description: {trend.description}\n\n")
+            else:
+                trends_text.insert(tk.END, "Insufficient data for trend analysis. Generate more snapshots to see trends.\n")
+
+            # Store for export
+            dialog.current_dashboard = dashboard
+            dialog.current_snapshot = snapshot
+
+        def export_dashboard_markdown():
+            """Export dashboard as Markdown."""
+            if not hasattr(dialog, 'current_dashboard'):
+                messagebox.showwarning("Export", "No analytics data to export. Generate analytics first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Dashboard as Markdown"
+            )
+            
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write("# Platform Analytics Dashboard\n\n")
+                        f.write(f"Generated: {dialog.current_dashboard.generated_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                        f.write(f"Overall Health Score: {dialog.current_dashboard.health_score.score:.1f}%\n\n")
+                        f.write(engine.export_health_score_markdown(dialog.current_dashboard.health_score))
+                        f.write("\n\n---\n\n")
+                        f.write(engine.export_snapshot_markdown(dialog.current_snapshot))
+                    messagebox.showinfo("Export", f"Dashboard exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_dashboard_csv():
+            """Export dashboard as CSV."""
+            if not hasattr(dialog, 'current_snapshot'):
+                messagebox.showwarning("Export", "No analytics data to export. Generate analytics first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                title="Export Dashboard as CSV"
+            )
+            
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(engine.export_snapshot_csv(dialog.current_snapshot))
+                    messagebox.showinfo("Export", f"Dashboard exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        ttk.Button(button_frame, text="Generate Analytics", command=generate_analytics).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=export_dashboard_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export CSV", command=export_dashboard_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        # Initialize analytics engine for export functions
+        engine = PlatformAnalyticsEngine()
 
 
     def _workflow_engine(self):

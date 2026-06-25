@@ -1,0 +1,162 @@
+# v7.1 Platform Analytics Release Prompt
+
+## Objective
+
+Build deterministic platform analytics for monitoring and insights across all major Collector Platform subsystems using local data only. This is NOT about AI recommendations, forecasting, machine learning, cloud analytics, or external APIs.
+
+## Scope
+
+### Phase 0: Lock Roadmap
+- Update PROJECT_STATE.md with v7.1 roadmap
+- Update TASK_QUEUE.md with v7.1 roadmap
+- Update AI_HANDOFF.md with v7.1 roadmap
+- Update README.md with v7.1 roadmap
+- Commit "Lock v7.1 roadmap"
+
+### Phase 1: Create platform_analytics.py
+- Create PlatformAnalyticsEngine class
+- Implement AnalyticsMetric dataclass
+- Implement AnalyticsTrend dataclass
+- Implement ModuleMetrics dataclass
+- Implement AnalyticsSnapshot dataclass
+- Implement AnalyticsSummary dataclass
+- Implement PlatformHealthScore dataclass
+- Implement AnalyticsDashboard dataclass
+
+### Phase 2: Generate Module Analytics Metrics
+- Implement _generate_collection_metrics()
+- Implement _generate_portfolio_metrics()
+- Implement _generate_workflow_metrics()
+- Implement _generate_deal_hunter_metrics()
+- Implement _generate_opportunity_metrics()
+- Implement _generate_market_metrics()
+- Implement _generate_watchlist_metrics()
+- Implement _generate_cloud_metrics()
+- Implement _generate_sync_metrics()
+- Implement _generate_workspace_metrics()
+- Implement _generate_device_metrics()
+
+### Phase 3: Collection Metrics
+- Total items count
+- Unique countries count
+- Unique denominations count
+- Graded items count
+- Grade coverage percentage
+- Year coverage percentage
+- Health score calculation
+
+### Phase 4: Portfolio Metrics
+- Total estimated value
+- Total acquisition cost
+- Unrealized gain/loss percentage
+- Silver exposure percentage
+- Health score calculation
+
+### Phase 5: Workflow Metrics
+- Photos captured count
+- OCR sessions count
+- Identification success rate
+- Entry completion rate
+- Workflow completion rate
+- Health score calculation
+
+### Phase 6: PlatformHealthScore
+- Module coverage score
+- Backup readiness score
+- Workflow completeness score
+- Metadata quality score
+- Collection completeness score
+- Overall score calculation
+- Category determination (excellent/good/fair/poor)
+- Explanations generation
+- Recommendations generation
+
+### Phase 7: AnalyticsDashboard
+- Dashboard generation from snapshot
+- Summary generation
+- Health score calculation
+- Trend generation from snapshot history
+
+### Phase 8: GUI Integration
+- Add "Platform Analytics" to Tools menu in coin_collection_gui.py
+- Import PlatformAnalyticsEngine
+- Implement open_platform_analytics() method
+- Create dialog with tabs: Dashboard, Health Score, Module Metrics, Trends
+- Generate Analytics button
+- Export Markdown button
+- Export CSV button
+- Display dashboard, health score, metrics, and trends
+
+### Phase 9: Export Support
+- Implement export_snapshot_markdown()
+- Implement export_snapshot_csv()
+- Implement export_health_score_markdown()
+- Implement export_health_score_csv()
+
+### Phase 10: Testing
+- Create test_platform_analytics.py
+- Test AnalyticsMetric creation
+- Test ModuleMetrics creation
+- Test PlatformAnalyticsEngine initialization
+- Test snapshot generation with empty data
+- Test snapshot generation with collection data
+- Test snapshot generation with portfolio data
+- Test snapshot generation with workflow data
+- Test analytics summary generation
+- Test health score calculation
+- Test dashboard generation
+- Test snapshot Markdown export
+- Test snapshot CSV export
+- Test health score Markdown export
+- Test health score CSV export
+- Test trend generation with multiple snapshots
+- Test all module metrics generation
+- Test overall health calculation
+- Run full test suite (run_tests.bat)
+- Ensure 786 tests passing (up from 768)
+
+### Phase 11: Documentation
+- Create docs/releases/v7.1.md with release notes
+- Update PROJECT_STATE.md with v7.1 current version
+- Update TASK_QUEUE.md with v7.1 changelog
+- Update AI_HANDOFF.md with v7.1 changelog
+- Update README.md with v7.1 in release history
+- Update RELEASE_HISTORY.md with v7.1 entry
+- Archive this prompt to project_docs/release_prompts/v7.1.txt
+
+### Phase 12: Acceptance Audit
+- Verify analytics correctness with sample data
+- Verify health score calculation accuracy
+- Verify export functionality (Markdown/CSV)
+- Verify GUI integration (Tools -> Platform Analytics)
+- Verify no regressions (786 tests passing)
+- Verify guardrails (no AI, no forecasting, no ML, no cloud, no external APIs)
+
+### Phase 13: Release
+- Commit all changes
+- Tag release v7.1
+- Push to remote
+
+## Guardrails
+
+- **No AI:** Analytics are deterministic calculations, not AI recommendations
+- **No Forecasting:** No predictions or future projections
+- **No Machine Learning:** No ML models or training
+- **No Cloud Analytics:** All analytics use local data only
+- **No External APIs:** No external service calls or data sources
+- **Deterministic:** All metrics are calculated from local platform state
+- **Read-Only:** Analytics engine does not modify any data
+- **Export-Only:** Export functionality writes to user-selected files only
+
+## Success Criteria
+
+- PlatformAnalyticsEngine with all module metrics implemented
+- PlatformHealthScore with component scores and recommendations
+- AnalyticsDashboard with snapshot, summary, health score, and trends
+- GUI integration with Tools -> Platform Analytics dialog
+- Markdown and CSV export functionality
+- 18 new unit tests in test_platform_analytics.py
+- Full test suite passing (786 tests, up from 768)
+- Release documentation complete
+- No regressions
+- All guardrails respected

@@ -4,8 +4,8 @@
 
 - Date: 2026-06-23
 - Branch: `main`
-- Current project state file reports release version: `v7.0`
-- Current active task: v7.1 Platform Analytics
+- Current project state file reports release version: `v7.1`
+- Current active task: v7.2 Collection Insights
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -48,6 +48,29 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+
+- Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
+- Platform Analytics Engine generates metrics for all major subsystems: Collection Intelligence, Portfolio Performance, Workflow Integration, Deal Hunter, Opportunity Engine, Market Intelligence, Watchlists & Alerts, Collector Cloud, Sync & Backup, Multi-Device Workspace, and Device Linking.
+- Collection metrics: total items, unique countries, unique denominations, graded items, grade coverage, year coverage.
+- Portfolio metrics: total estimated value, acquisition cost, unrealized gain/loss percentage, silver exposure percentage.
+- Workflow metrics: photos captured, OCR sessions, identification success rate, entry completion rate, workflow completion rate.
+- Deal Hunter metrics: listings processed, buy/pass recommendation rates, risk flags.
+- Opportunity Engine metrics: opportunities generated, high-priority rate.
+- Market Intelligence metrics: market records, comparable sales.
+- Watchlist metrics: watchlists, watchlist items, alerts generated.
+- Cloud metrics: snapshots created, sync plans generated.
+- Sync & Backup metrics: backup archives, last backup age, sync simulations, backup readiness.
+- Workspace metrics: registered devices, workspace snapshots.
+- Device Linking metrics: linked devices, unresolved conflicts.
+- PlatformHealthScore with component scores: module coverage, backup readiness, workflow completeness, metadata quality, collection completeness.
+- AnalyticsDashboard with snapshot, summary, health score, and trends.
+- Export support: Markdown and CSV export for snapshots and health scores.
+- GUI integration: Tools -> Platform Analytics dialog with Dashboard, Health Score, Module Metrics, and Trends tabs.
+- Added `test_platform_analytics.py`; platform analytics tests passed 18 OK; full `run_tests.bat` passed 786 OK (up from 768).
+- v7.1 implementation commit: pending.
+- v7.1 release tag: pending.
+- Archived the v7.1 release prompt at `project_docs/release_prompts/v7.1.txt`.
+- v7.1 roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
 
 - Added `platform_core.py`, `plugin_system.py`, `command_framework.py`, `event_bus.py`, `unified_models.py`, `ui_patterns.py`, `platform_config.py`, `platform_state.py`, and `platform_integration.py` establishing the Collector Platform architecture.
 - Service Registry for registering, managing, and querying platform services with dependency tracking and health checks.

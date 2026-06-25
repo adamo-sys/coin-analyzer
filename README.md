@@ -214,6 +214,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v6.2` | See verified tag `v6.2` | Multi-Device Collector Workspace with desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, Tools -> Multi-Device Workspace, CSV/Markdown export, and 704-test regression pass. |
 | `v6.3` | `dd91e7d` | Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression pass. |
 | `v7.0` | `9674de5` | Collector Platform with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression pass. |
+| `v7.1` | Pending | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), [docs/releases/v6.0.md](docs/releases/v6.0.md), [docs/releases/v6.1.md](docs/releases/v6.1.md), and [docs/releases/v6.2.md](docs/releases/v6.2.md) for release documentation.
 
@@ -222,7 +223,7 @@ See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/relea
 
 Release prompts are treated as project documentation and architecture history. They live under `project_docs/release_prompts/` and should be preserved instead of overwritten.
 
-Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, `project_docs/release_prompts/v5.3.txt`, `project_docs/release_prompts/v5.4.txt`, `project_docs/release_prompts/v6.0.txt`, `project_docs/release_prompts/v6.1.txt`, `project_docs/release_prompts/v6.2.txt`, and `project_docs/release_prompts/v6.3.txt`. Release notes should state whether each release prompt was archived and where it was stored.
+Current archived prompts include `project_docs/release_prompts/v5.1.txt`, `project_docs/release_prompts/v5.2.txt`, `project_docs/release_prompts/v5.3.txt`, `project_docs/release_prompts/v5.4.txt`, `project_docs/release_prompts/v6.0.txt`, `project_docs/release_prompts/v6.1.txt`, `project_docs/release_prompts/v6.2.txt`, `project_docs/release_prompts/v6.3.txt`, `project_docs/release_prompts/v7.0.txt`, and `project_docs/release_prompts/v7.1.txt`. Release notes should state whether each release prompt was archived and where it was stored.
 
 ## Which Tool To Use
 
