@@ -67,8 +67,8 @@ Before each release, verify the current release prompt exists, previous archived
 - Export support: Markdown and CSV export for snapshots and health scores.
 - GUI integration: Tools -> Platform Analytics dialog with Dashboard, Health Score, Module Metrics, and Trends tabs.
 - Added `test_platform_analytics.py`; platform analytics tests passed 18 OK; full `run_tests.bat` passed 786 OK (up from 768).
-- v7.1 implementation commit: pending.
-- v7.1 release tag: pending.
+- v7.1 implementation commit: `51be4f3`.
+- v7.1 release tag: `v7.1`.
 - Archived the v7.1 release prompt at `project_docs/release_prompts/v7.1.txt`.
 - v7.1 roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
 

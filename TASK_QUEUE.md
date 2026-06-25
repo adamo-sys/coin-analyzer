@@ -217,8 +217,8 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 - Date started: 2026-06-23
 - Date completed: 2026-06-23
-- Release commit: pending.
-- Release tag: pending.
+- Release commit: `51be4f3`.
+- Release tag: `v7.1`.
 - Features implemented:
   - Platform Analytics Engine with deterministic metrics for all major subsystems
   - AnalyticsMetric, AnalyticsTrend, ModuleMetrics, AnalyticsSnapshot dataclasses

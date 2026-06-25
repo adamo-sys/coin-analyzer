@@ -214,7 +214,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 | `v6.2` | See verified tag `v6.2` | Multi-Device Collector Workspace with desktop/laptop/phone/tablet profiles, workspace snapshots, capability reporting, activity summaries, health reporting, scenario simulations, Tools -> Multi-Device Workspace, CSV/Markdown export, and 704-test regression pass. |
 | `v6.3` | `dd91e7d` | Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression pass. |
 | `v7.0` | `9674de5` | Collector Platform with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression pass. |
-| `v7.1` | Pending | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
+| `v7.1` | `51be4f3` | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
 
 See [RELEASE_HISTORY.md](RELEASE_HISTORY.md), [docs/releases/v1.0.md](docs/releases/v1.0.md), [docs/releases/v5.1.md](docs/releases/v5.1.md), [docs/releases/v5.2.md](docs/releases/v5.2.md), [docs/releases/v5.3.md](docs/releases/v5.3.md), [docs/releases/v5.4.md](docs/releases/v5.4.md), [docs/releases/v6.0.md](docs/releases/v6.0.md), [docs/releases/v6.1.md](docs/releases/v6.1.md), and [docs/releases/v6.2.md](docs/releases/v6.2.md) for release documentation.
 
