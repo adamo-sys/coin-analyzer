@@ -4,8 +4,8 @@
 
 - Date: 2026-06-23
 - Branch: `main`
-- Current project state file reports release version: `v7.1`
-- Current active task: v7.2 Collection Insights
+- Current project state file reports release version: `v7.2`
+- Current active task: v7.3 Acquisition Strategy
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -16,21 +16,20 @@
 
 Clarification: `v2.9` is not a new feature engine. It is a release-candidate polish milestone focused on consistency, workflow quality, usability, documentation, and readiness validation before v3.0.
 
-## Official v7.1 Roadmap
+## Official v7.2 Roadmap
 
-1. `v7.1` Platform Analytics
-2. `v7.2` Collection Insights
-3. `v7.3` Acquisition Strategy
-4. `v7.4` Advanced Reporting
-5. `v7.5` Collection Command Center
-6. `v8.0` Connected Collector
-7. `v8.1` External Data Connectors
-8. `v8.2` Marketplace Integration
-9. `v8.3` Dealer & Auction Intelligence
-10. `v8.4` Price History Engine
-11. `v9.0` Collector Ecosystem
+1. `v7.2` Collection Insights
+2. `v7.3` Acquisition Strategy
+3. `v7.4` Advanced Reporting
+4. `v7.5` Collection Command Center
+5. `v8.0` Connected Collector
+6. `v8.1` External Data Connectors
+7. `v8.2` Marketplace Integration
+8. `v8.3` Dealer & Auction Intelligence
+9. `v8.4` Price History Engine
+10. `v9.0` Collector Ecosystem
 
-Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
+Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 adds Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy without AI reasoning, forecasting, machine learning, or external APIs.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
