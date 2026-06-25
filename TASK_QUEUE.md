@@ -247,7 +247,7 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 
 - Date started: 2026-06-25
 - Date completed: 2026-06-25
-- Release commit: TBD.
+- Release commit: `9c856c3`.
 - Release tag: `v7.2`.
 - Features implemented:
   - Collection Insights Engine with deterministic, explainable observations

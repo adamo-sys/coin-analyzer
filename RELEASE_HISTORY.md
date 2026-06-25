@@ -59,7 +59,7 @@
 | `v6.3` | `dd91e7d` | Device Linking & Conflict Resolution with linked devices, relationship maps, conflict cases, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, CSV/Markdown export, and 715-test regression pass. |
 | `v7.0` | `9674de5` | Collector Platform with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression pass. |
 | `v7.1` | `51be4f3` | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
-| `v7.2` | TBD | Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression pass. |
+| `v7.2` | `9c856c3` | Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression pass. |
 
 ## Notes
 

@@ -8,8 +8,8 @@
 
 ## Last Release Tag
 
-* Most recent Git tag: `v7.0`
-* Summary of what was included: Collector Platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression coverage without new collector features or cloud services.
+* Most recent Git tag: `v7.2`
+* Summary of what was included: Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
