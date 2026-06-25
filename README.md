@@ -294,12 +294,24 @@ See [docs/screenshots/README.md](docs/screenshots/README.md) for suggested filen
 
 ## Roadmap
 
-Official v6.3-to-v7.0 roadmap:
+Official v7.3 roadmap:
 
-- `v6.3` Device Linking & Conflict Resolution
-- `v7.0` Collector Platform
+- `v7.3` Acquisition Strategy
+- `v7.4` Collection Assistant
+- `v7.5` Numista Intelligence
+
+- `v8.0` Smart Phone Cataloguer
+
+- `v8.1` Batch Processing
+- `v8.2` AI Grading Assistant
+- `v8.3` Collector Workspace
+- `v8.4` Connected Data
+
+- `v9.0` Collector Ecosystem
 
 `v2.3` is not a mobile app. It is a readiness and architecture milestone focused on desktop dependency audit, service layer boundary review, mobile-friendly input workflows, API readiness mapping, and phone workflow audit.
+
+v7.3 roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 adds Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs.
 
 v6.3 roadmap rationale: v6.0 established cloud architecture, v6.1 established backup and sync planning, and v6.2 established multi-device workspaces. The final v6 milestone is linking devices and resolving cross-device conflicts safely while keeping collector review mandatory.
 

@@ -123,21 +123,21 @@ Work through this queue in priority order. Handle only one task at a time.
 91. `[x]` Build v7.0 Collector Platform
 92. `[x]` Build v7.1 Platform Analytics
 93. `[x]` Build v7.2 Collection Insights
+94. `[-]` Build v7.3 Acquisition Strategy
 
-## Official v7.2 Roadmap
+## Official v7.3 Roadmap
 
-1. `v7.2` Collection Insights
-2. `v7.3` Acquisition Strategy
-3. `v7.4` Advanced Reporting
-4. `v7.5` Collection Command Center
-5. `v8.0` Connected Collector
-6. `v8.1` External Data Connectors
-7. `v8.2` Marketplace Integration
-8. `v8.3` Dealer & Auction Intelligence
-9. `v8.4` Price History Engine
-10. `v9.0` Collector Ecosystem
+1. `v7.3` Acquisition Strategy
+2. `v7.4` Collection Assistant
+3. `v7.5` Numista Intelligence
+4. `v8.0` Smart Phone Cataloguer
+5. `v8.1` Batch Processing
+6. `v8.2` AI Grading Assistant
+7. `v8.3` Collector Workspace
+8. `v8.4` Connected Data
+9. `v9.0` Collector Ecosystem
 
-Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 adds Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy without AI reasoning, forecasting, machine learning, or external APIs.
+Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 adds Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 

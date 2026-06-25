@@ -163,24 +163,22 @@
 
 ## Active Roadmap
 
-Official v7.1 roadmap:
+Official v7.3 roadmap:
 
-v7.1 = Platform Analytics
-v7.2 = Collection Insights
 v7.3 = Acquisition Strategy
-v7.4 = Advanced Reporting
-v7.5 = Collection Command Center
+v7.4 = Collection Assistant
+v7.5 = Numista Intelligence
 
-v8.0 = Connected Collector
+v8.0 = Smart Phone Cataloguer
 
-v8.1 = External Data Connectors
-v8.2 = Marketplace Integration
-v8.3 = Dealer & Auction Intelligence
-v8.4 = Price History Engine
+v8.1 = Batch Processing
+v8.2 = AI Grading Assistant
+v8.3 = Collector Workspace
+v8.4 = Connected Data
 
 v9.0 = Collector Ecosystem
 
-Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 adds platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs.
+Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 adds Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs.
 
 Post-v3.8 rationale: the platform can now evaluate opportunities, rank opportunities, explain opportunities, and calibrate recommendations. The next objective is understanding portfolio progress and collection development over time.
 
@@ -218,7 +216,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v7.0 Collector Platform unless a release-blocking defect is found.
+Build v7.3 Acquisition Strategy unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
