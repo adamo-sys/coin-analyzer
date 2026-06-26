@@ -254,6 +254,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Platform Management", command=self.open_platform_management)
         tools_menu.add_command(label="Platform Analytics", command=self.open_platform_analytics)
         tools_menu.add_command(label="Collection Insights", command=self.open_collection_insights)
+        tools_menu.add_command(label="Acquisition Strategy", command=self.open_acquisition_strategy)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -4443,6 +4444,265 @@ Total Unique Dates: {total_unique_dates}
         # Initialize insights engine for export functions
         engine = CollectionInsightsEngine()
 
+
+    def open_acquisition_strategy(self):
+        """Open Acquisition Strategy dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Acquisition Strategy")
+        dialog.geometry("1200x800")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Dashboard tab
+        dashboard_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(dashboard_frame, text="Dashboard")
+
+        dashboard_text = tk.Text(dashboard_frame, wrap=tk.WORD)
+        dashboard_text.pack(fill=tk.BOTH, expand=True)
+
+        # Strategy Overview tab
+        overview_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(overview_frame, text="Strategy Overview")
+
+        overview_text = tk.Text(overview_frame, wrap=tk.WORD)
+        overview_text.pack(fill=tk.BOTH, expand=True)
+
+        # Immediate Priorities tab
+        immediate_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(immediate_frame, text="Immediate Priorities")
+
+        immediate_text = tk.Text(immediate_frame, wrap=tk.WORD)
+        immediate_text.pack(fill=tk.BOTH, expand=True)
+
+        # Short-Term Priorities tab
+        short_term_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(short_term_frame, text="Short-Term Priorities")
+
+        short_term_text = tk.Text(short_term_frame, wrap=tk.WORD)
+        short_term_text.pack(fill=tk.BOTH, expand=True)
+
+        # Long-Term Priorities tab
+        long_term_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(long_term_frame, text="Long-Term Priorities")
+
+        long_term_text = tk.Text(long_term_frame, wrap=tk.WORD)
+        long_term_text.pack(fill=tk.BOTH, expand=True)
+
+        # Portfolio Balance tab
+        balance_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(balance_frame, text="Portfolio Balance")
+
+        balance_text = tk.Text(balance_frame, wrap=tk.WORD)
+        balance_text.pack(fill=tk.BOTH, expand=True)
+
+        # Risk Assessment tab
+        risk_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(risk_frame, text="Risk Assessment")
+
+        risk_text = tk.Text(risk_frame, wrap=tk.WORD)
+        risk_text.pack(fill=tk.BOTH, expand=True)
+
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def generate_strategy():
+            """Generate and display acquisition strategy."""
+            from acquisition_strategy import AcquisitionStrategyEngine
+            engine = AcquisitionStrategyEngine()
+
+            # Gather data from current state
+            collection_data = {"items": self._collection_items()} if hasattr(self, '_collection_items') else {"items": []}
+            series_data = {"series_definitions": []}
+            opportunity_data = {"upgrade_opportunities": []}
+
+            # Generate report
+            report = engine.generate_strategy(
+                collection_data=collection_data,
+                series_data=series_data,
+                opportunity_data=opportunity_data
+            )
+
+            # Generate dashboard
+            dashboard = engine.generate_dashboard(report)
+
+            # Display dashboard
+            dashboard_text.delete("1.0", tk.END)
+            dashboard_text.insert(tk.END, "# Acquisition Strategy Dashboard\n\n")
+            dashboard_text.insert(tk.END, f"Generated: {dashboard.report.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            dashboard_text.insert(tk.END, f"Summary: {dashboard.summary}\n\n")
+            dashboard_text.insert(tk.END, f"Critical Priorities: {dashboard.critical_count}\n")
+            dashboard_text.insert(tk.END, f"High Priority: {dashboard.high_count}\n")
+            dashboard_text.insert(tk.END, f"Medium Priority: {dashboard.medium_count}\n")
+            dashboard_text.insert(tk.END, f"Low Priority: {dashboard.low_count}\n\n")
+
+            dashboard_text.insert(tk.END, "## Category Breakdown\n\n")
+            for category, count in dashboard.category_breakdown.items():
+                dashboard_text.insert(tk.END, f"- {category}: {count}\n")
+
+            dashboard_text.insert(tk.END, f"\n## Total Estimated Budget\n\n")
+            dashboard_text.insert(tk.END, f"${dashboard.total_estimated_budget:.0f}\n")
+
+            # Display strategy overview
+            overview_text.delete("1.0", tk.END)
+            overview_text.insert(tk.END, "# Strategy Overview\n\n")
+            overview_text.insert(tk.END, f"{report.strategy_overview}\n\n")
+            overview_text.insert(tk.END, "## Collection Context\n\n")
+            overview_text.insert(tk.END, f"{report.collection_context}\n\n")
+
+            overview_text.insert(tk.END, "## Strategic Plan\n\n")
+            for phase in report.strategic_plan:
+                overview_text.insert(tk.END, f"### Phase {phase.phase_number}: {phase.phase_name}\n\n")
+                overview_text.insert(tk.END, f"Timeframe: {phase.timeframe.value}\n")
+                overview_text.insert(tk.END, f"Estimated Budget: ${phase.estimated_budget:.0f}\n\n")
+                overview_text.insert(tk.END, "Expected Outcomes:\n")
+                for outcome in phase.expected_outcomes:
+                    overview_text.insert(tk.END, f"- {outcome}\n")
+                overview_text.insert(tk.END, "\nTargets:\n")
+                for target in phase.targets:
+                    overview_text.insert(tk.END, f"- {target.target} ({target.priority_level.value}, {target.risk_level.value} risk)\n")
+                    overview_text.insert(tk.END, f"  Reason: {target.strategic_reason}\n")
+                    overview_text.insert(tk.END, f"  Budget: {target.budget_guidance}\n")
+                overview_text.insert(tk.END, "\n")
+
+            # Display immediate priorities
+            immediate_text.delete("1.0", tk.END)
+            immediate_text.insert(tk.END, "# Immediate Priorities\n\n")
+            for p in report.immediate_priorities:
+                immediate_text.insert(tk.END, f"## {p.target}\n\n")
+                immediate_text.insert(tk.END, f"Category: {p.category.value}\n")
+                immediate_text.insert(tk.END, f"Priority: {p.priority_level.value}\n")
+                immediate_text.insert(tk.END, f"Risk: {p.risk_level.value}\n")
+                immediate_text.insert(tk.END, f"Confidence: {p.confidence:.1%}\n\n")
+                immediate_text.insert(tk.END, f"Reason: {p.strategic_reason}\n\n")
+                immediate_text.insert(tk.END, f"Impact: {p.estimated_impact}\n\n")
+                immediate_text.insert(tk.END, f"Budget: {p.budget_guidance}\n\n")
+                if p.prerequisites:
+                    immediate_text.insert(tk.END, "Prerequisites:\n")
+                    for prereq in p.prerequisites:
+                        immediate_text.insert(tk.END, f"- {prereq}\n")
+                    immediate_text.insert(tk.END, "\n")
+
+            # Display short-term priorities
+            short_term_text.delete("1.0", tk.END)
+            short_term_text.insert(tk.END, "# Short-Term Priorities\n\n")
+            for p in report.short_term_priorities:
+                short_term_text.insert(tk.END, f"## {p.target}\n\n")
+                short_term_text.insert(tk.END, f"Category: {p.category.value}\n")
+                short_term_text.insert(tk.END, f"Priority: {p.priority_level.value}\n")
+                short_term_text.insert(tk.END, f"Risk: {p.risk_level.value}\n")
+                short_term_text.insert(tk.END, f"Confidence: {p.confidence:.1%}\n\n")
+                short_term_text.insert(tk.END, f"Reason: {p.strategic_reason}\n\n")
+                short_term_text.insert(tk.END, f"Impact: {p.estimated_impact}\n\n")
+                short_term_text.insert(tk.END, f"Budget: {p.budget_guidance}\n\n")
+
+            # Display long-term priorities
+            long_term_text.delete("1.0", tk.END)
+            long_term_text.insert(tk.END, "# Long-Term Priorities\n\n")
+            for p in report.long_term_priorities:
+                long_term_text.insert(tk.END, f"## {p.target}\n\n")
+                long_term_text.insert(tk.END, f"Category: {p.category.value}\n")
+                long_term_text.insert(tk.END, f"Priority: {p.priority_level.value}\n")
+                long_term_text.insert(tk.END, f"Risk: {p.risk_level.value}\n")
+                long_term_text.insert(tk.END, f"Confidence: {p.confidence:.1%}\n\n")
+                long_term_text.insert(tk.END, f"Reason: {p.strategic_reason}\n\n")
+                long_term_text.insert(tk.END, f"Impact: {p.estimated_impact}\n\n")
+                long_term_text.insert(tk.END, f"Budget: {p.budget_guidance}\n\n")
+
+            # Display portfolio balance
+            balance_text.delete("1.0", tk.END)
+            balance_text.insert(tk.END, "# Portfolio Balance Recommendations\n\n")
+            for balance in report.portfolio_balance:
+                balance_text.insert(tk.END, f"## {balance.category}\n\n")
+                balance_text.insert(tk.END, f"Current: {balance.current_percentage:.1f}%\n")
+                balance_text.insert(tk.END, f"Recommended: {balance.recommended_percentage:.1f}%\n")
+                balance_text.insert(tk.END, f"Priority: {balance.priority.value}\n\n")
+                balance_text.insert(tk.END, f"Reasoning: {balance.reasoning}\n\n")
+
+            # Display risk assessment
+            risk_text.delete("1.0", tk.END)
+            risk_text.insert(tk.END, "# Risk Assessment\n\n")
+            risk_text.insert(tk.END, f"Overall Risk: {report.risk_assessment.overall_risk.value}\n\n")
+
+            if report.risk_assessment.risk_factors:
+                risk_text.insert(tk.END, "## Risk Factors\n\n")
+                for factor in report.risk_assessment.risk_factors:
+                    risk_text.insert(tk.END, f"- {factor}\n")
+                risk_text.insert(tk.END, "\n")
+
+            if report.risk_assessment.mitigation_strategies:
+                risk_text.insert(tk.END, "## Mitigation Strategies\n\n")
+                for strategy in report.risk_assessment.mitigation_strategies:
+                    risk_text.insert(tk.END, f"- {strategy}\n")
+                risk_text.insert(tk.END, "\n")
+
+            if report.risk_assessment.market_risk_notes:
+                risk_text.insert(tk.END, "## Market Risk Notes\n\n")
+                for note in report.risk_assessment.market_risk_notes:
+                    risk_text.insert(tk.END, f"- {note}\n")
+                risk_text.insert(tk.END, "\n")
+
+            risk_text.insert(tk.END, "## Recommended Actions\n\n")
+            for i, action in enumerate(report.recommended_actions, 1):
+                risk_text.insert(tk.END, f"{i}. {action}\n")
+
+            # Store for export
+            dialog.current_report = report
+            dialog.current_engine = engine
+
+        def export_strategy_markdown():
+            """Export strategy report as Markdown."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No strategy data to export. Generate strategy first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Strategy Report as Markdown"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(dialog.current_engine.export_strategy_markdown(dialog.current_report))
+                    messagebox.showinfo("Export", f"Strategy report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_strategy_csv():
+            """Export strategy report as CSV."""
+            if not hasattr(dialog, 'current_report'):
+                messagebox.showwarning("Export", "No strategy data to export. Generate strategy first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                title="Export Strategy Report as CSV"
+            )
+
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(dialog.current_engine.export_strategy_csv(dialog.current_report))
+                    messagebox.showinfo("Export", f"Strategy report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        ttk.Button(button_frame, text="Generate Strategy", command=generate_strategy).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Strategy (MD)", command=export_strategy_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Strategy (CSV)", command=export_strategy_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        # Initialize acquisition strategy engine for export functions
+        from acquisition_strategy import AcquisitionStrategyEngine
+        engine = AcquisitionStrategyEngine()
 
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
