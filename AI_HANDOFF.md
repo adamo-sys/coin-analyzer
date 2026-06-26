@@ -2,10 +2,14 @@
 
 ## Snapshot
 
-- Date: 2026-06-23
+- Date: 2026-06-25
 - Branch: `main`
-- Current project state file reports release version: `v7.2`
-- Current active task: v7.3 Acquisition Strategy
+- Current project state file reports release version: `v7.3`
+- Current active task: v7.4 Collection Assistant
+- Last release: v7.3 Acquisition Strategy
+- Implementation commit: `849cbde`
+- Release tag: `v7.3`
+- Release metadata commit: `d868eed`
 
 ## Official v2.7-to-v3.0 Roadmap
 

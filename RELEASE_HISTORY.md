@@ -60,6 +60,7 @@
 | `v7.0` | `9674de5` | Collector Platform with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration management, state management, platform integration, Platform Management GUI tool, and 768-test regression pass. |
 | `v7.1` | `51be4f3` | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
 | `v7.2` | `9c856c3` | Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression pass. |
+| `v7.3` | `849cbde` | Acquisition Strategy with strategic acquisition plans, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), export support, and 842-test regression pass. |
 
 ## Notes
 

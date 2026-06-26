@@ -325,7 +325,8 @@ Current archive status:
 ### 2026-06-25
 
 * Implemented v7.3 Acquisition Strategy: `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`; phased strategic priorities (Immediate, Short-Term, Long-Term), priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), portfolio balance guidance for Newfoundland/Canadian Silver/1859 Large Cent/diversification, risk assessment with LOW/MEDIUM/HIGH classification, mitigation strategies, budget extraction from guidance text, strategic plan generation, Tools -> Acquisition Strategy dialog with 7 tabs (Dashboard, Strategy Overview, Immediate Priorities, Short-Term Priorities, Long-Term Priorities, Portfolio Balance, Risk Assessment), Markdown/CSV export.
-* Implementation commit: pending commit creation.
+* Implementation commit: `849cbde`.
+* Release tag: `v7.3`.
 * Tests passed: `py -m unittest test_acquisition_strategy.py` -> 36 tests OK; full `py -m unittest discover` -> 842 tests OK.
 * Full-suite audit status: PASS.
 * Coverage note: total passing tests increased from 806 to 842.
@@ -333,6 +334,7 @@ Current archive status:
 * Release prompt archived: `project_docs/release_prompts/v7.3.txt`.
 * Release notes: `docs/releases/v7.3.md`.
 * Roadmap lock commit: `a7fa411`.
+* Release metadata commit: `d868eed`.
 
 * Implemented v7.2 Collection Insights locally: `CollectionInsightsEngine`, `InsightCategory`, `InsightPriority`, `InsightEvidence`, `CollectionInsight`, `CollectorHealthReport`, `CollectionInsightReport`, `InsightsDashboard`; deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression coverage.
 * Implementation commit: `9c856c3`.
