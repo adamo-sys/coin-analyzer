@@ -255,6 +255,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Platform Analytics", command=self.open_platform_analytics)
         tools_menu.add_command(label="Collection Insights", command=self.open_collection_insights)
         tools_menu.add_command(label="Acquisition Strategy", command=self.open_acquisition_strategy)
+        tools_menu.add_command(label="Collection Assistant", command=self.open_collection_assistant)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
         tools_menu.add_command(label="External Listing Connectors", command=self.open_external_listing_connectors)
@@ -4703,6 +4704,267 @@ Total Unique Dates: {total_unique_dates}
         # Initialize acquisition strategy engine for export functions
         from acquisition_strategy import AcquisitionStrategyEngine
         engine = AcquisitionStrategyEngine()
+
+    def open_collection_assistant(self):
+        """Open Collection Assistant dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collection Assistant")
+        dialog.geometry("1200x800")
+
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Review Queue tab
+        queue_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(queue_frame, text="Review Queue")
+
+        queue_text = tk.Text(queue_frame, wrap=tk.WORD)
+        queue_text.pack(fill=tk.BOTH, expand=True)
+
+        # Current Candidate tab
+        candidate_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(candidate_frame, text="Current Candidate")
+
+        candidate_text = tk.Text(candidate_frame, wrap=tk.WORD)
+        candidate_text.pack(fill=tk.BOTH, expand=True)
+
+        # Productivity Metrics tab
+        metrics_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(metrics_frame, text="Productivity Metrics")
+
+        metrics_text = tk.Text(metrics_frame, wrap=tk.WORD)
+        metrics_text.pack(fill=tk.BOTH, expand=True)
+
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        from collection_assistant import CollectionAssistantEngine, ReviewStatus
+
+        # Initialize engine
+        assistant_engine = CollectionAssistantEngine()
+        session = assistant_engine.start_session("gui_session")
+        dialog.current_engine = assistant_engine
+        dialog.current_session = session
+
+        def import_photos():
+            """Import photos into the collection assistant session."""
+            file_paths = filedialog.askopenfilenames(
+                title="Select Photos",
+                filetypes=[("Image files", "*.jpg *.jpeg *.png *.gif *.bmp"), ("All files", "*.*")]
+            )
+            if file_paths:
+                assistant_engine.add_photos_to_session("gui_session", list(file_paths), auto_pair=True)
+                refresh_display()
+                messagebox.showinfo("Import", f"Imported {len(file_paths)} photo(s)")
+
+        def process_ocr():
+            """Process OCR for all pending candidates."""
+            for candidate in session.queue.candidates:
+                if candidate.is_pending and not candidate.ocr_result:
+                    # Read image and simulate OCR (in real use, would call OCR engine)
+                    assistant_engine.process_ocr_for_candidate("gui_session", candidate.id)
+            refresh_display()
+            messagebox.showinfo("OCR", "OCR processing complete")
+
+        def approve_candidate():
+            """Approve the current candidate."""
+            candidate = assistant_engine.get_next_candidate_for_review("gui_session")
+            if candidate:
+                assistant_engine.review_candidate(
+                    "gui_session", candidate.id, ReviewStatus.APPROVED, "Approved by collector"
+                )
+                refresh_display()
+            else:
+                messagebox.showinfo("Review", "No pending candidates")
+
+        def reject_candidate():
+            """Reject the current candidate."""
+            candidate = assistant_engine.get_next_candidate_for_review("gui_session")
+            if candidate:
+                assistant_engine.review_candidate(
+                    "gui_session", candidate.id, ReviewStatus.REJECTED, "Rejected by collector"
+                )
+                refresh_display()
+            else:
+                messagebox.showinfo("Review", "No pending candidates")
+
+        def needs_review_candidate():
+            """Flag candidate as needs review."""
+            candidate = assistant_engine.get_next_candidate_for_review("gui_session")
+            if candidate:
+                assistant_engine.review_candidate(
+                    "gui_session", candidate.id, ReviewStatus.NEEDS_REVIEW, "Needs further review"
+                )
+                refresh_display()
+            else:
+                messagebox.showinfo("Review", "No pending candidates")
+
+        def refresh_display():
+            """Refresh all display tabs."""
+            # Update review queue
+            queue_text.delete("1.0", tk.END)
+            queue_text.insert(tk.END, "# Collection Assistant Review Queue\n\n")
+            queue_text.insert(tk.END, f"Total Candidates: {session.queue.total_count}\n")
+            queue_text.insert(tk.END, f"Reviewed: {session.queue.reviewed_count}\n")
+            queue_text.insert(tk.END, f"Pending: {session.queue.pending_count}\n")
+            queue_text.insert(tk.END, f"Approved: {session.queue.approved_count}\n")
+            queue_text.insert(tk.END, f"Rejected: {session.queue.rejected_count}\n")
+            queue_text.insert(tk.END, f"Completion: {session.queue.completion_percentage:.1f}%\n\n")
+
+            if session.queue.has_incomplete_reviews:
+                queue_text.insert(tk.END, "⚠️ Incomplete reviews detected\n\n")
+
+            queue_text.insert(tk.END, "## Pending Candidates\n\n")
+            for candidate in session.queue.candidates:
+                if candidate.is_pending:
+                    queue_text.insert(tk.END, f"- {candidate.display_label}\n")
+                    queue_text.insert(tk.END, f"  Confidence: {candidate.confidence:.1%}\n")
+                    queue_text.insert(tk.END, f"  Photos: {len(candidate.photos)}\n")
+                    if candidate.fills_collection_gap:
+                        queue_text.insert(tk.END, f"  ⚡ Fills collection gap\n")
+                    if candidate.is_duplicate_risk:
+                        queue_text.insert(tk.END, f"  ⚠️ Duplicate risk: {candidate.collection_match.duplicate_risk}\n")
+                    queue_text.insert(tk.END, "\n")
+
+            # Update current candidate
+            candidate_text.delete("1.0", tk.END)
+            next_candidate = assistant_engine.get_next_candidate_for_review("gui_session")
+            if next_candidate:
+                comparison = assistant_engine.build_side_by_side_comparison(
+                    "gui_session", next_candidate.id
+                )
+                candidate_text.insert(tk.END, f"# {next_candidate.display_label}\n\n")
+                candidate_text.insert(tk.END, f"**ID:** {next_candidate.id}\n")
+                candidate_text.insert(tk.END, f"**Confidence:** {next_candidate.confidence:.1%}\n")
+                candidate_text.insert(tk.END, f"**Source:** {next_candidate.source.value}\n")
+                candidate_text.insert(tk.END, f"**Photos:** {len(next_candidate.photos)}\n\n")
+
+                if next_candidate.suggested_identification:
+                    candidate_text.insert(tk.END, "## Suggested Identification\n\n")
+                    for key, value in next_candidate.suggested_identification.items():
+                        candidate_text.insert(tk.END, f"- {key}: {value}\n")
+                    candidate_text.insert(tk.END, "\n")
+
+                if comparison.evidence:
+                    candidate_text.insert(tk.END, "## Evidence\n\n")
+                    for item in comparison.evidence:
+                        candidate_text.insert(tk.END, f"- {item}\n")
+                    candidate_text.insert(tk.END, "\n")
+
+                if comparison.recommendations:
+                    candidate_text.insert(tk.END, "## Recommendations\n\n")
+                    for item in comparison.recommendations:
+                        candidate_text.insert(tk.END, f"- {item}\n")
+                    candidate_text.insert(tk.END, "\n")
+
+                if comparison.warnings:
+                    candidate_text.insert(tk.END, "## Warnings\n\n")
+                    for item in comparison.warnings:
+                        candidate_text.insert(tk.END, f"⚠️ {item}\n")
+                    candidate_text.insert(tk.END, "\n")
+
+                if next_candidate.collection_match.matched:
+                    candidate_text.insert(tk.END, "## Collection Match\n\n")
+                    candidate_text.insert(tk.END, f"Match Type: {next_candidate.collection_match.match_type}\n")
+                    candidate_text.insert(tk.END, f"Duplicate Risk: {next_candidate.collection_match.duplicate_risk}\n")
+                    if next_candidate.collection_match.notes:
+                        for note in next_candidate.collection_match.notes:
+                            candidate_text.insert(tk.END, f"- {note}\n")
+                    candidate_text.insert(tk.END, "\n")
+
+                if next_candidate.gap_info.fills_gap:
+                    candidate_text.insert(tk.END, "## Gap Analysis\n\n")
+                    candidate_text.insert(tk.END, f"Fills Gap: {next_candidate.gap_info.gap_type}\n")
+                    candidate_text.insert(tk.END, f"Impact Score: {next_candidate.gap_info.impact_score:.1f}\n\n")
+
+                if next_candidate.acquisition_priority.has_priority:
+                    candidate_text.insert(tk.END, "## Acquisition Priority\n\n")
+                    candidate_text.insert(tk.END, f"Category: {next_candidate.acquisition_priority.priority_category}\n")
+                    candidate_text.insert(tk.END, f"Score: {next_candidate.acquisition_priority.priority_score:.1f}\n")
+                    candidate_text.insert(tk.END, f"Reason: {next_candidate.acquisition_priority.strategic_reason}\n\n")
+            else:
+                candidate_text.insert(tk.END, "# No pending candidates\n\n")
+                if session.queue.is_complete:
+                    candidate_text.insert(tk.END, "✅ All candidates reviewed!\n")
+                else:
+                    candidate_text.insert(tk.END, "No pending candidates found.\n")
+
+            # Update productivity metrics
+            metrics_text.delete("1.0", tk.END)
+            metrics_text.insert(tk.END, "# Productivity Metrics\n\n")
+            metrics_text.insert(tk.END, f"Photos Processed: {session.metrics.photos_processed}\n")
+            metrics_text.insert(tk.END, f"OCR Attempts: {session.metrics.ocr_attempts}\n")
+            metrics_text.insert(tk.END, f"OCR Successes: {session.metrics.ocr_successes}\n")
+            metrics_text.insert(tk.END, f"OCR Success Rate: {session.metrics.ocr_success_rate:.1f}%\n\n")
+            metrics_text.insert(tk.END, f"Candidates Generated: {session.metrics.candidates_generated}\n")
+            metrics_text.insert(tk.END, f"Reviews Completed: {session.metrics.reviews_completed}\n")
+            metrics_text.insert(tk.END, f"Approval Rate: {session.metrics.approval_rate:.1f}%\n")
+            metrics_text.insert(tk.END, f"Average Confidence: {session.metrics.average_confidence:.1%}\n\n")
+            metrics_text.insert(tk.END, f"Estimated Time Saved: {session.metrics.estimated_time_saved_minutes:.1f} minutes\n")
+            metrics_text.insert(tk.END, f"Session Duration: {session.duration.total_seconds() / 60:.1f} minutes\n")
+
+        def export_session_markdown():
+            """Export session as Markdown."""
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Assistant Session as Markdown"
+            )
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(assistant_engine.export_session_markdown("gui_session"))
+                    messagebox.showinfo("Export", f"Session exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_session_csv():
+            """Export session as CSV."""
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                title="Export Assistant Session as CSV"
+            )
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(assistant_engine.export_session_csv("gui_session"))
+                    messagebox.showinfo("Export", f"Session exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        def export_productivity_report():
+            """Export productivity report."""
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                title="Export Productivity Report"
+            )
+            if file_path:
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(assistant_engine.export_productivity_report_markdown("gui_session"))
+                    messagebox.showinfo("Export", f"Productivity report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+
+        ttk.Button(button_frame, text="Import Photos", command=import_photos).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Process OCR", command=process_ocr).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Approve", command=approve_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Reject", command=reject_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Needs Review", command=needs_review_candidate).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Session (MD)", command=export_session_markdown).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Session (CSV)", command=export_session_csv).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Productivity", command=export_productivity_report).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        # Initial display refresh
+        refresh_display()
 
     def _workflow_engine(self):
         """Create a workflow orchestrator from current runtime state."""
