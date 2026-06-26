@@ -4,12 +4,12 @@
 
 - Date: 2026-06-25
 - Branch: `main`
-- Current project state file reports release version: `v7.3`
-- Current active task: v7.4 Collection Assistant
-- Last release: v7.3 Acquisition Strategy
-- Implementation commit: `849cbde`
-- Release tag: `v7.3`
-- Release metadata commit: `d868eed`
+- Current project state file reports release version: `v7.4`
+- Current active task: v7.5 Numista Intelligence
+- Last release: v7.4 Collection Assistant
+- Implementation commit: `2e5c56b`
+- Release tag: `v7.4`
+- Release metadata commit: pending
 
 ## Official v2.7-to-v3.0 Roadmap
 

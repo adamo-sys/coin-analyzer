@@ -124,7 +124,7 @@ Work through this queue in priority order. Handle only one task at a time.
 92. `[x]` Build v7.1 Platform Analytics
 93. `[x]` Build v7.2 Collection Insights
 94. `[x]` Build v7.3 Acquisition Strategy
-95. `[-]` Build v7.4 Collection Assistant
+95. `[x]` Build v7.4 Collection Assistant
 
 ## Official v7.4 Roadmap
 
@@ -240,6 +240,36 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
 - Test results: 786 tests OK (up from 768).
 - Release prompt archived: `project_docs/release_prompts/v7.1.txt`.
 - Release documentation: `docs/releases/v7.1.md`.
+
+### 2026-06-25
+
+#### `[x]` Implement v7.4 Collection Assistant
+
+- Date started: 2026-06-25
+- Date completed: 2026-06-25
+- Roadmap lock commit: `fab9527`.
+- Implementation commit: `2e5c56b`.
+- Release metadata commit: pending.
+- Release tag: `v7.4`.
+- Features implemented:
+  - Collection Assistant Engine with guided cataloguing workflow
+  - CollectionAssistantEngine, CollectionAssistantCandidate, AssistantReviewQueue
+  - AssistantSummary, ProductivityMetrics, SideBySideComparison
+  - PhotoInfo with side detection, quality assessment, auto-pairing
+  - OCRCandidate with confidence scoring, trust levels, evidence
+  - CollectionMatch with exact/similar matching and duplicate risk
+  - CollectionGapInfo for series/date/denomination gap detection
+  - AcquisitionPriorityInfo for WANT_LIST and strategy priority matching
+  - Photo workflow: multi-photo import, auto-pairing, quality checks
+  - OCR workflow: text parsing, confidence scoring, evidence collection
+  - Side-by-side review with candidate, match, evidence, recommendations
+  - Batch review with queue filtering, sorting, progress tracking
+  - Productivity metrics: photos, OCR success, reviews, time saved
+  - GUI integration: Tools -> Collection Assistant dialog with 3 tabs
+  - Export support: Markdown and CSV for session, queue, productivity
+- Test results: 880 tests OK (up from 842).
+- Release prompt archived: `project_docs/release_prompts/v7.4.txt`.
+- Release documentation: `docs/releases/v7.4.md`.
 
 ### 2026-06-25
 

@@ -61,6 +61,7 @@
 | `v7.1` | `51be4f3` | Platform Analytics with deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, export support, and 786-test regression pass. |
 | `v7.2` | `9c856c3` | Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression pass. |
 | `v7.3` | `849cbde` | Acquisition Strategy with strategic acquisition plans, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), export support, and 842-test regression pass. |
+| `v7.4` | `2e5c56b` | Collection Assistant with guided cataloguing workflow, photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), export support, and 880-test regression pass. |
 
 ## Notes
 

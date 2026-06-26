@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v7.3`
+Current version: `v7.4`
 
-Latest tagged release: `v7.3`
+Latest tagged release: `v7.4`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -78,6 +78,7 @@ The app is especially tuned for Adam-specific priorities:
 - Platform Analytics: deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, and CSV/Markdown export.
 - Collection Insights: deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy with health reporting, insight prioritization, GUI integration, and CSV/Markdown export.
 - Acquisition Strategy: strategic acquisition plans with phased priorities (immediate, short-term, long-term), portfolio balance guidance, risk-adjusted recommendations, and CSV/Markdown export without AI reasoning, forecasting, or external APIs.
+- Collection Assistant: guided cataloguing workflow that orchestrates Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy into a single review experience with photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, and CSV/Markdown export without automatic collection insertion.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
 - Collection Integrity Audit: read-only data trust report for duplicates, missing fields, invalid values, broken photo/market/certification references, backup readiness, and integrity scoring.

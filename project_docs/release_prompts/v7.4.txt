@@ -1,0 +1,419 @@
+Read:
+
+* AI_HANDOFF.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* README.md
+* RELEASE_HISTORY.md
+* docs/releases/v7.3.md
+* current codebase
+
+Before beginning v7.4, verify:
+
+* Working tree clean
+* Local main is synchronized with origin/main
+* v7.3 tag exists locally and remotely
+* docs/releases/v7.3.md exists
+* project_docs/release_prompts/v7.3.txt exists
+
+If any verification fails:
+
+STOP.
+
+Repair the repository state before continuing.
+
+==================================================
+PHASE 0
+ROADMAP LOCK
+============
+
+Update:
+
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* README.md
+
+Lock roadmap as:
+
+v7.4 = Collection Assistant
+
+v7.5 = Numista Intelligence
+
+v8.0 = Smart Phone Cataloguer
+
+v8.1 = Batch Processing
+
+v8.2 = AI Grading Assistant
+
+v8.3 = Collector Workspace
+
+v8.4 = Connected Data
+
+v9.0 = Collector Ecosystem
+
+Commit:
+
+Lock v7.4 roadmap
+
+==================================================
+PROJECT SNAPSHOT
+================
+
+Current Version:
+
+v7.3 Acquisition Strategy
+
+Major Modules:
+
+* Collector Platform
+* Platform Analytics
+* Collection Insights
+* Acquisition Strategy
+* Collection Intelligence
+* Deal Hunter
+* Opportunity Engine
+* Ranking Engine
+* Market Intelligence
+* Portfolio Performance
+* Live Deal Hunter
+* Watchlists
+* Mobile Companion
+* Phone Photo Capture
+* OCR Identification
+* Mobile Collection Entry
+* Workflow Integration
+* Collector Cloud
+* Sync & Backup
+* Multi-Device Workspace
+* Device Linking
+
+==================================================
+MISSION
+=======
+
+Build the Collection Assistant.
+
+The purpose of this release is not to add more intelligence.
+
+The purpose is to dramatically reduce the amount of manual work required to catalogue coins.
+
+Everything should build on the existing engines.
+
+No duplicate business logic.
+
+No replacement of existing workflows.
+
+==================================================
+PHASE 1
+COLLECTION ASSISTANT ENGINE
+===========================
+
+Create:
+
+collection_assistant.py
+
+Implement:
+
+* CollectionAssistantEngine
+* CollectionAssistantSession
+* CollectionAssistantCandidate
+* AssistantReviewQueue
+* AssistantSummary
+
+The assistant should orchestrate existing modules rather than duplicate them.
+
+==================================================
+PHASE 2
+PHOTO WORKFLOW
+==============
+
+Improve photo handling.
+
+Support:
+
+* drag & drop
+* multi-photo import
+* automatic obverse/reverse pairing
+* missing-side detection
+* photo quality checks
+* orientation normalization
+
+Reuse the existing Photo Capture workflow.
+
+==================================================
+PHASE 3
+OCR WORKFLOW
+============
+
+Improve OCR processing.
+
+Support:
+
+* multiple OCR candidates
+* confidence scoring
+* evidence collection
+* better review workflow
+* retry handling
+
+Reuse the OCR Identification engine.
+
+==================================================
+PHASE 4
+CATALOGUING ASSISTANT
+=====================
+
+Create a guided review workflow.
+
+For every candidate:
+
+* detected coin
+* estimated confidence
+* existing collection lookup
+* duplicate detection
+* collection gap detection
+* acquisition priority (if available)
+* review status
+
+No automatic insertion.
+
+User approval remains mandatory.
+
+==================================================
+PHASE 5
+SIDE-BY-SIDE REVIEW
+===================
+
+Provide:
+
+Current candidate
+
+↓
+
+Existing collection match
+
+↓
+
+Suggested identification
+
+↓
+
+Evidence
+
+↓
+
+Approve
+
+Reject
+
+Needs Review
+
+==================================================
+PHASE 6
+BATCH REVIEW
+============
+
+Support reviewing many items.
+
+Provide:
+
+* review queue
+* filtering
+* sorting
+* progress tracking
+* incomplete review detection
+
+==================================================
+PHASE 7
+PRODUCTIVITY METRICS
+====================
+
+Measure:
+
+* photos processed
+* OCR success rate
+* review completion
+* approval rate
+* average confidence
+* estimated time saved
+
+==================================================
+PHASE 8
+GUI
+===
+
+Add:
+
+Tools
+
+→ Collection Assistant
+
+Display:
+
+* review queue
+* current candidate
+* confidence
+* evidence
+* duplicate status
+* collection gap
+* acquisition priority
+* productivity metrics
+
+==================================================
+PHASE 9
+EXPORT
+======
+
+Support:
+
+Markdown
+
+CSV
+
+Export:
+
+* Assistant Session
+* Review Queue
+* Productivity Report
+
+==================================================
+PHASE 10
+TESTING
+=======
+
+Create:
+
+test_collection_assistant.py
+
+Test:
+
+* photo workflow
+* OCR workflow
+* review queue
+* batch review
+* productivity metrics
+* exports
+* GUI integration
+* platform integration
+
+Run:
+
+* Collection Assistant tests
+* Acquisition Strategy tests
+* Collection Insights tests
+* Platform Analytics tests
+* Full regression suite
+
+Maintain or increase total passing tests.
+
+==================================================
+PHASE 11
+DOCUMENTATION
+=============
+
+Update:
+
+* README.md
+* PROJECT_STATE.md
+* TASK_QUEUE.md
+* AI_HANDOFF.md
+* RELEASE_HISTORY.md
+* docs/releases/v7.4.md
+
+Archive:
+
+project_docs/release_prompts/v7.4.txt
+
+==================================================
+PHASE 12
+ARCHITECTURAL PRINCIPLES
+========================
+
+Maintain a clean, modular architecture.
+
+Whenever possible:
+
+* Extend existing engines instead of creating duplicate functionality.
+* Reuse existing modules before introducing new ones.
+* New modules should orchestrate existing capabilities rather than reimplement business logic.
+* Avoid duplicate calculations, duplicate data models, and duplicate export logic.
+* Keep deterministic behavior centralized within the appropriate engine.
+* Preserve backwards compatibility whenever practical.
+* Prefer composition over duplication.
+* If functionality already exists elsewhere, call or extend it rather than copying its logic.
+
+This release should improve workflow efficiency—not create parallel implementations.
+
+==================================================
+PHASE 13
+ACCEPTANCE AUDIT
+================
+
+Verify:
+
+* Collection Assistant works
+* Existing modules are reused
+* No duplicate business logic introduced
+* Review workflow functions correctly
+* Batch workflow functions correctly
+* Productivity metrics generate correctly
+* Existing functionality preserved
+* Full regression suite passes
+
+No feature additions after audit begins.
+
+==================================================
+PHASE 14
+RELEASE
+=======
+
+If PASS:
+
+Implement
+
+↓
+
+Audit
+
+↓
+
+Tag:
+
+v7.4
+
+↓
+
+Push
+
+↓
+
+Verify
+
+Report:
+
+* Files changed
+* Tests run
+* Total passing tests
+* Audit result
+* Commit hashes
+* Tag hash
+* Push verification
+* Remaining limitations
+
+==================================================
+DEFINITION OF DONE
+==================
+
+The Collection Assistant becomes the primary cataloguing workflow for the application.
+
+It reduces manual effort by orchestrating the existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience.
+
+Target outcome:
+
+Reduce manual cataloguing time by approximately 50% while preserving user review and approval for every collection change.
+
+This establishes the productivity foundation for:
+
+v7.5 = Numista Intelligence
+
+where the assistant begins automatically proposing high-confidence Numista matches to accelerate identification even further.

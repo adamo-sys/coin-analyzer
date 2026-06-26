@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v7.3`
+* Current release version: `v7.4`
 * Current Git branch: `main`
 * Last updated date: 2026-06-25
 
 ## Last Release Tag
 
-* Most recent Git tag: `v7.3`
-* Summary of what was included: Acquisition Strategy with strategic acquisition plans, phased priorities, portfolio balance guidance, risk-adjusted recommendations, GUI integration, export support, and 842-test regression coverage without AI, forecasting, or external APIs.
+* Most recent Git tag: `v7.4`
+* Summary of what was included: Collection Assistant with guided cataloguing workflow, photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration, export support, and 880-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -153,6 +153,7 @@
 * Platform Analytics: deterministic metrics for all major subsystems (Collection, Portfolio, Workflow, Deal Hunter, Opportunity, Market, Watchlist, Cloud, Sync, Workspace, Device), health scoring, dashboard, trends, GUI integration (Tools -> Platform Analytics), and CSV/Markdown export without AI, forecasting, or external APIs.
 * Collection Insights: deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy with `CollectionInsightsEngine`, `InsightCategory`, `InsightPriority`, `InsightEvidence`, `CollectionInsight`, `CollectorHealthReport`, `CollectionInsightReport`, `InsightsDashboard`, health reporting, insight prioritization, GUI integration (Tools -> Collection Insights), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * Acquisition Strategy: strategic acquisition plans with `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `StrategicAcquisitionPlan`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
+* Collection Assistant: guided cataloguing workflow with `CollectionAssistantEngine`, `CollectionAssistantCandidate`, `AssistantReviewQueue`, `AssistantSummary`, `ProductivityMetrics`, `SideBySideComparison`, `PhotoInfo`, `OCRCandidate`, `CollectionMatch`, `CollectionGapInfo`, `AcquisitionPriorityInfo`; photo import with auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 
 ## Known Bugs
 
@@ -218,7 +219,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v7.4 Collection Assistant unless a release-blocking defect is found.
+Build v7.5 Numista Intelligence unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -322,6 +323,18 @@ Current archive status:
 ## Recent Changes
 
 ### 2026-06-25
+
+* Implemented v7.4 Collection Assistant: `CollectionAssistantEngine`, `CollectionAssistantCandidate`, `AssistantReviewQueue`, `AssistantSummary`, `ProductivityMetrics`, `SideBySideComparison`, `PhotoInfo`, `OCRCandidate`, `CollectionMatch`, `CollectionGapInfo`, `AcquisitionPriorityInfo`; photo import with auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), Markdown/CSV export.
+* Implementation commit: `2e5c56b`.
+* Release tag: `v7.4`.
+* Tests passed: `py -m unittest test_collection_assistant.py` -> 38 tests OK; full `py -m unittest discover` -> 880 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 842 to 880.
+* Limitation: deterministic local guidance only; no scraping, APIs, live pricing, market forecasting, automatic purchasing, or collection mutation. OCR is simulated from text input; full image-based OCR would require integration with existing OCR engine. Photo quality assessment is file-size based, not pixel-level analysis. No automatic collection insertion.
+* Release prompt archived: `project_docs/release_prompts/v7.4.txt`.
+* Release notes: `docs/releases/v7.4.md`.
+* Roadmap lock commit: `fab9527`.
+* Release metadata commit: pending.
 
 * Implemented v7.3 Acquisition Strategy: `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`; phased strategic priorities (Immediate, Short-Term, Long-Term), priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), portfolio balance guidance for Newfoundland/Canadian Silver/1859 Large Cent/diversification, risk assessment with LOW/MEDIUM/HIGH classification, mitigation strategies, budget extraction from guidance text, strategic plan generation, Tools -> Acquisition Strategy dialog with 7 tabs (Dashboard, Strategy Overview, Immediate Priorities, Short-Term Priorities, Long-Term Priorities, Portfolio Balance, Risk Assessment), Markdown/CSV export.
 * Implementation commit: `849cbde`.
