@@ -1,6 +1,6 @@
 # Coin Analyzer
 
-Current version: `v7.2`
+Current version: `v7.3`
 
 Latest tagged release: `v7.2`
 
@@ -75,6 +75,9 @@ The app is especially tuned for Adam-specific priorities:
 - Collector Home Dashboard: one daily dashboard for status cards, ranked actions, top opportunities, review queues, data safety, progress, workflow status, and CSV/Markdown export.
 - Collector Companion Readiness and Status: v3.0 product audit for report/export consistency, end-to-end workflow quality, readiness checklist, workflow status, persistence, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
+- Platform Analytics: deterministic metrics for all major subsystems, health scoring, dashboard, trends, GUI integration, and CSV/Markdown export.
+- Collection Insights: deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy with health reporting, insight prioritization, GUI integration, and CSV/Markdown export.
+- Acquisition Strategy: strategic acquisition plans with phased priorities (immediate, short-term, long-term), portfolio balance guidance, risk-adjusted recommendations, and CSV/Markdown export without AI reasoning, forecasting, or external APIs.
 - Persistence Layer: local JSON app state for session metadata, last workbook/WANT_LIST paths, market records, photo records, shopping candidates, app preferences, backups, and import/export.
 - Data Safety and Backup Hardening: local backup packages, manifests, verification, safe restore, `data/collection.json` and persisted-workbook backup coverage, data validation reports, Collection Recovery Reports, and collector export bundles.
 - Collection Integrity Audit: read-only data trust report for duplicates, missing fields, invalid values, broken photo/market/certification references, backup readiness, and integrity scoring.

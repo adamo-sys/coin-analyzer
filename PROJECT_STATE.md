@@ -2,14 +2,14 @@
 
 ## Current Version
 
-* Current release version: `v7.2`
+* Current release version: `v7.3`
 * Current Git branch: `main`
-* Last updated date: 2026-06-23
+* Last updated date: 2026-06-25
 
 ## Last Release Tag
 
-* Most recent Git tag: `v7.2`
-* Summary of what was included: Collection Insights with deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression coverage without AI, forecasting, or external APIs.
+* Most recent Git tag: `v7.3`
+* Summary of what was included: Acquisition Strategy with strategic acquisition plans, phased priorities, portfolio balance guidance, risk-adjusted recommendations, GUI integration, export support, and 842-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -150,6 +150,9 @@
 * Sync & Backup: offline disaster-recovery and sync-planning layer with `SyncBackupEngine`, `BackupArchive`, `RestorePlan`, `BackupHistory`, `SyncSimulation`, `SyncConflictReport`, and `RollbackPlan`; integrates Collector Cloud snapshots, workflow reports, mobile entry reports, portfolio metrics, and collection intelligence outputs; Tools -> Sync & Backup; CSV/Markdown export; no internet sync, cloud provider, automatic restore, or automatic conflict resolution.
 * Multi-Device Collector Workspace: offline workspace architecture with `MultiDeviceWorkspaceEngine`, `CollectorWorkspace`, `DeviceProfile`, `WorkspaceSnapshot`, `WorkspaceActivity`, and `WorkspaceHealthReport`; models desktop, laptop, phone, and tablet use, device capabilities, workspace snapshots, activity summaries, health reports, conflict exposure, scenario simulations, Collector Cloud snapshots, Sync & Backup archives, Tools -> Multi-Device Workspace, and CSV/Markdown export without real sync, accounts, cloud providers, or collection mutation.
 * Device Linking & Conflict Resolution: offline review layer with `DeviceLinkingEngine`, `LinkedDevice`, `DeviceRelationship`, `DeviceLinkReport`, `WorkspaceLinkMap`, `ConflictResolutionEngine`, `ConflictCase`, `ConflictAnalysis`, `ConflictRecommendation`, `ConflictResolutionReport`, and `DeviceLinkReadinessReport`; models linked devices, relationship roles, capability overlap, collection/workflow/portfolio/watchlist/settings/snapshot conflicts, LOW/MEDIUM/HIGH classification, review-only recommendations, readiness reporting, Tools -> Device Linking & Conflict Resolution, and CSV/Markdown export without automatic resolution or sync.
+* Platform Analytics: deterministic metrics for all major subsystems (Collection, Portfolio, Workflow, Deal Hunter, Opportunity, Market, Watchlist, Cloud, Sync, Workspace, Device), health scoring, dashboard, trends, GUI integration (Tools -> Platform Analytics), and CSV/Markdown export without AI, forecasting, or external APIs.
+* Collection Insights: deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy with `CollectionInsightsEngine`, `InsightCategory`, `InsightPriority`, `InsightEvidence`, `CollectionInsight`, `CollectorHealthReport`, `CollectionInsightReport`, `InsightsDashboard`, health reporting, insight prioritization, GUI integration (Tools -> Collection Insights), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
+* Acquisition Strategy: strategic acquisition plans with `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `StrategicAcquisitionPlan`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 
 ## Known Bugs
 
@@ -216,7 +219,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v7.3 Acquisition Strategy unless a release-blocking defect is found.
+Build v7.4 Collection Assistant unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive
@@ -318,6 +321,29 @@ Current archive status:
 * Never leave a completed version untagged.
 
 ## Recent Changes
+
+### 2026-06-25
+
+* Implemented v7.3 Acquisition Strategy: `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`; phased strategic priorities (Immediate, Short-Term, Long-Term), priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), portfolio balance guidance for Newfoundland/Canadian Silver/1859 Large Cent/diversification, risk assessment with LOW/MEDIUM/HIGH classification, mitigation strategies, budget extraction from guidance text, strategic plan generation, Tools -> Acquisition Strategy dialog with 7 tabs (Dashboard, Strategy Overview, Immediate Priorities, Short-Term Priorities, Long-Term Priorities, Portfolio Balance, Risk Assessment), Markdown/CSV export.
+* Implementation commit: pending commit creation.
+* Tests passed: `py -m unittest test_acquisition_strategy.py` -> 36 tests OK; full `py -m unittest discover` -> 842 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 806 to 842.
+* Limitation: deterministic local guidance only; no scraping, APIs, live pricing, market forecasting, automatic purchasing, or collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v7.3.txt`.
+* Release notes: `docs/releases/v7.3.md`.
+* Roadmap lock commit: `a7fa411`.
+
+* Implemented v7.2 Collection Insights locally: `CollectionInsightsEngine`, `InsightCategory`, `InsightPriority`, `InsightEvidence`, `CollectionInsight`, `CollectorHealthReport`, `CollectionInsightReport`, `InsightsDashboard`; deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy, health reporting, insight prioritization, GUI integration, export support, and 806-test regression coverage.
+* Implementation commit: `9c856c3`.
+* Release tag: `v7.2`.
+* Tests passed: `py -m unittest test_collection_insights.py` -> 20 tests OK; full `py -m unittest discover` -> 806 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 786 to 806.
+* Limitation: deterministic local guidance only; no AI reasoning, forecasting, machine learning, or external APIs.
+* Release prompt archived: `project_docs/release_prompts/v7.2.txt`.
+* Release notes: `docs/releases/v7.2.md`.
+* Roadmap lock commit: `6f5091d`.
 
 ### 2026-06-22
 

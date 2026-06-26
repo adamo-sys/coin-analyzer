@@ -123,7 +123,7 @@ Work through this queue in priority order. Handle only one task at a time.
 91. `[x]` Build v7.0 Collector Platform
 92. `[x]` Build v7.1 Platform Analytics
 93. `[x]` Build v7.2 Collection Insights
-94. `[-]` Build v7.3 Acquisition Strategy
+94. `[x]` Build v7.3 Acquisition Strategy
 
 ## Official v7.3 Roadmap
 

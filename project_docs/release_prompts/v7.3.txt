@@ -1,0 +1,33 @@
+v7.3 Acquisition Strategy Release Prompt
+
+Build v7.3 Acquisition Strategy with the following requirements:
+
+1. Create an AcquisitionStrategyEngine that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans.
+
+2. The engine must be deterministic, explainable, and derived only from local collection data. No AI reasoning, forecasting, machine learning, or external APIs.
+
+3. Support phased strategic planning: Immediate (next 1-3 purchases), Short-Term (3-6 months), Long-Term (6-12 months).
+
+4. Generate AcquisitionPriority targets with category, priority level, risk level, budget guidance, strategic reason, estimated impact, and confidence.
+
+5. Support priority categories: Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity.
+
+6. Generate PortfolioBalanceRecommendations for Newfoundland Coinage, Canadian Silver, 1859 Large Cent Varieties, and Geographic Diversification.
+
+7. Generate RiskAssessment with overall risk level, risk factors, mitigation strategies, and market risk notes.
+
+8. Provide StrategyDashboard with summary, priority counts, category breakdown, and total estimated budget.
+
+9. Export support: Markdown and CSV for strategy reports and priority lists.
+
+10. GUI integration: Tools -> Acquisition Strategy dialog with tabs for Dashboard, Strategy Overview, Immediate Priorities, Short-Term Priorities, Long-Term Priorities, Portfolio Balance, and Risk Assessment.
+
+11. Add comprehensive tests (target: 30+ tests).
+
+12. Update all documentation: README.md, PROJECT_STATE.md, TASK_QUEUE.md, AI_HANDOFF.md, RELEASE_HISTORY.md.
+
+13. Create release notes at docs/releases/v7.3.md and archive this prompt at project_docs/release_prompts/v7.3.txt.
+
+14. Follow the release process: Roadmap Lock -> Implementation -> Testing -> Acceptance Audit -> Tag -> Push -> Verify.
+
+15. Preserve deterministic behavior, no AI/ML/forecasting, no external APIs, no scraping, no automatic purchasing, no collection mutation.
