@@ -18,7 +18,6 @@ from enum import Enum
 
 from coin_collection import CoinItem, CoinCollection
 from collection_intelligence import CollectionIntelligenceEngine
-from series_tracker import SeriesTracker
 
 
 class NumistaMatchStatus(Enum):
@@ -63,6 +62,8 @@ class NumistaItemAnalysis:
     series_relevance: Optional[str] = None
     gap_value: float = 0.0
     upgrade_delta: float = 0.0
+    comment: str = ""
+    notes: str = ""
 
 
 @dataclass
@@ -224,9 +225,15 @@ class NumistaDataModel:
     def _extract_numista_n(self, n_link: str) -> str:
         if pd.isna(n_link) or not n_link:
             return ""
-        if "N#" in str(n_link):
-            return str(n_link).split("N#")[-1].strip()
-        return str(n_link).strip()
+        s = str(n_link).strip()
+        if "N#" in s:
+            return s.split("N#")[-1].strip()
+        # Handle URLs like https://numista.com/catalogue/pieces12345
+        import re as _re
+        m = _re.search(r'pieces(\d+)', s)
+        if m:
+            return m.group(1)
+        return s
 
     def get_items(self) -> List[Dict]:
         return self.normalized_items
@@ -245,8 +252,7 @@ class NumistaCollectionAnalyzer:
 
     def __init__(self, collection: CoinCollection):
         self.collection = collection
-        self.intelligence_engine = CollectionIntelligenceEngine(collection)
-        self.series_tracker = SeriesTracker()
+        self.intelligence_engine = CollectionIntelligenceEngine(collection.items)
 
     def analyze_item(self, numista_item: Dict) -> NumistaItemAnalysis:
         analysis = NumistaItemAnalysis(
@@ -308,7 +314,7 @@ class NumistaCollectionAnalyzer:
                 analysis.reasons.append("Not in supported collecting areas")
 
         if self._has_variety_indicators(analysis):
-            if analysis.status == NumistaMatchStatus.GAP:
+            if analysis.status in [NumistaMatchStatus.GAP, NumistaMatchStatus.NEW_SERIES]:
                 analysis.status = NumistaMatchStatus.VARIETY
                 analysis.priority = NumistaPriority.HIGH
                 analysis.reasons.append("Variety opportunity")
