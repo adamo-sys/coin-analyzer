@@ -1,0 +1,23 @@
+v7.5 Numista Intelligence Release Prompt
+
+Build deterministic, offline Numista export analysis for collection intelligence.
+
+Requirements:
+- Parse Numista Excel/CSV exports with standard column mapping
+- Compare Numista items against local collection by N#, country/year/reference, and grade
+- Classify items: owned, duplicate, upgrade, gap, variety, new_series, not_relevant
+- Score acquisition priorities: critical, high, medium, low, none
+- Detect Newfoundland and Canadian silver series relevance
+- Identify variety indicators from title, reference, and comments
+- Generate gap reports, duplicate reports, upgrade reports
+- Export CSV and Markdown reports
+- Minimal GUI integration via Tools -> Numista Intelligence
+- Reuse existing CollectionIntelligenceEngine patterns
+- No live API calls, web scraping, or external services
+- 31+ unit tests, full regression must pass
+
+Deliverables:
+- numista_intelligence.py
+- test_numista_intelligence.py
+- GUI integration in coin_collection_gui.py
+- Release docs and metadata updates

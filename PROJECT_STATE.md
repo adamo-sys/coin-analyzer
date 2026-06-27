@@ -2,13 +2,13 @@
 
 ## Current Version
 
-* Current release version: `v7.4`
+* Current release version: `v7.5`
 * Current Git branch: `main`
-* Last updated date: 2026-06-25
+* Last updated date: 2026-06-27
 
 ## Last Release Tag
 
-* Most recent Git tag: `v7.4`
+* Most recent Git tag: `v7.5`
 * Summary of what was included: Collection Assistant with guided cataloguing workflow, photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration, export support, and 880-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
@@ -219,7 +219,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v7.5 Numista Intelligence unless a release-blocking defect is found.
+Build v8.0 Smart Phone Cataloguer unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive

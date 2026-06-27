@@ -125,11 +125,12 @@ Work through this queue in priority order. Handle only one task at a time.
 93. `[x]` Build v7.2 Collection Insights
 94. `[x]` Build v7.3 Acquisition Strategy
 95. `[x]` Build v7.4 Collection Assistant
+96. `[x]` Build v7.5 Numista Intelligence
 
 ## Official v7.4 Roadmap
 
 1. `v7.4` Collection Assistant
-2. `v7.5` Numista Intelligence
+2. `[x]` `v7.5` Numista Intelligence
 3. `v8.0` Smart Phone Cataloguer
 4. `v8.1` Batch Processing
 5. `v8.2` AI Grading Assistant

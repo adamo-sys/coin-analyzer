@@ -2,13 +2,13 @@
 
 ## Snapshot
 
-- Date: 2026-06-25
+- Date: 2026-06-27
 - Branch: `main`
-- Current project state file reports release version: `v7.4`
-- Current active task: v7.5 Numista Intelligence
-- Last release: v7.4 Collection Assistant
-- Implementation commit: `2e5c56b`
-- Release tag: `v7.4`
+- Current project state file reports release version: `v7.5`
+- Current active task: v8.0 Smart Phone Cataloguer
+- Last release: v7.5 Numista Intelligence
+- Implementation commit: `aacb5eb`
+- Release tag: `v7.5`
 - Release metadata commit: pending
 
 ## Official v2.7-to-v3.0 Roadmap
