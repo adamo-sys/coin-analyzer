@@ -452,6 +452,13 @@ class NumistaIntelligenceEngine:
         self.analyzer = NumistaCollectionAnalyzer(collection)
         self.report: Optional[NumistaIntelligenceReport] = None
 
+    @classmethod
+    def from_items(cls, items: list) -> "NumistaIntelligenceEngine":
+        """Factory that builds engine from raw items without a full CoinCollection."""
+        collection = CoinCollection.__new__(CoinCollection)
+        collection.items = items
+        return cls(collection)
+
     def analyze_file(self, file_path: str) -> NumistaIntelligenceReport:
         if file_path.endswith('.csv'):
             success = self.data_model.load_from_csv(file_path)

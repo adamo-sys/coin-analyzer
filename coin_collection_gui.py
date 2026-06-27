@@ -11,6 +11,7 @@ import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
 from coin_collection import CoinCollectionApp, CoinItem
+from numista_intelligence import NumistaIntelligenceEngine
 from collection_intelligence import CollectionIntelligenceEngine
 from platform_analytics import PlatformAnalyticsEngine
 from deal_hunter import DealHunter, DealListing
@@ -269,6 +270,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Mobile Collector Companion", command=self.open_mobile_collector_companion)
         tools_menu.add_command(label="Phone Photo Capture", command=self.open_phone_photo_capture)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
+        tools_menu.add_command(label="Numista Intelligence", command=self.open_numista_intelligence)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -7364,6 +7366,107 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 
+
+    def open_numista_intelligence(self):
+        """Open Numista Intelligence analysis workflow."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Numista Intelligence")
+        dialog.geometry("900x800")
+
+        engine = NumistaIntelligenceEngine.from_items(self._collection_items())
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        file_frame = ttk.LabelFrame(main_frame, text="Numista Export", padding="10")
+        file_frame.pack(fill=tk.X, pady=(0, 10))
+
+        file_var = tk.StringVar()
+
+        def browse_file():
+            path = filedialog.askopenfilename(
+                title="Select Numista Export",
+                filetypes=[("Excel files", "*.xlsx"), ("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if path:
+                file_var.set(path)
+
+        ttk.Label(file_frame, text="File:").grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(file_frame, textvariable=file_var, width=70).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=3)
+        ttk.Button(file_frame, text="Browse", command=browse_file).grid(row=0, column=2, sticky=tk.W, padx=(6, 0), pady=3)
+        file_frame.columnconfigure(1, weight=1)
+
+        result_frame = ttk.LabelFrame(main_frame, text="Numista Intelligence Report", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def analyze():
+            try:
+                report = engine.analyze_file(file_var.get())
+                current_report["report"] = report
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, "Numista Intelligence Report\n")
+                result_text.insert(tk.END, f"Total: {report.total_numista_items}\n")
+                result_text.insert(tk.END, f"Owned: {report.owned_count}\n")
+                result_text.insert(tk.END, f"Duplicates: {report.duplicate_count}\n")
+                result_text.insert(tk.END, f"Upgrades: {report.upgrade_count}\n")
+                result_text.insert(tk.END, f"Gaps: {report.gap_count}\n")
+                result_text.insert(tk.END, f"Varieties: {report.variety_count}\n")
+                result_text.insert(tk.END, f"New Series: {report.new_series_count}\n")
+                result_text.insert(tk.END, f"Not Relevant: {report.not_relevant_count}\n")
+                result_text.insert(tk.END, "\nRecommendations:\n")
+                for rec in report.summary_recommendations:
+                    result_text.insert(tk.END, f"- {rec}\n")
+                if report.top_priorities:
+                    result_text.insert(tk.END, "\nTop Priorities:\n")
+                    for i, a in enumerate(report.top_priorities[:10], 1):
+                        result_text.insert(tk.END, f"{i}. {a.title} ({a.status.value}, {a.priority.value})\n")
+            except Exception as e:
+                messagebox.showerror("Numista Intelligence Error", f"Analysis failed: {str(e)}")
+
+        def export_csv():
+            if not current_report["report"]:
+                analyze()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Numista Intelligence CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if file_path:
+                try:
+                    engine.export_report_csv(file_path)
+                    messagebox.showinfo("Success", f"Report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export: {str(e)}")
+
+        def export_markdown():
+            if not current_report["report"]:
+                analyze()
+            if not current_report["report"]:
+                return
+            file_path = filedialog.asksaveasfilename(
+                title="Export Numista Intelligence Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            if file_path:
+                try:
+                    engine.export_report_markdown(file_path)
+                    messagebox.showinfo("Success", f"Report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export: {str(e)}")
+
+        ttk.Button(button_frame, text="Analyze", command=analyze).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 
 def main():
     """Main application entry point."""
