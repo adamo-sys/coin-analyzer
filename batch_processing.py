@@ -1,5 +1,5 @@
 """
-Batch Processing Engine — v8.1 Phase 2
+Batch Processing Engine — v8.1 Phase 3
 
 Thin orchestration layer that processes a folder of photos through the
 existing Smart Phone Cataloguer pipeline.
@@ -8,6 +8,9 @@ Phase 1: folder scanning, photo discovery, auto-pairing, candidate creation,
          catalogue intake, summary, export
 Phase 2: Integration with OCR, collection matching, and proposed entries
          via SmartPhoneCataloguer batch methods
+Phase 3: Collection Intelligence and Deal Hunter batch outputs
+         — gap reports, duplicate detection, upgrade candidates,
+           acquisition priorities, and deal evaluation
 """
 
 import os
@@ -29,6 +32,8 @@ from smart_phone_cataloguer import (
 )
 from photo_capture_workflow import PhotoCaptureWorkflow
 from ocr_assisted_identification import OCRIdentificationReport
+from collection_intelligence import CollectionIntelligenceEngine, AcquisitionTarget
+from deal_hunter import DealHunter, DealListing, DealHunterResult, DealHunterReport
 
 
 class BatchStatus(Enum):
@@ -116,11 +121,31 @@ class BatchSummary:
 
 
 @dataclass
+class BatchIntelligence:
+    """Collection intelligence outputs for the batch pool."""
+    gap_report: Optional[Dict[str, Any]] = None
+    batch_duplicates: List[Dict[str, Any]] = field(default_factory=list)
+    batch_upgrades: List[Dict[str, Any]] = field(default_factory=list)
+    acquisition_priorities: List[AcquisitionTarget] = field(default_factory=list)
+    deal_evaluation: Optional[DealHunterReport] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "gap_report": self.gap_report,
+            "batch_duplicates": self.batch_duplicates,
+            "batch_upgrades": self.batch_upgrades,
+            "acquisition_priorities": [t.to_dict() for t in self.acquisition_priorities],
+            "has_deal_evaluation": self.deal_evaluation is not None,
+        }
+
+
+@dataclass
 class BatchReport:
     """Consolidated report for the entire batch."""
     source: BatchSource
     candidates: List[BatchCandidate] = field(default_factory=list)
     summary: BatchSummary = field(default_factory=BatchSummary)
+    intelligence: BatchIntelligence = field(default_factory=BatchIntelligence)
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
@@ -128,6 +153,7 @@ class BatchReport:
             "source": self.source.to_dict(),
             "candidates": [c.to_dict() for c in self.candidates],
             "summary": self.summary.to_dict(),
+            "intelligence": self.intelligence.to_dict(),
             "created_at": self.created_at,
         }
 
@@ -159,6 +185,9 @@ class BatchReport:
             writer.writerow(["failed", self.summary.failed])
             writer.writerow(["ocr_ready", self.summary.ocr_ready])
             writer.writerow(["review_ready", self.summary.review_ready])
+            writer.writerow(["duplicates_detected", self.summary.duplicates_detected])
+            writer.writerow(["upgrade_opportunities", self.summary.upgrade_opportunities])
+            writer.writerow(["gap_opportunities", self.summary.gap_opportunities])
 
     def export_markdown(self, path: str) -> None:
         """Export batch report to Markdown."""
@@ -177,6 +206,9 @@ class BatchReport:
             f"- Failed: {self.summary.failed}",
             f"- OCR ready: {self.summary.ocr_ready}",
             f"- Review ready: {self.summary.review_ready}",
+            f"- Duplicates detected: {self.summary.duplicates_detected}",
+            f"- Upgrade opportunities: {self.summary.upgrade_opportunities}",
+            f"- Gap opportunities: {self.summary.gap_opportunities}",
             "",
         ]
         if self.summary.warnings:
@@ -189,6 +221,26 @@ class BatchReport:
             for e in self.summary.errors:
                 lines.append(f"- {e}")
             lines.append("")
+
+        # Phase 3: Collection Intelligence section
+        if self.intelligence.batch_duplicates or self.intelligence.batch_upgrades or self.intelligence.acquisition_priorities:
+            lines.extend(["## Collection Intelligence", ""])
+            if self.intelligence.batch_duplicates:
+                lines.extend(["### Batch Duplicates", ""])
+                for dup in self.intelligence.batch_duplicates:
+                    lines.append(f"- {dup.get('country', '')} {dup.get('denomination', '')} {dup.get('year', '')}: {dup.get('count', 1)} in batch")
+                lines.append("")
+            if self.intelligence.batch_upgrades:
+                lines.extend(["### Batch Upgrade Candidates", ""])
+                for upg in self.intelligence.batch_upgrades:
+                    lines.append(f"- {upg.get('country', '')} {upg.get('denomination', '')} {upg.get('year', '')}: best grade {upg.get('current_best_grade', 'unknown')}")
+                lines.append("")
+            if self.intelligence.acquisition_priorities:
+                lines.extend(["### Acquisition Priorities", ""])
+                for target in self.intelligence.acquisition_priorities[:10]:
+                    lines.append(f"- [{target.priority_score}] {target.coin_label} ({target.target_type}): {target.reason}")
+                lines.append("")
+
         lines.extend(["## Candidates", ""])
         for c in self.candidates:
             lines.append(f"### {c.candidate_id}")
@@ -213,6 +265,7 @@ class BatchProcessingEngine:
     Phase 1: Folder scanning, photo discovery, auto-pairing, candidate creation,
              catalogue intake, summary, export.
     Phase 2: Integration with OCR, collection matching, and proposed entries.
+    Phase 3: Collection Intelligence and Deal Hunter batch outputs.
     """
 
     def __init__(self, cataloguer: SmartPhoneCataloguer):
@@ -278,6 +331,89 @@ class BatchProcessingEngine:
             items.append(item)
         return items
 
+    def _run_collection_intelligence(self, candidates: List[BatchCandidate], collection_items: Iterable) -> BatchIntelligence:
+        """Run CollectionIntelligenceEngine on the batch pool and collection.
+
+        Args:
+            candidates: Batch candidates with proposed entries.
+            collection_items: Current collection items.
+
+        Returns:
+            BatchIntelligence with gap reports, duplicates, upgrades, and priorities.
+        """
+        intelligence = BatchIntelligence()
+
+        # Build pool of items for analysis: collection + batch proposed entries
+        pool_items = list(collection_items) if collection_items else []
+
+        # Add batch candidates' proposed entries to the pool
+        for candidate in candidates:
+            if candidate.proposed_entry:
+                pool_items.append(candidate.proposed_entry)
+
+        if not pool_items:
+            return intelligence
+
+        # Run CollectionIntelligenceEngine on the combined pool
+        try:
+            ci_engine = CollectionIntelligenceEngine(pool_items)
+
+            # Gap report for the combined pool
+            intelligence.gap_report = ci_engine.generate_gap_report()
+
+            # Detect duplicates within the batch pool
+            all_duplicates = ci_engine.detect_duplicates()
+            # Filter to only those that involve batch candidates (new items)
+            batch_candidate_ids = {c.candidate_id for c in candidates}
+            intelligence.batch_duplicates = [
+                dup for dup in all_duplicates
+                if any(getattr(item, 'candidate_id', None) in batch_candidate_ids for item in dup.get("items", []))
+            ]
+
+            # Detect upgrade candidates
+            intelligence.batch_upgrades = ci_engine.detect_upgrade_candidates()
+
+            # Generate acquisition priorities
+            intelligence.acquisition_priorities = ci_engine.generate_acquisition_priorities()
+
+        except Exception as e:
+            intelligence.gap_report = {"error": str(e)}
+
+        return intelligence
+
+    def _evaluate_deals(self, candidates: List[BatchCandidate], collection_items: Iterable) -> Optional[DealHunterReport]:
+        """Evaluate batch candidates as deals using DealHunter.
+
+        Converts batch candidates to DealListing objects and runs DealHunter analysis.
+
+        Args:
+            candidates: Batch candidates to evaluate.
+            collection_items: Current collection items for context.
+
+        Returns:
+            DealHunterReport or None if evaluation fails.
+        """
+        try:
+            # Convert candidates to DealListings
+            listings = []
+            for candidate in candidates:
+                if candidate.catalogue_result and candidate.catalogue_result.status == "success":
+                    listing = DealListing(
+                        title=candidate.subject,
+                        price_cad=0.0,  # Unknown for batch candidates
+                        shipping_cad=0.0,
+                        description=f"Batch candidate: {candidate.candidate_id}",
+                    )
+                    listings.append(listing)
+
+            if not listings:
+                return None
+
+            hunter = DealHunter(collection_items)
+            return hunter.generate_report(listings)
+        except Exception:
+            return None
+
     def process_folder(self, folder_path: str,
                        collection_items: Iterable,
                        file_pattern: str = "*.jpg",
@@ -294,8 +430,8 @@ class BatchProcessingEngine:
                 collection_items: Iterable) -> BatchReport:
         """Process a BatchSource through the existing pipeline.
 
-        Phase 2: Strengthened integration with SmartPhoneCataloguer.
-        Uses batch methods for OCR, matching, and proposed entries.
+        Phase 3: Strengthened integration with CollectionIntelligenceEngine
+        and DealHunter for batch-level intelligence.
         """
         report = BatchReport(source=source)
         summary = BatchSummary()
@@ -386,7 +522,19 @@ class BatchProcessingEngine:
         except Exception as e:
             summary.warnings.append(f"Batch proposed entries failed: {str(e)}")
 
-        # Step 9: Add batch-level errors
+        # Step 9: Phase 3 — Collection Intelligence on batch pool
+        try:
+            report.intelligence = self._run_collection_intelligence(candidates, collection_items)
+        except Exception as e:
+            summary.warnings.append(f"Collection intelligence failed: {str(e)}")
+
+        # Step 10: Phase 3 — Deal Hunter evaluation (optional, lightweight)
+        try:
+            report.intelligence.deal_evaluation = self._evaluate_deals(candidates, collection_items)
+        except Exception:
+            pass  # Deal evaluation is optional
+
+        # Step 11: Add batch-level errors
         for error in batch_result.errors:
             summary.errors.append(error)
 

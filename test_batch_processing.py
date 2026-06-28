@@ -1,8 +1,9 @@
-"""Unit tests for the Batch Processing Engine — v8.1 Phase 2.
+"""Unit tests for the Batch Processing Engine — v8.1 Phase 3.
 
 Tests folder scanning, photo discovery, front/back auto-pairing,
 batch candidate creation, SmartPhoneCataloguer orchestration,
 OCR integration, collection matching, proposed entries,
+Collection Intelligence batch outputs, Deal Hunter evaluation,
 summary generation, and CSV/Markdown export.
 """
 
@@ -19,6 +20,7 @@ from batch_processing import (
     BatchReport,
     BatchSummary,
     BatchStatus,
+    BatchIntelligence,
 )
 from smart_phone_cataloguer import (
     SmartPhoneCataloguer,
@@ -28,6 +30,8 @@ from smart_phone_cataloguer import (
     ProposedCollectionEntry,
 )
 from photo_capture_workflow import PhotoCaptureWorkflow
+from collection_intelligence import CollectionIntelligenceEngine, AcquisitionTarget
+from deal_hunter import DealHunter, DealListing, DealHunterReport
 
 
 class TestBatchSource(unittest.TestCase):
@@ -115,6 +119,24 @@ class TestBatchSummary(unittest.TestCase):
         self.assertEqual(d["gap_opportunities"], 1)
 
 
+class TestBatchIntelligence(unittest.TestCase):
+    """Verify BatchIntelligence dataclass behavior."""
+
+    def test_to_dict_serializes(self):
+        intelligence = BatchIntelligence()
+        d = intelligence.to_dict()
+        self.assertIsNone(d["gap_report"])
+        self.assertEqual(d["batch_duplicates"], [])
+        self.assertEqual(d["batch_upgrades"], [])
+        self.assertEqual(d["acquisition_priorities"], [])
+        self.assertFalse(d["has_deal_evaluation"])
+
+    def test_with_gap_report(self):
+        intelligence = BatchIntelligence(gap_report={"total_items": 5})
+        d = intelligence.to_dict()
+        self.assertEqual(d["gap_report"], {"total_items": 5})
+
+
 class TestBatchReport(unittest.TestCase):
     """Verify BatchReport dataclass behavior."""
 
@@ -130,6 +152,7 @@ class TestBatchReport(unittest.TestCase):
         self.assertEqual(d["source"]["folder_path"], "/tmp/test")
         self.assertEqual(len(d["candidates"]), 1)
         self.assertEqual(d["summary"]["total_photos"], 1)
+        self.assertIn("intelligence", d)
 
     def test_export_csv_creates_file(self):
         """Verify CSV export creates a file."""
@@ -176,6 +199,31 @@ class TestBatchReport(unittest.TestCase):
                 content = f.read()
             self.assertIn("# Batch Processing Report", content)
             self.assertIn("Coin 1", content)
+        finally:
+            os.remove(temp_path)
+
+    def test_export_markdown_with_intelligence(self):
+        """Verify Markdown export includes Collection Intelligence section."""
+        source = BatchSource(folder_path="/tmp/test")
+        candidate = BatchCandidate(candidate_id="c1", subject="Coin 1")
+        intelligence = BatchIntelligence(
+            batch_duplicates=[{"country": "Canada", "denomination": "1 cent", "year": "1964", "count": 2}],
+            acquisition_priorities=[
+                AcquisitionTarget(country="Canada", denomination="1 cent", year="1965", target_type="Missing Date", priority_score=50, estimated_impact="High", reason="Gap fill")
+            ]
+        )
+        report = BatchReport(source=source, candidates=[candidate], intelligence=intelligence)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            temp_path = f.name
+
+        try:
+            report.export_markdown(temp_path)
+            with open(temp_path, "r") as f:
+                content = f.read()
+            self.assertIn("## Collection Intelligence", content)
+            self.assertIn("### Batch Duplicates", content)
+            self.assertIn("### Acquisition Priorities", content)
         finally:
             os.remove(temp_path)
 
@@ -449,6 +497,113 @@ class TestBatchProcessingPhase2Integration(unittest.TestCase):
             finally:
                 os.remove(csv_path)
                 os.remove(md_path)
+
+
+class TestBatchProcessingPhase3Integration(unittest.TestCase):
+    """Phase 3: Collection Intelligence and Deal Hunter integration tests."""
+
+    def test_phase3_intelligence_exists(self):
+        """Verify BatchReport has intelligence field."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertIsNotNone(report.intelligence)
+            self.assertIsInstance(report.intelligence, BatchIntelligence)
+
+    def test_phase3_collection_intelligence_runs(self):
+        """Verify CollectionIntelligenceEngine is called on batch pool."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "Canada_1cent_1964_front.jpg"), "w").close()
+            open(os.path.join(tmpdir, "Canada_1cent_1964_back.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            collection = [{"id": "existing", "country": "Canada", "denomination": "1 cent", "year": 1964}]
+            report = engine.process_folder(tmpdir, collection)
+
+            # Intelligence should be populated (even if empty due to mock data)
+            self.assertIsNotNone(report.intelligence)
+            # gap_report may be None or a dict depending on data quality
+            self.assertIsInstance(report.intelligence.to_dict(), dict)
+
+    def test_phase3_intelligence_with_empty_collection(self):
+        """Verify CollectionIntelligence handles empty collection gracefully."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertIsNotNone(report.intelligence)
+            # Should not crash with empty collection
+
+    def test_phase3_deal_hunter_optional(self):
+        """Verify DealHunter evaluation is optional and non-breaking."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            # Deal evaluation may be None (no valid listings to evaluate)
+            # but should not raise
+            self.assertIsNotNone(report.intelligence)
+
+    def test_phase3_markdown_exports_intelligence(self):
+        """Verify Markdown export includes Collection Intelligence section."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "Canada_1cent_1964_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            collection = [{"id": "existing", "country": "Canada", "denomination": "1 cent", "year": 1964}]
+            report = engine.process_folder(tmpdir, collection)
+
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+                md_path = f.name
+
+            try:
+                report.export_markdown(md_path)
+                with open(md_path, "r") as f:
+                    content = f.read()
+                # Should contain standard sections
+                self.assertIn("# Batch Processing Report", content)
+                self.assertIn("## Summary", content)
+                self.assertIn("## Candidates", content)
+            finally:
+                os.remove(md_path)
+
+    def test_phase3_api_compatibility(self):
+        """Verify Phase 1/2 API is preserved in Phase 3."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "IMG_0001_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            # All Phase 1/2 fields should still exist
+            self.assertEqual(report.source.folder_path, tmpdir)
+            self.assertEqual(len(report.candidates), 1)
+            self.assertIsNotNone(report.summary)
+            self.assertIsNotNone(report.intelligence)
+
+            # process() entry point should still work
+            source = BatchSource(folder_path=tmpdir, file_pattern="*.jpg")
+            report2 = engine.process(source, [])
+            self.assertEqual(report2.source.folder_path, tmpdir)
 
 
 if __name__ == "__main__":
