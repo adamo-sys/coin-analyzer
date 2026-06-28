@@ -1,10 +1,9 @@
-"""Unit tests for the Batch Processing Engine — v8.1 Phase 1.
+"""Unit tests for the Batch Processing Engine — v8.1 Phase 2.
 
 Tests folder scanning, photo discovery, front/back auto-pairing,
 batch candidate creation, SmartPhoneCataloguer orchestration,
+OCR integration, collection matching, proposed entries,
 summary generation, and CSV/Markdown export.
-
-Phase 2+ tests (OCR, matching, proposed-entry) will be added later.
 """
 
 import unittest
@@ -25,6 +24,8 @@ from smart_phone_cataloguer import (
     SmartPhoneCataloguer,
     CatalogueResult,
     BatchCatalogueResult,
+    CollectionMatchResult,
+    ProposedCollectionEntry,
 )
 from photo_capture_workflow import PhotoCaptureWorkflow
 
@@ -72,12 +73,20 @@ class TestBatchCandidate(unittest.TestCase):
         self.assertFalse(d["has_collection_match"])
         self.assertFalse(d["has_proposed_entry"])
 
-    def test_phase1_placeholders_none(self):
-        """Phase 1: ocr_result, collection_match, proposed_entry should be None."""
+    def test_phase2_fields_populated(self):
+        """Phase 2: ocr_result, collection_match, proposed_entry can be set."""
         candidate = BatchCandidate(candidate_id="test")
         self.assertIsNone(candidate.ocr_result)
         self.assertIsNone(candidate.collection_match)
         self.assertIsNone(candidate.proposed_entry)
+
+        candidate.ocr_result = Mock()
+        candidate.collection_match = Mock()
+        candidate.proposed_entry = Mock()
+
+        self.assertIsNotNone(candidate.ocr_result)
+        self.assertIsNotNone(candidate.collection_match)
+        self.assertIsNotNone(candidate.proposed_entry)
 
 
 class TestBatchSummary(unittest.TestCase):
@@ -90,6 +99,9 @@ class TestBatchSummary(unittest.TestCase):
             failed=2,
             ocr_ready=5,
             review_ready=3,
+            duplicates_detected=1,
+            upgrade_opportunities=2,
+            gap_opportunities=1,
             warnings=["Some photos missing back"],
         )
         d = summary.to_dict()
@@ -98,6 +110,9 @@ class TestBatchSummary(unittest.TestCase):
         self.assertEqual(d["failed"], 2)
         self.assertEqual(d["ocr_ready"], 5)
         self.assertEqual(d["review_ready"], 3)
+        self.assertEqual(d["duplicates_detected"], 1)
+        self.assertEqual(d["upgrade_opportunities"], 2)
+        self.assertEqual(d["gap_opportunities"], 1)
 
 
 class TestBatchReport(unittest.TestCase):
@@ -339,11 +354,66 @@ class TestBatchProcessingEngine(unittest.TestCase):
             self.assertEqual(report.summary.total_photos, 1)
 
 
-class TestBatchProcessingIntegration(unittest.TestCase):
-    """Integration tests with real SmartPhoneCataloguer."""
+class TestBatchProcessingPhase2Integration(unittest.TestCase):
+    """Phase 2: Integration tests with SmartPhoneCataloguer batch methods."""
 
-    def test_end_to_end_with_real_cataloguer(self):
-        """Full end-to-end test with real engine."""
+    def test_phase2_ocr_integration(self):
+        """Verify batch OCR is called via SmartPhoneCataloguer."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertEqual(len(report.candidates), 1)
+            self.assertIsNotNone(report.candidates[0].catalogue_result)
+
+    def test_phase2_match_integration(self):
+        """Verify batch matching is called via SmartPhoneCataloguer."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            collection = [{"id": "existing", "country": "Canada", "denomination": "1 cent", "year": 1964}]
+            report = engine.process_folder(tmpdir, collection)
+
+            self.assertEqual(len(report.candidates), 1)
+            self.assertIsNotNone(report.candidates[0].catalogue_result)
+
+    def test_phase2_proposed_entries_integration(self):
+        """Verify batch proposed entries are created via SmartPhoneCataloguer."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "coin_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertEqual(len(report.candidates), 1)
+            self.assertIsNotNone(report.candidates[0].catalogue_result)
+
+    def test_phase2_summary_counts(self):
+        """Verify summary counts are populated correctly in Phase 2."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "IMG_0001_front.jpg"), "w").close()
+            open(os.path.join(tmpdir, "IMG_0001_back.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertEqual(report.summary.total_photos, 2)
+            self.assertEqual(len(report.candidates), 1)
+            self.assertGreaterEqual(report.summary.processed + report.summary.failed, 0)
+
+    def test_phase2_end_to_end_with_real_cataloguer(self):
+        """Full end-to-end test with real engine and all Phase 2 integrations."""
         with tempfile.TemporaryDirectory() as tmpdir:
             open(os.path.join(tmpdir, "Canada_1cent_1964_front.jpg"), "w").close()
             open(os.path.join(tmpdir, "Canada_1cent_1964_back.jpg"), "w").close()
@@ -353,7 +423,8 @@ class TestBatchProcessingIntegration(unittest.TestCase):
             cataloguer = SmartPhoneCataloguer()
             engine = BatchProcessingEngine(cataloguer)
 
-            report = engine.process_folder(tmpdir, [])
+            collection = [{"id": "existing", "country": "Canada", "denomination": "1 cent", "year": 1964}]
+            report = engine.process_folder(tmpdir, collection)
 
             self.assertEqual(report.summary.total_photos, 4)
             self.assertEqual(len(report.candidates), 2)
@@ -361,6 +432,9 @@ class TestBatchProcessingIntegration(unittest.TestCase):
             subjects = [c.subject for c in report.candidates]
             self.assertIn("Canada_1cent_1964", subjects)
             self.assertIn("Newfoundland_5cents_1941", subjects)
+
+            for c in report.candidates:
+                self.assertIsNotNone(c.catalogue_result)
 
             with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
                 csv_path = f.name

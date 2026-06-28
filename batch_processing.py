@@ -1,15 +1,13 @@
 """
-Batch Processing Engine — v8.1 Phase 1
+Batch Processing Engine — v8.1 Phase 2
 
 Thin orchestration layer that processes a folder of photos through the
 existing Smart Phone Cataloguer pipeline.
 
-Design principles:
-- Favor reuse over invention
-- No new OCR, matching, or cataloguing logic
-- Phase 1: folder scanning, photo discovery, auto-pairing, candidate creation,
-  catalogue intake, summary, export
-- Phase 2+: OCR, matching, proposed-entry processing
+Phase 1: folder scanning, photo discovery, auto-pairing, candidate creation,
+         catalogue intake, summary, export
+Phase 2: Integration with OCR, collection matching, and proposed entries
+         via SmartPhoneCataloguer batch methods
 """
 
 import os
@@ -64,13 +62,13 @@ class BatchCandidate:
     front_path: Optional[str] = None
     back_path: Optional[str] = None
     subject: str = ""
-    ocr_result: Optional[OCRIdentificationReport] = None  # Phase 2+
-    collection_match: Optional[CollectionMatchResult] = None  # Phase 3+
-    proposed_entry: Optional[ProposedCollectionEntry] = None  # Phase 4+
+    ocr_result: Optional[OCRIdentificationReport] = None
+    collection_match: Optional[CollectionMatchResult] = None
+    proposed_entry: Optional[ProposedCollectionEntry] = None
     status: BatchStatus = BatchStatus.PENDING
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
-    catalogue_result: Optional[CatalogueResult] = None  # Phase 1: populated
+    catalogue_result: Optional[CatalogueResult] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -96,9 +94,9 @@ class BatchSummary:
     failed: int = 0
     ocr_ready: int = 0
     review_ready: int = 0
-    duplicates_detected: int = 0  # Phase 3+
-    upgrade_opportunities: int = 0  # Phase 3+
-    gap_opportunities: int = 0  # Phase 3+
+    duplicates_detected: int = 0
+    upgrade_opportunities: int = 0
+    gap_opportunities: int = 0
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
@@ -137,12 +135,10 @@ class BatchReport:
         """Export batch report to CSV."""
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            # Header
             writer.writerow([
                 "candidate_id", "subject", "status", "front_path", "back_path",
                 "warnings", "errors", "has_ocr", "has_match", "has_proposed_entry",
             ])
-            # Rows
             for c in self.candidates:
                 writer.writerow([
                     c.candidate_id,
@@ -156,7 +152,6 @@ class BatchReport:
                     "yes" if c.collection_match else "no",
                     "yes" if c.proposed_entry else "no",
                 ])
-            # Summary
             writer.writerow([])
             writer.writerow(["Summary"])
             writer.writerow(["total_photos", self.summary.total_photos])
@@ -184,21 +179,17 @@ class BatchReport:
             f"- Review ready: {self.summary.review_ready}",
             "",
         ]
-
         if self.summary.warnings:
             lines.extend(["### Warnings", ""])
             for w in self.summary.warnings:
                 lines.append(f"- {w}")
             lines.append("")
-
         if self.summary.errors:
             lines.extend(["### Errors", ""])
             for e in self.summary.errors:
                 lines.append(f"- {e}")
             lines.append("")
-
         lines.extend(["## Candidates", ""])
-
         for c in self.candidates:
             lines.append(f"### {c.candidate_id}")
             lines.append(f"- **Subject:** {c.subject}")
@@ -212,7 +203,6 @@ class BatchReport:
             if c.errors:
                 lines.append(f"- **Errors:** {', '.join(c.errors)}")
             lines.append("")
-
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
@@ -222,70 +212,36 @@ class BatchProcessingEngine:
 
     Phase 1: Folder scanning, photo discovery, auto-pairing, candidate creation,
              catalogue intake, summary, export.
-    Phase 2+: OCR, matching, proposed-entry processing.
+    Phase 2: Integration with OCR, collection matching, and proposed entries.
     """
 
     def __init__(self, cataloguer: SmartPhoneCataloguer):
-        """Initialize with an existing SmartPhoneCataloguer instance.
-
-        Args:
-            cataloguer: Configured SmartPhoneCataloguer with workflow and engines.
-        """
+        """Initialize with an existing SmartPhoneCataloguer instance."""
         self.cataloguer = cataloguer
 
     def _discover_photos(self, folder_path: str, file_pattern: str = "*.jpg") -> List[str]:
-        """Discover photo files in a folder matching the pattern.
-
-        Args:
-            folder_path: Path to folder containing photos.
-            file_pattern: Glob pattern for photo files.
-
-        Returns:
-            Sorted list of photo file paths.
-        """
+        """Discover photo files in a folder matching the pattern."""
         if not os.path.isdir(folder_path):
             raise ValueError(f"Folder not found: {folder_path}")
-
         pattern = os.path.join(folder_path, file_pattern)
         photos = sorted(glob.glob(pattern))
-
-        # Also check common variations
         if not photos and file_pattern == "*.jpg":
             for ext in ["*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"]:
                 alt_pattern = os.path.join(folder_path, ext)
                 photos.extend(glob.glob(alt_pattern))
             photos = sorted(set(photos))
-
         return photos
 
     def _auto_pair_photos(self, photos: List[str]) -> List[Dict[str, Optional[str]]]:
-        """Auto-pair front and back photos by filename.
-
-        Recognizes patterns like:
-        - IMG_0001_front.jpg / IMG_0001_back.jpg
-        - IMG_0001_obverse.jpg / IMG_0001_reverse.jpg
-        - IMG_0001.jpg / IMG_0001_back.jpg (single front implied)
-
-        Args:
-            photos: List of photo file paths.
-
-        Returns:
-            List of dicts with 'front' and 'back' keys.
-        """
+        """Auto-pair front and back photos by filename."""
         if not photos:
             return []
-
-        # Group photos by base name (without _front/_back/_obverse/_reverse suffixes)
         groups: Dict[str, Dict[str, str]] = {}
-
         for photo in photos:
             basename = os.path.basename(photo)
             name, _ = os.path.splitext(basename)
-
-            # Determine role from filename
             lower_name = name.lower()
             if any(suffix in lower_name for suffix in ["_back", "_reverse", "_rev"]):
-                # Extract base name by removing suffix
                 base = re.sub(r'_(back|reverse|rev)$', '', name, flags=re.IGNORECASE)
                 if base not in groups:
                     groups[base] = {}
@@ -296,37 +252,21 @@ class BatchProcessingEngine:
                     groups[base] = {}
                 groups[base]["front"] = photo
             else:
-                # No suffix — treat as front by default
                 if name not in groups:
                     groups[name] = {}
                 groups[name]["front"] = photo
-
-        # Convert groups to paired list
         paired = []
         for base, group in sorted(groups.items()):
-            paired.append({
-                "front": group.get("front"),
-                "back": group.get("back"),
-                "base_name": base,
-            })
-
+            paired.append({"front": group.get("front"), "back": group.get("back"), "base_name": base})
         return paired
 
     def _create_batch_items(self, paired_photos: List[Dict[str, Optional[str]]]) -> List[Dict[str, Any]]:
-        """Create batch items for SmartPhoneCataloguer from paired photos.
-
-        Args:
-            paired_photos: List of paired photo dicts.
-
-        Returns:
-            List of item dicts for batch_catalogue().
-        """
+        """Create batch items for SmartPhoneCataloguer from paired photos."""
         items = []
         for pair in paired_photos:
             front = pair.get("front")
             back = pair.get("back")
             base_name = pair.get("base_name", "unknown")
-
             item = {
                 "type": "coin",
                 "subject": base_name,
@@ -336,27 +276,13 @@ class BatchProcessingEngine:
                 "notes": f"Batch processing candidate: {base_name}",
             }
             items.append(item)
-
         return items
 
     def process_folder(self, folder_path: str,
                        collection_items: Iterable,
                        file_pattern: str = "*.jpg",
                        auto_pair: bool = True) -> BatchReport:
-        """Process an entire folder of photos.
-
-        Phase 1: Discovers photos, auto-pairs, creates candidates,
-        delegates to SmartPhoneCataloguer for catalogue intake.
-
-        Args:
-            folder_path: Path to folder containing photos.
-            collection_items: Current collection items for matching (Phase 3+).
-            file_pattern: Glob pattern for photo files.
-            auto_pair: Whether to auto-pair front/back photos.
-
-        Returns:
-            BatchReport with all candidates and summary.
-        """
+        """Process an entire folder of photos."""
         source = BatchSource(
             folder_path=folder_path,
             file_pattern=file_pattern,
@@ -368,12 +294,8 @@ class BatchProcessingEngine:
                 collection_items: Iterable) -> BatchReport:
         """Process a BatchSource through the existing pipeline.
 
-        Args:
-            source: BatchSource with folder path and options.
-            collection_items: Current collection items for matching (Phase 3+).
-
-        Returns:
-            BatchReport with all candidates and summary.
+        Phase 2: Strengthened integration with SmartPhoneCataloguer.
+        Uses batch methods for OCR, matching, and proposed entries.
         """
         report = BatchReport(source=source)
         summary = BatchSummary()
@@ -397,10 +319,9 @@ class BatchProcessingEngine:
         if source.auto_pair:
             paired = self._auto_pair_photos(photos)
         else:
-            # No pairing — each photo is a standalone front
             paired = [{"front": p, "back": None, "base_name": os.path.splitext(os.path.basename(p))[0]} for p in photos]
 
-        # Step 3: Create batch items and delegate to SmartPhoneCataloguer
+        # Step 3: Create batch items
         items = self._create_batch_items(paired)
 
         # Step 4: Run batch catalogue through existing engine
@@ -411,7 +332,8 @@ class BatchProcessingEngine:
             report.summary = summary
             return report
 
-        # Step 5: Create BatchCandidates from results
+        # Step 5: Create BatchCandidates from catalogue results
+        candidates = []
         for i, (item, catalogue_result) in enumerate(zip(items, batch_result.results)):
             candidate = BatchCandidate(
                 candidate_id=f"batch_{i:04d}_{item['subject']}",
@@ -432,16 +354,42 @@ class BatchProcessingEngine:
                 if catalogue_result.review_ready:
                     summary.review_ready += 1
 
-            # Phase 2+ placeholders
-            candidate.ocr_result = None
-            candidate.collection_match = None
-            candidate.proposed_entry = None
+            candidates.append(candidate)
 
-            report.candidates.append(candidate)
+        # Step 6: Phase 2 — Batch OCR identification via SmartPhoneCataloguer
+        try:
+            ocr_results = self.cataloguer.batch_identify([c.catalogue_result for c in candidates if c.catalogue_result])
+            for candidate, ocr_result in zip(candidates, ocr_results):
+                candidate.ocr_result = ocr_result
+        except Exception as e:
+            summary.warnings.append(f"Batch OCR failed: {str(e)}")
 
-        # Step 6: Add any batch-level errors
+        # Step 7: Phase 2 — Batch collection matching via SmartPhoneCataloguer
+        try:
+            match_results = self.cataloguer.batch_match([c.catalogue_result for c in candidates if c.catalogue_result], collection_items)
+            for candidate, match_result in zip(candidates, match_results):
+                candidate.collection_match = match_result
+                if match_result and match_result.is_duplicate:
+                    summary.duplicates_detected += 1
+                if match_result and match_result.is_upgrade:
+                    summary.upgrade_opportunities += 1
+                if match_result and match_result.is_gap:
+                    summary.gap_opportunities += 1
+        except Exception as e:
+            summary.warnings.append(f"Batch matching failed: {str(e)}")
+
+        # Step 8: Phase 2 — Batch proposed entries via SmartPhoneCataloguer
+        try:
+            proposed = self.cataloguer.batch_create_proposed_entries([c.catalogue_result for c in candidates if c.catalogue_result])
+            for candidate, proposed_entry in zip(candidates, proposed):
+                candidate.proposed_entry = proposed_entry
+        except Exception as e:
+            summary.warnings.append(f"Batch proposed entries failed: {str(e)}")
+
+        # Step 9: Add batch-level errors
         for error in batch_result.errors:
             summary.errors.append(error)
 
+        report.candidates = candidates
         report.summary = summary
         return report
