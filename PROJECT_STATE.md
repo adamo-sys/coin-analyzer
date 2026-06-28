@@ -3,13 +3,15 @@
 ## Current Version
 
 * Current release version: `v8.0`
+- Next planned release: `v8.1`
+- Active development target: `v8.1`
 * Current Git branch: `main`
-* Last updated date: 2026-06-27
+* Last updated date: 2026-06-28
 
 ## Last Release Tag
 
-* Most recent Git tag: `v7.5`
-* Summary of what was included: Collection Assistant with guided cataloguing workflow, photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration, export support, and 880-test regression coverage without AI, forecasting, or external APIs.
+* Most recent Git tag: `v8.0`
+* Summary of what was included: Smart Phone Cataloguer with photo capture integration, OCR identification, collection matching, cataloguing workflow, mobile-friendly GUI, and 959-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -172,9 +174,8 @@ Official v7.4 roadmap:
 v7.4 = Collection Assistant
 v7.5 = Numista Intelligence
 
-v8.0 = Smart Phone Cataloguer
-
-v8.1 = Batch Processing
+v8.0 = Smart Phone Cataloguer (released)
+- v8.1 = Batch Processing (active planning)
 v8.2 = AI Grading Assistant
 v8.3 = Collector Workspace
 v8.4 = Connected Data
@@ -219,7 +220,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v8.0 Smart Phone Cataloguer unless a release-blocking defect is found.
+Build v8.1 Batch Processing unless a release-blocking defect is found.
 
 
 ## Release Prompt Archive

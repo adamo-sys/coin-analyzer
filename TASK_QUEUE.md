@@ -1,5 +1,55 @@
 # Task Queue
 
+## v8.1 Batch Processing
+
+Status: Active planning — Phase 0 Roadmap Lock
+
+### Phase 0 — Roadmap Lock
+- [x] Create docs/releases/v8.1.md
+- [x] Create project_docs/release_prompts/v8.1.txt
+- [x] Create v8.1_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [ ] Update TASK_QUEUE.md (this file)
+- [ ] Update RELEASE_HISTORY.md
+- [ ] Commit Phase 0
+- [ ] Push Phase 0
+- [ ] Pass RELEASE GATE
+
+### Phase 1 — Core Engine
+- [ ] Design batch_processing.py public API
+- [ ] Implement BatchProcessingEngine
+- [ ] Implement BatchSource, BatchCandidate, BatchReport, BatchResult
+- [ ] Unit tests for public API
+
+### Phase 2 — Integration (Photo Capture + OCR)
+- [ ] Integrate PhotoCaptureWorkflow for batch sessions
+- [ ] Integrate OCRIdentificationEngine for batch identification
+- [ ] Handle per-image failures gracefully
+
+### Phase 3 — Integration (Collection Intelligence)
+- [ ] Integrate Collection Intelligence for batch analysis
+- [ ] Consolidated duplicate/upgrade/gap reports
+
+### Phase 4 — Workflow
+- [ ] Batch reporting and export (CSV/Markdown)
+- [ ] Dashboard integration
+
+### Phase 5 — GUI
+- [ ] Tools → Batch Processing menu item
+- [ ] Folder selection dialog
+- [ ] Progress dialog
+- [ ] Results review dialog
+
+### Phase 6 — Release
+- [ ] Final regression (959+ tests)
+- [ ] Metadata updates
+- [ ] Tag v8.1
+- [ ] Commit and push
+- [ ] Publish
+
+---
+
 Work through this queue in priority order. Handle only one task at a time.
 
 ## Status Legend

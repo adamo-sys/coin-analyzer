@@ -1,0 +1,27 @@
+v8.1 Batch Processing Release Prompt
+
+Process an entire folder of photos through the existing Smart Phone Cataloguer pipeline.
+
+Requirements:
+- Reuse Photo Capture Engine (photo_capture.py) for batch session creation
+- Reuse OCR Identification Engine (ocr_identification.py) for batch metadata extraction
+- Reuse Collection Intelligence Engine (collection_intelligence.py) for batch duplicate/upgrade/gap analysis
+- Reuse Smart Phone Cataloguer (smart_phone_cataloguer.py) for per-candidate processing
+- Create BatchProcessingEngine orchestration engine (batch_processing.py)
+- Design public API first, keep implementation thin
+- Support folder selection with auto-pairing front/back images
+- Handle per-image failures without aborting batch
+- Consolidated batch report with per-item details and summary statistics
+- CSV and Markdown export for batch results
+- Minimal GUI integration: Tools -> Batch Processing dialog
+- Progress indicators for long operations
+- No new external dependencies
+- No AI/ML models
+- No cloud services or APIs
+- All deterministic, local processing only
+
+Deliverables:
+- batch_processing.py
+- test_batch_processing.py
+- GUI integration in coin_collection_gui.py
+- Release docs and metadata updates

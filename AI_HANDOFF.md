@@ -2,14 +2,16 @@
 
 ## Snapshot
 
-- Date: 2026-06-27
+- Date: 2026-06-28
 - Branch: `main`
-- Current project state file reports release version: `v8.0` (in development)
-- Current active task: v8.1 Batch Processing
-- Last release: v8.0 Smart Phone Cataloguer
-- Implementation commit: `aacb5eb`
-- Release tag: `v7.5`
-- Release metadata commit: pending
+- Current project state file reports release version: `v8.0`
+- Next planned release: `v8.1`
+- Active development target: `v8.1`
+- Current active task: v8.1 Batch Processing Phase 0 (roadmap lock)
+- Last release: v8.0 Smart Phone Cataloguer (released)
+- Implementation commit: `68669ad`
+- Release tag: `v8.0`
+- Release metadata commit: `68669ad`
 
 ## Official v2.7-to-v3.0 Roadmap
 
