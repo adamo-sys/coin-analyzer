@@ -9,9 +9,13 @@ from smart_phone_cataloguer import (
     SmartPhoneCataloguer,
     CatalogueResult,
     BatchCatalogueResult,
+    CollectionMatchResult,
+    ProposedCollectionEntry,
     run_smart_phone_cataloguer,
 )
 from ocr_assisted_identification import OCRIdentificationEngine, OCRIdentificationReport
+from collection_intelligence import CollectionIntelligenceEngine, AcquisitionTarget
+from coin_collection import CoinItem
 from photo_capture_workflow import (
     PhotoCaptureWorkflow,
     PhotoCaptureSession,
@@ -415,5 +419,357 @@ class TestOCRIntegration(unittest.TestCase):
         report = cataloguer.identify_session(session)
 
         self.assertEqual(report, mock_report)
+
+
+class TestCollectionMatchingIntegration(unittest.TestCase):
+    """Verify CollectionIntelligenceEngine integration with SmartPhoneCataloguer."""
+
+    def setUp(self):
+        self.cataloguer = SmartPhoneCataloguer()
+        # Create mock collection items
+        self.collection_items = [
+            Mock(),
+            Mock(),
+        ]
+        self.collection_items[0].country = "Canada"
+        self.collection_items[0].denomination = "1 cent"
+        self.collection_items[0].year = "1964"
+        self.collection_items[0].grade = "VF-20"
+        self.collection_items[0].reference = ""
+        self.collection_items[0].numista_n = ""
+        self.collection_items[0].quantity = 1
+        self.collection_items[0].estimate_cad = 5.0
+
+        self.collection_items[1].country = "Canada"
+        self.collection_items[1].denomination = "1 cent"
+        self.collection_items[1].year = "1964"
+        self.collection_items[1].grade = "F-12"
+        self.collection_items[1].reference = ""
+        self.collection_items[1].numista_n = ""
+        self.collection_items[1].quantity = 1
+        self.collection_items[1].estimate_cad = 3.0
+
+    def test_match_against_collection_returns_match_result(self):
+        """Verify match_against_collection returns CollectionMatchResult."""
+        self.cataloguer.catalog_coin("Canada 1 cent 1964", "/tmp/f.jpg", "/tmp/b.jpg")
+        session = self.cataloguer.workflow.sessions[0]
+
+        result = self.cataloguer.match_against_collection(self.collection_items, session)
+        self.assertIsInstance(result, CollectionMatchResult)
+        self.assertEqual(result.subject, "Canada 1 cent 1964")
+        self.assertTrue(result.is_duplicate)  # Should detect duplicate
+        self.assertEqual(result.duplicate_count, 2)
+        self.assertTrue(result.is_upgrade_candidate)  # Should detect upgrade (VF-20 vs F-12)
+        self.assertEqual(result.current_best_grade, "VF-20")
+
+    def test_match_against_collection_no_session(self):
+        """Verify match_against_collection handles missing session."""
+        result = self.cataloguer.match_against_collection(self.collection_items, None)
+        self.assertIsInstance(result, CollectionMatchResult)
+        self.assertEqual(result.subject, "")
+
+    def test_batch_match_returns_dict(self):
+        """Verify batch_match returns mapping of session_id -> CollectionMatchResult."""
+        self.cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        self.cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
+
+        results = self.cataloguer.batch_match(self.collection_items)
+        self.assertIsInstance(results, dict)
+        self.assertEqual(len(results), 2)
+        for session_id, result in results.items():
+            self.assertIsInstance(session_id, str)
+            self.assertIsInstance(result, CollectionMatchResult)
+
+    def test_get_gap_report_delegates_to_engine(self):
+        """Verify get_gap_report delegates to CollectionIntelligenceEngine."""
+        report = self.cataloguer.get_gap_report(self.collection_items)
+        self.assertIsInstance(report, dict)
+        self.assertIn("summary", report)
+        self.assertIn("countries", report)
+        self.assertIn("denominations", report)
+        self.assertIn("series", report)
+        self.assertIn("missing_dates", report)
+        self.assertIn("duplicates", report)
+        self.assertIn("upgrade_candidates", report)
+        self.assertIn("priority_targets", report)
+
+    def test_get_want_list_delegates_to_engine(self):
+        """Verify get_want_list delegates to CollectionIntelligenceEngine."""
+        want_list = self.cataloguer.get_want_list(self.collection_items, limit=5)
+        self.assertIsInstance(want_list, list)
+        self.assertLessEqual(len(want_list), 5)
+
+    def test_catalogue_match_and_identify_combines_all_steps(self):
+        """Verify catalogue_match_and_identify combines catalogue + OCR + match."""
+        result = self.cataloguer.catalogue_match_and_identify(
+            collection_items=self.collection_items,
+            subject="Canada 1 cent 1964",
+            front_path="/tmp/front.jpg",
+            back_path="/tmp/back.jpg",
+        )
+        self.assertIsInstance(result, dict)
+        self.assertIn("catalogue", result)
+        self.assertIn("match", result)
+        self.assertEqual(result["catalogue"]["subject"], "Canada 1 cent 1964")
+        self.assertTrue(result["match"]["is_duplicate"])
+        self.assertTrue(result["match"]["is_upgrade_candidate"])
+
+    def test_match_against_collection_with_empty_collection(self):
+        """Verify match_against_collection handles empty collection."""
+        self.cataloguer.catalog_coin("Canada 1 cent 1964", "/tmp/f.jpg", "/tmp/b.jpg")
+        session = self.cataloguer.workflow.sessions[0]
+
+        result = self.cataloguer.match_against_collection([], session)
+        self.assertIsInstance(result, CollectionMatchResult)
+        self.assertFalse(result.is_duplicate)
+        self.assertEqual(result.duplicate_count, 0)
+
+    def test_collection_match_result_to_dict(self):
+        """Verify CollectionMatchResult serializes correctly."""
+        result = CollectionMatchResult(
+            session_id="test-123",
+            subject="Canada 1 cent 1964",
+            is_duplicate=True,
+            duplicate_count=2,
+            is_upgrade_candidate=True,
+            current_best_grade="VF-20",
+            gap_analysis={"series": "Canada / 1 cent", "completion_percentage": 85.0},
+            acquisition_targets=[{"country": "Canada", "denomination": "1 cent", "year": "1965"}],
+            message="Test message",
+        )
+        d = result.to_dict()
+        self.assertEqual(d["session_id"], "test-123")
+        self.assertTrue(d["is_duplicate"])
+        self.assertEqual(d["duplicate_count"], 2)
+        self.assertTrue(d["is_upgrade_candidate"])
+        self.assertEqual(d["current_best_grade"], "VF-20")
+        self.assertEqual(d["gap_analysis"]["completion_percentage"], 85.0)
+        self.assertEqual(len(d["acquisition_targets"]), 1)
+        self.assertEqual(d["message"], "Test message")
+
+
+class TestCataloguingWorkflow(unittest.TestCase):
+    """Verify read-only cataloguing workflow integration."""
+
+    def setUp(self):
+        self.cataloguer = SmartPhoneCataloguer()
+        # Create mock collection items
+        self.collection_items = [
+            Mock(),
+            Mock(),
+        ]
+        self.collection_items[0].country = "Canada"
+        self.collection_items[0].denomination = "1 cent"
+        self.collection_items[0].year = "1964"
+        self.collection_items[0].grade = "VF-20"
+        self.collection_items[0].reference = ""
+        self.collection_items[0].numista_n = ""
+        self.collection_items[0].quantity = 1
+        self.collection_items[0].estimate_cad = 5.0
+
+        self.collection_items[1].country = "Canada"
+        self.collection_items[1].denomination = "1 cent"
+        self.collection_items[1].year = "1964"
+        self.collection_items[1].grade = "F-12"
+        self.collection_items[1].reference = ""
+        self.collection_items[1].numista_n = ""
+        self.collection_items[1].quantity = 1
+        self.collection_items[1].estimate_cad = 3.0
+
+    def test_create_proposed_entry_returns_draft(self):
+        """Verify create_proposed_entry returns a read-only draft."""
+        self.cataloguer.catalog_coin("Canada 1 cent 1964", "/tmp/f.jpg", "/tmp/b.jpg")
+        session = self.cataloguer.workflow.sessions[0]
+
+        entry = self.cataloguer.create_proposed_entry(session)
+        self.assertIsInstance(entry, ProposedCollectionEntry)
+        self.assertEqual(entry.session_id, session.session_id)
+        self.assertEqual(entry.proposed_item["title"], "Canada 1 cent 1964")
+        self.assertEqual(entry.status, "pending_review")
+        self.assertEqual(len(entry.warnings), 0)
+        self.assertEqual(len(entry.recommendations), 0)
+        self.assertIsNone(entry.ocr_metadata)
+        self.assertIsNone(entry.match_analysis)
+
+    def test_create_proposed_entry_with_ocr(self):
+        """Verify create_proposed_entry includes OCR metadata when available."""
+        self.cataloguer.catalog_coin("Canada 1 cent 1964", "/tmp/f.jpg", "/tmp/b.jpg")
+        session = self.cataloguer.workflow.sessions[0]
+
+        # Run OCR
+        ocr_report = self.cataloguer.identify_session(session)
+
+        entry = self.cataloguer.create_proposed_entry(session, ocr_report=ocr_report)
+        self.assertIsInstance(entry, ProposedCollectionEntry)
+        if entry.ocr_metadata:
+            self.assertIn("candidate_count", entry.ocr_metadata)
+            self.assertIn("top_candidate_country", entry.ocr_metadata)
+
+    def test_create_proposed_entry_with_match(self):
+        """Verify create_proposed_entry includes match analysis when available."""
+        self.cataloguer.catalog_coin("Canada 1 cent 1964", "/tmp/f.jpg", "/tmp/b.jpg")
+        session = self.cataloguer.workflow.sessions[0]
+
+        # Run match
+        match_result = self.cataloguer.match_against_collection(self.collection_items, session)
+
+        entry = self.cataloguer.create_proposed_entry(session, match_result=match_result)
+        self.assertIsInstance(entry, ProposedCollectionEntry)
+        self.assertIsNotNone(entry.match_analysis)
+        if entry.match_analysis:
+            self.assertTrue(entry.match_analysis["is_duplicate"])
+            self.assertEqual(entry.match_analysis["duplicate_count"], 2)
+
+    def test_proposed_entry_to_coin_item(self):
+        """Verify ProposedCollectionEntry.to_coin_item creates a CoinItem for review."""
+        entry = ProposedCollectionEntry(
+            session_id="test-123",
+            proposed_item={
+                "id": "proposed_test-123",
+                "image_path": "/tmp/f.jpg",
+                "country": "Canada",
+                "denomination": "1 cent",
+                "year": "1964",
+                "grade": "VF-20",
+                "notes": "Test notes",
+                "date_added": "2026-01-01T00:00:00",
+                "auto_detected": True,
+                "detection_confidence": 0.85,
+                "title": "Canada 1 cent 1964",
+                "quantity": 1,
+                "estimate_cad": 5.0,
+            },
+            status="pending_review",
+        )
+
+        coin_item = entry.to_coin_item()
+        self.assertIsInstance(coin_item, CoinItem)
+        self.assertEqual(coin_item.country, "Canada")
+        self.assertEqual(coin_item.denomination, "1 cent")
+        self.assertEqual(coin_item.year, "1964")
+        self.assertEqual(coin_item.grade, "VF-20")
+        self.assertEqual(coin_item.title, "Canada 1 cent 1964")
+        self.assertTrue(coin_item.auto_detected)
+        self.assertEqual(coin_item.detection_confidence, 0.85)
+
+    def test_proposed_entry_to_dict(self):
+        """Verify ProposedCollectionEntry serializes correctly."""
+        entry = ProposedCollectionEntry(
+            session_id="test-123",
+            proposed_item={"id": "p1", "country": "Canada"},
+            ocr_metadata={"candidate_count": 3},
+            match_analysis={"is_duplicate": True},
+            confidence_score=0.85,
+            warnings=["Duplicate detected"],
+            recommendations=["Review before adding"],
+            status="duplicate_detected",
+        )
+
+        d = entry.to_dict()
+        self.assertEqual(d["session_id"], "test-123")
+        self.assertEqual(d["proposed_item"]["country"], "Canada")
+        self.assertEqual(d["confidence_score"], 0.85)
+        self.assertEqual(d["status"], "duplicate_detected")
+        self.assertEqual(len(d["warnings"]), 1)
+        self.assertEqual(len(d["recommendations"]), 1)
+        self.assertTrue(d["match_analysis"]["is_duplicate"])
+
+    def test_review_entry_returns_structured_review(self):
+        """Verify review_entry returns structured review object."""
+        entry = ProposedCollectionEntry(
+            session_id="test-123",
+            proposed_item={"id": "p1"},
+            status="duplicate_detected",
+            warnings=["Duplicate detected"],
+            recommendations=["Review before adding"],
+        )
+
+        review = self.cataloguer.review_entry(entry)
+        self.assertIsInstance(review, dict)
+        self.assertEqual(review["session_id"], "test-123")
+        self.assertEqual(review["status"], "duplicate_detected")
+        self.assertTrue(review["requires_user_review"])
+        self.assertFalse(review["can_add_to_collection"])
+        self.assertIn("review_guidance", review)
+        self.assertIn("duplicate", review["review_guidance"].lower())
+
+    def test_review_entry_gap_fill(self):
+        """Verify review_entry for gap fill status."""
+        entry = ProposedCollectionEntry(
+            session_id="test-123",
+            proposed_item={"id": "p1"},
+            status="gap_fill",
+            warnings=[],
+            recommendations=["Fills gap in series"],
+        )
+
+        review = self.cataloguer.review_entry(entry)
+        self.assertTrue(review["can_add_to_collection"])
+        self.assertIn("gap", review["review_guidance"].lower())
+
+    def test_batch_create_proposed_entries(self):
+        """Verify batch_create_proposed_entries creates drafts for all sessions."""
+        self.cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        self.cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
+
+        entries = self.cataloguer.batch_create_proposed_entries(self.collection_items)
+        self.assertEqual(len(entries), 2)
+        for entry in entries:
+            self.assertIsInstance(entry, ProposedCollectionEntry)
+            self.assertEqual(entry.status, "pending_review")
+
+    def test_full_catalogue_workflow_returns_complete_review(self):
+        """Verify full_catalogue_workflow returns complete structured review."""
+        result = self.cataloguer.full_catalogue_workflow(
+            collection_items=self.collection_items,
+            subject="Canada 1 cent 1964",
+            front_path="/tmp/front.jpg",
+            back_path="/tmp/back.jpg",
+        )
+
+        self.assertIsInstance(result, dict)
+        self.assertTrue(result["workflow_complete"])
+        self.assertTrue(result["requires_user_confirmation"])
+        self.assertIn("catalogue", result)
+        self.assertIn("match", result)
+        self.assertIn("proposed_entry", result)
+        self.assertIn("review", result)
+
+        # Verify no collection mutation occurred
+        self.assertEqual(len(self.cataloguer.workflow.sessions), 1)
+
+    def test_full_catalogue_workflow_no_collection_mutation(self):
+        """Verify full_catalogue_workflow does not mutate the collection."""
+        initial_count = len(self.collection_items)
+
+        result = self.cataloguer.full_catalogue_workflow(
+            collection_items=self.collection_items,
+            subject="Canada 1 cent 1964",
+            front_path="/tmp/front.jpg",
+            back_path="/tmp/back.jpg",
+        )
+
+        # Collection should not have changed
+        self.assertEqual(len(self.collection_items), initial_count)
+
+        # Result should be a review object, not a collection item
+        self.assertIn("proposed_entry", result)
+        self.assertIn("review", result)
+        self.assertTrue(result["requires_user_confirmation"])
+
+    def test_proposed_entry_status_values(self):
+        """Verify all expected status values are handled."""
+        statuses = ["pending_review", "duplicate_detected", "upgrade_candidate", "gap_fill"]
+        for status in statuses:
+            entry = ProposedCollectionEntry(
+                session_id="test",
+                proposed_item={"id": "p1"},
+                status=status,
+            )
+            self.assertEqual(entry.status, status)
+
+            review = self.cataloguer.review_entry(entry)
+            self.assertIn("review_guidance", review)
+            self.assertTrue(review["requires_user_review"])
 if __name__ == '__main__':
     unittest.main()
