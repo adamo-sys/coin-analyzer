@@ -12,6 +12,7 @@ from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
 from coin_collection import CoinCollectionApp, CoinItem
 from numista_intelligence import NumistaIntelligenceEngine
+from smart_phone_cataloguer import SmartPhoneCataloguer
 from collection_intelligence import CollectionIntelligenceEngine
 from platform_analytics import PlatformAnalyticsEngine
 from deal_hunter import DealHunter, DealListing
@@ -271,6 +272,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Phone Photo Capture", command=self.open_phone_photo_capture)
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_command(label="Numista Intelligence", command=self.open_numista_intelligence)
+        tools_menu.add_command(label="Smart Phone Cataloguer", command=self.open_smart_phone_cataloguer)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -7467,6 +7469,210 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
+    def open_smart_phone_cataloguer(self):
+        """Open Smart Phone Cataloguer workflow.
+
+        Provides a streamlined interface for cataloguing coins from phone photos
+        using the SmartPhoneCataloguer orchestration engine.
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Smart Phone Cataloguer")
+        dialog.geometry("900x800")
+
+        cataloguer = SmartPhoneCataloguer()
+        current_result = {"result": None}
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Photo Selection Section ---
+        photo_frame = ttk.LabelFrame(main_frame, text="Photo Selection", padding="10")
+        photo_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Coin Front Photo
+        front_var = tk.StringVar()
+        ttk.Label(photo_frame, text="Front Photo:").grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(photo_frame, textvariable=front_var, width=60).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=3)
+
+        def browse_front():
+            path = filedialog.askopenfilename(
+                title="Select Front Photo",
+                filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*")]
+            )
+            if path:
+                front_var.set(path)
+
+        ttk.Button(photo_frame, text="Browse", command=browse_front).grid(row=0, column=2, sticky=tk.W, padx=(6, 0), pady=3)
+
+        # Coin Back Photo
+        back_var = tk.StringVar()
+        ttk.Label(photo_frame, text="Back Photo:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(photo_frame, textvariable=back_var, width=60).grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=3)
+
+        def browse_back():
+            path = filedialog.askopenfilename(
+                title="Select Back Photo",
+                filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp"), ("All files", "*.*")]
+            )
+            if path:
+                back_var.set(path)
+
+        ttk.Button(photo_frame, text="Browse", command=browse_back).grid(row=1, column=2, sticky=tk.W, padx=(6, 0), pady=3)
+        photo_frame.columnconfigure(1, weight=1)
+
+        # Subject/Description
+        subject_frame = ttk.Frame(main_frame)
+        subject_frame.pack(fill=tk.X, pady=(0, 10))
+
+        subject_var = tk.StringVar(value="")
+        ttk.Label(subject_frame, text="Subject/Description:").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(subject_frame, textvariable=subject_var, width=70).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # --- Results Display ---
+        result_frame = ttk.LabelFrame(main_frame, text="Cataloguing Results", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD, height=20)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        # --- Button Frame ---
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def run_catalogue_workflow():
+            """Run the complete Smart Phone Cataloguer workflow."""
+            try:
+                front_path = front_var.get()
+                back_path = back_var.get()
+                subject = subject_var.get() or "Unknown Item"
+
+                if not front_path and not back_path:
+                    messagebox.showwarning("No Photos", "Please select at least one photo.")
+                    return
+
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, "Running Smart Phone Cataloguer Workflow...\n")
+                result_text.insert(tk.END, f"Subject: {subject}\n")
+                result_text.insert(tk.END, f"Front: {front_path or 'Not provided'}\n")
+                result_text.insert(tk.END, f"Back: {back_path or 'Not provided'}\n\n")
+
+                # Step 1: Catalogue photos
+                catalogue_result = cataloguer.catalog_coin(
+                    subject=subject,
+                    front_path=front_path,
+                    back_path=back_path,
+                )
+
+                result_text.insert(tk.END, f"=== Photo Capture ===\n")
+                result_text.insert(tk.END, f"Session ID: {catalogue_result.session_id}\n")
+                result_text.insert(tk.END, f"Status: {catalogue_result.status}\n")
+                result_text.insert(tk.END, f"Photos: {len(catalogue_result.photos)}\n")
+                result_text.insert(tk.END, f"OCR Ready: {catalogue_result.ocr_ready}\n")
+                result_text.insert(tk.END, f"Review Ready: {catalogue_result.review_ready}\n\n")
+
+                if not catalogue_result.ocr_ready:
+                    result_text.insert(tk.END, "Session not ready for OCR. Please provide both front and back photos.\n")
+                    current_result["result"] = catalogue_result
+                    return
+
+                # Step 2: Run OCR identification
+                result_text.insert(tk.END, "=== OCR Identification ===\n")
+                session = cataloguer.workflow.sessions[-1]
+                ocr_report = cataloguer.identify_session(session)
+
+                result_text.insert(tk.END, f"OCR Candidates: {len(ocr_report.candidates)}\n")
+                if ocr_report.candidates:
+                    top = ocr_report.candidates[0]
+                    result_text.insert(tk.END, f"Top Candidate: {top.country} {top.denomination} {top.year}\n")
+                    result_text.insert(tk.END, f"Confidence: {getattr(top, 'confidence_score', 'N/A')}\n")
+                result_text.insert(tk.END, "\n")
+
+                # Step 3: Collection matching
+                result_text.insert(tk.END, "=== Collection Matching ===\n")
+                collection_items = self._collection_items()
+                match_result = cataloguer.match_against_collection(collection_items, session)
+
+                result_text.insert(tk.END, f"Duplicate: {match_result.is_duplicate}\n")
+                result_text.insert(tk.END, f"Duplicate Count: {match_result.duplicate_count}\n")
+                result_text.insert(tk.END, f"Upgrade Candidate: {match_result.is_upgrade_candidate}\n")
+                if match_result.is_upgrade_candidate:
+                    result_text.insert(tk.END, f"Current Best Grade: {match_result.current_best_grade}\n")
+                result_text.insert(tk.END, "\n")
+
+                # Step 4: Create proposed entry
+                result_text.insert(tk.END, "=== Proposed Collection Entry ===\n")
+                proposed_entry = cataloguer.create_proposed_entry(session, ocr_report, match_result)
+
+                result_text.insert(tk.END, f"Status: {proposed_entry.status}\n")
+                result_text.insert(tk.END, f"Confidence Score: {proposed_entry.confidence_score:.2f}\n")
+
+                if proposed_entry.warnings:
+                    result_text.insert(tk.END, "\nWarnings:\n")
+                    for warning in proposed_entry.warnings:
+                        result_text.insert(tk.END, f"- {warning}\n")
+
+                if proposed_entry.recommendations:
+                    result_text.insert(tk.END, "\nRecommendations:\n")
+                    for rec in proposed_entry.recommendations:
+                        result_text.insert(tk.END, f"- {rec}\n")
+
+                # Step 5: Generate review
+                result_text.insert(tk.END, "\n=== Review ===\n")
+                review = cataloguer.review_entry(proposed_entry)
+
+                result_text.insert(tk.END, f"Can Add to Collection: {review['can_add_to_collection']}\n")
+                result_text.insert(tk.END, f"Requires User Review: {review['requires_user_review']}\n")
+                result_text.insert(tk.END, f"\n{review['review_guidance']}\n")
+
+                result_text.insert(tk.END, "\n=== Workflow Complete ===\n")
+                result_text.insert(tk.END, "This is a read-only proposed entry. No collection mutation has occurred.\n")
+                result_text.insert(tk.END, "Use the Collection Assistant to add items after review.\n")
+
+                current_result["result"] = {
+                    "catalogue": catalogue_result,
+                    "ocr": ocr_report,
+                    "match": match_result,
+                    "proposed": proposed_entry,
+                    "review": review,
+                }
+
+            except Exception as e:
+                messagebox.showerror("Cataloguer Error", f"Workflow failed: {str(e)}")
+                result_text.insert(tk.END, f"\nError: {str(e)}\n")
+
+        def export_report():
+            """Export the current workflow results."""
+            if not current_result["result"]:
+                messagebox.showwarning("No Results", "Please run the workflow first.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                title="Export Smart Phone Cataloguer Report",
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if file_path:
+                try:
+                    with open(file_path, 'w') as f:
+                        f.write(result_text.get("1.0", tk.END))
+                    messagebox.showinfo("Success", f"Report exported to {file_path}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export: {str(e)}")
+
+        def clear_form():
+            """Clear all form fields."""
+            front_var.set("")
+            back_var.set("")
+            subject_var.set("")
+            result_text.delete("1.0", tk.END)
+            current_result["result"] = None
+
+        # Large buttons for mobile-friendly layout
+        ttk.Button(button_frame, text="Run Workflow", command=run_catalogue_workflow).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Report", command=export_report).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Clear", command=clear_form).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
 
 def main():
     """Main application entry point."""
