@@ -5,8 +5,8 @@
 - Date: 2026-06-27
 - Branch: `main`
 - Current project state file reports release version: `v8.0` (in development)
-- Current active task: v8.0 Smart Phone Cataloguer — Phase 1: Photo Capture Integration
-- Last release: v7.5 Numista Intelligence
+- Current active task: v8.1 Batch Processing
+- Last release: v8.0 Smart Phone Cataloguer
 - Implementation commit: `aacb5eb`
 - Release tag: `v7.5`
 - Release metadata commit: pending

@@ -131,7 +131,7 @@ Work through this queue in priority order. Handle only one task at a time.
 
 1. `v7.4` Collection Assistant
 2. `[x]` `v7.5` Numista Intelligence
-3. `v8.0` Smart Phone Cataloguer
+3. `[x]` `v8.0` Smart Phone Cataloguer
 4. `v8.1` Batch Processing
 5. `v8.2` AI Grading Assistant
 6. `v8.3` Collector Workspace
