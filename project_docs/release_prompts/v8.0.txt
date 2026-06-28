@@ -1,0 +1,27 @@
+v8.0 Smart Phone Cataloguer Release Prompt
+
+Build a phone-photo-to-collection cataloguing workflow by reusing existing engines.
+
+Requirements:
+- Reuse Photo Capture Engine (photo_capture.py) for image acquisition
+- Reuse OCR Identification Engine (ocr_identification.py) for metadata extraction
+- Reuse Collection Intelligence Engine (collection_intelligence.py) for duplicate detection and gap analysis
+- Reuse Coin Collection models (coin_collection.py) for data storage
+- Create SmartPhoneCataloguer orchestration engine (smart_phone_cataloguer.py)
+- Support batch photo processing from phone gallery
+- Display OCR results with confidence scores and manual correction
+- Match identified coins against existing collection
+- Auto-populate cataloguing fields from OCR + matching results
+- Minimal GUI integration: Tools -> Smart Phone Cataloguer dialog
+- Mobile-friendly layout: larger buttons, simplified flow, clear progress indicators
+- Export batch results to CSV/JSON
+- No new external dependencies
+- No AI/ML models
+- No cloud services or APIs
+- All deterministic, local processing only
+
+Deliverables:
+- smart_phone_cataloguer.py
+- test_smart_phone_cataloguer.py
+- GUI integration in coin_collection_gui.py
+- Release docs and metadata updates

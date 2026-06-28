@@ -2,7 +2,7 @@
 
 ## Current Version
 
-* Current release version: `v7.5`
+* Current release version: `v8.0` (in development)
 * Current Git branch: `main`
 * Last updated date: 2026-06-27
 

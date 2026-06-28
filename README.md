@@ -1,6 +1,6 @@
 # Coin Analyzer
 
-Current version: `v7.5`
+Current version: `v8.0` (in development)
 
 Latest tagged release: `v7.5`
 
