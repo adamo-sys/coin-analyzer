@@ -29,8 +29,11 @@ from photo_capture_workflow import (
     SOURCE_IMPORT,
 )
 
+from ocr_assisted_identification import OCRIdentificationEngine, OCRIdentificationReport
+
 
 @dataclass
+
 class CatalogueResult:
     """Result of a single photo cataloguing attempt."""
     session_id: str
@@ -40,6 +43,7 @@ class CatalogueResult:
     ocr_ready: bool
     review_ready: bool
     message: str
+    ocr_report: Optional[OCRIdentificationReport] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -50,6 +54,7 @@ class CatalogueResult:
             "ocr_ready": self.ocr_ready,
             "review_ready": self.review_ready,
             "message": self.message,
+            "ocr_candidate_count": len(self.ocr_report.candidates) if self.ocr_report else 0,
         }
 
 
@@ -256,6 +261,49 @@ class SmartPhoneCataloguer:
             review_ready=session.ready_for_review,
             message=f"Session {session.session_id}: {len(session.photos)} photo(s), status: {status}",
         )
+
+
+    def identify_session(self, session: PhotoCaptureSession, raw_text_by_photo_id: Optional[Dict[str, str]] = None) -> OCRIdentificationReport:
+        """Run OCR identification on a completed photo capture session.
+
+        Reuses OCRIdentificationEngine.identify_from_session() for metadata extraction.
+        """
+        engine = OCRIdentificationEngine()
+        return engine.identify_from_session(session, raw_text_by_photo_id=raw_text_by_photo_id)
+
+    def identify_photo(self, photo: CapturedPhoto, raw_text: Optional[str] = None) -> OCRIdentificationReport:
+        """Run OCR identification on a single captured photo.
+
+        Reuses OCRIdentificationEngine.identify_from_captured_photo() for metadata extraction.
+        """
+        engine = OCRIdentificationEngine()
+        return engine.identify_from_captured_photo(photo, raw_text=raw_text)
+
+    def batch_identify(self, raw_text_by_photo_id: Optional[Dict[str, str]] = None) -> Dict[str, OCRIdentificationReport]:
+        """Run OCR identification on all sessions in the workflow.
+
+        Returns a mapping of session_id -> OCRIdentificationReport.
+        """
+        results = {}
+        for session in self.workflow.sessions:
+            if session.ready_for_ocr:
+                results[session.session_id] = self.identify_session(session, raw_text_by_photo_id)
+        return results
+
+    def catalogue_and_identify(self, subject: str, front_path: str = "", back_path: str = "",
+                                location: str = "", notes: str = "",
+                                raw_text_by_photo_id: Optional[Dict[str, str]] = None) -> CatalogueResult:
+        """Catalogue a coin and immediately run OCR identification.
+
+        Combines catalog_coin() + identify_session() for streamlined workflow.
+        """
+        result = self.catalog_coin(subject, front_path, back_path, location, notes)
+        if result.ocr_ready:
+            session = self.workflow.sessions[-1]
+            ocr_report = self.identify_session(session, raw_text_by_photo_id)
+            result.ocr_report = ocr_report
+            result.message += f" | OCR: {ocr_report.candidate_count} candidate(s)"
+        return result
 
 
 def run_smart_phone_cataloguer(items: List[Dict[str, Any]]) -> BatchCatalogueResult:

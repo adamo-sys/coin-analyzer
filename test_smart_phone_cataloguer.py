@@ -11,6 +11,7 @@ from smart_phone_cataloguer import (
     BatchCatalogueResult,
     run_smart_phone_cataloguer,
 )
+from ocr_assisted_identification import OCRIdentificationEngine, OCRIdentificationReport
 from photo_capture_workflow import (
     PhotoCaptureWorkflow,
     PhotoCaptureSession,
@@ -312,5 +313,107 @@ class TestOrchestrationReusesWorkflow(unittest.TestCase):
         self.assertEqual(len(records), 1)
 
 
+
+
+class TestOCRIntegration(unittest.TestCase):
+    """Verify OCR identification integration with SmartPhoneCataloguer."""
+
+    def setUp(self):
+        self.cataloguer = SmartPhoneCataloguer()
+
+    def test_identify_photo_delegates_to_ocr_engine(self):
+        """Verify that identify_photo delegates to OCRIdentificationEngine."""
+        # Create a mock photo
+        photo = CapturedPhoto(
+            photo_id="test-photo-1",
+            file_path="/tmp/test.jpg",
+            photo_role=ROLE_COIN_FRONT,
+        )
+
+        report = self.cataloguer.identify_photo(photo)
+        self.assertIsInstance(report, OCRIdentificationReport)
+        self.assertIsNotNone(report.candidates)
+
+    def test_identify_session_delegates_to_ocr_engine(self):
+        """Verify that identify_session delegates to OCRIdentificationEngine."""
+        session = self.cataloguer.workflow.start_session(SESSION_COIN_FRONT_BACK, subject="Test")
+        self.cataloguer.add_photo_to_session(session, "/tmp/front.jpg", ROLE_COIN_FRONT)
+        self.cataloguer.add_photo_to_session(session, "/tmp/back.jpg", ROLE_COIN_BACK)
+
+        report = self.cataloguer.identify_session(session)
+        self.assertIsInstance(report, OCRIdentificationReport)
+
+    def test_batch_identify_returns_dict_of_reports(self):
+        """Verify batch_identify returns mapping of session_id -> OCRIdentificationReport."""
+        self.cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        self.cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
+
+        results = self.cataloguer.batch_identify()
+        self.assertIsInstance(results, dict)
+        self.assertEqual(len(results), 2)
+        for session_id, report in results.items():
+            self.assertIsInstance(session_id, str)
+            self.assertIsInstance(report, OCRIdentificationReport)
+
+    def test_batch_identify_skips_incomplete_sessions(self):
+        """Verify batch_identify only processes sessions ready for OCR."""
+        self.cataloguer.catalog_coin("Complete", "/tmp/f.jpg", "/tmp/b.jpg")
+        self.cataloguer.catalog_coin("Incomplete", "/tmp/f.jpg")  # Missing back
+
+        results = self.cataloguer.batch_identify()
+        self.assertEqual(len(results), 1)  # Only complete session
+
+    def test_catalogue_and_identify_combines_both_steps(self):
+        """Verify catalogue_and_identify runs cataloguing + OCR in one call."""
+        result = self.cataloguer.catalogue_and_identify(
+            subject="Canada 1 cent 1964",
+            front_path="/tmp/front.jpg",
+            back_path="/tmp/back.jpg",
+        )
+        self.assertIsInstance(result, CatalogueResult)
+        self.assertIsNotNone(result.ocr_report)
+        self.assertIsInstance(result.ocr_report, OCRIdentificationReport)
+        self.assertIn("OCR:", result.message)
+
+    def test_catalogue_and_identify_with_raw_text(self):
+        """Verify catalogue_and_identify passes raw text to OCR engine."""
+        raw_text = {"test-photo-1": "Canada 1 cent 1964"}
+        result = self.cataloguer.catalogue_and_identify(
+            subject="Canada 1 cent 1964",
+            front_path="/tmp/front.jpg",
+            back_path="/tmp/back.jpg",
+            raw_text_by_photo_id=raw_text,
+        )
+        self.assertIsNotNone(result.ocr_report)
+
+    def test_identify_photo_with_mock_ocr(self):
+        """Verify identify_photo with mocked OCR engine."""
+        mock_engine = Mock(spec=OCRIdentificationEngine)
+        mock_report = Mock(spec=OCRIdentificationReport)
+        mock_report.candidates = []
+        mock_engine.identify_from_captured_photo.return_value = mock_report
+
+        cataloguer = SmartPhoneCataloguer()
+        cataloguer.identify_photo = lambda photo, raw_text=None: mock_engine.identify_from_captured_photo(photo, raw_text=raw_text)
+
+        photo = CapturedPhoto(photo_id="test", file_path="/tmp/test.jpg", photo_role=ROLE_COIN_FRONT)
+        report = cataloguer.identify_photo(photo)
+
+        self.assertEqual(report, mock_report)
+
+    def test_identify_session_with_mock_ocr(self):
+        """Verify identify_session with mocked OCR engine."""
+        mock_engine = Mock(spec=OCRIdentificationEngine)
+        mock_report = Mock(spec=OCRIdentificationReport)
+        mock_report.candidates = []
+        mock_engine.identify_from_session.return_value = mock_report
+
+        cataloguer = SmartPhoneCataloguer()
+        cataloguer.identify_session = lambda session, raw_text=None: mock_engine.identify_from_session(session, raw_text_by_photo_id=raw_text)
+
+        session = cataloguer.workflow.start_session(SESSION_COIN_FRONT_BACK, subject="Test")
+        report = cataloguer.identify_session(session)
+
+        self.assertEqual(report, mock_report)
 if __name__ == '__main__':
     unittest.main()
