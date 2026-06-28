@@ -1,5 +1,5 @@
 """
-Batch Processing Engine — v8.1 Phase 3
+Batch Processing Engine — v8.1 Phase 4
 
 Thin orchestration layer that processes a folder of photos through the
 existing Smart Phone Cataloguer pipeline.
@@ -11,6 +11,10 @@ Phase 2: Integration with OCR, collection matching, and proposed entries
 Phase 3: Collection Intelligence and Deal Hunter batch outputs
          — gap reports, duplicate detection, upgrade candidates,
            acquisition priorities, and deal evaluation
+Phase 4: Batch Review Workflow
+         — review states (approve, reject, needs-review),
+           per-candidate review decisions, review summaries,
+           improved export with review states
 """
 
 import os
@@ -37,12 +41,20 @@ from deal_hunter import DealHunter, DealListing, DealHunterResult, DealHunterRep
 
 
 class BatchStatus(Enum):
-    """Status of a batch candidate."""
+    """Processing status of a batch candidate."""
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
     PARTIAL = "partial"
+
+
+class ReviewStatus(Enum):
+    """Review status of a batch candidate."""
+    UNREVIEWED = "unreviewed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NEEDS_REVIEW = "needs_review"
 
 
 @dataclass
@@ -71,6 +83,8 @@ class BatchCandidate:
     collection_match: Optional[CollectionMatchResult] = None
     proposed_entry: Optional[ProposedCollectionEntry] = None
     status: BatchStatus = BatchStatus.PENDING
+    review_status: ReviewStatus = ReviewStatus.UNREVIEWED
+    review_notes: str = ""
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     catalogue_result: Optional[CatalogueResult] = None
@@ -82,6 +96,8 @@ class BatchCandidate:
             "back_path": self.back_path,
             "subject": self.subject,
             "status": self.status.value,
+            "review_status": self.review_status.value,
+            "review_notes": self.review_notes,
             "warnings": self.warnings,
             "errors": self.errors,
             "has_ocr_result": self.ocr_result is not None,
@@ -89,6 +105,31 @@ class BatchCandidate:
             "has_proposed_entry": self.proposed_entry is not None,
             "catalogue_result": self.catalogue_result.to_dict() if self.catalogue_result else None,
         }
+
+    def is_reviewable(self) -> bool:
+        """Return True if candidate can be reviewed (completed, not failed)."""
+        return self.status == BatchStatus.COMPLETED
+
+    def approve(self, notes: str = "") -> None:
+        """Approve this candidate."""
+        if not self.is_reviewable():
+            raise ValueError(f"Cannot approve candidate with status {self.status.value}")
+        self.review_status = ReviewStatus.APPROVED
+        self.review_notes = notes
+
+    def reject(self, notes: str = "") -> None:
+        """Reject this candidate."""
+        if not self.is_reviewable():
+            raise ValueError(f"Cannot reject candidate with status {self.status.value}")
+        self.review_status = ReviewStatus.REJECTED
+        self.review_notes = notes
+
+    def mark_needs_review(self, notes: str = "") -> None:
+        """Mark candidate as needing manual review."""
+        if not self.is_reviewable():
+            raise ValueError(f"Cannot mark candidate with status {self.status.value}")
+        self.review_status = ReviewStatus.NEEDS_REVIEW
+        self.review_notes = notes
 
 
 @dataclass
@@ -102,6 +143,10 @@ class BatchSummary:
     duplicates_detected: int = 0
     upgrade_opportunities: int = 0
     gap_opportunities: int = 0
+    reviewed_count: int = 0
+    approved_count: int = 0
+    rejected_count: int = 0
+    needs_review_count: int = 0
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
@@ -115,6 +160,10 @@ class BatchSummary:
             "duplicates_detected": self.duplicates_detected,
             "upgrade_opportunities": self.upgrade_opportunities,
             "gap_opportunities": self.gap_opportunities,
+            "reviewed_count": self.reviewed_count,
+            "approved_count": self.approved_count,
+            "rejected_count": self.rejected_count,
+            "needs_review_count": self.needs_review_count,
             "warnings": self.warnings,
             "errors": self.errors,
         }
@@ -157,12 +206,44 @@ class BatchReport:
             "created_at": self.created_at,
         }
 
+    def review_summary(self) -> Dict[str, Any]:
+        """Return a summary of review states across all candidates."""
+        total = len(self.candidates)
+        reviewable = [c for c in self.candidates if c.is_reviewable()]
+        approved = [c for c in self.candidates if c.review_status == ReviewStatus.APPROVED]
+        rejected = [c for c in self.candidates if c.review_status == ReviewStatus.REJECTED]
+        needs_review = [c for c in self.candidates if c.review_status == ReviewStatus.NEEDS_REVIEW]
+        unreviewed = [c for c in self.candidates if c.review_status == ReviewStatus.UNREVIEWED]
+
+        return {
+            "total_candidates": total,
+            "reviewable": len(reviewable),
+            "approved": len(approved),
+            "rejected": len(rejected),
+            "needs_review": len(needs_review),
+            "unreviewed": len(unreviewed),
+            "review_completion_pct": (len(approved) + len(rejected)) / len(reviewable) * 100 if reviewable else 0,
+        }
+
+    def approved_candidates(self) -> List[BatchCandidate]:
+        """Return all approved candidates."""
+        return [c for c in self.candidates if c.review_status == ReviewStatus.APPROVED]
+
+    def rejected_candidates(self) -> List[BatchCandidate]:
+        """Return all rejected candidates."""
+        return [c for c in self.candidates if c.review_status == ReviewStatus.REJECTED]
+
+    def needs_review_candidates(self) -> List[BatchCandidate]:
+        """Return all candidates marked as needs-review."""
+        return [c for c in self.candidates if c.review_status == ReviewStatus.NEEDS_REVIEW]
+
     def export_csv(self, path: str) -> None:
         """Export batch report to CSV."""
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "candidate_id", "subject", "status", "front_path", "back_path",
+                "candidate_id", "subject", "status", "review_status", "review_notes",
+                "front_path", "back_path",
                 "warnings", "errors", "has_ocr", "has_match", "has_proposed_entry",
             ])
             for c in self.candidates:
@@ -170,6 +251,8 @@ class BatchReport:
                     c.candidate_id,
                     c.subject,
                     c.status.value,
+                    c.review_status.value,
+                    c.review_notes,
                     c.front_path or "",
                     c.back_path or "",
                     "; ".join(c.warnings) if c.warnings else "",
@@ -188,9 +271,14 @@ class BatchReport:
             writer.writerow(["duplicates_detected", self.summary.duplicates_detected])
             writer.writerow(["upgrade_opportunities", self.summary.upgrade_opportunities])
             writer.writerow(["gap_opportunities", self.summary.gap_opportunities])
+            writer.writerow(["reviewed_count", self.summary.reviewed_count])
+            writer.writerow(["approved_count", self.summary.approved_count])
+            writer.writerow(["rejected_count", self.summary.rejected_count])
+            writer.writerow(["needs_review_count", self.summary.needs_review_count])
 
     def export_markdown(self, path: str) -> None:
         """Export batch report to Markdown."""
+        review = self.review_summary()
         lines = [
             "# Batch Processing Report",
             "",
@@ -209,6 +297,16 @@ class BatchReport:
             f"- Duplicates detected: {self.summary.duplicates_detected}",
             f"- Upgrade opportunities: {self.summary.upgrade_opportunities}",
             f"- Gap opportunities: {self.summary.gap_opportunities}",
+            "",
+            "## Review Summary",
+            "",
+            f"- Total candidates: {review['total_candidates']}",
+            f"- Reviewable: {review['reviewable']}",
+            f"- Approved: {review['approved']}",
+            f"- Rejected: {review['rejected']}",
+            f"- Needs review: {review['needs_review']}",
+            f"- Unreviewed: {review['unreviewed']}",
+            f"- Completion: {review['review_completion_pct']:.1f}%",
             "",
         ]
         if self.summary.warnings:
@@ -246,6 +344,9 @@ class BatchReport:
             lines.append(f"### {c.candidate_id}")
             lines.append(f"- **Subject:** {c.subject}")
             lines.append(f"- **Status:** {c.status.value}")
+            lines.append(f"- **Review:** {c.review_status.value}")
+            if c.review_notes:
+                lines.append(f"- **Review Notes:** {c.review_notes}")
             if c.front_path:
                 lines.append(f"- **Front:** {c.front_path}")
             if c.back_path:
@@ -266,6 +367,7 @@ class BatchProcessingEngine:
              catalogue intake, summary, export.
     Phase 2: Integration with OCR, collection matching, and proposed entries.
     Phase 3: Collection Intelligence and Deal Hunter batch outputs.
+    Phase 4: Batch Review Workflow — per-candidate review states and summaries.
     """
 
     def __init__(self, cataloguer: SmartPhoneCataloguer):
@@ -332,87 +434,107 @@ class BatchProcessingEngine:
         return items
 
     def _run_collection_intelligence(self, candidates: List[BatchCandidate], collection_items: Iterable) -> BatchIntelligence:
-        """Run CollectionIntelligenceEngine on the batch pool and collection.
-
-        Args:
-            candidates: Batch candidates with proposed entries.
-            collection_items: Current collection items.
-
-        Returns:
-            BatchIntelligence with gap reports, duplicates, upgrades, and priorities.
-        """
+        """Run CollectionIntelligenceEngine on the batch pool and collection."""
         intelligence = BatchIntelligence()
-
-        # Build pool of items for analysis: collection + batch proposed entries
         pool_items = list(collection_items) if collection_items else []
-
-        # Add batch candidates' proposed entries to the pool
         for candidate in candidates:
             if candidate.proposed_entry:
                 pool_items.append(candidate.proposed_entry)
-
         if not pool_items:
             return intelligence
-
-        # Run CollectionIntelligenceEngine on the combined pool
         try:
             ci_engine = CollectionIntelligenceEngine(pool_items)
-
-            # Gap report for the combined pool
             intelligence.gap_report = ci_engine.generate_gap_report()
-
-            # Detect duplicates within the batch pool
             all_duplicates = ci_engine.detect_duplicates()
-            # Filter to only those that involve batch candidates (new items)
             batch_candidate_ids = {c.candidate_id for c in candidates}
             intelligence.batch_duplicates = [
                 dup for dup in all_duplicates
                 if any(getattr(item, 'candidate_id', None) in batch_candidate_ids for item in dup.get("items", []))
             ]
-
-            # Detect upgrade candidates
             intelligence.batch_upgrades = ci_engine.detect_upgrade_candidates()
-
-            # Generate acquisition priorities
             intelligence.acquisition_priorities = ci_engine.generate_acquisition_priorities()
-
         except Exception as e:
             intelligence.gap_report = {"error": str(e)}
-
         return intelligence
 
     def _evaluate_deals(self, candidates: List[BatchCandidate], collection_items: Iterable) -> Optional[DealHunterReport]:
-        """Evaluate batch candidates as deals using DealHunter.
-
-        Converts batch candidates to DealListing objects and runs DealHunter analysis.
-
-        Args:
-            candidates: Batch candidates to evaluate.
-            collection_items: Current collection items for context.
-
-        Returns:
-            DealHunterReport or None if evaluation fails.
-        """
+        """Evaluate batch candidates as deals using DealHunter."""
         try:
-            # Convert candidates to DealListings
             listings = []
             for candidate in candidates:
                 if candidate.catalogue_result and candidate.catalogue_result.status == "success":
                     listing = DealListing(
                         title=candidate.subject,
-                        price_cad=0.0,  # Unknown for batch candidates
+                        price_cad=0.0,
                         shipping_cad=0.0,
                         description=f"Batch candidate: {candidate.candidate_id}",
                     )
                     listings.append(listing)
-
             if not listings:
                 return None
-
             hunter = DealHunter(collection_items)
             return hunter.generate_report(listings)
         except Exception:
             return None
+
+    def _update_review_summary(self, report: BatchReport) -> None:
+        """Update summary counts from candidate review states."""
+        report.summary.reviewed_count = sum(1 for c in report.candidates if c.review_status != ReviewStatus.UNREVIEWED)
+        report.summary.approved_count = sum(1 for c in report.candidates if c.review_status == ReviewStatus.APPROVED)
+        report.summary.rejected_count = sum(1 for c in report.candidates if c.review_status == ReviewStatus.REJECTED)
+        report.summary.needs_review_count = sum(1 for c in report.candidates if c.review_status == ReviewStatus.NEEDS_REVIEW)
+
+    def review_candidate(self, report: BatchReport, candidate_id: str, 
+                         review_status: ReviewStatus, notes: str = "") -> None:
+        """Review a single candidate in a batch report.
+
+        Args:
+            report: The BatchReport containing the candidate.
+            candidate_id: The candidate_id to review.
+            review_status: The review decision (APPROVED, REJECTED, NEEDS_REVIEW).
+            notes: Optional review notes.
+        """
+        candidate = next((c for c in report.candidates if c.candidate_id == candidate_id), None)
+        if not candidate:
+            raise ValueError(f"Candidate {candidate_id} not found in report")
+
+        if review_status == ReviewStatus.APPROVED:
+            candidate.approve(notes)
+        elif review_status == ReviewStatus.REJECTED:
+            candidate.reject(notes)
+        elif review_status == ReviewStatus.NEEDS_REVIEW:
+            candidate.mark_needs_review(notes)
+        elif review_status == ReviewStatus.UNREVIEWED:
+            candidate.review_status = ReviewStatus.UNREVIEWED
+            candidate.review_notes = notes
+        else:
+            raise ValueError(f"Invalid review status: {review_status}")
+
+        self._update_review_summary(report)
+
+    def auto_review(self, report: BatchReport) -> None:
+        """Auto-review candidates based on intelligence signals.
+
+        Automatically approves candidates with no warnings and no duplicates.
+        Marks candidates with errors or duplicates as needs-review.
+
+        Args:
+            report: The BatchReport to auto-review.
+        """
+        for candidate in report.candidates:
+            if not candidate.is_reviewable():
+                continue
+
+            if candidate.errors:
+                candidate.mark_needs_review("Auto: candidate has errors")
+            elif candidate.warnings:
+                candidate.mark_needs_review("Auto: candidate has warnings")
+            elif candidate.collection_match and candidate.collection_match.is_duplicate:
+                candidate.mark_needs_review("Auto: possible duplicate")
+            else:
+                candidate.approve("Auto: no issues detected")
+
+        self._update_review_summary(report)
 
     def process_folder(self, folder_path: str,
                        collection_items: Iterable,
@@ -430,8 +552,7 @@ class BatchProcessingEngine:
                 collection_items: Iterable) -> BatchReport:
         """Process a BatchSource through the existing pipeline.
 
-        Phase 3: Strengthened integration with CollectionIntelligenceEngine
-        and DealHunter for batch-level intelligence.
+        Phase 4: Includes review workflow initialization.
         """
         report = BatchReport(source=source)
         summary = BatchSummary()
@@ -492,7 +613,7 @@ class BatchProcessingEngine:
 
             candidates.append(candidate)
 
-        # Step 6: Phase 2 — Batch OCR identification via SmartPhoneCataloguer
+        # Step 6: Phase 2 — Batch OCR identification
         try:
             ocr_results = self.cataloguer.batch_identify([c.catalogue_result for c in candidates if c.catalogue_result])
             for candidate, ocr_result in zip(candidates, ocr_results):
@@ -500,7 +621,7 @@ class BatchProcessingEngine:
         except Exception as e:
             summary.warnings.append(f"Batch OCR failed: {str(e)}")
 
-        # Step 7: Phase 2 — Batch collection matching via SmartPhoneCataloguer
+        # Step 7: Phase 2 — Batch collection matching
         try:
             match_results = self.cataloguer.batch_match([c.catalogue_result for c in candidates if c.catalogue_result], collection_items)
             for candidate, match_result in zip(candidates, match_results):
@@ -514,7 +635,7 @@ class BatchProcessingEngine:
         except Exception as e:
             summary.warnings.append(f"Batch matching failed: {str(e)}")
 
-        # Step 8: Phase 2 — Batch proposed entries via SmartPhoneCataloguer
+        # Step 8: Phase 2 — Batch proposed entries
         try:
             proposed = self.cataloguer.batch_create_proposed_entries([c.catalogue_result for c in candidates if c.catalogue_result])
             for candidate, proposed_entry in zip(candidates, proposed):
@@ -522,17 +643,17 @@ class BatchProcessingEngine:
         except Exception as e:
             summary.warnings.append(f"Batch proposed entries failed: {str(e)}")
 
-        # Step 9: Phase 3 — Collection Intelligence on batch pool
+        # Step 9: Phase 3 — Collection Intelligence
         try:
             report.intelligence = self._run_collection_intelligence(candidates, collection_items)
         except Exception as e:
             summary.warnings.append(f"Collection intelligence failed: {str(e)}")
 
-        # Step 10: Phase 3 — Deal Hunter evaluation (optional, lightweight)
+        # Step 10: Phase 3 — Deal Hunter
         try:
             report.intelligence.deal_evaluation = self._evaluate_deals(candidates, collection_items)
         except Exception:
-            pass  # Deal evaluation is optional
+            pass
 
         # Step 11: Add batch-level errors
         for error in batch_result.errors:
@@ -540,4 +661,8 @@ class BatchProcessingEngine:
 
         report.candidates = candidates
         report.summary = summary
+
+        # Step 12: Phase 4 — Initialize review summary counts
+        self._update_review_summary(report)
+
         return report

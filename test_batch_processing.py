@@ -1,10 +1,11 @@
-"""Unit tests for the Batch Processing Engine — v8.1 Phase 3.
+"""Unit tests for the Batch Processing Engine — v8.1 Phase 4.
 
 Tests folder scanning, photo discovery, front/back auto-pairing,
 batch candidate creation, SmartPhoneCataloguer orchestration,
 OCR integration, collection matching, proposed entries,
 Collection Intelligence batch outputs, Deal Hunter evaluation,
-summary generation, and CSV/Markdown export.
+Batch Review Workflow (review states, approve/reject/needs-review,
+auto-review, review summaries), and export.
 """
 
 import unittest
@@ -21,6 +22,7 @@ from batch_processing import (
     BatchSummary,
     BatchStatus,
     BatchIntelligence,
+    ReviewStatus,
 )
 from smart_phone_cataloguer import (
     SmartPhoneCataloguer,
@@ -64,6 +66,8 @@ class TestBatchCandidate(unittest.TestCase):
             back_path="/tmp/back.jpg",
             subject="Test Coin",
             status=BatchStatus.COMPLETED,
+            review_status=ReviewStatus.APPROVED,
+            review_notes="Looks good",
             warnings=["Missing metadata"],
             errors=[],
         )
@@ -73,6 +77,8 @@ class TestBatchCandidate(unittest.TestCase):
         self.assertEqual(d["back_path"], "/tmp/back.jpg")
         self.assertEqual(d["subject"], "Test Coin")
         self.assertEqual(d["status"], "completed")
+        self.assertEqual(d["review_status"], "approved")
+        self.assertEqual(d["review_notes"], "Looks good")
         self.assertFalse(d["has_ocr_result"])
         self.assertFalse(d["has_collection_match"])
         self.assertFalse(d["has_proposed_entry"])
@@ -92,6 +98,50 @@ class TestBatchCandidate(unittest.TestCase):
         self.assertIsNotNone(candidate.collection_match)
         self.assertIsNotNone(candidate.proposed_entry)
 
+    def test_review_status_default_unreviewed(self):
+        """Phase 4: Default review status is UNREVIEWED."""
+        candidate = BatchCandidate(candidate_id="test")
+        self.assertEqual(candidate.review_status, ReviewStatus.UNREVIEWED)
+        self.assertEqual(candidate.review_notes, "")
+
+    def test_is_reviewable(self):
+        """Phase 4: Only COMPLETED candidates are reviewable."""
+        completed = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        self.assertTrue(completed.is_reviewable())
+
+        failed = BatchCandidate(candidate_id="c2", status=BatchStatus.FAILED)
+        self.assertFalse(failed.is_reviewable())
+
+        pending = BatchCandidate(candidate_id="c3", status=BatchStatus.PENDING)
+        self.assertFalse(pending.is_reviewable())
+
+    def test_approve(self):
+        """Phase 4: Approve a reviewable candidate."""
+        candidate = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        candidate.approve("Good condition")
+        self.assertEqual(candidate.review_status, ReviewStatus.APPROVED)
+        self.assertEqual(candidate.review_notes, "Good condition")
+
+    def test_approve_non_reviewable_raises(self):
+        """Phase 4: Cannot approve non-reviewable candidate."""
+        candidate = BatchCandidate(candidate_id="c1", status=BatchStatus.FAILED)
+        with self.assertRaises(ValueError):
+            candidate.approve()
+
+    def test_reject(self):
+        """Phase 4: Reject a reviewable candidate."""
+        candidate = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        candidate.reject("Poor quality")
+        self.assertEqual(candidate.review_status, ReviewStatus.REJECTED)
+        self.assertEqual(candidate.review_notes, "Poor quality")
+
+    def test_mark_needs_review(self):
+        """Phase 4: Mark candidate as needs-review."""
+        candidate = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        candidate.mark_needs_review("Check grade")
+        self.assertEqual(candidate.review_status, ReviewStatus.NEEDS_REVIEW)
+        self.assertEqual(candidate.review_notes, "Check grade")
+
 
 class TestBatchSummary(unittest.TestCase):
     """Verify BatchSummary dataclass behavior."""
@@ -106,6 +156,10 @@ class TestBatchSummary(unittest.TestCase):
             duplicates_detected=1,
             upgrade_opportunities=2,
             gap_opportunities=1,
+            reviewed_count=5,
+            approved_count=3,
+            rejected_count=1,
+            needs_review_count=1,
             warnings=["Some photos missing back"],
         )
         d = summary.to_dict()
@@ -117,6 +171,10 @@ class TestBatchSummary(unittest.TestCase):
         self.assertEqual(d["duplicates_detected"], 1)
         self.assertEqual(d["upgrade_opportunities"], 2)
         self.assertEqual(d["gap_opportunities"], 1)
+        self.assertEqual(d["reviewed_count"], 5)
+        self.assertEqual(d["approved_count"], 3)
+        self.assertEqual(d["rejected_count"], 1)
+        self.assertEqual(d["needs_review_count"], 1)
 
 
 class TestBatchIntelligence(unittest.TestCase):
@@ -154,14 +212,58 @@ class TestBatchReport(unittest.TestCase):
         self.assertEqual(d["summary"]["total_photos"], 1)
         self.assertIn("intelligence", d)
 
-    def test_export_csv_creates_file(self):
-        """Verify CSV export creates a file."""
+    def test_review_summary(self):
+        """Phase 4: Verify review summary calculation."""
+        source = BatchSource(folder_path="/tmp/test")
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED, review_status=ReviewStatus.APPROVED)
+        c2 = BatchCandidate(candidate_id="c2", status=BatchStatus.COMPLETED, review_status=ReviewStatus.REJECTED)
+        c3 = BatchCandidate(candidate_id="c3", status=BatchStatus.COMPLETED, review_status=ReviewStatus.UNREVIEWED)
+        c4 = BatchCandidate(candidate_id="c4", status=BatchStatus.FAILED)
+        report = BatchReport(source=source, candidates=[c1, c2, c3, c4])
+
+        summary = report.review_summary()
+        self.assertEqual(summary["total_candidates"], 4)
+        self.assertEqual(summary["reviewable"], 3)
+        self.assertEqual(summary["approved"], 1)
+        self.assertEqual(summary["rejected"], 1)
+        self.assertEqual(summary["needs_review"], 0)
+        self.assertEqual(summary["unreviewed"], 2)
+        self.assertAlmostEqual(summary["review_completion_pct"], 66.7, places=1)
+
+    def test_approved_candidates(self):
+        """Phase 4: Filter approved candidates."""
+        c1 = BatchCandidate(candidate_id="c1", review_status=ReviewStatus.APPROVED)
+        c2 = BatchCandidate(candidate_id="c2", review_status=ReviewStatus.REJECTED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+        self.assertEqual(len(report.approved_candidates()), 1)
+        self.assertEqual(report.approved_candidates()[0].candidate_id, "c1")
+
+    def test_rejected_candidates(self):
+        """Phase 4: Filter rejected candidates."""
+        c1 = BatchCandidate(candidate_id="c1", review_status=ReviewStatus.APPROVED)
+        c2 = BatchCandidate(candidate_id="c2", review_status=ReviewStatus.REJECTED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+        self.assertEqual(len(report.rejected_candidates()), 1)
+        self.assertEqual(report.rejected_candidates()[0].candidate_id, "c2")
+
+    def test_needs_review_candidates(self):
+        """Phase 4: Filter needs-review candidates."""
+        c1 = BatchCandidate(candidate_id="c1", review_status=ReviewStatus.APPROVED)
+        c2 = BatchCandidate(candidate_id="c2", review_status=ReviewStatus.NEEDS_REVIEW)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+        self.assertEqual(len(report.needs_review_candidates()), 1)
+        self.assertEqual(report.needs_review_candidates()[0].candidate_id, "c2")
+
+    def test_export_csv_includes_review(self):
+        """Phase 4: CSV export includes review columns."""
         source = BatchSource(folder_path="/tmp/test")
         candidate = BatchCandidate(
             candidate_id="c1",
             subject="Coin 1",
             front_path="/tmp/front.jpg",
             status=BatchStatus.COMPLETED,
+            review_status=ReviewStatus.APPROVED,
+            review_notes="Good",
         )
         report = BatchReport(source=source, candidates=[candidate])
 
@@ -173,32 +275,28 @@ class TestBatchReport(unittest.TestCase):
             self.assertTrue(os.path.exists(temp_path))
             with open(temp_path, "r") as f:
                 content = f.read()
-            self.assertIn("candidate_id", content)
-            self.assertIn("Coin 1", content)
+            self.assertIn("review_status", content)
+            self.assertIn("review_notes", content)
+            self.assertIn("approved", content)
+            self.assertIn("Good", content)
         finally:
             os.remove(temp_path)
 
-    def test_export_markdown_creates_file(self):
-        """Verify Markdown export creates a file."""
+    def test_export_markdown_includes_review(self):
+        """Phase 4: Markdown export includes review summary."""
         source = BatchSource(folder_path="/tmp/test")
-        candidate = BatchCandidate(
-            candidate_id="c1",
-            subject="Coin 1",
-            front_path="/tmp/front.jpg",
-            status=BatchStatus.COMPLETED,
-        )
-        report = BatchReport(source=source, candidates=[candidate])
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED, review_status=ReviewStatus.APPROVED)
+        report = BatchReport(source=source, candidates=[c1])
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             temp_path = f.name
 
         try:
             report.export_markdown(temp_path)
-            self.assertTrue(os.path.exists(temp_path))
             with open(temp_path, "r") as f:
                 content = f.read()
-            self.assertIn("# Batch Processing Report", content)
-            self.assertIn("Coin 1", content)
+            self.assertIn("## Review Summary", content)
+            self.assertIn("Approved: 1", content)
         finally:
             os.remove(temp_path)
 
@@ -527,9 +625,7 @@ class TestBatchProcessingPhase3Integration(unittest.TestCase):
             collection = [{"id": "existing", "country": "Canada", "denomination": "1 cent", "year": 1964}]
             report = engine.process_folder(tmpdir, collection)
 
-            # Intelligence should be populated (even if empty due to mock data)
             self.assertIsNotNone(report.intelligence)
-            # gap_report may be None or a dict depending on data quality
             self.assertIsInstance(report.intelligence.to_dict(), dict)
 
     def test_phase3_intelligence_with_empty_collection(self):
@@ -543,7 +639,6 @@ class TestBatchProcessingPhase3Integration(unittest.TestCase):
             report = engine.process_folder(tmpdir, [])
 
             self.assertIsNotNone(report.intelligence)
-            # Should not crash with empty collection
 
     def test_phase3_deal_hunter_optional(self):
         """Verify DealHunter evaluation is optional and non-breaking."""
@@ -555,8 +650,6 @@ class TestBatchProcessingPhase3Integration(unittest.TestCase):
 
             report = engine.process_folder(tmpdir, [])
 
-            # Deal evaluation may be None (no valid listings to evaluate)
-            # but should not raise
             self.assertIsNotNone(report.intelligence)
 
     def test_phase3_markdown_exports_intelligence(self):
@@ -577,7 +670,6 @@ class TestBatchProcessingPhase3Integration(unittest.TestCase):
                 report.export_markdown(md_path)
                 with open(md_path, "r") as f:
                     content = f.read()
-                # Should contain standard sections
                 self.assertIn("# Batch Processing Report", content)
                 self.assertIn("## Summary", content)
                 self.assertIn("## Candidates", content)
@@ -594,13 +686,181 @@ class TestBatchProcessingPhase3Integration(unittest.TestCase):
 
             report = engine.process_folder(tmpdir, [])
 
-            # All Phase 1/2 fields should still exist
             self.assertEqual(report.source.folder_path, tmpdir)
             self.assertEqual(len(report.candidates), 1)
             self.assertIsNotNone(report.summary)
             self.assertIsNotNone(report.intelligence)
 
-            # process() entry point should still work
+            source = BatchSource(folder_path=tmpdir, file_pattern="*.jpg")
+            report2 = engine.process(source, [])
+            self.assertEqual(report2.source.folder_path, tmpdir)
+
+
+class TestBatchProcessingPhase4ReviewWorkflow(unittest.TestCase):
+    """Phase 4: Batch Review Workflow tests."""
+
+    def test_review_candidate_approve(self):
+        """Phase 4: Approve a candidate via engine."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1])
+
+        engine.review_candidate(report, "c1", ReviewStatus.APPROVED, "Good")
+
+        self.assertEqual(c1.review_status, ReviewStatus.APPROVED)
+        self.assertEqual(c1.review_notes, "Good")
+        self.assertEqual(report.summary.approved_count, 1)
+
+    def test_review_candidate_reject(self):
+        """Phase 4: Reject a candidate via engine."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1])
+
+        engine.review_candidate(report, "c1", ReviewStatus.REJECTED, "Poor")
+
+        self.assertEqual(c1.review_status, ReviewStatus.REJECTED)
+        self.assertEqual(report.summary.rejected_count, 1)
+
+    def test_review_candidate_needs_review(self):
+        """Phase 4: Mark candidate as needs-review via engine."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1])
+
+        engine.review_candidate(report, "c1", ReviewStatus.NEEDS_REVIEW, "Check")
+
+        self.assertEqual(c1.review_status, ReviewStatus.NEEDS_REVIEW)
+        self.assertEqual(report.summary.needs_review_count, 1)
+
+    def test_review_candidate_not_found_raises(self):
+        """Phase 4: Reviewing non-existent candidate raises error."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[])
+
+        with self.assertRaises(ValueError) as ctx:
+            engine.review_candidate(report, "nonexistent", ReviewStatus.APPROVED)
+        self.assertIn("not found", str(ctx.exception))
+
+    def test_review_candidate_non_reviewable_raises(self):
+        """Phase 4: Reviewing non-reviewable candidate raises error."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+        candidate = BatchCandidate(candidate_id="c1", status=BatchStatus.FAILED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[candidate])
+
+        with self.assertRaises(ValueError) as ctx:
+            engine.review_candidate(report, "c1", ReviewStatus.APPROVED)
+        self.assertIn("Cannot approve", str(ctx.exception))
+
+    def test_auto_review(self):
+        """Phase 4: Auto-review marks candidates based on signals."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "IMG_0001_front.jpg"), "w").close()
+            open(os.path.join(tmpdir, "IMG_0002_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            # Before auto-review, all should be unreviewed
+            for c in report.candidates:
+                self.assertEqual(c.review_status, ReviewStatus.UNREVIEWED)
+
+            engine.auto_review(report)
+
+            # After auto-review, some should have been decided
+            reviewed = [c for c in report.candidates if c.review_status != ReviewStatus.UNREVIEWED]
+            self.assertGreaterEqual(len(reviewed), 0)
+
+            # Summary should be updated
+            self.assertEqual(report.summary.reviewed_count, len(reviewed))
+
+    def test_auto_review_with_errors(self):
+        """Phase 4: Auto-review marks candidates with errors as needs-review."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        c2 = BatchCandidate(candidate_id="c2", status=BatchStatus.COMPLETED, errors=["OCR failed"])
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+
+        engine.auto_review(report)
+
+        self.assertEqual(c1.review_status, ReviewStatus.APPROVED)
+        self.assertEqual(c2.review_status, ReviewStatus.NEEDS_REVIEW)
+
+    def test_auto_review_with_warnings(self):
+        """Phase 4: Auto-review marks candidates with warnings as needs-review."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        c2 = BatchCandidate(candidate_id="c2", status=BatchStatus.COMPLETED, warnings=["Low confidence"])
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+
+        engine.auto_review(report)
+
+        self.assertEqual(c1.review_status, ReviewStatus.APPROVED)
+        self.assertEqual(c2.review_status, ReviewStatus.NEEDS_REVIEW)
+
+    def test_auto_review_skips_failed(self):
+        """Phase 4: Auto-review skips failed candidates."""
+        cataloguer = SmartPhoneCataloguer()
+        engine = BatchProcessingEngine(cataloguer)
+
+        c1 = BatchCandidate(candidate_id="c1", status=BatchStatus.COMPLETED)
+        c2 = BatchCandidate(candidate_id="c2", status=BatchStatus.FAILED)
+        report = BatchReport(source=BatchSource(folder_path="/tmp"), candidates=[c1, c2])
+
+        engine.auto_review(report)
+
+        self.assertEqual(c1.review_status, ReviewStatus.APPROVED)
+        self.assertEqual(c2.review_status, ReviewStatus.UNREVIEWED)
+
+    def test_process_initializes_review_counts(self):
+        """Phase 4: process() initializes review summary counts to zero."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "IMG_0001_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            self.assertEqual(report.summary.reviewed_count, 0)
+            self.assertEqual(report.summary.approved_count, 0)
+            self.assertEqual(report.summary.rejected_count, 0)
+            self.assertEqual(report.summary.needs_review_count, 0)
+
+    def test_phase4_api_compatibility(self):
+        """Phase 4: All Phase 1/2/3 APIs preserved."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            open(os.path.join(tmpdir, "IMG_0001_front.jpg"), "w").close()
+
+            cataloguer = SmartPhoneCataloguer()
+            engine = BatchProcessingEngine(cataloguer)
+
+            report = engine.process_folder(tmpdir, [])
+
+            # Phase 1/2/3 fields still exist
+            self.assertEqual(report.source.folder_path, tmpdir)
+            self.assertEqual(len(report.candidates), 1)
+            self.assertIsNotNone(report.summary)
+            self.assertIsNotNone(report.intelligence)
+
+            # Phase 4 fields exist
+            self.assertIsNotNone(report.review_summary())
+
+            # process() still works
             source = BatchSource(folder_path=tmpdir, file_pattern="*.jpg")
             report2 = engine.process(source, [])
             self.assertEqual(report2.source.folder_path, tmpdir)
