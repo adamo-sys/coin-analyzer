@@ -2,16 +2,16 @@
 
 ## Current Version
 
-* Current release version: `v8.0`
-- Next planned release: `v8.1`
-- Active development target: `v8.1`
+* Current release version: `v8.1`
+- Next planned release: `v8.2`
+- Active development target: `v8.2`
 * Current Git branch: `main`
 * Last updated date: 2026-06-28
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.0`
-* Summary of what was included: Smart Phone Cataloguer with photo capture integration, OCR identification, collection matching, cataloguing workflow, mobile-friendly GUI, and 959-test regression coverage without AI, forecasting, or external APIs.
+* Most recent Git tag: `v8.1`
+* Summary of what was included: Batch Processing — folder photo intake, batch OCR & identification, collection intelligence, batch reporting & export, GUI integration with photo capture integration, OCR identification, collection matching, cataloguing workflow, mobile-friendly GUI, and 959-test regression coverage without AI, forecasting, or external APIs.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.

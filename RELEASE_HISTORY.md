@@ -2,6 +2,7 @@
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
+| `v8.1` | `[pending]` | Batch Processing — folder photo intake, batch OCR & identification, collection intelligence, batch reporting & export, GUI integration. 1015 tests. |
 | `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor milestone with release audit coverage and NumPy CI dependency compatibility fix. |
 | `v0.6` | `d976f9ec3d0e95124013db5f10cffd503b1acb03` | Focused Collection Intelligence Engine for manual candidate classification and Do I Own This foundation. |
 | `v0.7` | `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0` | Upgrade Advisor and Buy Advisor duplicate/upgrade logic consolidated on the Collection Intelligence Engine. |

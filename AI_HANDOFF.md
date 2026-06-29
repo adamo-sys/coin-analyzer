@@ -4,13 +4,13 @@
 
 - Date: 2026-06-28
 - Branch: `main`
-- Current project state file reports release version: `v8.0`
-- Next planned release: `v8.1`
-- Active development target: `v8.1`
-- Current active task: v8.1 Batch Processing Phase 0 (roadmap lock)
-- Last release: v8.0 Smart Phone Cataloguer (released)
+- Current project state file reports release version: `v8.1`
+- Next planned release: `v8.2`
+- Active development target: `v8.2`
+- Current active task: v8.2 AI Grading Assistant Phase 0 (roadmap lock)
+- Last release: v8.1 Batch Processing (released)
 - Implementation commit: `68669ad`
-- Release tag: `v8.0`
+- Release tag: `v8.1`
 - Release metadata commit: `68669ad`
 
 ## Official v2.7-to-v3.0 Roadmap
