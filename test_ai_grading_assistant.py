@@ -2,6 +2,8 @@
 
 import unittest
 from unittest.mock import Mock
+import tempfile
+import os
 
 from ai_grading_assistant import (
     AIGradingAssistant,
@@ -419,6 +421,135 @@ class TestCollectionContext(unittest.TestCase):
         a2 = report.assessments[1]
         self.assertFalse(any("Duplicate risk" in f for f in a2.review_flags))
 
+
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Export tests
+# ---------------------------------------------------------------------------
+
+class TestExportAssessment(unittest.TestCase):
+    """Verify single assessment export to Markdown and CSV."""
+
+    def setUp(self):
+        items = [
+            MockItem("Canada", "5 cents", "1940", "VG-8"),
+            MockItem("Canada", "5 cents", "1941", "VF-20"),
+            MockItem("Canada", "5 cents", "1942", "VF-20"),
+            MockItem("Canada", "5 cents", "1943", "EF-40"),
+            MockItem("Canada", "5 cents", "1944", "EF-40"),
+        ]
+        self.engine = CollectionIntelligenceEngine(items)
+        self.assistant = AIGradingAssistant(self.engine)
+
+    def test_export_markdown_creates_file(self):
+        c = GradingCandidate(country="Canada", denomination="5 cents", claimed_grade="VF-20")
+        a = self.assistant.assess_candidate(c)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_assessment(a, "markdown", path)
+            self.assertTrue(result)
+            with open(path, 'r') as f:
+                content = f.read()
+            self.assertIn("Canada", content)
+            self.assertIn("VF-20", content)
+            self.assertIn("PROCEED", content)
+        finally:
+            os.unlink(path)
+
+    def test_export_csv_creates_file(self):
+        c = GradingCandidate(country="Canada", denomination="5 cents", claimed_grade="VF-20")
+        a = self.assistant.assess_candidate(c)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_assessment(a, "csv", path)
+            self.assertTrue(result)
+            with open(path, 'r') as f:
+                content = f.read()
+            self.assertIn("Canada", content)
+            self.assertIn("VF-20", content)
+            self.assertIn("PROCEED", content)
+        finally:
+            os.unlink(path)
+
+    def test_export_invalid_format_returns_false(self):
+        c = GradingCandidate(country="Canada", denomination="5 cents", claimed_grade="VF-20")
+        a = self.assistant.assess_candidate(c)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_assessment(a, "json", path)
+            self.assertFalse(result)
+        finally:
+            os.unlink(path)
+
+
+class TestExportReport(unittest.TestCase):
+    """Verify batch report export to Markdown and CSV."""
+
+    def setUp(self):
+        items = [
+            MockItem("Canada", "5 cents", "1940", "VG-8"),
+            MockItem("Canada", "5 cents", "1941", "VF-20"),
+            MockItem("Canada", "5 cents", "1942", "VF-20"),
+            MockItem("Canada", "5 cents", "1943", "EF-40"),
+            MockItem("Canada", "5 cents", "1944", "EF-40"),
+        ]
+        self.engine = CollectionIntelligenceEngine(items)
+        self.assistant = AIGradingAssistant(self.engine)
+
+    def test_export_report_markdown(self):
+        candidates = [
+            GradingCandidate("Canada", "5 cents", claimed_grade="VF-20"),
+            GradingCandidate("Canada", "5 cents", claimed_grade="PO-1"),
+        ]
+        report = self.assistant.assess_batch(candidates)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_report(report, "markdown", path)
+            self.assertTrue(result)
+            with open(path, 'r') as f:
+                content = f.read()
+            self.assertIn("AI Grading Assessment Report", content)
+            self.assertIn("PROCEED", content)
+            self.assertIn("REVIEW", content)
+            self.assertIn("Summary", content)
+        finally:
+            os.unlink(path)
+
+    def test_export_report_csv(self):
+        candidates = [
+            GradingCandidate("Canada", "5 cents", claimed_grade="VF-20"),
+            GradingCandidate("Canada", "5 cents", claimed_grade="PO-1"),
+        ]
+        report = self.assistant.assess_batch(candidates)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_report(report, "csv", path)
+            self.assertTrue(result)
+            with open(path, 'r') as f:
+                content = f.read()
+            self.assertIn("Canada", content)
+            self.assertIn("VF-20", content)
+            self.assertIn("PROCEED", content)
+            self.assertIn("REVIEW", content)
+        finally:
+            os.unlink(path)
+
+    def test_export_report_invalid_format(self):
+        candidates = [GradingCandidate("Canada", "5 cents", claimed_grade="VF-20")]
+        report = self.assistant.assess_batch(candidates)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            path = f.name
+        try:
+            result = self.assistant.export_report(report, "json", path)
+            self.assertFalse(result)
+        finally:
+            os.unlink(path)
 
 if __name__ == "__main__":
     unittest.main()

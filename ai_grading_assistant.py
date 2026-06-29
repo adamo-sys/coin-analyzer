@@ -199,6 +199,82 @@ class BatchGradingReport:
 # Core Engine
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# Export helpers (stateless, no class hierarchy)
+# ---------------------------------------------------------------------------
+
+def _format_assessment_markdown(assessment: GradingAssessment) -> str:
+    """Format a single assessment as Markdown text."""
+    c = assessment.candidate
+    lines = [
+        f"### {c.country} {c.denomination} {c.year or ''}",
+        "",
+        f"- **Claimed grade:** {c.claimed_grade or 'Not provided'}",
+        f"- **Estimated range:** {assessment.estimated_range[0] or 'Unknown'} – {assessment.estimated_range[1] or 'Unknown'}",
+        f"- **Most likely:** {assessment.most_likely_grade or 'Unknown'}",
+        f"- **Recommendation:** {assessment.recommendation}",
+    ]
+    if assessment.evidence:
+        lines.extend(["", "**Evidence:**"])
+        for ev in assessment.evidence:
+            lines.append(f"- {ev}")
+    if assessment.review_flags:
+        lines.extend(["", "**Review flags:**"])
+        for flag in assessment.review_flags:
+            lines.append(f"- {flag}")
+    if assessment.collection_context:
+        lines.extend(["", "**Collection context:**"])
+        for key, val in assessment.collection_context.items():
+            lines.append(f"- {key}: {val}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _format_report_markdown(report: BatchGradingReport) -> str:
+    """Format a batch report as Markdown text."""
+    lines = [
+        "# AI Grading Assessment Report",
+        "",
+        "## Summary",
+        "",
+        f"- Total candidates: {len(report.assessments)}",
+        f"- PROCEED: {len(report.by_recommendation('PROCEED'))}",
+        f"- CAUTION: {len(report.by_recommendation('CAUTION'))}",
+        f"- REVIEW: {len(report.by_recommendation('REVIEW'))}",
+        "",
+        "## Assessments",
+        "",
+    ]
+    for assessment in report.assessments:
+        lines.append(_format_assessment_markdown(assessment))
+    return "\n".join(lines)
+
+
+def _format_report_csv(report: BatchGradingReport) -> str:
+    """Format a batch report as CSV text."""
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Country", "Denomination", "Year", "Claimed Grade",
+        "Estimated Low", "Estimated High", "Most Likely",
+        "Recommendation", "Review Flags"
+    ])
+    for a in report.assessments:
+        c = a.candidate
+        writer.writerow([
+            c.country, c.denomination, c.year or "",
+            c.claimed_grade or "",
+            a.estimated_range[0] or "",
+            a.estimated_range[1] or "",
+            a.most_likely_grade or "",
+            a.recommendation,
+            "; ".join(a.review_flags),
+        ])
+    return output.getvalue()
+
 class AIGradingAssistant:
     """Deterministic grading guidance. Thin orchestration over CollectionIntelligenceEngine."""
 
@@ -290,6 +366,58 @@ class AIGradingAssistant:
         return BatchGradingReport(
             assessments=[self.assess_candidate(c) for c in candidates]
         )
+
+    # -- Export (Phase 4) ---------------------------------------------------
+
+    def export_assessment(self, assessment: GradingAssessment, format: str, path: str) -> bool:
+        """Export a single assessment to file (markdown or csv)."""
+        fmt = format.lower()
+        try:
+            if fmt == "markdown":
+                text = _format_assessment_markdown(assessment)
+            elif fmt == "csv":
+                # Single assessment as one-row CSV
+                import csv, io
+                output = io.StringIO()
+                writer = csv.writer(output)
+                writer.writerow(["Country", "Denomination", "Year", "Claimed Grade",
+                                 "Estimated Low", "Estimated High", "Most Likely",
+                                 "Recommendation", "Review Flags"])
+                c = assessment.candidate
+                writer.writerow([
+                    c.country, c.denomination, c.year or "",
+                    c.claimed_grade or "",
+                    assessment.estimated_range[0] or "",
+                    assessment.estimated_range[1] or "",
+                    assessment.most_likely_grade or "",
+                    assessment.recommendation,
+                    "; ".join(assessment.review_flags),
+                ])
+                text = output.getvalue()
+            else:
+                return False
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return True
+        except Exception:
+            return False
+
+    def export_report(self, report: BatchGradingReport, format: str, path: str) -> bool:
+        """Export a batch report to file (markdown or csv)."""
+        fmt = format.lower()
+        try:
+            if fmt == "markdown":
+                text = _format_report_markdown(report)
+            elif fmt == "csv":
+                text = _format_report_csv(report)
+            else:
+                return False
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(text)
+            return True
+        except Exception:
+            return False
+
 
     # -- Phase 3: Collection Intelligence Integration -------------------------
 
