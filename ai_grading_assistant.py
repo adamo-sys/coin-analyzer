@@ -1,12 +1,12 @@
-"""AI Grading Assistant — v8.2 Phase 1 Core Engine.
+"""AI Grading Assistant — v8.2 Phase 2 Integration Layer.
 
 Deterministic, explainable coin grading guidance.
-Consumes CollectionIntelligenceEngine. No computer vision. No ML.
-No collection mutation. Advisory-only.
+Consumes CollectionIntelligenceEngine. Integrates with Photo Capture and OCR workflows.
+No computer vision. No ML. No collection mutation. Advisory-only.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from collection_intelligence import GRADE_HIERARCHY
 from collection_intelligence_refined import normalize_grade, grade_score
@@ -44,6 +44,91 @@ class GradingCandidate:
             "manual_description": self.manual_description,
             "notes": self.notes,
         }
+
+    # -- Factory methods for Phase 2 integration ----------------------------
+
+    @classmethod
+    def from_ocr_candidate(cls, ocr_candidate: Any) -> "GradingCandidate":
+        """Create GradingCandidate from OCRIdentificationCandidate."""
+        return cls(
+            country=getattr(ocr_candidate, "country", "") or "",
+            denomination=getattr(ocr_candidate, "denomination", "") or "",
+            year=getattr(ocr_candidate, "year", None) or None,
+            series=getattr(ocr_candidate, "series_type", None) or None,
+            variety="; ".join(getattr(ocr_candidate, "possible_variety_keywords", [])) or None,
+            photo_references=[getattr(ocr_candidate, "image_path", "")] if getattr(ocr_candidate, "image_path", "") else [],
+            ocr_evidence=ocr_candidate.to_dict() if hasattr(ocr_candidate, "to_dict") else None,
+            notes=getattr(ocr_candidate, "title", "") or "",
+        )
+
+    @classmethod
+    def from_captured_photo(cls, photo: Any, ocr_report: Optional[Any] = None) -> "GradingCandidate":
+        """Create GradingCandidate from CapturedPhoto plus optional OCR report."""
+        ocr_evidence = None
+        country, denomination, year, series = "", "", None, None
+
+        if ocr_report and hasattr(ocr_report, "candidates"):
+            # Use the highest-confidence candidate
+            candidates = getattr(ocr_report, "candidates", [])
+            if candidates:
+                best = candidates[0]
+                country = getattr(best, "country", "") or ""
+                denomination = getattr(best, "denomination", "") or ""
+                year = getattr(best, "year", None) or None
+                series = getattr(best, "series_type", None) or None
+                ocr_evidence = best.to_dict() if hasattr(best, "to_dict") else None
+
+        return cls(
+            country=country,
+            denomination=denomination,
+            year=year,
+            series=series,
+            photo_references=[getattr(photo, "file_path", "")] if getattr(photo, "file_path", "") else [],
+            ocr_evidence=ocr_evidence,
+            notes=getattr(photo, "notes", "") or "",
+        )
+
+    @classmethod
+    def from_batch_candidate(cls, batch_candidate: Any) -> "GradingCandidate":
+        """Create GradingCandidate from BatchCandidate."""
+        ocr_report = getattr(batch_candidate, "ocr_result", None)
+        ocr_evidence = None
+        country, denomination, year, series = "", "", None, None
+        claimed_grade = None
+
+        if ocr_report and hasattr(ocr_report, "candidates"):
+            candidates = getattr(ocr_report, "candidates", [])
+            if candidates:
+                best = candidates[0]
+                country = getattr(best, "country", "") or ""
+                denomination = getattr(best, "denomination", "") or ""
+                year = getattr(best, "year", None) or None
+                series = getattr(best, "series_type", None) or None
+                ocr_evidence = best.to_dict() if hasattr(best, "to_dict") else None
+
+        # If proposed_entry exists, try to get grade from it
+        proposed = getattr(batch_candidate, "proposed_entry", None)
+        if proposed and hasattr(proposed, "grade"):
+            claimed_grade = getattr(proposed, "grade", None) or None
+
+        photo_refs = []
+        front = getattr(batch_candidate, "front_path", None)
+        back = getattr(batch_candidate, "back_path", None)
+        if front:
+            photo_refs.append(front)
+        if back:
+            photo_refs.append(back)
+
+        return cls(
+            country=country,
+            denomination=denomination,
+            year=year,
+            series=series,
+            claimed_grade=claimed_grade,
+            photo_references=photo_refs,
+            ocr_evidence=ocr_evidence,
+            notes=getattr(batch_candidate, "subject", "") or "",
+        )
 
 
 @dataclass
@@ -164,7 +249,6 @@ class AIGradingAssistant:
             if flags:
                 recommendation = "REVIEW"
             elif candidate.claimed_grade and pattern.median_grade:
-                # If claimed grade matches median, strong alignment
                 if normalize_grade(candidate.claimed_grade) == pattern.median_grade:
                     recommendation = "PROCEED"
                 else:
