@@ -1,4 +1,4 @@
-"""AI Grading Assistant — v8.2 Phase 2 Integration Layer.
+"""AI Grading Assistant — v8.2 Phase 3 Collection Intelligence Integration.
 
 Deterministic, explainable coin grading guidance.
 Consumes CollectionIntelligenceEngine. Integrates with Photo Capture and OCR workflows.
@@ -68,7 +68,6 @@ class GradingCandidate:
         country, denomination, year, series = "", "", None, None
 
         if ocr_report and hasattr(ocr_report, "candidates"):
-            # Use the highest-confidence candidate
             candidates = getattr(ocr_report, "candidates", [])
             if candidates:
                 best = candidates[0]
@@ -106,7 +105,6 @@ class GradingCandidate:
                 series = getattr(best, "series_type", None) or None
                 ocr_evidence = best.to_dict() if hasattr(best, "to_dict") else None
 
-        # If proposed_entry exists, try to get grade from it
         proposed = getattr(batch_candidate, "proposed_entry", None)
         if proposed and hasattr(proposed, "grade"):
             claimed_grade = getattr(proposed, "grade", None) or None
@@ -163,6 +161,7 @@ class GradingAssessment:
     evidence: List[str] = field(default_factory=list)
     review_flags: List[str] = field(default_factory=list)
     recommendation: str = "REVIEW"  # PROCEED, CAUTION, REVIEW
+    collection_context: Dict[str, Any] = field(default_factory=dict)  # Phase 3
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -172,6 +171,7 @@ class GradingAssessment:
             "evidence": self.evidence,
             "review_flags": self.review_flags,
             "recommendation": self.recommendation,
+            "collection_context": self.collection_context,
         }
 
 
@@ -211,7 +211,7 @@ class AIGradingAssistant:
     # -- Public API ---------------------------------------------------------
 
     def assess_candidate(self, candidate: GradingCandidate) -> GradingAssessment:
-        """Assess a single candidate against collection grade patterns."""
+        """Assess a single candidate against collection grade patterns and intelligence."""
         pattern = self._get_pattern(candidate.country, candidate.denomination, candidate.series)
         evidence: List[str] = []
         flags: List[str] = []
@@ -263,6 +263,18 @@ class AIGradingAssistant:
                 evidence.append(f"Relying on claimed grade only: {candidate.claimed_grade}")
             recommendation = "REVIEW"
 
+        # Phase 3: Build collection context from existing intelligence
+        collection_context = self._build_collection_context(candidate)
+
+        # Phase 3: Enhance flags with collection intelligence
+        if collection_context.get("duplicate_risk"):
+            flags.append(f"Duplicate risk: {collection_context['duplicate_risk']}")
+            if recommendation == "PROCEED":
+                recommendation = "CAUTION"
+
+        if collection_context.get("upgrade_opportunities"):
+            evidence.append(f"Upgrade opportunity: {collection_context['upgrade_opportunities']}")
+
         return GradingAssessment(
             candidate=candidate,
             estimated_range=(estimated_low, estimated_high),
@@ -270,6 +282,7 @@ class AIGradingAssistant:
             evidence=evidence,
             review_flags=flags,
             recommendation=recommendation,
+            collection_context=collection_context,
         )
 
     def assess_batch(self, candidates: List[GradingCandidate]) -> BatchGradingReport:
@@ -277,6 +290,52 @@ class AIGradingAssistant:
         return BatchGradingReport(
             assessments=[self.assess_candidate(c) for c in candidates]
         )
+
+    # -- Phase 3: Collection Intelligence Integration -------------------------
+
+    def _build_collection_context(self, candidate: GradingCandidate) -> Dict[str, Any]:
+        """Build collection context by reusing existing engine methods."""
+        context: Dict[str, Any] = {}
+
+        # Collection count for country/denomination
+        by_country = self.engine.analyze_by_country()
+        country_data = by_country.get(candidate.country, {})
+        if country_data:
+            context["collection_count_for_country"] = country_data.get("count", 0)
+            context["denominations_in_country"] = country_data.get("denominations", [])
+
+        # Duplicate risk
+        duplicates = self.engine.detect_duplicates()
+        for dup in duplicates:
+            if (dup.get("country") == candidate.country and
+                dup.get("denomination") == candidate.denomination and
+                dup.get("year") == candidate.year):
+                context["duplicate_risk"] = f"Already own {dup.get('count', 1)} example(s)"
+                break
+
+        # Upgrade opportunities for same country/denomination/year
+        upgrades = self.engine.detect_upgrade_candidates()
+        matching_upgrades = [
+            u for u in upgrades
+            if (u.get("country") == candidate.country and
+                u.get("denomination") == candidate.denomination and
+                u.get("year") == candidate.year)
+        ]
+        if matching_upgrades:
+            best = matching_upgrades[0]
+            context["upgrade_opportunities"] = (
+                f"Existing best grade is {best.get('current_best_grade', 'unknown')}; "
+                f"this candidate may be an upgrade"
+            )
+
+        # Series completion context
+        if candidate.series:
+            series_analysis = self.engine.analyze_by_series()
+            key = (candidate.country, candidate.denomination)
+            if key in series_analysis:
+                context["series_items"] = series_analysis[key].get("year_count", 0)
+
+        return context
 
     # -- Internal -----------------------------------------------------------
 
