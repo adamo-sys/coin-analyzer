@@ -101,6 +101,7 @@ from sync_backup_engine import SyncBackupEngine
 from watchlist_engine import AlertEngine, Watchlist, WatchlistEngine, WatchlistItem
 from platform_core import Platform
 from platform_integration import PlatformIntegration
+from batch_processing import BatchProcessingEngine, BatchReport
 
 
 class CoinCollectionGUI:
@@ -273,6 +274,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
         tools_menu.add_command(label="Numista Intelligence", command=self.open_numista_intelligence)
         tools_menu.add_command(label="Smart Phone Cataloguer", command=self.open_smart_phone_cataloguer)
+        tools_menu.add_command(label="Batch Processing", command=self.open_batch_processing)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -7674,6 +7676,160 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 
 
+def open_batch_processing(self):
+        """Open Batch Processing dialog.
+
+        Provides a read-only interface for processing a folder of coin photos
+        using the BatchProcessingEngine. Results are displayed for review;
+        no collection mutation occurs.
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Batch Processing")
+        dialog.geometry("900x800")
+
+        engine = BatchProcessingEngine()
+        current_report = {"report": None}
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Folder Selection Section ---
+        folder_frame = ttk.LabelFrame(main_frame, text="Folder Selection", padding="10")
+        folder_frame.pack(fill=tk.X, pady=(0, 10))
+
+        folder_var = tk.StringVar()
+        ttk.Label(folder_frame, text="Photo Folder:").grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(folder_frame, textvariable=folder_var, width=60).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=3)
+
+        def browse_folder():
+            path = filedialog.askdirectory(title="Select Photo Folder")
+            if path:
+                folder_var.set(path)
+
+        ttk.Button(folder_frame, text="Browse", command=browse_folder).grid(row=0, column=2, sticky=tk.W, padx=(6, 0), pady=3)
+        folder_frame.columnconfigure(1, weight=1)
+
+        # File Pattern
+        pattern_var = tk.StringVar(value="*.jpg")
+        ttk.Label(folder_frame, text="File Pattern:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(folder_frame, textvariable=pattern_var, width=20).grid(row=1, column=1, sticky=tk.W, padx=(8, 0), pady=3)
+
+        # Auto-pair checkbox
+        auto_pair_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(folder_frame, text="Auto-pair front/back photos", variable=auto_pair_var).grid(row=2, column=1, sticky=tk.W, padx=(8, 0), pady=3)
+
+        # --- Results Display ---
+        result_frame = ttk.LabelFrame(main_frame, text="Batch Processing Results", padding="10")
+        result_frame.pack(fill=tk.BOTH, expand=True)
+        result_text = tk.Text(result_frame, wrap=tk.WORD, height=25)
+        result_text.pack(fill=tk.BOTH, expand=True)
+
+        # --- Button Frame ---
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def run_batch_processing():
+            """Run batch processing on the selected folder."""
+            try:
+                folder_path = folder_var.get()
+                file_pattern = pattern_var.get() or "*.jpg"
+                auto_pair = auto_pair_var.get()
+
+                if not folder_path:
+                    messagebox.showwarning("No Folder", "Please select a photo folder.")
+                    return
+
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, "Running Batch Processing...\n")
+                result_text.insert(tk.END, "Folder: " + folder_path + "\n")
+                result_text.insert(tk.END, "Pattern: " + file_pattern + "\n")
+                result_text.insert(tk.END, "Auto-pair: " + str(auto_pair) + "\n\n")
+
+                # Run batch processing — read-only, no collection mutation
+                collection_items = self._collection_items()
+                report = engine.process_folder(
+                    folder_path=folder_path,
+                    collection_items=collection_items,
+                    file_pattern=file_pattern,
+                    auto_pair=auto_pair,
+                )
+                current_report["report"] = report
+
+                # Display summary
+                result_text.insert(tk.END, "=== Batch Summary ===\n")
+                result_text.insert(tk.END, "Total photos: " + str(report.summary.total_photos) + "\n")
+                result_text.insert(tk.END, "Processed: " + str(report.summary.processed) + "\n")
+                result_text.insert(tk.END, "Failed: " + str(report.summary.failed) + "\n")
+                result_text.insert(tk.END, "OCR ready: " + str(report.summary.ocr_ready) + "\n")
+                result_text.insert(tk.END, "Review ready: " + str(report.summary.review_ready) + "\n")
+                result_text.insert(tk.END, "Duplicates detected: " + str(report.summary.duplicates_detected) + "\n")
+                result_text.insert(tk.END, "Upgrade opportunities: " + str(report.summary.upgrade_opportunities) + "\n")
+                result_text.insert(tk.END, "Gap opportunities: " + str(report.summary.gap_opportunities) + "\n\n")
+
+                # Display review summary
+                review = report.review_summary()
+                result_text.insert(tk.END, "=== Review Summary ===\n")
+                result_text.insert(tk.END, "Total candidates: " + str(review["total_candidates"]) + "\n")
+                result_text.insert(tk.END, "Reviewable: " + str(review["reviewable"]) + "\n")
+                result_text.insert(tk.END, "Approved: " + str(review["approved"]) + "\n")
+                result_text.insert(tk.END, "Rejected: " + str(review["rejected"]) + "\n")
+                result_text.insert(tk.END, "Needs review: " + str(review["needs_review"]) + "\n")
+                result_text.insert(tk.END, "Unreviewed: " + str(review["unreviewed"]) + "\n")
+                result_text.insert(tk.END, "Completion: " + str(round(review["review_completion_pct"], 1)) + "%\n\n")
+
+                # Display candidates
+                if report.candidates:
+                    result_text.insert(tk.END, "=== Candidates ===\n")
+                    for c in report.candidates:
+                        result_text.insert(tk.END, c.candidate_id + ": " + c.subject + " — " + c.status.value + " / " + c.review_status.value + "\n")
+                        if c.warnings:
+                            result_text.insert(tk.END, "  Warnings: " + ", ".join(c.warnings) + "\n")
+                        if c.errors:
+                            result_text.insert(tk.END, "  Errors: " + ", ".join(c.errors) + "\n")
+                        result_text.insert(tk.END, "\n")
+                else:
+                    result_text.insert(tk.END, "No candidates generated.\n")
+
+                result_text.insert(tk.END, "\nBatch processing complete. Use Export buttons to save the report.\n")
+
+            except Exception as e:
+                messagebox.showerror("Batch Processing Error", str(e))
+                result_text.insert(tk.END, "\nError: " + str(e) + "\n")
+
+        def export_csv():
+            """Export batch report to CSV."""
+            report = current_report["report"]
+            if not report:
+                messagebox.showwarning("No Report", "Run batch processing first.")
+                return
+            path = filedialog.asksaveasfilename(
+                title="Export CSV",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")],
+            )
+            if path:
+                report.export_csv(path)
+                messagebox.showinfo("Export Complete", "CSV saved to " + path)
+
+        def export_markdown():
+            """Export batch report to Markdown."""
+            report = current_report["report"]
+            if not report:
+                messagebox.showwarning("No Report", "Run batch processing first.")
+                return
+            path = filedialog.asksaveasfilename(
+                title="Export Markdown",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md")],
+            )
+            if path:
+                report.export_markdown(path)
+                messagebox.showinfo("Export Complete", "Markdown saved to " + path)
+
+        ttk.Button(button_frame, text="Run Batch Processing", command=run_batch_processing).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 def main():
     """Main application entry point."""
     root = tk.Tk()
