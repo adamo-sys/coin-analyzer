@@ -1,0 +1,21 @@
+v8.2 AI Grading Assistant
+
+Build a deterministic, explainable coin grading guidance engine that helps collectors make informed grading decisions without computer vision, image recognition, or automated grade assignment.
+
+The engine must:
+- Reuse existing Collection Intelligence, Photo Vault, and OCR Identification engines
+- Analyze collection grade patterns by country/denomination/series
+- Estimate likely grade ranges from available evidence
+- Score confidence based on evidence quality and pattern strength
+- Flag cases needing manual review
+- Export CSV/Markdown assessment reports
+- Integrate into the Tools menu
+- Remain deterministic, testable, and advisory-only
+- Not mutate collection data
+- Not perform image recognition or computer vision
+- Not claim live pricing or market accuracy
+
+New files: ai_grading_assistant.py, test_ai_grading_assistant.py
+Modified files: coin_collection_gui.py
+
+Follow the standard release lifecycle: Phase 0 → RELEASE GATE → Phases 1-5 → Phase 6 Release → Publish.

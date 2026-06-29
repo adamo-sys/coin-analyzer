@@ -51,6 +51,8 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
+* v8.2 roadmap lock: AI Grading Assistant scope defined, Phase 0 docs created.
+
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
 - Platform Analytics Engine generates metrics for all major subsystems: Collection Intelligence, Portfolio Performance, Workflow Integration, Deal Hunter, Opportunity Engine, Market Intelligence, Watchlists & Alerts, Collector Cloud, Sync & Backup, Multi-Device Workspace, and Device Linking.

@@ -322,6 +322,13 @@ Current archive status:
 * Never leave a completed version untagged.
 
 ## Recent Changes
+### 2026-06-28
+
+* Locked v8.2 roadmap: AI Grading Assistant.
+* Roadmap lock commit: PENDING (Phase 0 in progress).
+* v8.2 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 adds deterministic grading guidance to help collectors assess candidate quality before purchase or cataloguing, reusing existing collection intelligence and photo metadata without computer vision or automated grade assignment.
+* Files created: `docs/releases/v8.2.md`, `project_docs/release_prompts/v8.2.txt`, `v8.2_implementation_plan.md`.
+
 
 ### 2026-06-25
 
