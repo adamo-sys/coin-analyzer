@@ -7,7 +7,7 @@
 - Current project state file reports release version: `v8.3`
 - Next planned release: `v8.4`
 - Active development target: `v8.4` Connected Data
-- Current active task: v8.4 Connected Data planning (post-release pause)
+- Current active task: v8.4 Connected Data Phase 0 (roadmap lock design)
 - Last release: v8.3 Collector Workspace (released)
 - Implementation commit: `aa59f57` (Phase 5)
 - Release tag: `v8.3`
@@ -809,8 +809,17 @@ The batch assessment returns a `BatchGradingReport`:
 - 0 failures, 0 errors.
 - Regression: all existing tests remain green.
 
+## v8.4 Connected Data (Phase 0 — Roadmap Lock)
+
+* Locked v8.4 roadmap: Connected Data.
+* v8.4 roadmap rationale: v8.4 connects existing engines so information entered once becomes available everywhere it is relevant — photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry.
+* Files created: `docs/releases/v8.4.md`, `project_docs/release_prompts/v8.4.txt`, `v8.4_implementation_plan.md`.
+* Roadmap lock commit: PENDING (Phase 0 in progress).
+* Architecture doc created: `ARCHITECTURE.md` (post-v8.3 architectural map).
+* Recommended next steps: v8.4 Phase 0 approval → Phase 1 Connected Data Core Engine.
+
 ## Recommended Next Steps
 
-1. v8.3 Collector Workspace released. Take a usage pause before planning v8.4.
-2. Use the application, identify friction points, and let real usage drive v8.4 Connected Data features.
-3. After usage pause: begin v8.4 Connected Data planning.
+1. v8.4 Connected Data Phase 0 approved. Begin Phase 1 implementation.
+2. Implement Connected Data Core Engine (`ConnectedContext`, `ConnectedDataEngine`).
+3. Then proceed through Phase 2-6 per `v8.4_implementation_plan.md`.

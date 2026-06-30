@@ -1,0 +1,49 @@
+Begin v8.4 Phase 0 — DESIGN ONLY.
+
+Mission:
+Connected Data
+
+Goal:
+Connect existing engines so information entered once becomes available everywhere it is relevant, while preserving the current architecture.
+
+Before designing:
+Review:
+- ARCHITECTURE.md
+- AI_ONBOARDING.md
+- AI_HANDOFF.md
+- PROJECT_STATE.md
+- TASK_QUEUE.md
+- RELEASE_HISTORY.md
+- PROJECT_PHILOSOPHY.md
+
+Respect permanent rules:
+- Existing desktop application remains the authoritative collection engine.
+- Extend existing modules before creating new ones.
+- CollectorWorkspace remains a ViewModel only.
+- No duplicated business logic.
+- No duplicated collection storage.
+- No duplicated export logic.
+- Deterministic-first.
+- No ML.
+- No computer vision.
+- No cloud dependency.
+- No new persistence layer unless explicitly justified.
+
+Deliverables:
+
+1. Mission statement
+2. Existing engine reuse map
+3. Connected Data architecture
+4. Public API additions
+5. Ownership boundaries
+6. Data flow diagrams
+7. Extension points
+8. Test strategy
+9. Six-phase implementation roadmap
+10. Risk assessment
+
+Wait for approval before implementation.
+
+Do not write code.
+Do not modify existing modules.
+Do not begin Phase 1.

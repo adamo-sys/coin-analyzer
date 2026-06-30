@@ -166,6 +166,72 @@ Status: Complete — v8.3 Released
 
 ---
 
+## v8.4 Connected Data
+
+Status: Phase 0 — Roadmap Lock
+
+### Phase 0 — Roadmap Lock
+- [x] Create docs/releases/v8.4.md
+- [x] Create project_docs/release_prompts/v8.4.txt
+- [x] Create v8.4_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update TASK_QUEUE.md (this file)
+- [x] Update RELEASE_HISTORY.md
+- [ ] Commit Phase 0
+- [ ] Push Phase 0
+- [ ] Pass RELEASE GATE
+
+### Phase 1 — Connected Data Core Engine
+- [ ] Design ConnectedContext dataclass
+- [ ] Implement ConnectedDataEngine thin facade
+- [ ] Implement link_*() methods (photos→grading, OCR→grading, intelligence→shopping, market→acquisition, watchlist→deals, batch→grading)
+- [ ] Implement generate_cross_reference_report()
+- [ ] Unit tests for core engine
+
+### Phase 2 — Engine Context Enhancements
+- [ ] Add keyword-only context params to AIGradingAssistant
+- [ ] Add keyword-only context params to SmartShoppingAssistant
+- [ ] Add keyword-only context params to AcquisitionWorkflow
+- [ ] Add keyword-only context params to DealHunter
+- [ ] Add keyword-only context params to BatchProcessingEngine
+- [ ] Add keyword-only context params to CollectionAssistant
+- [ ] Regression tests for all engine enhancements
+
+### Phase 3 — Workspace Connection Methods
+- [ ] Implement get_connected_photos() in CollectorWorkspace
+- [ ] Implement get_connected_grading() in CollectorWorkspace
+- [ ] Implement get_connected_acquisition() in CollectorWorkspace
+- [ ] Implement get_connected_shopping() in CollectorWorkspace
+- [ ] Implement get_connected_batch() in CollectorWorkspace
+- [ ] Implement get_connected_entry() in CollectorWorkspace
+- [ ] Integration tests with real engines
+
+### Phase 4 — Auto-Population & Session Context
+- [ ] Auto-load SessionContext on app startup
+- [ ] Auto-propagate session context to all engines via ConnectedContext
+- [ ] Add "Use Last OCR" / "Use Last Photo" / "Use Last Grading" buttons
+- [ ] Add "Import from Want List / Deal Hunter / Intelligence" buttons
+- [ ] Add "Link to Grading / Entry" buttons to Batch Processing
+- [ ] GUI smoke tests
+
+### Phase 5 — GUI Integration (Connected Panels)
+- [ ] Add "Connected Photos" tab to workspace notebook
+- [ ] Add "Connected Acquisition" tab to workspace notebook
+- [ ] Add "Connected Batch" tab to workspace notebook
+- [ ] Implement "Open in Tool..." buttons for connected views
+- [ ] Implement connected export buttons (Markdown/CSV)
+- [ ] GUI tests for new tabs
+
+### Phase 6 — Release
+- [ ] Final regression (1124+ tests)
+- [ ] Metadata updates
+- [ ] Tag v8.4
+- [ ] Commit and push
+- [ ] Publish
+
+---
+
 Work through this queue in priority order. Handle only one task at a time.
 
 ## Status Legend

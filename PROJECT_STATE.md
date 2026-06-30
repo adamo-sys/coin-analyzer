@@ -4,7 +4,7 @@
 
 * Current release version: `v8.3`
 - Next planned release: `v8.4`
-- Active development target: `v8.4` Connected Data
+- Active development target: `v8.4` Connected Data (Phase 0 design)
 * Current Git branch: `main`
 * Last updated date: 2026-06-30
 
@@ -182,7 +182,7 @@ v8.0 = Smart Phone Cataloguer (released)
 v8.1 = Batch Processing (released)
 v8.2 = AI Grading Assistant (released)
 - v8.3 = Collector Workspace (released)
-v8.4 = Connected Data (active planning)
+- v8.4 = Connected Data (Phase 0 design)
 v8.4 = Connected Data
 
 v9.0 = Collector Ecosystem
@@ -381,6 +381,16 @@ Current archive status:
 * Release notes: `docs/releases/v8.3.md`.
 * Roadmap lock commit: `c6dd6aa`.
 * Release metadata commit: `ccc9bd0`.
+
+
+### 2026-06-30
+
+* Locked v8.4 roadmap: Connected Data.
+* v8.4 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 added deterministic AI Grading Assistant for candidate quality assessment; v8.3 unified every existing tool, engine, report, and workflow into a single cohesive collector workspace; v8.4 connects existing engines so information entered once becomes available everywhere it is relevant — photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry.
+* Files created: `docs/releases/v8.4.md`, `project_docs/release_prompts/v8.4.txt`, `v8.4_implementation_plan.md`.
+* Roadmap lock commit: PENDING (Phase 0 in progress).
+* v8.4 design scope: Connected Data — cross-referencing and auto-propagation layer. Thin `ConnectedDataEngine` facade. Keyword-only context enhancements to existing engines. New workspace connection methods. Auto-population buttons. Connected workspace tabs. No new intelligence engine. No new persistence layer. No duplicated business logic.
+* Architecture doc created: `ARCHITECTURE.md` (post-v8.3 architectural map).
 
 
 ### 2026-06-25
