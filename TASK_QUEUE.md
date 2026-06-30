@@ -50,6 +50,58 @@ Status: Complete — v8.1 Released
 
 ---
 
+## v8.2 AI Grading Assistant
+
+Status: Complete — v8.2 Released
+
+### Phase 0 — Roadmap Lock
+- [x] Create docs/releases/v8.2.md
+- [x] Create project_docs/release_prompts/v8.2.txt
+- [x] Create v8.2_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update TASK_QUEUE.md (this file)
+- [x] Update RELEASE_HISTORY.md
+- [x] Commit Phase 0
+- [x] Push Phase 0
+- [x] Pass RELEASE GATE
+
+### Phase 1 — Core Engine
+- [x] Design ai_grading_assistant.py public API
+- [x] Implement AIGradingAssistant
+- [x] Implement GradingCandidate, GradingAssessment, GradePattern, BatchGradingReport
+- [x] Unit tests for public API
+
+### Phase 2 — Integration (Photo Vault + OCR)
+- [x] Integrate Photo Vault metadata for grading candidates
+- [x] Integrate OCR Identification evidence (optional)
+- [x] Handle missing/weak evidence gracefully
+
+### Phase 3 — Integration (Collection Intelligence)
+- [x] Integrate Collection Intelligence for grade pattern analysis
+- [x] Collection context: duplicate risk, upgrade opportunities, series completion
+- [x] Flag candidates outside typical grade range
+
+### Phase 4 — Workflow
+- [x] Assessment reporting and export (CSV/Markdown)
+- [x] Batch assessment for multiple candidates
+- [x] Review flagging and escalation
+
+### Phase 5 — GUI
+- [x] Tools → AI Grading Assistant menu item
+- [x] Single assessment dialog (form fields, photo reference, evidence display)
+- [x] Batch assessment dialog (multi-candidate input, summary, per-candidate results)
+- [x] Export buttons (single/batch Markdown and CSV)
+
+### Phase 6 — Release
+- [x] Final regression (1047 tests)
+- [x] Metadata updates
+- [x] Tag v8.2
+- [x] Commit and push
+- [x] Publish
+
+---
+
 Work through this queue in priority order. Handle only one task at a time.
 
 ## Status Legend
@@ -182,8 +234,8 @@ Work through this queue in priority order. Handle only one task at a time.
 1. `v7.4` Collection Assistant
 2. `[x]` `v7.5` Numista Intelligence
 3. `[x]` `v8.0` Smart Phone Cataloguer
-4. `v8.1` Batch Processing
-5. `v8.2` AI Grading Assistant
+4. `[x]` `v8.1` Batch Processing
+5. `[x]` `v8.2` AI Grading Assistant
 6. `v8.3` Collector Workspace
 7. `v8.4` Connected Data
 8. `v9.0` Collector Ecosystem

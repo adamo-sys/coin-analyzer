@@ -2,16 +2,16 @@
 
 ## Current Version
 
-* Current release version: `v8.1`
-- Next planned release: `v8.2`
-- Active development target: `v8.2`
+* Current release version: `v8.2`
+- Next planned release: `v8.3`
+- Active development target: `v8.3` Collector Workspace
 * Current Git branch: `main`
-* Last updated date: 2026-06-28
+* Last updated date: 2026-06-29
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.1`
-* Summary of what was included: Batch Processing — folder photo intake, batch OCR & identification, collection intelligence, batch reporting & export, GUI integration with photo capture integration, OCR identification, collection matching, cataloguing workflow, mobile-friendly GUI, and 959-test regression coverage without AI, forecasting, or external APIs.
+* Most recent Git tag: `v8.2`
+* Summary of what was included: AI Grading Assistant — deterministic grading guidance, collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration (Tools → AI Grading Assistant), and 1047-test regression pass without computer vision, image recognition, or automated grade assignment.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -156,6 +156,7 @@
 * Collection Insights: deterministic, explainable observations about collection, portfolio, workflow, and acquisition strategy with `CollectionInsightsEngine`, `InsightCategory`, `InsightPriority`, `InsightEvidence`, `CollectionInsight`, `CollectorHealthReport`, `CollectionInsightReport`, `InsightsDashboard`, health reporting, insight prioritization, GUI integration (Tools -> Collection Insights), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * Acquisition Strategy: strategic acquisition plans with `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `StrategicAcquisitionPlan`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * Collection Assistant: guided cataloguing workflow with `CollectionAssistantEngine`, `CollectionAssistantCandidate`, `AssistantReviewQueue`, `AssistantSummary`, `ProductivityMetrics`, `SideBySideComparison`, `PhotoInfo`, `OCRCandidate`, `CollectionMatch`, `CollectionGapInfo`, `AcquisitionPriorityInfo`; photo import with auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
+* AI Grading Assistant: deterministic grading guidance with `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; collection grade pattern analysis by country/denomination/series, evidence-based confidence scoring, review flagging (PROCEED/CAUTION/REVIEW), batch assessment, OCR and Photo Vault integration, Collection Intelligence context (duplicate risk, upgrade opportunities, series completion), GUI integration (Tools -> AI Grading Assistant with single and batch assessment tabs), and CSV/Markdown export without computer vision, image recognition, machine learning, or automated grade assignment.
 
 ## Known Bugs
 
@@ -175,9 +176,10 @@ v7.4 = Collection Assistant
 v7.5 = Numista Intelligence
 
 v8.0 = Smart Phone Cataloguer (released)
-- v8.1 = Batch Processing (active planning)
-v8.2 = AI Grading Assistant
-v8.3 = Collector Workspace
+v8.1 = Batch Processing (released)
+v8.2 = AI Grading Assistant (released)
+- v8.3 = Collector Workspace (active planning)
+v8.4 = Connected Data
 v8.4 = Connected Data
 
 v9.0 = Collector Ecosystem
@@ -328,6 +330,26 @@ Current archive status:
 * Roadmap lock commit: PENDING (Phase 0 in progress).
 * v8.2 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 adds deterministic grading guidance to help collectors assess candidate quality before purchase or cataloguing, reusing existing collection intelligence and photo metadata without computer vision or automated grade assignment.
 * Files created: `docs/releases/v8.2.md`, `project_docs/release_prompts/v8.2.txt`, `v8.2_implementation_plan.md`.
+
+
+### 2026-06-29
+
+* Implemented v8.2 AI Grading Assistant: `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; deterministic grading guidance via collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export.
+* Phase 1 core engine: `ai_grading_assistant.py` with `assess_candidate`, `assess_batch`, pattern caching, and evidence-based recommendations (PROCEED/CAUTION/REVIEW).
+* Phase 2 integration layer: factory methods `from_ocr_candidate`, `from_captured_photo`, `from_batch_candidate` linking to existing Photo Vault, OCR, and batch processing engines.
+* Phase 3 Collection Intelligence integration: `collection_context` with duplicate risk, upgrade opportunities, series completion, and country/denomination grade patterns.
+* Phase 4 workflow reporting: `export_assessment`, `export_report` with Markdown and CSV formatters.
+* Phase 5 GUI integration: `Tools -> AI Grading Assistant` with single assessment dialog (form fields, photo reference, evidence display, review flags, collection context), batch assessment dialog (multi-candidate input, summary counts, per-candidate results), and export buttons.
+* Implementation commits: `226e84f` (Phase 0), `31dd55e` (Phase 1), `164214b` (Phase 2), `a42e94f` (Phase 3), `58600b7` (Phase 4), `a93ad23` (Phase 5).
+* Release tag: `v8.2`.
+* Tests passed: `py -m unittest test_ai_grading_assistant.py` -> 32 tests OK; full `py -m unittest discover` -> 1047 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1015 to 1047.
+* Limitation: deterministic local guidance only; no computer vision, no image recognition, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.2.txt`.
+* Release notes: `docs/releases/v8.2.md`.
+* Roadmap lock commit: `226e84f`.
+* Release metadata commit: `fdcf18d`.
 
 
 ### 2026-06-25

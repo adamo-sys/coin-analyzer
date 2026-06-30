@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | `v8.0` | `PENDING` | Smart Phone Cataloguer with photo capture workflow, OCR-assisted identification, mobile collection entry, collector workflow integration, and 959-test regression pass. |
 | `v8.1` | `09dd0fe` | Batch Processing with folder photo intake, batch OCR & identification, collection intelligence batch analysis, batch reporting & export, GUI integration, and 1015-test regression pass. |
-| `v8.2` | `PENDING` | AI Grading Assistant with deterministic grade guidance, collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, and CSV/Markdown export. |
+| `v8.2` | `fdcf18d` | AI Grading Assistant with deterministic grading guidance, collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration, and 1047-test regression pass without computer vision, image recognition, or automated grade assignment. |
 | `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor milestone with release audit coverage and NumPy CI dependency compatibility fix. |
 | `v0.6` | `d976f9ec3d0e95124013db5f10cffd503b1acb03` | Focused Collection Intelligence Engine for manual candidate classification and Do I Own This foundation. |
 | `v0.7` | `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0` | Upgrade Advisor and Buy Advisor duplicate/upgrade logic consolidated on the Collection Intelligence Engine. |

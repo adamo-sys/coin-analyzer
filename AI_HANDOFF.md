@@ -2,16 +2,16 @@
 
 ## Snapshot
 
-- Date: 2026-06-28
+- Date: 2026-06-29
 - Branch: `main`
-- Current project state file reports release version: `v8.1`
-- Next planned release: `v8.2`
-- Active development target: `v8.2`
-- Current active task: v8.2 AI Grading Assistant Phase 0 (roadmap lock)
-- Last release: v8.1 Batch Processing (released)
-- Implementation commit: `68669ad`
-- Release tag: `v8.1`
-- Release metadata commit: `68669ad`
+- Current project state file reports release version: `v8.2`
+- Next planned release: `v8.3`
+- Active development target: `v8.3` Collector Workspace
+- Current active task: v8.2 AI Grading Assistant Phase 6 (release metadata)
+- Last release: v8.2 AI Grading Assistant (released)
+- Implementation commit: `a93ad23`
+- Release tag: `v8.2`
+- Release metadata commit: `fdcf18d`
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -51,7 +51,22 @@ Release prompts are project documentation and architecture history. Store them u
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
 
 ## What Changed
-* v8.2 roadmap lock: AI Grading Assistant scope defined, Phase 0 docs created.
+* v8.2 AI Grading Assistant released: `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; deterministic grading guidance via collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration.
+* Phase 1 core engine: `ai_grading_assistant.py` with `assess_candidate`, `assess_batch`, pattern caching, and evidence-based recommendations (PROCEED/CAUTION/REVIEW).
+* Phase 2 integration layer: factory methods `from_ocr_candidate`, `from_captured_photo`, `from_batch_candidate` linking to existing Photo Vault, OCR, and batch processing engines.
+* Phase 3 Collection Intelligence integration: `collection_context` with duplicate risk, upgrade opportunities, series completion, and country/denomination grade patterns.
+* Phase 4 workflow reporting: `export_assessment`, `export_report` with Markdown and CSV formatters.
+* Phase 5 GUI integration: `Tools -> AI Grading Assistant` with single assessment dialog (form fields, photo reference, evidence display, review flags, collection context), batch assessment dialog (multi-candidate input, summary counts, per-candidate results), and export buttons.
+* Implementation commits: `226e84f` (Phase 0), `31dd55e` (Phase 1), `164214b` (Phase 2), `a42e94f` (Phase 3), `58600b7` (Phase 4), `a93ad23` (Phase 5).
+* Release tag: `v8.2`.
+* Tests passed: `py -m unittest test_ai_grading_assistant.py` -> 32 tests OK; full `py -m unittest discover` -> 1047 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1015 to 1047.
+* Limitation: deterministic local guidance only; no computer vision, no image recognition, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.2.txt`.
+* Release notes: `docs/releases/v8.2.md`.
+* Roadmap lock commit: `226e84f`.
+* Release metadata commit: pending.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
@@ -725,6 +740,45 @@ Supported statuses:
 - Backup packages are local zip files only; keep off-machine backups separately and continue storing collection workbooks in known backed-up locations.
 - Workbook copy coverage depends on the persisted workbook path saved in app state. If the workbook path is missing or stale, backup continues and reports a warning.
 - GUI workflows still have limited automated coverage.
+- AI Grading Assistant is deterministic local guidance only; it does not perform computer vision, image recognition, machine learning, or automated grade assignment. All assessments are advisory and require collector review.
+
+## v8.2 Engine Scope
+
+The AI Grading Assistant accepts a `GradingCandidate` and returns a `GradingAssessment`:
+
+- Country, denomination, year, series, variety
+- Claimed grade (optional)
+- Photo references (optional)
+- OCR evidence (optional)
+- Manual description (optional)
+- Estimated grade range (low, high)
+- Most likely grade
+- Evidence list
+- Review flags
+- Recommendation (PROCEED, CAUTION, REVIEW)
+- Collection context (duplicate risk, upgrade opportunities, series items, collection count)
+
+The batch assessment returns a `BatchGradingReport`:
+
+- List of `GradingAssessment` results
+- Summary counts by recommendation
+- Markdown and CSV export
+
+## v8.2 Guardrails
+
+- No computer vision or image recognition.
+- No automated grade assignment to collection records.
+- All assessments are advisory-only.
+- No live pricing or market data.
+- No collection mutation.
+- Deterministic, testable, explainable.
+
+## v8.2 Test Status
+
+- `py -m unittest test_ai_grading_assistant.py`: 32 tests OK.
+- `py -m unittest discover`: 1047 tests OK.
+- 0 failures, 0 errors.
+- Regression: all existing tests remain green.
 
 ## Recommended Next Steps
 
