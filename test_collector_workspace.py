@@ -1593,6 +1593,54 @@ class TestCollectorWorkspacePhase4Integration(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Phase 5 GUI Smoke Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspaceGUISmoke(unittest.TestCase):
+    """Smoke tests for GUI integration — verify imports and basic wiring."""
+
+    def test_gui_imports_collector_workspace_cleanly(self) -> None:
+        """coin_collection_gui should import CollectorWorkspace without error."""
+        try:
+            import coin_collection_gui
+            self.assertTrue(hasattr(coin_collection_gui, "CoinCollectionGUI"))
+        except Exception as e:
+            self.fail(f"coin_collection_gui failed to import: {e}")
+
+    def test_gui_has_open_collector_workspace_method(self) -> None:
+        """CoinCollectionGUI should have open_collector_workspace method."""
+        import coin_collection_gui
+        self.assertTrue(
+            hasattr(coin_collection_gui.CoinCollectionGUI, "open_collector_workspace"),
+            "CoinCollectionGUI should have open_collector_workspace method",
+        )
+
+    def test_gui_has_workspace_helper_methods(self) -> None:
+        """CoinCollectionGUI should have workspace tab helper methods."""
+        import coin_collection_gui
+        required_methods = [
+            "_create_workspace_tabs",
+            "_create_dashboard_tab",
+            "_create_inbox_tab",
+            "_create_reports_tab",
+            "_refresh_workspace_tabs",
+            "_format_dashboard",
+            "_format_inbox",
+            "_format_collection_summary",
+        ]
+        for method in required_methods:
+            self.assertTrue(
+                hasattr(coin_collection_gui.CoinCollectionGUI, method),
+                f"CoinCollectionGUI should have {method}",
+            )
+
+    def test_gui_has_format_engine_errors(self) -> None:
+        """CoinCollectionGUI should have _format_engine_errors helper."""
+        import coin_collection_gui
+        self.assertTrue(hasattr(coin_collection_gui.CoinCollectionGUI, "_format_engine_errors"))
+
+
+# ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
 

@@ -72,6 +72,7 @@ from collector_workflow_integration import (
 from collection_dashboard import CollectionDashboard
 from collector_companion_readiness import CollectorCompanionReadinessAuditor
 from collector_home_dashboard import CollectorHomeDashboard
+from collector_workspace import CollectorWorkspace
 from collection_integrity import CollectionIntegrityAudit
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
@@ -196,6 +197,7 @@ class CoinCollectionGUI:
         home_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Collector Home", menu=home_menu)
         home_menu.add_command(label="Collector Home Dashboard", command=self.open_collector_home_dashboard)
+        home_menu.add_command(label="Collector Workspace", command=self.open_collector_workspace)
         home_menu.add_command(label="Collector Home", command=self.open_collector_home)
         home_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
         home_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
@@ -8154,6 +8156,497 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
+    def open_collector_workspace(self):
+        """Open Collector Workspace dialog with notebook tabs for all panels.
+
+        Read-only display. All mutation flows through 'Open in Tool...' buttons.
+        """
+        from collector_workspace import (
+            DashboardReport,
+            InboxReport,
+            CollectionSummaryReport,
+            WantListReport,
+            OpportunitiesReport,
+            AIQueueReport,
+            BatchQueueReport,
+            PhotoVaultReport,
+            WorkflowStatusReport,
+            DataSafetyReport,
+            ReportsMenu,
+        )
+
+        workspace = CollectorWorkspace(
+            self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            shopping_candidates=self.shopping_candidates,
+            market_awareness_engine=self.market_awareness_engine,
+            photo_candidates=getattr(self, "photo_candidates", None),
+            watchlists=getattr(self, "watchlists", None),
+            ocr_reports=getattr(self, "ocr_reports", None),
+            workflow_statuses=getattr(self, "workflow_statuses", None),
+            acknowledged_action_ids=getattr(self, "acknowledged_action_ids", None),
+        )
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Collector Workspace")
+        dialog.geometry("1000x800")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Notebook with tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        tabs = self._create_workspace_tabs(notebook, workspace)
+
+        # Button bar
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def refresh_workspace():
+            workspace.refresh()
+            self._refresh_workspace_tabs(tabs, workspace)
+
+        ttk.Button(button_frame, text="Refresh Workspace", command=refresh_workspace).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def _create_workspace_tabs(self, notebook, workspace):
+        """Create all workspace tabs. Returns dict of tab widgets for refresh."""
+        tabs = {}
+        tabs["dashboard"] = self._create_dashboard_tab(notebook, workspace)
+        tabs["inbox"] = self._create_inbox_tab(notebook, workspace)
+        tabs["collection"] = self._create_collection_tab(notebook, workspace)
+        tabs["want_list"] = self._create_want_list_tab(notebook, workspace)
+        tabs["opportunities"] = self._create_opportunities_tab(notebook, workspace)
+        tabs["ai_queue"] = self._create_ai_queue_tab(notebook, workspace)
+        tabs["batch_queue"] = self._create_batch_queue_tab(notebook, workspace)
+        tabs["photo_vault"] = self._create_photo_vault_tab(notebook, workspace)
+        tabs["workflow"] = self._create_workflow_tab(notebook, workspace)
+        tabs["data_safety"] = self._create_data_safety_tab(notebook, workspace)
+        tabs["reports"] = self._create_reports_tab(notebook, workspace)
+        return tabs
+
+    def _create_dashboard_tab(self, notebook, workspace):
+        """Create Dashboard tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Dashboard")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_dashboard()
+        text.insert(tk.END, self._format_dashboard(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Collector Home", command=self.open_collector_home).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_inbox_tab(self, notebook, workspace):
+        """Create Inbox tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Inbox")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_inbox()
+        text.insert(tk.END, self._format_inbox(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Collection Assistant", command=self.open_collection_assistant).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_collection_tab(self, notebook, workspace):
+        """Create Collection tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Collection")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_collection_summary()
+        text.insert(tk.END, self._format_collection_summary(report))
+        text.config(state=tk.DISABLED)
+        return {"frame": frame, "text": text}
+
+    def _create_want_list_tab(self, notebook, workspace):
+        """Create Want List tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Want List")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_want_list()
+        text.insert(tk.END, self._format_want_list(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Want List Generator", command=self.open_want_list_generator).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_opportunities_tab(self, notebook, workspace):
+        """Create Opportunities tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Opportunities")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_opportunities()
+        text.insert(tk.END, self._format_opportunities(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Smart Shopping", command=self.open_smart_shopping_assistant).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_ai_queue_tab(self, notebook, workspace):
+        """Create AI Queue tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="AI Queue")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_ai_queue()
+        text.insert(tk.END, self._format_ai_queue(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in AI Grading Assistant", command=self.open_ai_grading_assistant).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_batch_queue_tab(self, notebook, workspace):
+        """Create Batch Queue tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Batch Queue")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_batch_queue()
+        text.insert(tk.END, self._format_batch_queue(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Batch Processing", command=self.open_batch_processing).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_photo_vault_tab(self, notebook, workspace):
+        """Create Photo Vault tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Photo Vault")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_photo_vault()
+        text.insert(tk.END, self._format_photo_vault(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Photo Vault Audit", command=self.open_photo_vault_audit).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_workflow_tab(self, notebook, workspace):
+        """Create Workflow tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Workflow")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_workflow_status()
+        text.insert(tk.END, self._format_workflow_status(report))
+        text.config(state=tk.DISABLED)
+        return {"frame": frame, "text": text}
+
+    def _create_data_safety_tab(self, notebook, workspace):
+        """Create Data Safety tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Data Safety")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_data_safety()
+        text.insert(tk.END, self._format_data_safety(report))
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        ttk.Button(button_frame, text="Open in Sync & Backup", command=self.open_sync_backup).pack(side=tk.LEFT, padx=(0, 6))
+        return {"frame": frame, "text": text}
+
+    def _create_reports_tab(self, notebook, workspace):
+        """Create Reports tab with list and export buttons."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Reports")
+
+        canvas = tk.Canvas(frame)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scroll_frame = ttk.Frame(canvas)
+        scroll_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        menu = workspace.get_reports()
+        for category in menu.categories:
+            ttk.Label(
+                scroll_frame, text=category, font=("TkDefaultFont", 10, "bold")
+            ).pack(anchor=tk.W, pady=(12, 2))
+            for report in menu.by_category(category):
+                row = ttk.Frame(scroll_frame)
+                row.pack(fill=tk.X, pady=1)
+                status = "✓" if report.available else "✗"
+                ttk.Label(row, text=f"  {status} {report.title}").pack(side=tk.LEFT)
+                if report.available:
+                    ttk.Button(
+                        row, text="Generate",
+                        command=lambda r=report: self._generate_report_dialog(workspace, r),
+                    ).pack(side=tk.RIGHT, padx=(6, 0))
+                    if report.has_markdown_export:
+                        ttk.Button(
+                            row, text="MD",
+                            command=lambda r=report: self._export_report_dialog(workspace, r, "markdown"),
+                        ).pack(side=tk.RIGHT, padx=(6, 0))
+                    if report.has_csv_export:
+                        ttk.Button(
+                            row, text="CSV",
+                            command=lambda r=report: self._export_report_dialog(workspace, r, "csv"),
+                        ).pack(side=tk.RIGHT, padx=(6, 0))
+                else:
+                    ttk.Label(row, text="(unavailable)").pack(side=tk.RIGHT, padx=(6, 0))
+
+        return {"frame": frame, "text": None, "canvas": canvas}
+
+    def _generate_report_dialog(self, workspace, descriptor):
+        """Generate a report and show it in a simple text dialog."""
+        result = workspace.generate_report(descriptor.name)
+        if result.get("error"):
+            messagebox.showerror("Report Error", result.get("reason", "Unknown error"))
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title(descriptor.title)
+        dialog.geometry("800x600")
+        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, str(result))
+        text.config(state=tk.DISABLED)
+        ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=(0, 10))
+
+    def _export_report_dialog(self, workspace, descriptor, format):
+        """Export a report to a file chosen by the user."""
+        ext = ".md" if format == "markdown" else ".csv"
+        filetypes = [("Markdown files", "*.md")] if format == "markdown" else [("CSV files", "*.csv")]
+        path = filedialog.asksaveasfilename(
+            title=f"Export {descriptor.title}",
+            defaultextension=ext,
+            filetypes=filetypes + [("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            ok = workspace.export_report(descriptor.name, format, path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Saved to {path}")
+            else:
+                messagebox.showerror("Export Failed", "Export returned False")
+        except Exception as e:
+            messagebox.showerror("Export Failed", str(e))
+
+    def _refresh_workspace_tabs(self, tabs, workspace):
+        """Refresh all tab content after workspace.refresh()."""
+        panel_methods = {
+            "dashboard": (workspace.get_dashboard, self._format_dashboard),
+            "inbox": (workspace.get_inbox, self._format_inbox),
+            "collection": (workspace.get_collection_summary, self._format_collection_summary),
+            "want_list": (workspace.get_want_list, self._format_want_list),
+            "opportunities": (workspace.get_opportunities, self._format_opportunities),
+            "ai_queue": (workspace.get_ai_queue, self._format_ai_queue),
+            "batch_queue": (workspace.get_batch_queue, self._format_batch_queue),
+            "photo_vault": (workspace.get_photo_vault, self._format_photo_vault),
+            "workflow": (workspace.get_workflow_status, self._format_workflow_status),
+            "data_safety": (workspace.get_data_safety, self._format_data_safety),
+        }
+        for key, (getter, formatter) in panel_methods.items():
+            text = tabs[key]["text"]
+            text.config(state=tk.NORMAL)
+            text.delete("1.0", tk.END)
+            text.insert(tk.END, formatter(getter()))
+            text.config(state=tk.DISABLED)
+        # Reports tab is rebuilt from scratch
+        old_reports = tabs["reports"]["frame"]
+        parent = old_reports.master
+        old_reports.destroy()
+        tabs["reports"] = self._create_reports_tab(parent, workspace)
+
+    # -- Formatting helpers (pure formatting, no business logic) -----------
+
+    def _format_engine_errors(self, errors):
+        """Format engine errors as warning text."""
+        if not errors:
+            return ""
+        lines = ["\n\n⚠️ Warnings", "-" * 40]
+        for error in errors:
+            lines.append(f"- {error}")
+        return "\n".join(lines) + "\n"
+
+    def _format_dashboard(self, report):
+        lines = ["Dashboard", "=" * 40, ""]
+        lines.append(f"Health Score:     {report.health_score or 'N/A'}")
+        lines.append(f"Quality Score:    {report.quality_score or 'N/A'}")
+        lines.append(f"Integrity Score:  {report.integrity_score or 'N/A'}")
+        lines.append(f"Top Priority:     {report.top_priority or 'None'}")
+        lines.append(f"Best Next Purchase: {report.best_next_purchase or 'None'}")
+        lines.append(f"Data Safety:      {report.data_safety_status or 'Unknown'}")
+        lines.append(f"Backup Ready:     {'Yes' if report.backup_ready else 'No'}")
+        if report.todays_tasks:
+            lines.extend(["", "Today's Tasks", "-" * 40])
+            for task in report.todays_tasks:
+                lines.append(f"- {task}")
+        if report.recent_activity:
+            lines.extend(["", "Recent Activity", "-" * 40])
+            for activity in report.recent_activity:
+                lines.append(f"- {activity}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_inbox(self, report):
+        lines = ["Inbox", "=" * 40, ""]
+        lines.append(f"Total Pending:              {report.total_pending}")
+        lines.append(f"Collection Assistant:       {report.collection_assistant_pending}")
+        lines.append(f"Batch Processing:           {report.batch_processing_pending}")
+        lines.append(f"AI Grading Review:          {report.ai_grading_review}")
+        if report.items:
+            lines.extend(["", "Items", "-" * 40])
+            for item in report.items:
+                lines.append(f"- [{item['source']}] {item['label']} (confidence: {item.get('confidence', 0):.0%})")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_collection_summary(self, report):
+        lines = ["Collection Summary", "=" * 40, ""]
+        lines.append(f"Total Items:        {report.total_items}")
+        lines.append(f"Countries:          {report.total_countries}")
+        lines.append(f"Denominations:      {report.total_denominations}")
+        lines.append(f"Years:              {report.total_years}")
+        lines.append(f"Grade Coverage:     {report.grade_coverage or 'N/A'}")
+        lines.append(f"Recent Additions:   {report.recent_additions}")
+        lines.append(f"Quality Score:      {report.quality_score or 'N/A'}")
+        lines.append(f"Integrity Score:    {report.integrity_score or 'N/A'}")
+        if report.series_completion:
+            lines.extend(["", "Series Completion", "-" * 40])
+            for series in report.series_completion:
+                lines.append(f"- {series.get('series', 'Unknown')}: {series.get('completion_percentage', 0):.1f}%")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_want_list(self, report):
+        lines = ["Want List", "=" * 40, ""]
+        lines.append(f"Upgrade Candidates:     {report.total_upgrades}")
+        lines.append(f"Gap Targets:            {report.total_gaps}")
+        lines.append(f"Watchlist Matches:      {report.total_watchlist_matches}")
+        if report.upgrade_candidates:
+            lines.extend(["", "Upgrade Candidates", "-" * 40])
+            for c in report.upgrade_candidates:
+                lines.append(f"- {c}")
+        if report.gap_targets:
+            lines.extend(["", "Gap Targets", "-" * 40])
+            for g in report.gap_targets:
+                lines.append(f"- {g}")
+        if report.watchlist_matches:
+            lines.extend(["", "Watchlist Matches", "-" * 40])
+            for m in report.watchlist_matches:
+                lines.append(f"- {m}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_opportunities(self, report):
+        lines = ["Opportunities", "=" * 40, ""]
+        lines.append(f"Total Opportunities:    {report.total_opportunities}")
+        lines.append(f"Best Next Purchase:     {report.best_next_purchase or 'None'}")
+        lines.append(f"Highest Impact:         {report.highest_impact or 'None'}")
+        if report.top_recommendations:
+            lines.extend(["", "Top Recommendations", "-" * 40])
+            for rec in report.top_recommendations:
+                lines.append(f"- {rec.get('item_name', rec)}")
+        if report.budget_recommendations:
+            lines.extend(["", "Budget Recommendations", "-" * 40])
+            for rec in report.budget_recommendations:
+                lines.append(f"- {rec}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_ai_queue(self, report):
+        lines = ["AI Grading Queue", "=" * 40, ""]
+        lines.append(f"Total Assessments:  {report.total_assessments}")
+        lines.append(f"Proceed:            {report.proceed_count}")
+        lines.append(f"Caution:            {report.caution_count}")
+        lines.append(f"Review:             {report.review_count}")
+        if not report.total_assessments:
+            lines.append("\nAI Grading queue is not yet persisted.")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_batch_queue(self, report):
+        lines = ["Batch Queue", "=" * 40, ""]
+        lines.append(f"Total Sessions:     {report.total_sessions}")
+        lines.append(f"Total Candidates:   {report.total_candidates}")
+        lines.append(f"Reviewed:           {report.reviewed_count}")
+        lines.append(f"Approved:           {report.approved_count}")
+        lines.append(f"Rejected:           {report.rejected_count}")
+        lines.append(f"Needs Review:       {report.needs_review_count}")
+        if not report.total_sessions:
+            lines.append("\nBatch processing sessions are not yet persisted.")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_photo_vault(self, report):
+        lines = ["Photo Vault", "=" * 40, ""]
+        lines.append(f"Total Items:            {report.total_collection_items}")
+        lines.append(f"Items With Photos:      {report.items_with_photos}")
+        lines.append(f"Items Without Photos:   {report.items_without_photos}")
+        lines.append(f"Coverage:               {report.coverage_percentage:.1f}%")
+        lines.append(f"Certified Items:        {report.certified_items}")
+        lines.append(f"Certified With Photos:  {report.certified_with_photos}")
+        lines.append(f"Missing Photos:         {report.missing_photo_count}")
+        lines.append(f"Duplicate Photos:       {report.duplicate_photo_count}")
+        if report.recommended_actions:
+            lines.extend(["", "Recommended Actions", "-" * 40])
+            for action in report.recommended_actions:
+                lines.append(f"- {action}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_workflow_status(self, report):
+        lines = ["Workflow Status", "=" * 40, ""]
+        lines.append(f"Pending Reviews:    {report.pending_reviews}")
+        lines.append(f"Workflow Health:    {report.workflow_health or 'N/A'}")
+        if report.active_workflows:
+            lines.extend(["", "Active Workflows", "-" * 40])
+            for wf in report.active_workflows:
+                lines.append(f"- {wf}")
+        if report.todays_tasks:
+            lines.extend(["", "Today's Tasks", "-" * 40])
+            for task in report.todays_tasks:
+                lines.append(f"- {task}")
+        if report.next_actions:
+            lines.extend(["", "Next Actions", "-" * 40])
+            for action in report.next_actions:
+                lines.append(f"- {action}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_data_safety(self, report):
+        lines = ["Data Safety", "=" * 40, ""]
+        lines.append(f"Backup Ready:           {'Yes' if report.backup_ready else 'No'}")
+        lines.append(f"Last Snapshot Age:      {report.last_snapshot_age or 'N/A'}")
+        lines.append(f"Total Areas:            {report.total_persistence_areas}")
+        lines.append(f"Persisted:              {report.persisted_areas}")
+        lines.append(f"Session-Only:         {report.session_only_areas}")
+        if report.persistence_areas:
+            lines.extend(["", "Persistence Areas", "-" * 40])
+            for area in report.persistence_areas:
+                lines.append(f"- {area.get('area', area)}: {'Persisted' if area.get('survives_restart') else 'Session-only'}")
+        if report.integrity_warnings:
+            lines.extend(["", "Integrity Warnings", "-" * 40])
+            for warning in report.integrity_warnings:
+                lines.append(f"- {warning}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+
 def main():
     """Main application entry point."""
     root = tk.Tk()
