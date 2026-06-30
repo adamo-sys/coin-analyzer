@@ -16,6 +16,13 @@ from collector_workspace import (
     InboxReport,
     CollectionSummaryReport,
     WorkspaceReport,
+    WantListReport,
+    OpportunitiesReport,
+    AIQueueReport,
+    BatchQueueReport,
+    PhotoVaultReport,
+    WorkflowStatusReport,
+    DataSafetyReport,
 )
 
 
@@ -593,6 +600,399 @@ class TestCollectorWorkspaceIntegration(unittest.TestCase):
 
         # Summary should have real counts
         self.assertEqual(summary.total_items, 5)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Unit Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase2Unit(unittest.TestCase):
+    """Unit tests for Phase 2 panel methods (mock-based)."""
+
+    def test_keyword_only_constructor(self) -> None:
+        """Constructor should accept keyword-only optional context parameters."""
+        ws = CollectorWorkspace(
+            [],
+            want_list_intents=[],
+            photo_records=[],
+            shopping_candidates=[],
+            market_awareness_engine=None,
+            photo_candidates=[],
+            watchlists=[],
+            ocr_reports=[],
+            workflow_statuses=[],
+            acknowledged_action_ids=[],
+        )
+        self.assertEqual(ws._collection_items, [])
+        self.assertEqual(ws._want_list_intents, [])
+        self.assertEqual(ws._photo_records, [])
+        self.assertEqual(ws._shopping_candidates, [])
+        self.assertIsNone(ws._market_awareness_engine)
+        self.assertEqual(ws._photo_candidates, [])
+        self.assertEqual(ws._watchlists, [])
+        self.assertEqual(ws._ocr_reports, [])
+        self.assertEqual(ws._workflow_statuses, [])
+        self.assertEqual(ws._acknowledged_action_ids, [])
+        self.assertEqual(ws._engines, {})
+        self.assertEqual(ws._cache, {})
+
+    def test_constructor_minimal_args(self) -> None:
+        """Constructor should work with only collection_items (Phase 1 compatibility)."""
+        ws = CollectorWorkspace(["item"])
+        self.assertEqual(ws._collection_items, ["item"])
+        self.assertIsNone(ws._want_list_intents)
+        self.assertIsNone(ws._photo_records)
+        self.assertEqual(ws._engines, {})
+
+    def test_get_want_list_aggregates_upgrades_and_gaps(self) -> None:
+        """get_want_list should aggregate upgrade candidates, gaps, and watchlist matches."""
+        ws = CollectorWorkspace(_make_mock_items(3))
+
+        mock_upgrade = MagicMock()
+        mock_upgrade.to_dict.return_value = {"country": "USA", "denomination": "Cent"}
+
+        mock_gap = MagicMock()
+        mock_gap.to_dict.return_value = {"series": "Large Cents", "missing": "1902"}
+
+        mock_match = MagicMock()
+        mock_match.to_dict.return_value = {"watchlist": "Pennies", "candidate": "1900"}
+
+        mock_intel = MagicMock()
+        mock_intel.detect_upgrade_candidates.return_value = [mock_upgrade]
+        mock_gap_report = {"series_rows": [mock_gap]}
+        mock_intel.generate_gap_report.return_value = mock_gap_report
+
+        mock_watch = MagicMock()
+        mock_watch_report = MagicMock()
+        mock_watch_report.matches = [mock_match]
+        mock_watch.scan.return_value = mock_watch_report
+
+        ws._engines["collection_intelligence"] = mock_intel
+        ws._engines["watchlist_engine"] = mock_watch
+
+        report = ws.get_want_list()
+
+        self.assertIsInstance(report, WantListReport)
+        self.assertEqual(report.total_upgrades, 1)
+        self.assertEqual(report.upgrade_candidates, [{"country": "USA", "denomination": "Cent"}])
+        self.assertEqual(report.total_gaps, 1)
+        self.assertEqual(report.gap_targets, [{"series": "Large Cents", "missing": "1902"}])
+        self.assertEqual(report.total_watchlist_matches, 1)
+        self.assertEqual(report.watchlist_matches, [{"watchlist": "Pennies", "candidate": "1900"}])
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_opportunities_aggregates_shopping(self) -> None:
+        """get_opportunities should aggregate shopping recommendations and budget advice."""
+        ws = CollectorWorkspace(_make_mock_items(3))
+
+        mock_rec = MagicMock()
+        mock_rec.to_dict.return_value = {"item": "1847 Large Cent", "score": 85}
+
+        mock_shop_report = MagicMock()
+        mock_shop_report.recommendations = [mock_rec]
+        mock_shop_report.best_next_purchase = "1847 Large Cent"
+        mock_shop_report.highest_impact_candidate = "1859 Narrow 9"
+
+        mock_shopping = MagicMock()
+        mock_shopping.generate_report.return_value = mock_shop_report
+
+        mock_opp_report = MagicMock()
+        mock_opp_report.budget_recommendations = ["Under $100: 3 items", "$100-$500: 1 item"]
+
+        mock_opp = MagicMock()
+        mock_opp.generate_report.return_value = mock_opp_report
+
+        ws._engines["smart_shopping"] = mock_shopping
+        ws._engines["opportunity_engine"] = mock_opp
+
+        report = ws.get_opportunities()
+
+        self.assertIsInstance(report, OpportunitiesReport)
+        self.assertEqual(report.total_opportunities, 1)
+        self.assertEqual(report.top_recommendations, [{"item": "1847 Large Cent", "score": 85}])
+        self.assertEqual(report.best_next_purchase, "1847 Large Cent")
+        self.assertEqual(report.highest_impact, "1859 Narrow 9")
+        self.assertEqual(report.budget_recommendations, ["Under $100: 3 items", "$100-$500: 1 item"])
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_ai_queue_phase_2_placeholder(self) -> None:
+        """get_ai_queue should return empty but valid report in Phase 2."""
+        ws = CollectorWorkspace([])
+        report = ws.get_ai_queue()
+
+        self.assertIsInstance(report, AIQueueReport)
+        self.assertEqual(report.total_assessments, 0)
+        self.assertEqual(report.proceed_count, 0)
+        self.assertEqual(report.caution_count, 0)
+        self.assertEqual(report.review_count, 0)
+        self.assertEqual(report.assessments, [])
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_batch_queue_phase_2_placeholder(self) -> None:
+        """get_batch_queue should return empty but valid report in Phase 2."""
+        ws = CollectorWorkspace([])
+        report = ws.get_batch_queue()
+
+        self.assertIsInstance(report, BatchQueueReport)
+        self.assertEqual(report.total_sessions, 0)
+        self.assertEqual(report.total_candidates, 0)
+        self.assertEqual(report.reviewed_count, 0)
+        self.assertEqual(report.approved_count, 0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_photo_vault_aggregates_coverage_and_audit(self) -> None:
+        """get_photo_vault should aggregate PhotoVault coverage and integrity audit."""
+        ws = CollectorWorkspace(_make_mock_items(3))
+
+        mock_coverage = MagicMock()
+        mock_coverage.total_collection_items = 10
+        mock_coverage.items_with_photos = 7
+        mock_coverage.items_without_photos = 3
+        mock_coverage.photo_coverage_percentage = 70.0
+        mock_coverage.certified_items = 2
+        mock_coverage.certified_items_with_photos = 1
+
+        mock_vault = MagicMock()
+        mock_vault.coverage_summary.return_value = mock_coverage
+
+        mock_audit_report = MagicMock()
+        mock_audit_report.missing_photo_references = 2
+        mock_audit_report.duplicate_photo_references = 1
+        mock_audit_report.recommended_actions = ["Add missing photos for 1900-1902"]
+
+        mock_audit = MagicMock()
+        mock_audit.run.return_value = mock_audit_report
+
+        ws._engines["photo_vault"] = mock_vault
+        ws._engines["photo_vault_audit"] = mock_audit
+
+        report = ws.get_photo_vault()
+
+        self.assertIsInstance(report, PhotoVaultReport)
+        self.assertEqual(report.total_collection_items, 10)
+        self.assertEqual(report.items_with_photos, 7)
+        self.assertEqual(report.items_without_photos, 3)
+        self.assertEqual(report.coverage_percentage, 70.0)
+        self.assertEqual(report.certified_items, 2)
+        self.assertEqual(report.certified_with_photos, 1)
+        self.assertEqual(report.missing_photo_count, 2)
+        self.assertEqual(report.duplicate_photo_count, 1)
+        self.assertEqual(report.recommended_actions, ["Add missing photos for 1900-1902"])
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_workflow_status_aggregates_daily_summary(self) -> None:
+        """get_workflow_status should aggregate workflow daily summary."""
+        ws = CollectorWorkspace([])
+
+        mock_summary = MagicMock()
+        mock_summary.workflow_name = "Collection Review"
+        mock_summary.statuses = [MagicMock(), MagicMock()]
+        mock_summary.next_actions = ["Review photos", "Check market"]
+        mock_summary.status = "Review Ready"
+
+        mock_daily = MagicMock()
+        mock_daily.recommended_tasks = ["Review photos", "Check market"]
+        mock_daily.summary = mock_summary
+
+        mock_workflow = MagicMock()
+        mock_workflow.daily_summary.return_value = mock_daily
+
+        ws._engines["collector_workflows"] = mock_workflow
+
+        report = ws.get_workflow_status()
+
+        self.assertIsInstance(report, WorkflowStatusReport)
+        self.assertEqual(report.todays_tasks, ["Review photos", "Check market"])
+        self.assertEqual(report.active_workflows, ["Collection Review"])
+        self.assertEqual(report.pending_reviews, 2)
+        self.assertEqual(report.next_actions, ["Review photos", "Check market"])
+        self.assertEqual(report.workflow_health, "Review Ready")
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_data_safety_aggregates_persistence_and_integrity(self) -> None:
+        """get_data_safety should aggregate persistence manager and integrity audit."""
+        ws = CollectorWorkspace([])
+
+        mock_state = MagicMock()
+        mock_state.saved_at = "2025-01-15T10:00:00"
+
+        mock_result = MagicMock()
+        mock_result.state = mock_state
+
+        mock_pm = MagicMock()
+        mock_pm.load_state.return_value = mock_result
+
+        mock_finding = MagicMock()
+        mock_finding.to_dict.return_value = {"area": "Collection JSON", "survives_restart": True}
+        mock_finding.survives_restart = True
+
+        mock_finding2 = MagicMock()
+        mock_finding2.to_dict.return_value = {"area": "Session Context", "survives_restart": False}
+        mock_finding2.survives_restart = False
+
+        mock_integrity = MagicMock()
+        mock_integrity_report = MagicMock()
+        mock_integrity_report.persistence_findings = [mock_finding, mock_finding2]
+        mock_integrity_report.warnings = ["Session context not persisted"]
+        mock_integrity.run.return_value = mock_integrity_report
+
+        ws._engines["persistence_manager"] = mock_pm
+        ws._engines["collection_integrity"] = mock_integrity
+
+        report = ws.get_data_safety()
+
+        self.assertIsInstance(report, DataSafetyReport)
+        self.assertTrue(report.backup_ready)
+        self.assertEqual(report.last_snapshot_age, "2025-01-15T10:00:00")
+        self.assertEqual(report.total_persistence_areas, 2)
+        self.assertEqual(report.persisted_areas, 1)
+        self.assertEqual(report.session_only_areas, 1)
+        self.assertEqual(report.integrity_warnings, ["Session context not persisted"])
+        self.assertEqual(report.engine_errors, [])
+
+    def test_new_panels_survive_engine_failure(self) -> None:
+        """One engine failure in new panels should not crash the report."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        mock_intel = MagicMock()
+        mock_intel.detect_upgrade_candidates.side_effect = RuntimeError("Intel failed")
+        ws._engines["collection_intelligence"] = mock_intel
+        ws._engines["watchlist_engine"] = MagicMock()
+        ws._engines["watchlist_engine"].scan.return_value = MagicMock(matches=[])
+
+        report = ws.get_want_list()
+
+        self.assertIsInstance(report, WantListReport)
+        self.assertEqual(report.total_upgrades, 0)
+        self.assertEqual(len(report.engine_errors), 1)
+        self.assertIn("Collection Intelligence", report.engine_errors[0])
+
+    def test_phase_2_panels_are_cached(self) -> None:
+        """Phase 2 panel methods should cache results."""
+        ws = CollectorWorkspace([])
+        report1 = ws.get_ai_queue()
+        report2 = ws.get_ai_queue()
+        self.assertIs(report1, report2)
+
+    def test_refresh_clears_phase_2_cache(self) -> None:
+        """refresh() should clear Phase 2 cached panels too."""
+        ws = CollectorWorkspace([])
+        ws.get_ai_queue()
+        ws.get_batch_queue()
+        self.assertIn("ai_queue", ws._cache)
+        self.assertIn("batch_queue", ws._cache)
+        ws.refresh()
+        self.assertEqual(ws._cache, {})
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase2Integration(unittest.TestCase):
+    """Integration tests for Phase 2 panels with real engines."""
+
+    def _make_real_items(self) -> List[Any]:
+        """Create CoinItem instances that real engines can process."""
+        from coin_collection import CoinItem
+        from datetime import datetime
+
+        now = datetime.now().isoformat()
+        return [
+            CoinItem(
+                id="usa_1900", image_path="", country="USA", denomination="Cent",
+                year="1900", grade="VF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="usa_1901", image_path="", country="USA", denomination="Cent",
+                year="1901", grade="XF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="uk_1900", image_path="", country="UK", denomination="Penny",
+                year="1900", grade="G", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="uk_1901", image_path="", country="UK", denomination="Penny",
+                year="1901", grade="VF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="can_1900", image_path="", country="Canada", denomination="Cent",
+                year="1900", grade="AU", notes="", date_added=now, quantity=1,
+            ),
+        ]
+
+    def test_want_list_with_real_collection(self) -> None:
+        """Use real collection to verify want list panel."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+        report = ws.get_want_list()
+
+        self.assertIsInstance(report, WantListReport)
+        # No duplicates in this collection so no upgrades expected
+        self.assertEqual(report.total_upgrades, 0)
+        # Watchlist engine with no watchlists should return empty
+        self.assertEqual(report.total_watchlist_matches, 0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_photo_vault_with_empty_collection(self) -> None:
+        """Empty collection should still produce valid photo vault report."""
+        ws = CollectorWorkspace([])
+        report = ws.get_photo_vault()
+
+        self.assertIsInstance(report, PhotoVaultReport)
+        self.assertEqual(report.total_collection_items, 0)
+        self.assertEqual(report.coverage_percentage, 0.0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_data_safety_with_real_engines(self) -> None:
+        """Use real engines to verify data safety panel."""
+        ws = CollectorWorkspace([])
+        report = ws.get_data_safety()
+
+        self.assertIsInstance(report, DataSafetyReport)
+        # Persistence manager may or may not find state
+        self.assertIsInstance(report.backup_ready, bool)
+        # Integrity should produce findings
+        self.assertGreaterEqual(report.total_persistence_areas, 0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_workflow_status_with_real_engines(self) -> None:
+        """Use real engines to verify workflow status panel."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+        report = ws.get_workflow_status()
+
+        self.assertIsInstance(report, WorkflowStatusReport)
+        # Real workflow engine should produce tasks
+        self.assertIsInstance(report.todays_tasks, list)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_all_ten_panels_with_real_engines(self) -> None:
+        """All 10 panel methods should work together without error."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+
+        dashboard = ws.get_dashboard()
+        inbox = ws.get_inbox()
+        summary = ws.get_collection_summary()
+        want_list = ws.get_want_list()
+        opportunities = ws.get_opportunities()
+        ai_queue = ws.get_ai_queue()
+        batch_queue = ws.get_batch_queue()
+        photo_vault = ws.get_photo_vault()
+        workflow_status = ws.get_workflow_status()
+        data_safety = ws.get_data_safety()
+
+        self.assertIsInstance(dashboard, DashboardReport)
+        self.assertIsInstance(inbox, InboxReport)
+        self.assertIsInstance(summary, CollectionSummaryReport)
+        self.assertIsInstance(want_list, WantListReport)
+        self.assertIsInstance(opportunities, OpportunitiesReport)
+        self.assertIsInstance(ai_queue, AIQueueReport)
+        self.assertIsInstance(batch_queue, BatchQueueReport)
+        self.assertIsInstance(photo_vault, PhotoVaultReport)
+        self.assertIsInstance(workflow_status, WorkflowStatusReport)
+        self.assertIsInstance(data_safety, DataSafetyReport)
 
 
 # ---------------------------------------------------------------------------
