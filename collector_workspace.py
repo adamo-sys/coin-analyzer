@@ -142,6 +142,27 @@ class WorkflowStatusReport(WorkspaceReport):
 
 
 @dataclass
+class ConnectedDataReport(WorkspaceReport):
+    """Cross-reference connections across all workspace data sources."""
+
+    summary: Any = None  # ConnectionSummary from connected_data engine
+    cross_reference: Any = None  # CrossReferenceReport from connected_data engine
+    top_connections: List[Any] = field(default_factory=list)
+
+    @property
+    def total_connections(self) -> int:
+        if self.cross_reference and hasattr(self.cross_reference, "reports"):
+            return sum(r.match_count for r in self.cross_reference.reports)
+        return 0
+
+    @property
+    def overall_match_rate(self) -> float:
+        if self.summary and hasattr(self.summary, "overall_link_rate"):
+            return self.summary.overall_link_rate
+        return 0.0
+
+
+@dataclass
 class DataSafetyReport(WorkspaceReport):
     """Backup readiness, integrity warnings, persistence status."""
 
@@ -160,7 +181,7 @@ class LifecycleInfo:
 
     engine_count: int = 0
     cached_panel_count: int = 0
-    total_panels: int = 10
+    total_panels: int = 11
     reports_menu_cached: bool = False
     panel_names_cached: List[str] = field(default_factory=list)
     collection_item_count: int = 0
@@ -398,6 +419,26 @@ class CollectorWorkspace:
             from persistence_manager import PersistenceManager
 
             return PersistenceManager()
+
+        elif name == "connected_data":
+            from connected_data import ConnectedDataEngine, ConnectedContext
+
+            context = ConnectedContext(
+                collection_items=self._collection_items,
+                photo_records=self._photo_records,
+                ocr_reports=self._ocr_reports,
+                grading_assessments=None,
+                market_records=None,
+                shopping_candidates=self._shopping_candidates,
+                want_list_intents=self._want_list_intents,
+                watchlists=self._watchlists,
+                workflow_statuses=self._workflow_statuses,
+                session_context=None,
+                photo_candidates=self._photo_candidates,
+                acknowledged_action_ids=self._acknowledged_action_ids,
+                batch_candidates=None,
+            )
+            return ConnectedDataEngine(context)
 
         else:
             raise ValueError(f"Unknown engine: {name}")
@@ -809,6 +850,35 @@ class CollectorWorkspace:
 
         report.engine_errors = errors
         self._cache["data_safety"] = report
+        return report
+
+    def get_connected_data(self) -> ConnectedDataReport:
+        """Cross-reference report showing how data sources connect across the workspace.
+
+        Returns which photos are linked to grading, which OCR candidates match
+        collection entries, which watchlist keywords appear in deals, etc.
+        """
+        if "connected_data" in self._cache:
+            return self._cache["connected_data"]
+
+        report = ConnectedDataReport()
+        errors: List[str] = []
+
+        try:
+            engine = self._get_engine("connected_data")
+            cross_ref = engine.generate_cross_reference_report()
+            summary = engine.generate_summary()
+
+            report.cross_reference = cross_ref
+            report.summary = summary
+            report.top_connections = [
+                conn for r in cross_ref.reports for conn in r.connections
+            ][:50]  # Cap at 50 for panel display
+        except Exception as e:
+            errors.append(f"Connected Data: {e}")
+
+        report.engine_errors = errors
+        self._cache["connected_data"] = report
         return report
 
     # ---------------------------------------------------------------------------

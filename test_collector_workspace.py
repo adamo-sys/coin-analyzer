@@ -23,6 +23,7 @@ from collector_workspace import (
     PhotoVaultReport,
     WorkflowStatusReport,
     DataSafetyReport,
+    ConnectedDataReport,
     ReportDescriptor,
     ReportsMenu,
     LifecycleInfo,
@@ -1499,15 +1500,15 @@ class TestCollectorWorkspacePhase4Unit(unittest.TestCase):
         self.assertEqual(ws2.get_lifecycle().collection_item_count, 2)
 
     def test_cache_key_uniqueness(self) -> None:
-        """All 11 panel cache keys should be unique."""
+        """All 12 panel cache keys should be unique."""
         keys = [
             "dashboard", "inbox", "collection_summary",
             "want_list", "opportunities", "ai_queue", "batch_queue",
             "photo_vault", "workflow_status", "data_safety",
-            "reports",
+            "connected_data", "reports",
         ]
         self.assertEqual(len(keys), len(set(keys)), "Cache keys must be unique")
-        self.assertEqual(len(keys), 11)
+        self.assertEqual(len(keys), 12)
 
     def test_get_lifecycle_does_not_initialize_engines(self) -> None:
         """get_lifecycle() must not create engines as a side effect."""
@@ -1524,6 +1525,149 @@ class TestCollectorWorkspacePhase4Unit(unittest.TestCase):
         ws.get_lifecycle()
         after_keys = list(ws._cache.keys())
         self.assertEqual(before_keys, after_keys)
+
+
+# ---------------------------------------------------------------------------
+# Connected Data Tests (v8.4 Phase 2)
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspaceConnectedData(unittest.TestCase):
+    """Tests for get_connected_data panel method."""
+
+    def test_get_connected_data_empty_context(self) -> None:
+        """Empty context returns empty report with zero counts."""
+        ws = CollectorWorkspace([])
+        report = ws.get_connected_data()
+        self.assertIsInstance(report, ConnectedDataReport)
+        self.assertEqual(report.total_connections, 0)
+        self.assertEqual(report.overall_match_rate, 0.0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_connected_data_with_photo_grading(self) -> None:
+        """Photo linked to grading: workspace has photo but no grading context.
+        
+        Phase 2: workspace does not store grading_assessments, so no match.
+        Verifies the engine runs and produces empty connections gracefully.
+        """
+        photo = MagicMock()
+        photo.file_path = "/photos/coin1.jpg"
+        photo.id = "p1"
+
+        ws = CollectorWorkspace(
+            collection_items=[],
+            photo_records=[photo],
+            shopping_candidates=[],
+            want_list_intents=[],
+            watchlists=[],
+        )
+
+        report = ws.get_connected_data()
+        self.assertIsInstance(report, ConnectedDataReport)
+        # Phase 2: no grading context in workspace, so photo->grading is 0
+        self.assertEqual(report.total_connections, 0)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_get_connected_data_with_watchlist_shopping(self) -> None:
+        """Watchlist keyword matches shopping candidate. Both sides available."""
+        watch = MagicMock()
+        watch.id = "wl1"
+        watch.keyword = "dollar"
+        watch.name = None
+
+        shopping = MagicMock()
+        shopping.id = "s1"
+        shopping.title = "1921 Morgan Dollar"
+        shopping.country = "USA"
+        shopping.denomination = "1 Dollar"
+
+        ws = CollectorWorkspace(
+            collection_items=[],
+            watchlists=[watch],
+            shopping_candidates=[shopping],
+        )
+
+        report = ws.get_connected_data()
+        self.assertIsInstance(report, ConnectedDataReport)
+        self.assertGreaterEqual(report.total_connections, 1)
+        self.assertGreater(len(report.top_connections), 0)
+
+    def test_get_connected_data_cache_hit(self) -> None:
+        """Second call returns cached report."""
+        ws = CollectorWorkspace([])
+        report1 = ws.get_connected_data()
+        report2 = ws.get_connected_data()
+        self.assertIs(report1, report2)
+
+    def test_get_connected_data_after_refresh(self) -> None:
+        """After refresh, get_connected_data rebuilds."""
+        ws = CollectorWorkspace([])
+        report1 = ws.get_connected_data()
+        ws.refresh()
+        report2 = ws.get_connected_data()
+        self.assertIsNot(report1, report2)
+        self.assertEqual(report1.total_connections, report2.total_connections)
+
+    def test_get_connected_data_engine_error(self) -> None:
+        """Engine failure produces error but doesn't crash."""
+        ws = CollectorWorkspace([])
+        # Force a bad engine by patching _create_engine
+        with patch.object(ws, "_create_engine") as mock_create:
+            mock_create.side_effect = RuntimeError("Engine creation failed")
+            report = ws.get_connected_data()
+        self.assertEqual(report.total_connections, 0)
+        self.assertEqual(len(report.engine_errors), 1)
+        self.assertIn("Connected Data", report.engine_errors[0])
+
+    def test_get_connected_data_lifecycle(self) -> None:
+        """get_connected_data populates cache and lifecycle counts it."""
+        ws = CollectorWorkspace([])
+        ws.get_connected_data()
+        info = ws.get_lifecycle()
+        self.assertEqual(info.cached_panel_count, 1)
+        self.assertIn("connected_data", ws._cache)
+
+    def test_get_connected_data_with_real_engines(self) -> None:
+        """Real engine integration produces actual cross-references."""
+        from coin_collection import CoinItem
+        from datetime import datetime
+
+        now = datetime.now().isoformat()
+        items = [
+            CoinItem(
+                id="usa_1900", image_path="", country="USA", denomination="Cent",
+                year="1900", grade="VF", notes="", date_added=now, quantity=1,
+            ),
+        ]
+        ws = CollectorWorkspace(items)
+        report = ws.get_connected_data()
+        self.assertIsInstance(report, ConnectedDataReport)
+        self.assertEqual(report.engine_errors, [])
+
+    def test_connected_data_report_has_summary(self) -> None:
+        """ConnectedDataReport includes summary when available."""
+        report = ConnectedDataReport()
+        self.assertIsNone(report.summary)
+        self.assertEqual(report.total_connections, 0)
+        self.assertEqual(report.overall_match_rate, 0.0)
+
+    def test_connected_data_report_total_connections(self) -> None:
+        """total_connections sums match_count across all reports."""
+        from connected_data import CrossReferenceReport, ConnectedReport, Connection, MatchType
+
+        conn = Connection("photo", "grading", "p1", "g1", MatchType.EXACT)
+        sub_report = ConnectedReport("photo", "grading", 1, 1, connections=[conn])
+        cross_ref = CrossReferenceReport(reports=[sub_report])
+
+        report = ConnectedDataReport(cross_reference=cross_ref)
+        self.assertEqual(report.total_connections, 1)
+
+    def test_connected_data_report_overall_match_rate(self) -> None:
+        """overall_match_rate delegates to summary."""
+        from connected_data import ConnectionSummary
+
+        summary = ConnectionSummary(total_photos=10, photos_linked=5)
+        report = ConnectedDataReport(summary=summary)
+        self.assertEqual(report.overall_match_rate, 0.5)
 
 
 # ---------------------------------------------------------------------------
