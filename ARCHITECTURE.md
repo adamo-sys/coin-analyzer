@@ -1,466 +1,373 @@
-# ARCHITECTURE.md
+# Coin Analyzer Architecture
 
-# Coin Analyzer – Architecture
-
-## Purpose
-
-This document explains how Coin Analyzer is organized and how new features should fit into the existing system.
-
-Coin Analyzer is a desktop-first collection intelligence platform. Its architecture is built around reusable engines, deterministic analysis, and clear separation between business logic, workflow orchestration, and user interface.
+> **Version:** post-v8.3  
+> **Status:** living document  
+> **Scope:** architectural map of the collector application after the Collector Workspace release.
 
 ---
 
-# Architectural Rule
+## 1. System Overview
 
-Business logic belongs in engines.
+Coin Analyzer is a desktop collector application for coin and banknote collections. It provides deterministic, explainable intelligence — grading guidance, acquisition recommendations, collection gap analysis, and portfolio tracking — without machine learning, computer vision, or live market data scraping.
 
-The GUI should orchestrate engines and display results.
-
-The GUI should not own collection logic, acquisition logic, grading logic, matching logic, export logic, or roadmap logic.
+The application is built as a **layered system of reusable engines** coordinated by thin orchestration and presentation layers. All business logic lives in engines. All GUI code is display-only. All workspace code is aggregation-only.
 
 ---
 
-# System Overview
+## 2. Layered Architecture
 
-Coin Analyzer is organized into several layers:
-
-1. Data Layer
-2. Intelligence Engines
-3. Workflow Engines
-4. Integration Engines
-5. Export Layer
-6. GUI Layer
-7. Documentation and Release Layer
-
-Each layer should remain focused on its own responsibility.
-
----
-
-# 1. Data Layer
-
-The data layer stores and represents collection information.
-
-Primary responsibilities:
-
-* coin item records
-* collection storage
-* imported data
-* Numista fields
-* workbook and CSV compatibility
-* persistent collection state
-
-Typical modules may include:
-
-* `coin_collection.py`
-* collection workbook loaders
-* Numista import utilities
-* portfolio import utilities
-
-Rules:
-
-* Data models should remain stable whenever possible.
-* New fields should be additive and backward-compatible.
-* Data models should not contain large amounts of business logic.
-* Importers should parse and normalize data, not make collection decisions.
+```
+┌─────────────────────────────────────────┐
+│  GUI Layer (coin_collection_gui.py)     │  ← Tkinter, read-only display,
+│  ── menus, dialogs, notebooks, forms   │    "Open in Tool..." delegation
+├─────────────────────────────────────────┤
+│  ViewModel / Workspace Layer            │  ← CollectorWorkspace (v8.3)
+│  ── aggregation, caching, lifecycle      │    Zero business logic
+├─────────────────────────────────────────┤
+│  Workflow / Orchestration Engines         │  ← BatchProcessing, Workflows,
+│  ── coordinate existing engines          │    SmartPhoneCataloguer, CollectionAssistant
+├─────────────────────────────────────────┤
+│  Intelligence Engines                     │  ← CollectionIntelligence, DealHunter,
+│  ── deterministic analysis & scoring     │    AIGradingAssistant, MarketIntelligence,
+│                                          │    OpportunityEngine, Quality, Integrity, ...
+├─────────────────────────────────────────┤
+│  Data / Model Layer                      │  ← CoinItem, CoinCollection, PhotoRecord,
+│  ── entities, persistence, JSON storage  │    MarketRecord, AppState, Snapshots
+├─────────────────────────────────────────┤
+│  Release & Governance Docs                │  ← PROJECT_STATE, AI_HANDOFF, TASK_QUEUE,
+│  ── source-of-truth status & process     │    RELEASE_HISTORY, RELEASE_GOVERNANCE
+└─────────────────────────────────────────┘
+```
 
 ---
 
-# 2. Intelligence Engines
+## 3. Major Modules and Ownership Boundaries
 
-Intelligence engines analyze collection data and produce deterministic conclusions.
+### Data / Model Layer
+| Module | Responsibility | Key Types |
+|--------|---------------|-----------|
+| `coin_collection.py` | Collection CRUD, JSON persistence | `CoinItem`, `CoinCollection` |
+| `photo_vault.py` | Photo metadata, linking, coverage | `PhotoRecord`, `PhotoVault` |
+| `market_awareness.py` | Observed prices, purchases, sales | `MarketRecord`, `MarketAwarenessEngine` |
+| `persistence_manager.py` | App state JSON save/load/backup | `PersistenceManager`, `AppState` |
+| `session_context.py` | Shared workbook/WANT_LIST context | `SessionContext` |
 
-Examples:
+### Intelligence Engines
+| Module | Responsibility | Key Types |
+|--------|---------------|-----------|
+| `collection_intelligence.py` | Gaps, duplicates, upgrades, priorities | `CollectionIntelligenceEngine`, `AcquisitionTarget` |
+| `collection_quality.py` | Quality scoring, strengths, weaknesses | `CollectionQualityEngine` |
+| `collection_integrity.py` | Data integrity audit | `CollectionIntegrityAudit` |
+| `ai_grading_assistant.py` | Deterministic grading guidance | `AIGradingAssistant`, `GradingAssessment` |
+| `deal_hunter.py` | Offline listing evaluation | `DealHunter`, `DealHunterResult` |
+| `opportunity_engine.py` | Budget-aware opportunity ranking | `OpportunityEngine` |
+| `market_intelligence.py` | Fair-value bands from local data | `MarketIntelligenceEngine` |
+| `acquisition_workflow.py` | BUY/PASS/WATCH/NEGOTIATE/REVIEW | `AcquisitionWorkflow` |
+| `upgrade_advisor.py` | Upgrade potential analysis | `UpgradeAdvisor` |
+| `portfolio_performance.py` | Growth, health, series progress | `PortfolioPerformanceEngine` |
 
-* Collection Intelligence
-* Focused Collection Intelligence
-* Platform Analytics
-* Collection Insights
-* Acquisition Strategy
-* Numista Intelligence
-* Portfolio Performance
-* Opportunity Engine
-* Ranking Engine
-* Deal Hunter
+### Workflow / Orchestration Engines
+| Module | Responsibility | Key Types |
+|--------|---------------|-----------|
+| `batch_processing.py` | Folder → batch candidates → review | `BatchProcessingEngine`, `BatchCandidate` |
+| `smart_phone_cataloguer.py` | Photo → OCR → candidate → entry | `SmartPhoneCataloguer`, `CatalogueResult` |
+| `collection_assistant.py` | Guided cataloguing workflow | `CollectionAssistantEngine` |
+| `collector_workflows.py` | Acquisition / review / daily summary | `CollectorWorkflowEngine` |
+| `collector_workflow_integration.py` | End-to-end workflow sessions | `CollectorWorkflowIntegrationEngine` |
+| `mobile_collection_entry.py` | Field entry candidates | `MobileCollectionEntryEngine` |
+| `live_deal_hunter.py` | User-triggered RSS/XML ingestion | `LiveDealHunter`, `RSSListingConnector` |
 
-Responsibilities:
+### ViewModel / Workspace Layer
+| Module | Responsibility | Key Types |
+|--------|---------------|-----------|
+| `collector_workspace.py` | Panel aggregation, lazy engines, cache | `CollectorWorkspace`, `DashboardReport`, `ReportsMenu` |
+| `collector_home_dashboard.py` | Daily collector dashboard | `CollectorHomeDashboard` |
+| `collector_operating_system.py` | Home + health consolidation | `CollectorHome`, `CollectionHealthReportEngine` |
+| `collection_dashboard.py` | Snapshot, priorities, gaps | `CollectionDashboard` |
 
-* ownership detection
-* duplicate detection
-* upgrade analysis
-* collection gap analysis
-* acquisition priority
-* value and performance summaries
-* Numista-backed matching
-* deterministic recommendations
+### GUI Layer
+| Module | Responsibility |
+|--------|---------------|
+| `coin_collection_gui.py` | Tkinter app, menus, dialogs, all tool entry points |
 
-Rules:
-
-* Engines own business logic.
-* Engines should be reusable outside the GUI.
-* Engines should be testable without launching the desktop app.
-* Engines should return structured results, not raw GUI text.
-* Engines should not mutate collection data unless explicitly designed to do so.
-* Engines should prefer deterministic scoring over probabilistic output.
-
----
-
-# 3. Workflow Engines
-
-Workflow engines coordinate multi-step user tasks.
-
-Examples:
-
-* Collection Assistant
-* Mobile Collector Companion
-* Mobile Collection Entry
-* Workflow Integration
-* Smart Phone Cataloguer
-
-Responsibilities:
-
-* guide the user through a process
-* combine outputs from multiple engines
-* create review objects
-* enforce confirmation before collection mutation
-* preserve preview-only workflows when appropriate
-
-Rules:
-
-* Workflow engines orchestrate business engines.
-* They should not duplicate the business logic of those engines.
-* They should produce reviewable outputs.
-* User confirmation is required before adding, editing, or deleting collection data.
+### Supporting / Platform
+| Module | Responsibility |
+|--------|---------------|
+| `backup_manager.py` | Backup packages, manifests, restore |
+| `sync_backup_engine.py` | Sync simulation, conflict reporting |
+| `collector_cloud.py` | Offline cloud architecture, snapshots |
+| `multi_device_workspace.py` | Desktop/phone/tablet modeling |
+| `platform_analytics.py` | Platform health metrics |
+| `series_tracker.py` | Supported series completion |
+| `photo_capture_workflow.py` | Phone photo capture metadata |
+| `ocr_experiment.py` / `ocr_validation.py` / `ocr_assisted_identification.py` | OCR pipeline |
+| `watchlist_engine.py` | Alert generation, presets |
+| `listing_connectors.py` | CSV import normalization |
+| `numista_intelligence.py` / `numista_importer.py` | Numista data integration |
 
 ---
 
-# 4. Integration Engines
+## 4. Data Flow
 
-Integration engines connect separate subsystems.
+### Collection Items
+```
+CoinItem (dataclass)
+    ↓
+CoinCollection (JSON persistence in data/collection.json)
+    ↓
+CollectionIntelligenceEngine → gaps, duplicates, upgrades
+    ↓
+CollectorWorkspace.get_collection_summary() → display
+```
 
-Examples:
+### Photos
+```
+PhotoCaptureWorkflow → CapturedPhoto metadata
+    ↓
+PhotoVault → PhotoRecord (linking, search, coverage)
+    ↓
+CollectorWorkspace.get_photo_vault() → coverage metrics
+```
 
-* Collector Cloud
-* Sync and Backup
-* Multi-Device Workspace
-* Device Linking
-* Numista integration
-* future phone image ingestion
-* future external data connectors
+### OCR
+```
+CapturedPhoto / pasted text
+    ↓
+OCRExperiment → raw text, suggestions
+    ↓
+OCRValidation → trust levels, findings
+    ↓
+OCRAssistedIdentification → candidates with evidence
+    ↓
+SmartPhoneCataloguer / BatchProcessing → proposed entries
+```
 
-Responsibilities:
+### Grading
+```
+GradingCandidate (country, denomination, year, claimed_grade, photo refs, OCR evidence)
+    ↓
+AIGradingAssistant → pattern analysis, evidence, confidence
+    ↓
+GradingAssessment (grade range, most likely, review flag, collection context)
+    ↓
+GUI display or batch export
+```
 
-* move data between systems
-* prepare data for existing engines
-* manage local/offline synchronization concepts
-* support future connected workflows
+### Batch Processing
+```
+Folder of photos
+    ↓
+BatchProcessingEngine → auto-pair, discover, create BatchCandidates
+    ↓
+SmartPhoneCataloguer per candidate → OCR, match, proposed entry
+    ↓
+CollectionIntelligence → gap/duplicate/upgrade analysis
+    ↓
+Review workflow → approve / reject / needs-review
+    ↓
+BatchReport with review counts, export
+```
 
-Rules:
+### Reports
+```
+Existing engines (quality, integrity, snapshot, ...)
+    ↓
+CollectorWorkspace.get_reports() → 16 lazy descriptors
+    ↓
+CollectorWorkspace.generate_report(name) → dict
+    ↓
+CollectorWorkspace.export_report(name, format, path) → file
+```
 
-* Integration engines should remain modular.
-* They should not replace core collection logic.
-* Connected features should extend the desktop collection engine.
-* Offline deterministic behavior should remain available wherever practical.
-
----
-
-# 5. Export Layer
-
-Exports convert structured results into user-facing files.
-
-Examples:
-
-* CSV exports
-* Markdown reports
-* release reports
-* analytics summaries
-* acquisition reports
-* Numista reports
-
-Rules:
-
-* Export logic should be reusable.
-* Avoid duplicate CSV or Markdown formatting code.
-* Engines should expose structured data that exporters can consume.
-* GUI code should call exporters rather than formatting large reports inline where practical.
-
----
-
-# 6. GUI Layer
-
-The GUI is the desktop user interface.
-
-Responsibilities:
-
-* display collection data
-* launch tools
-* collect user inputs
-* show reports
-* offer export buttons
-* guide review workflows
-
-Rules:
-
-* GUI code should be thin.
-* GUI code should call engines.
-* GUI code should not duplicate engine logic.
-* GUI integration should be minimal and consistent with existing patterns.
-* New tools should be added using existing menu/dialog patterns unless a larger UI redesign is explicitly planned.
-
-Known technical debt:
-
-* The engine architecture is more advanced than parts of the desktop GUI.
-* A future Unified Collector Workspace should consolidate major tools into a cleaner interface.
-
----
-
-# Core Data Flow
-
-The long-term collection workflow is:
-
-Photo or import
-
-↓
-
-OCR / import parser
-
-↓
-
-Collection Assistant
-
-↓
-
-Numista Intelligence
-
-↓
-
-Collection Intelligence
-
-↓
-
-Acquisition Strategy
-
-↓
-
-Review workflow
-
-↓
-
-User confirmation
-
-↓
-
-Collection update
-
-No automatic collection mutation should occur without explicit user approval.
+### Workspace
+```
+CollectorWorkspace(collection_items, optional context...)
+    ↓
+_lazy engine initialization on first _get_engine(name)_
+    ↓
+Panel getter → engine query → report DTO → cache
+    ↓
+refresh() → cache.clear() (engines preserved)
+    ↓
+GUI renders DTOs read-only
+```
 
 ---
 
-# v8.x Direction
+## 5. Public APIs / Main Entry Points
 
-The v8.x roadmap introduces mobile-assisted cataloguing.
+### Application Entry Point
+```python
+coin_collection_gui.py  →  CoinCollectionGUI (Tkinter main loop)
+```
 
-The intended architecture is:
+### Workspace Public API
+```python
+class CollectorWorkspace:
+    def __init__(self, collection_items, *, ...): ...  # keyword-only options
+    def refresh(self) -> None: ...                    # clear cache, keep engines
+    def get_dashboard(self) -> DashboardReport: ...
+    def get_inbox(self) -> InboxReport: ...
+    def get_collection_summary(self) -> CollectionSummaryReport: ...
+    def get_want_list(self) -> WantListReport: ...
+    def get_opportunities(self) -> OpportunitiesReport: ...
+    def get_ai_queue(self) -> AIQueueReport: ...
+    def get_batch_queue(self) -> BatchQueueReport: ...
+    def get_photo_vault(self) -> PhotoVaultReport: ...
+    def get_workflow_status(self) -> WorkflowStatusReport: ...
+    def get_data_safety(self) -> DataSafetyReport: ...
+    def get_reports(self) -> ReportsMenu: ...
+    def generate_report(self, name: str) -> Dict[str, Any]: ...
+    def export_report(self, name: str, format: str, path: str) -> bool: ...
+    def get_lifecycle(self) -> LifecycleInfo: ...
+```
 
-Phone image
+### Key Engine Public APIs (representative)
+```python
+CollectionIntelligenceEngine(collection_items).analyze_by_country()
+CollectionIntelligenceEngine(collection_items).detect_duplicates()
+CollectionIntelligenceEngine(collection_items).detect_upgrade_candidates()
 
-↓
+AIGradingAssistant(collection_items).assess_candidate(candidate)
+AIGradingAssistant(collection_items).assess_batch(candidates)
 
-Desktop intake
-
-↓
-
-OCR identification
-
-↓
-
-Collection Assistant
-
-↓
-
-Numista Intelligence
-
-↓
-
-Collection Intelligence
-
-↓
-
-Acquisition Strategy
-
-↓
-
-Review screen
-
-↓
-
-One-click confirmed import
-
-Existing v7.x engines should be reused wherever possible.
-
-The phone workflow should sit on top of the desktop intelligence platform, not replace it.
+BatchProcessingEngine(cataloguer).process_folder(source)
+BatchProcessingEngine(cataloguer).review_candidate(candidate_id, decision)
+```
 
 ---
 
-# Module Responsibility Rules
+## 6. Dependency Rules
 
-Before creating a new module, ask:
+These are **hard constraints**. Violations are architectural regressions.
 
-1. Does an existing engine already do this?
-2. Can the existing engine be extended cleanly?
-3. Is this business logic, workflow logic, integration logic, export logic, or GUI logic?
-4. Will this duplicate data models or calculations?
-5. Can this be tested independently?
-
-Create a new module only when:
-
-* the responsibility is clearly distinct
-* reuse would make the existing module less clear
-* the new module has a narrow, testable purpose
-
----
-
-# Importer Rules
-
-Importers parse and normalize external data.
-
-Importers should not:
-
-* make acquisition decisions
-* score collection priority
-* determine upgrade strategy
-* mutate the collection automatically
-* own intelligence logic
-
-For example:
-
-* `NumistaImporter` imports Numista data.
-* `NumistaIntelligence` analyzes Numista data.
+| Rule | Rationale |
+|------|-----------|
+| **GUI calls workspace/tools only** | The GUI is a thin presentation layer. It never calls engines directly. |
+| **Workspace aggregates only** | `CollectorWorkspace` contains zero business logic. It requests, caches, and presents results from existing engines. |
+| **Engines own business logic** | Every analysis, score, recommendation, and report comes from an existing engine. The workspace never recomputes anything. |
+| **No circular dependencies** | Engines should not import each other. Orchestration layers may import engines. |
+| **No duplicated intelligence** | If an engine already computes it, reuse it. Do not reimplement. |
+| **No duplicated collection storage** | The workspace holds a reference to collection items, not a copy. |
+| **Keyword-only constructor for optional context** | `CollectorWorkspace(..., *, want_list_intents=None, ...)` — required args are positional, all optional context is keyword-only. |
+| **Refresh clears cache, preserves engines** | `refresh()` calls `self._cache.clear()` but never recreates `self._engines`. |
 
 ---
 
-# Engine Rules
+## 7. Extension Points
 
-Engines should:
+### New Workspace Panels
+1. Add a new `*Report` dataclass in `collector_workspace.py` (extend `WorkspaceReport`).
+2. Add `get_*()` method that queries existing engines and returns the DTO.
+3. Add a cache key in `_get_cache_key()`.
+4. Add GUI rendering method in `coin_collection_gui.py`.
+5. Add GUI smoke test in `test_collector_workspace.py`.
 
-* accept explicit inputs
-* return structured outputs
-* avoid hidden global state
-* be unit-testable
-* be deterministic by default
-* avoid GUI dependencies
-* avoid network dependencies unless explicitly required
+### New Reports
+1. Add report descriptor to `ReportsMenu` in `collector_workspace.py`.
+2. Wire `generate_report()` to existing engine method.
+3. Add export support if the engine supports it.
 
-Engines should not:
+### New Grading Evidence
+1. Extend `GradingCandidate` in `ai_grading_assistant.py` with new optional fields.
+2. Add factory method if integrating with another engine (e.g., `from_ocr_candidate`).
+3. Update `AIGradingAssistant.assess_candidate()` to consider new evidence.
+4. Update `GradingAssessment` to include new outputs.
 
-* show message boxes
-* depend on Tkinter
-* perform unrelated file writes
-* silently mutate collection state
-* duplicate another engine's scoring rules
-
----
-
-# GUI Rules
-
-GUI methods may:
-
-* collect user choices
-* call engines
-* show summaries
-* open dialogs
-* save exported reports
-
-GUI methods should not:
-
-* implement scoring algorithms
-* implement duplicate detection
-* implement acquisition logic
-* implement Numista matching
-* implement portfolio calculations
-
-If a GUI method starts becoming large, move the business logic into an engine.
+### New Import/Export Paths
+1. Extend existing import engines (`listing_connectors.py`, `legacy_portfolio_importer.py`) with new format support.
+2. Reuse `CollectionItem` data model. Do not create parallel item types.
+3. Add GUI workflow in `coin_collection_gui.py` using existing dialog patterns.
 
 ---
 
-# Testing Architecture
+## 8. Non-Goals / Guardrails
 
-Each new engine requires:
+These are **intentional boundaries**. Cross them only after explicit design review.
 
-* direct unit tests
-* edge case tests
-* export tests if applicable
-* integration tests with adjacent engines where appropriate
-
-Each release requires:
-
-* targeted tests for new functionality
-* adjacent subsystem tests
-* full regression suite
-
-Test count should not decrease without a documented reason.
+| Boundary | Rule |
+|----------|------|
+| **No ML** | No machine learning, neural networks, or AI models. The `AIGradingAssistant` is deterministic pattern analysis only. |
+| **No Computer Vision** | No automated image recognition, grading from pixels, or OCR that claims authoritative results. OCR is advisory-only. |
+| **No Collection Mutation Outside Workflows** | The workspace, dashboard, and reports are read-only. Only existing tool workflows (Collection Assistant, Batch Processing, manual entry) may modify collection data. |
+| **No New Storage Layer Without Approval** | No new databases, no new JSON formats, no new persistence mechanisms. Use `PersistenceManager` and `collection.json` patterns. |
+| **No Live Pricing** | Market Awareness is local recordkeeping only. No scraping, APIs, or live market data. |
+| **No Background Jobs** | No polling, scheduled tasks, or background sync. All work is user-triggered. |
+| **No Cloud Sync** | Cloud, sync, and multi-device features are offline architecture only. No real network calls. |
+| **Read-Only Workspace** | The Collector Workspace never modifies collection data. All mutation flows through "Open in Tool..." buttons that launch existing dialogs. |
 
 ---
 
-# Release Architecture
+## 9. Testing Expectations
 
-Each release should follow this structure:
+| Layer | Test Approach | Example |
+|-------|-------------|---------|
+| **Data/Model** | Unit tests for CRUD, serialization, edge cases | `test_backend.py` |
+| **Intelligence Engines** | Unit tests with mock collection data, deterministic outputs | `test_collection_intelligence.py`, `test_ai_grading_assistant.py` |
+| **Workflow Engines** | Integration tests with real engines, verify orchestration | `test_batch_processing.py`, `test_collector_workflow_integration.py` |
+| **Workspace** | Mock-based unit tests + real-engine integration tests | `test_collector_workspace.py` (77 tests) |
+| **GUI** | Smoke tests: import checks, method existence, no crashes | `test_collector_workspace.py` GUI smoke tests |
+| **Full Suite** | `py -m unittest discover` or `run_tests.bat` | 1124 tests at v8.3 |
 
-1. Planning / roadmap lock
-2. Implementation
-3. Tests
-4. GUI integration if applicable
-5. Documentation
-6. Audit
-7. Tag
-8. Push
-9. Verify remote refs
-
-If interrupted, resume from the latest committed phase.
-
-Do not restart completed work.
-
----
-
-# Current Architectural Priorities
-
-As of the transition into v8.0, the main priorities are:
-
-1. Preserve deterministic desktop engines.
-2. Add mobile-assisted workflows on top of existing engines.
-3. Avoid duplicating collection intelligence.
-4. Keep GUI changes minimal unless a UI modernization release is planned.
-5. Improve documentation and release discipline.
-6. Maintain explainable outputs.
-7. Require user confirmation before collection mutation.
+### Key Test Rules
+- Tests must not mutate `data/collection.json`. Use temp directories and fixture copies.
+- GUI tests are import/method-existence smoke tests. No Tkinter automation.
+- Every engine must have error-handling tests: failures should return structured errors, not crash.
+- `refresh()` must preserve engine instances (identity check: `is`).
+- Cache isolation: two workspace instances must have independent caches.
 
 ---
 
-# Long-Term Architecture Goal
+## 10. Release Process
 
-Coin Analyzer should become a modular collector platform where each major capability is independent, testable, and reusable.
+Releases follow a **6-phase lifecycle** defined in:
 
-The ideal structure is:
+```
+project_docs/release_prompts/RELEASE_GOVERNANCE.md
+```
 
-Data models
+Standard phases:
 
-↓
+```
+Phase 0 — Roadmap Lock (docs, metadata, approval)
+    ↓
+Phase 1 — Core Engine (public API, dataclasses, unit tests)
+    ↓
+Phase 2 — Integration (engine wiring, panel expansion)
+    ↓
+Phase 3 — Integration (reports, export, advanced features)
+    ↓
+Phase 4 — Workflow / Lifecycle (refresh, error handling, diagnostics)
+    ↓
+Phase 5 — GUI (notebook tabs, read-only display, "Open in Tool...")
+    ↓
+Phase 6 — Release (final regression, metadata updates, tag, push, verify)
+```
 
-Importers and OCR
+**Release checklist (every version):**
+- [ ] All phases committed and pushed
+- [ ] Full regression pass (count recorded in `PROJECT_STATE.md`)
+- [ ] Metadata files updated (`PROJECT_STATE.md`, `AI_HANDOFF.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`)
+- [ ] Release notes created (`docs/releases/vX.Y.md`)
+- [ ] Release prompt archived (`project_docs/release_prompts/vX.Y.txt`)
+- [ ] Annotated tag created: `git tag -a vX.Y -m "vX.Y Description"`
+- [ ] Tag pushed: `git push origin vX.Y`
+- [ ] Remote verified: `git ls-remote origin refs/tags/vX.Y` and `refs/tags/vX.Y^{}`
 
-↓
+---
 
-Intelligence engines
+## Appendix: Module Count by Layer (v8.3)
 
-↓
+| Layer | Module Count | Representative Files |
+|-------|-------------|---------------------|
+| Data/Model | ~8 | `coin_collection.py`, `photo_vault.py`, `market_awareness.py`, `persistence_manager.py` |
+| Intelligence Engines | ~18 | `collection_intelligence.py`, `ai_grading_assistant.py`, `deal_hunter.py`, `market_intelligence.py` |
+| Workflow/Orchestration | ~8 | `batch_processing.py`, `smart_phone_cataloguer.py`, `collection_assistant.py`, `collector_workflows.py` |
+| ViewModel/Workspace | ~5 | `collector_workspace.py`, `collector_home_dashboard.py`, `collection_dashboard.py` |
+| GUI | 1 | `coin_collection_gui.py` |
+| Platform/Support | ~15 | `backup_manager.py`, `sync_backup_engine.py`, `collector_cloud.py`, `platform_analytics.py` |
+| **Total** | **~55 modules** | **~1124 tests** |
 
-Workflow engines
+---
 
-↓
-
-GUI and exports
-
-↓
-
-User-confirmed collection updates
-
-This architecture should allow future mobile, cloud, marketplace, and AI-assisted features to plug into the existing desktop intelligence platform without replacing it.
+*This document is a living reference. Update it when major architectural changes occur (new layers, new dependency rules, new extension patterns). Do not let it drift more than one release behind.*
