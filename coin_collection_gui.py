@@ -14,6 +14,7 @@ from coin_collection import CoinCollectionApp, CoinItem
 from numista_intelligence import NumistaIntelligenceEngine
 from smart_phone_cataloguer import SmartPhoneCataloguer
 from collection_intelligence import CollectionIntelligenceEngine
+from ai_grading_assistant import AIGradingAssistant, GradingCandidate
 from platform_analytics import PlatformAnalyticsEngine
 from deal_hunter import DealHunter, DealListing
 from deal_hunter_calibration import DealHunterCalibrationEngine
@@ -275,6 +276,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Numista Intelligence", command=self.open_numista_intelligence)
         tools_menu.add_command(label="Smart Phone Cataloguer", command=self.open_smart_phone_cataloguer)
         tools_menu.add_command(label="Batch Processing", command=self.open_batch_processing)
+        tools_menu.add_command(label="AI Grading Assistant", command=self.open_ai_grading_assistant)
         tools_menu.add_separator()
         tools_menu.add_command(label="Collector Companion Readiness", command=self.open_collector_companion_readiness)
 
@@ -7676,7 +7678,329 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
 
 
-def open_batch_processing(self):
+    def open_ai_grading_assistant(self):
+        """Open AI Grading Assistant dialog.
+
+        Provides deterministic, explainable grading guidance for coin candidates
+        using collection grade patterns and evidence-based assessment.
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title("AI Grading Assistant")
+        dialog.geometry("900x800")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Single Assessment tab
+        single_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(single_frame, text="Single Assessment")
+        single_frame.columnconfigure(1, weight=1)
+
+        # Form fields
+        country_var = tk.StringVar()
+        denomination_var = tk.StringVar()
+        year_var = tk.StringVar()
+        series_var = tk.StringVar()
+        grade_var = tk.StringVar()
+        notes_var = tk.StringVar()
+        photo_var = tk.StringVar()
+
+        fields = [
+            ("Country:", country_var),
+            ("Denomination:", denomination_var),
+            ("Year:", year_var),
+            ("Series:", series_var),
+            ("Claimed Grade:", grade_var),
+            ("Notes:", notes_var),
+            ("Photo Reference:", photo_var),
+        ]
+
+        for row, (label, variable) in enumerate(fields):
+            ttk.Label(single_frame, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+            entry = ttk.Entry(single_frame, textvariable=variable)
+            entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(8, 0), pady=4)
+
+        def browse_photo():
+            path = filedialog.askopenfilename(
+                title="Select Photo Reference",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if path:
+                photo_var.set(path)
+
+        ttk.Button(single_frame, text="Browse", command=browse_photo).grid(
+            row=6, column=2, sticky=tk.W, padx=(6, 0), pady=4
+        )
+
+        # Result display
+        result_frame = ttk.LabelFrame(single_frame, text="Assessment Result", padding="10")
+        result_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        single_frame.rowconfigure(7, weight=1)
+
+        result_text = tk.Text(result_frame, wrap=tk.WORD, height=12)
+        result_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        current_assessment = {"assessment": None}
+
+        def assess_candidate():
+            try:
+                engine = CollectionIntelligenceEngine(self._collection_items())
+                assistant = AIGradingAssistant(engine)
+                candidate = GradingCandidate(
+                    country=country_var.get().strip(),
+                    denomination=denomination_var.get().strip(),
+                    year=year_var.get().strip() or None,
+                    series=series_var.get().strip() or None,
+                    claimed_grade=grade_var.get().strip() or None,
+                    notes=notes_var.get().strip() or None,
+                    photo_references=[photo_var.get().strip()] if photo_var.get().strip() else [],
+                )
+                assessment = assistant.assess_candidate(candidate)
+                current_assessment["assessment"] = assessment
+
+                result_text.delete("1.0", tk.END)
+                result_text.insert(tk.END, "# AI Grading Assessment")
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "**Coin:** " + candidate.country + " " + candidate.denomination)
+                if candidate.year:
+                    result_text.insert(tk.END, " " + candidate.year)
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "**Claimed Grade:** " + (candidate.claimed_grade or "Not provided"))
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "**Estimated Range:** " + (assessment.estimated_range[0] or "Unknown") + " - " + (assessment.estimated_range[1] or "Unknown"))
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "**Most Likely Grade:** " + (assessment.most_likely_grade or "Unknown"))
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "**Recommendation:** " + assessment.recommendation)
+                result_text.insert(tk.END, "\n")
+                result_text.insert(tk.END, "\n")
+
+                if assessment.evidence:
+                    result_text.insert(tk.END, "## Evidence")
+                    result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+                    for ev in assessment.evidence:
+                        result_text.insert(tk.END, "- " + ev)
+                        result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+
+                if assessment.review_flags:
+                    result_text.insert(tk.END, "## Review Flags")
+                    result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+                    for flag in assessment.review_flags:
+                        result_text.insert(tk.END, "- " + flag)
+                        result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+
+                if assessment.collection_context:
+                    result_text.insert(tk.END, "## Collection Context")
+                    result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+                    for key, val in assessment.collection_context.items():
+                        result_text.insert(tk.END, "- " + key + ": " + str(val))
+                        result_text.insert(tk.END, "\n")
+                    result_text.insert(tk.END, "\n")
+
+            except Exception as e:
+                messagebox.showerror("Assessment Error", "Grading assessment failed: " + str(e))
+
+        single_button_frame = ttk.Frame(single_frame)
+        single_button_frame.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+
+        ttk.Button(single_button_frame, text="Assess Candidate", command=assess_candidate).pack(side=tk.LEFT, padx=(0, 5))
+
+        # Batch Assessment tab
+        batch_frame = ttk.Frame(notebook, padding="10")
+        notebook.add(batch_frame, text="Batch Assessment")
+        batch_frame.columnconfigure(0, weight=1)
+        batch_frame.rowconfigure(0, weight=1)
+
+        batch_input_frame = ttk.LabelFrame(batch_frame, text="Batch Candidates (one per line: Country,Denomination,Year,ClaimedGrade)", padding="10")
+        batch_input_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        batch_input_frame.columnconfigure(0, weight=1)
+        batch_input_frame.rowconfigure(0, weight=1)
+
+        batch_text = tk.Text(batch_input_frame, wrap=tk.WORD, height=8)
+        batch_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        batch_result_frame = ttk.LabelFrame(batch_frame, text="Batch Results", padding="10")
+        batch_result_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        batch_result_frame.columnconfigure(0, weight=1)
+        batch_result_frame.rowconfigure(0, weight=1)
+        batch_frame.rowconfigure(1, weight=1)
+
+        batch_result_text = tk.Text(batch_result_frame, wrap=tk.WORD, height=12)
+        batch_result_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        current_batch_report = {"report": None}
+
+        def run_batch_assessment():
+            try:
+                lines = batch_text.get("1.0", tk.END).strip().split("\n")
+                candidates = []
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = [p.strip() for p in line.split(",")]
+                    if len(parts) < 2:
+                        continue
+                    gc = GradingCandidate(
+                        country=parts[0],
+                        denomination=parts[1],
+                        year=parts[2] if len(parts) > 2 and parts[2] else None,
+                        claimed_grade=parts[3] if len(parts) > 3 and parts[3] else None,
+                    )
+                    candidates.append(gc)
+
+                if not candidates:
+                    messagebox.showwarning("No Candidates", "Please enter at least one candidate.")
+                    return
+
+                engine = CollectionIntelligenceEngine(self._collection_items())
+                assistant = AIGradingAssistant(engine)
+                report = assistant.assess_batch(candidates)
+                current_batch_report["report"] = report
+
+                batch_result_text.delete("1.0", tk.END)
+                batch_result_text.insert(tk.END, "# AI Grading Batch Assessment")
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "**Total Candidates:** " + str(len(report.assessments)))
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "\n")
+
+                summary = report.to_dict()["summary"]
+                batch_result_text.insert(tk.END, "## Summary")
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "- PROCEED: " + str(summary["PROCEED"]))
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "- CAUTION: " + str(summary["CAUTION"]))
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "- REVIEW: " + str(summary["REVIEW"]))
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "\n")
+
+                batch_result_text.insert(tk.END, "## Assessments")
+                batch_result_text.insert(tk.END, "\n")
+                batch_result_text.insert(tk.END, "\n")
+                for assessment in report.assessments:
+                    c = assessment.candidate
+                    batch_result_text.insert(tk.END, "### " + c.country + " " + c.denomination + " " + (c.year or ""))
+                    batch_result_text.insert(tk.END, "\n")
+                    batch_result_text.insert(tk.END, "- Claimed Grade: " + (c.claimed_grade or "Not provided"))
+                    batch_result_text.insert(tk.END, "\n")
+                    batch_result_text.insert(tk.END, "- Estimated Range: " + (assessment.estimated_range[0] or "Unknown") + " - " + (assessment.estimated_range[1] or "Unknown"))
+                    batch_result_text.insert(tk.END, "\n")
+                    batch_result_text.insert(tk.END, "- Most Likely: " + (assessment.most_likely_grade or "Unknown"))
+                    batch_result_text.insert(tk.END, "\n")
+                    batch_result_text.insert(tk.END, "- Recommendation: " + assessment.recommendation)
+                    batch_result_text.insert(tk.END, "\n")
+                    if assessment.review_flags:
+                        batch_result_text.insert(tk.END, "- Flags: " + "; ".join(assessment.review_flags))
+                        batch_result_text.insert(tk.END, "\n")
+                    batch_result_text.insert(tk.END, "\n")
+
+            except Exception as e:
+                messagebox.showerror("Batch Assessment Error", "Batch assessment failed: " + str(e))
+
+        batch_button_frame = ttk.Frame(batch_frame)
+        batch_button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
+
+        ttk.Button(batch_button_frame, text="Run Batch Assessment", command=run_batch_assessment).pack(side=tk.LEFT, padx=(0, 5))
+
+        # Export buttons (shared)
+        def export_assessment(format_type):
+            assessment = current_assessment.get("assessment")
+            if not assessment:
+                messagebox.showwarning("No Assessment", "Run a single assessment before exporting.")
+                return
+            if format_type == "markdown":
+                path = filedialog.asksaveasfilename(
+                    title="Export Assessment Markdown",
+                    defaultextension=".md",
+                    filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                )
+                if path:
+                    engine = CollectionIntelligenceEngine(self._collection_items())
+                    assistant = AIGradingAssistant(engine)
+                    ok = assistant.export_assessment(assessment, "markdown", path)
+                    if ok:
+                        messagebox.showinfo("Export Complete", "Assessment exported to " + path)
+                    else:
+                        messagebox.showerror("Export Failed", "Could not export assessment.")
+            else:
+                path = filedialog.asksaveasfilename(
+                    title="Export Assessment CSV",
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                )
+                if path:
+                    engine = CollectionIntelligenceEngine(self._collection_items())
+                    assistant = AIGradingAssistant(engine)
+                    ok = assistant.export_assessment(assessment, "csv", path)
+                    if ok:
+                        messagebox.showinfo("Export Complete", "Assessment exported to " + path)
+                    else:
+                        messagebox.showerror("Export Failed", "Could not export assessment.")
+
+        def export_batch_report(format_type):
+            report = current_batch_report.get("report")
+            if not report:
+                messagebox.showwarning("No Report", "Run a batch assessment before exporting.")
+                return
+            if format_type == "markdown":
+                path = filedialog.asksaveasfilename(
+                    title="Export Batch Report Markdown",
+                    defaultextension=".md",
+                    filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+                )
+                if path:
+                    engine = CollectionIntelligenceEngine(self._collection_items())
+                    assistant = AIGradingAssistant(engine)
+                    ok = assistant.export_report(report, "markdown", path)
+                    if ok:
+                        messagebox.showinfo("Export Complete", "Batch report exported to " + path)
+                    else:
+                        messagebox.showerror("Export Failed", "Could not export batch report.")
+            else:
+                path = filedialog.asksaveasfilename(
+                    title="Export Batch Report CSV",
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                )
+                if path:
+                    engine = CollectionIntelligenceEngine(self._collection_items())
+                    assistant = AIGradingAssistant(engine)
+                    ok = assistant.export_report(report, "csv", path)
+                    if ok:
+                        messagebox.showinfo("Export Complete", "Batch report exported to " + path)
+                    else:
+                        messagebox.showerror("Export Failed", "Could not export batch report.")
+
+        export_frame = ttk.Frame(main_frame)
+        export_frame.pack(fill=tk.X, pady=(10, 0))
+
+        ttk.Button(export_frame, text="Export Single Markdown", command=lambda: export_assessment("markdown")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(export_frame, text="Export Single CSV", command=lambda: export_assessment("csv")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(export_frame, text="Export Batch Markdown", command=lambda: export_batch_report("markdown")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(export_frame, text="Export Batch CSV", command=lambda: export_batch_report("csv")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(export_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
+    def open_batch_processing(self):
         """Open Batch Processing dialog.
 
         Provides a read-only interface for processing a folder of coin photos
