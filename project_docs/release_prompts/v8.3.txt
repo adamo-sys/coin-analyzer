@@ -1,0 +1,18 @@
+v8.3 Collector Workspace
+
+Build a unified Collector Workspace that brings every existing tool, engine, report, and workflow into a single, cohesive operating system. The workspace is an aggregator/orchestration layer only — it does not add new intelligence, new data models, or new collection storage. It queries existing engines and presents their outputs in organized, actionable panels.
+
+The workspace must:
+- Reuse existing Collection Intelligence, Dashboard, Quality, Integrity, Snapshot, Home Dashboard, Operating System, Workflow, AI Grading, Batch Processing, Shopping, Opportunity, Deal Hunter, Watchlist, Photo Vault, Market Awareness, Numista Intelligence, and Persistence Manager engines
+- Provide read-only panel aggregation: Dashboard, Inbox, Collection Overview, Want List & Opportunities, AI Assistant Queue, Batch Queue, Photo Vault, Reports, Workflow, Data Safety
+- Implement a thin `CollectorWorkspace` public API with `refresh()`, `get_dashboard()`, `get_inbox()`, `get_collection_overview()`, `get_want_list()`, `get_opportunities()`, `get_ai_queue()`, `get_batch_queue()`, `get_photo_vault()`, `get_workflow_status()`, `get_data_safety()`, `get_reports()`
+- Remain deterministic, testable, and read-only
+- Not duplicate intelligence, not duplicate collection storage, not add ML, not add CV
+- Not mutate collection data through the workspace (mutation flows through existing tools)
+- Integrate into the GUI as a unified workspace with notebook/tabbed panels
+- Follow the standard release lifecycle: Phase 0 → RELEASE GATE → Phases 1-5 → Phase 6 Release → Publish
+
+New files: collector_workspace.py, test_collector_workspace.py
+Modified files: coin_collection_gui.py (menu integration, notebook layout)
+
+Think of this as the collector's operating system, not another feature. Every component built so far should be accessible from one window.

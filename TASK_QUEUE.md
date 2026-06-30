@@ -102,6 +102,70 @@ Status: Complete — v8.2 Released
 
 ---
 
+## v8.3 Collector Workspace
+
+Status: Phase 0 — Roadmap Lock
+
+### Phase 0 — Roadmap Lock
+- [x] Create docs/releases/v8.3.md
+- [x] Create project_docs/release_prompts/v8.3.txt
+- [x] Create v8.3_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update TASK_QUEUE.md (this file)
+- [x] Update RELEASE_HISTORY.md
+- [ ] Commit Phase 0
+- [ ] Push Phase 0
+- [ ] Pass RELEASE GATE
+
+### Phase 1 — Core Engine
+- [ ] Design collector_workspace.py public API
+- [ ] Implement CollectorWorkspace thin aggregation engine
+- [ ] Implement WorkspacePanel, WorkspaceReport, DashboardReport dataclasses
+- [ ] Unit tests for public API
+
+### Phase 2 — Panel Aggregation
+- [ ] Implement get_dashboard() using CollectorHomeDashboard + CollectorOperatingSystem
+- [ ] Implement get_inbox() using CollectionAssistant + BatchProcessing + AIGradingAssistant
+- [ ] Implement get_collection_overview() using CollectionIntelligence + CollectionDashboard + CollectionSnapshot
+- [ ] Implement get_want_list() using CollectionIntelligence + WatchlistEngine + OpportunityEngine
+- [ ] Implement get_opportunities() using SmartShoppingAssistant + OpportunityEngine + DealHunter
+- [ ] Implement get_ai_queue() using AIGradingAssistant
+- [ ] Implement get_batch_queue() using BatchProcessingEngine
+- [ ] Implement get_photo_vault() using PhotoVault + PhotoVaultIntegrityAudit
+- [ ] Implement get_workflow_status() using CollectorWorkflowEngine
+- [ ] Implement get_data_safety() using PersistenceManager + CollectionIntegrityAudit
+- [ ] Unit tests for each panel
+
+### Phase 3 — Reports Panel
+- [ ] Implement get_reports() menu/aggregator
+- [ ] Wire each report to existing engine
+- [ ] Export support
+- [ ] Unit tests
+
+### Phase 4 — Refresh & Lifecycle
+- [ ] Implement refresh() that re-queries all engines
+- [ ] Implement lazy loading (panels query when activated)
+- [ ] Implement error handling (panel warning, not crash)
+- [ ] Unit tests
+
+### Phase 5 — GUI
+- [ ] Add Collector Workspace menu item
+- [ ] Implement notebook/tabbed panel layout
+- [ ] Implement each panel's read-only display
+- [ ] Implement "Open in [Tool]..." buttons for mutation
+- [ ] Export buttons for each panel
+- [ ] Unit tests for GUI wiring
+
+### Phase 6 — Release
+- [ ] Final regression (1047+ tests)
+- [ ] Metadata updates
+- [ ] Tag v8.3
+- [ ] Commit and push
+- [ ] Publish
+
+---
+
 Work through this queue in priority order. Handle only one task at a time.
 
 ## Status Legend
@@ -236,7 +300,7 @@ Work through this queue in priority order. Handle only one task at a time.
 3. `[x]` `v8.0` Smart Phone Cataloguer
 4. `[x]` `v8.1` Batch Processing
 5. `[x]` `v8.2` AI Grading Assistant
-6. `v8.3` Collector Workspace
+6. `[-]` `v8.3` Collector Workspace (active planning)
 7. `v8.4` Connected Data
 8. `v9.0` Collector Ecosystem
 

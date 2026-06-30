@@ -334,6 +334,14 @@ Current archive status:
 
 ### 2026-06-29
 
+* Locked v8.3 roadmap: Collector Workspace.
+* Roadmap lock commit: PENDING (Phase 0 in progress).
+* v8.3 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 added deterministic AI Grading Assistant for candidate quality assessment; v8.3 unifies every existing tool, engine, report, and workflow into a single cohesive collector operating system. Instead of opening Tools -> * for every subsystem, the collector opens one workspace and sees everything that matters. The workspace is a pure aggregation and orchestration layer that queries existing engines and presents their outputs in organized, actionable panels without adding new intelligence, new data models, or new collection storage.
+* Files created: `docs/releases/v8.3.md`, `project_docs/release_prompts/v8.3.txt`, `v8.3_implementation_plan.md`.
+
+
+### 2026-06-29
+
 * Implemented v8.2 AI Grading Assistant: `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; deterministic grading guidance via collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export.
 * Phase 1 core engine: `ai_grading_assistant.py` with `assess_candidate`, `assess_batch`, pattern caching, and evidence-based recommendations (PROCEED/CAUTION/REVIEW).
 * Phase 2 integration layer: factory methods `from_ocr_candidate`, `from_captured_photo`, `from_batch_candidate` linking to existing Photo Vault, OCR, and batch processing engines.

@@ -7,11 +7,11 @@
 - Current project state file reports release version: `v8.2`
 - Next planned release: `v8.3`
 - Active development target: `v8.3` Collector Workspace
-- Current active task: v8.2 AI Grading Assistant Phase 6 (release metadata)
+- Current active task: v8.3 Collector Workspace Phase 0 (roadmap lock)
 - Last release: v8.2 AI Grading Assistant (released)
-- Implementation commit: `a93ad23`
-- Release tag: `v8.2`
-- Release metadata commit: `fdcf18d`
+- Implementation commit: pending
+- Release tag: pending
+- Release metadata commit: pending
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -66,7 +66,12 @@ Before each release, verify the current release prompt exists, previous archived
 * Release prompt archived: `project_docs/release_prompts/v8.2.txt`.
 * Release notes: `docs/releases/v8.2.md`.
 * Roadmap lock commit: `226e84f`.
-* Release metadata commit: pending.
+* Release metadata commit: `478acda`.
+
+* v8.3 roadmap lock: Collector Workspace scope defined, Phase 0 docs created.
+* v8.3 roadmap rationale: v8.3 unifies every existing tool, engine, report, and workflow into a single cohesive collector operating system. The workspace is a pure aggregation and orchestration layer that queries existing engines and presents their outputs in organized, actionable panels without adding new intelligence, new data models, or new collection storage.
+* Files created: `docs/releases/v8.3.md`, `project_docs/release_prompts/v8.3.txt`, `v8.3_implementation_plan.md`.
+* Roadmap lock commit: pending.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
@@ -782,8 +787,7 @@ The batch assessment returns a `BatchGradingReport`:
 
 ## Recommended Next Steps
 
-1. Complete v4.0 Live Deal Hunter (Controlled Beta) with explicit user-triggered fetching, one public RSS source boundary, validation, ranking, reporting, and no purchase/bid/background/mutation behavior.
-2. Improve Buy Advisor validation messages.
-3. Add GUI autocomplete for country and denomination.
-4. Improve photo URI/file-picker abstractions before a true companion UI.
-5. Keep calibration fixtures current as new offline source formats or ranking behaviors are added.
+1. Complete v8.3 Collector Workspace roadmap lock: design workspace architecture, reuse map, panel definitions, public API, GUI concept, phases 1-6, guardrails, test strategy, release strategy.
+2. Lock v8.3 roadmap, create docs/releases/v8.3.md, project_docs/release_prompts/v8.3.txt, v8.3_implementation_plan.md.
+3. Do not begin Phase 1 until Phase 0 is committed, pushed, and verified.
+4. After v8.3: continue v9.0 Collector Ecosystem planning.
