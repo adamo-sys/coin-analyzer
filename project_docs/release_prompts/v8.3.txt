@@ -16,3 +16,9 @@ New files: collector_workspace.py, test_collector_workspace.py
 Modified files: coin_collection_gui.py (menu integration, notebook layout)
 
 Think of this as the collector's operating system, not another feature. Every component built so far should be accessible from one window.
+
+## Permanent Architectural Rule
+
+**Workspace = ViewModel, not Business Logic.**
+
+CollectorWorkspace contains **zero business logic**. It only requests, caches, and presents results from existing engines. The workspace never computes duplicate detection, upgrade opportunities, grade analysis, want list logic, AI grading, batch processing, quality scoring, or integrity audit. Those computations belong to existing engines. The workspace aggregates their results.

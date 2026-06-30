@@ -104,7 +104,7 @@ Status: Complete — v8.2 Released
 
 ## v8.3 Collector Workspace
 
-Status: Phase 0 — Roadmap Lock
+Status: Complete — v8.3 Released
 
 ### Phase 0 — Roadmap Lock
 - [x] Create docs/releases/v8.3.md
@@ -114,55 +114,55 @@ Status: Phase 0 — Roadmap Lock
 - [x] Update AI_HANDOFF.md
 - [x] Update TASK_QUEUE.md (this file)
 - [x] Update RELEASE_HISTORY.md
-- [ ] Commit Phase 0
-- [ ] Push Phase 0
-- [ ] Pass RELEASE GATE
+- [x] Commit Phase 0
+- [x] Push Phase 0
+- [x] Pass RELEASE GATE
 
 ### Phase 1 — Core Engine
-- [ ] Design collector_workspace.py public API
-- [ ] Implement CollectorWorkspace thin aggregation engine
-- [ ] Implement WorkspacePanel, WorkspaceReport, DashboardReport dataclasses
-- [ ] Unit tests for public API
+- [x] Design collector_workspace.py public API
+- [x] Implement CollectorWorkspace thin aggregation engine
+- [x] Implement WorkspacePanel, WorkspaceReport, DashboardReport dataclasses
+- [x] Unit tests for public API (19 tests)
 
 ### Phase 2 — Panel Aggregation
-- [ ] Implement get_dashboard() using CollectorHomeDashboard + CollectorOperatingSystem
-- [ ] Implement get_inbox() using CollectionAssistant + BatchProcessing + AIGradingAssistant
-- [ ] Implement get_collection_overview() using CollectionIntelligence + CollectionDashboard + CollectionSnapshot
-- [ ] Implement get_want_list() using CollectionIntelligence + WatchlistEngine + OpportunityEngine
-- [ ] Implement get_opportunities() using SmartShoppingAssistant + OpportunityEngine + DealHunter
-- [ ] Implement get_ai_queue() using AIGradingAssistant
-- [ ] Implement get_batch_queue() using BatchProcessingEngine
-- [ ] Implement get_photo_vault() using PhotoVault + PhotoVaultIntegrityAudit
-- [ ] Implement get_workflow_status() using CollectorWorkflowEngine
-- [ ] Implement get_data_safety() using PersistenceManager + CollectionIntegrityAudit
-- [ ] Unit tests for each panel
+- [x] Implement get_dashboard() using CollectorHomeDashboard + CollectorOperatingSystem
+- [x] Implement get_inbox() using CollectionAssistant + BatchProcessing + AIGradingAssistant
+- [x] Implement get_collection_overview() using CollectionIntelligence + CollectionDashboard + CollectionSnapshot
+- [x] Implement get_want_list() using CollectionIntelligence + WatchlistEngine + OpportunityEngine
+- [x] Implement get_opportunities() using SmartShoppingAssistant + OpportunityEngine + DealHunter
+- [x] Implement get_ai_queue() using AIGradingAssistant
+- [x] Implement get_batch_queue() using BatchProcessingEngine
+- [x] Implement get_photo_vault() using PhotoVault + PhotoVaultIntegrityAudit
+- [x] Implement get_workflow_status() using CollectorWorkflowEngine
+- [x] Implement get_data_safety() using PersistenceManager + CollectionIntegrityAudit
+- [x] Unit tests for each panel (17 tests)
 
 ### Phase 3 — Reports Panel
-- [ ] Implement get_reports() menu/aggregator
-- [ ] Wire each report to existing engine
-- [ ] Export support
-- [ ] Unit tests
+- [x] Implement get_reports() menu/aggregator
+- [x] Wire each report to existing engine
+- [x] Export support
+- [x] Unit tests (24 tests)
 
 ### Phase 4 — Refresh & Lifecycle
-- [ ] Implement refresh() that re-queries all engines
-- [ ] Implement lazy loading (panels query when activated)
-- [ ] Implement error handling (panel warning, not crash)
-- [ ] Unit tests
+- [x] Implement refresh() that re-queries all engines
+- [x] Implement lazy loading (panels query when activated)
+- [x] Implement error handling (panel warning, not crash)
+- [x] Unit tests (13 tests)
 
 ### Phase 5 — GUI
-- [ ] Add Collector Workspace menu item
-- [ ] Implement notebook/tabbed panel layout
-- [ ] Implement each panel's read-only display
-- [ ] Implement "Open in [Tool]..." buttons for mutation
-- [ ] Export buttons for each panel
-- [ ] Unit tests for GUI wiring
+- [x] Add Collector Workspace menu item
+- [x] Implement notebook/tabbed panel layout
+- [x] Implement each panel's read-only display
+- [x] Implement "Open in [Tool]..." buttons for mutation
+- [x] Export buttons for each panel
+- [x] Unit tests for GUI wiring (4 tests)
 
 ### Phase 6 — Release
-- [ ] Final regression (1047+ tests)
-- [ ] Metadata updates
-- [ ] Tag v8.3
-- [ ] Commit and push
-- [ ] Publish
+- [x] Final regression (1124 tests)
+- [x] Metadata updates
+- [x] Tag v8.3
+- [x] Commit and push
+- [x] Publish
 
 ---
 
@@ -300,8 +300,8 @@ Work through this queue in priority order. Handle only one task at a time.
 3. `[x]` `v8.0` Smart Phone Cataloguer
 4. `[x]` `v8.1` Batch Processing
 5. `[x]` `v8.2` AI Grading Assistant
-6. `[-]` `v8.3` Collector Workspace (active planning)
-7. `v8.4` Connected Data
+6. `[x]` `v8.3` Collector Workspace (released)
+7. `[-]` `v8.4` Connected Data (active planning)
 8. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.

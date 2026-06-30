@@ -2,16 +2,16 @@
 
 ## Snapshot
 
-- Date: 2026-06-29
+- Date: 2026-06-30
 - Branch: `main`
-- Current project state file reports release version: `v8.2`
-- Next planned release: `v8.3`
-- Active development target: `v8.3` Collector Workspace
-- Current active task: v8.3 Collector Workspace Phase 0 (roadmap lock)
-- Last release: v8.2 AI Grading Assistant (released)
-- Implementation commit: pending
-- Release tag: pending
-- Release metadata commit: pending
+- Current project state file reports release version: `v8.3`
+- Next planned release: `v8.4`
+- Active development target: `v8.4` Connected Data
+- Current active task: v8.4 Connected Data planning (post-release pause)
+- Last release: v8.3 Collector Workspace (released)
+- Implementation commit: `aa59f57` (Phase 5)
+- Release tag: `v8.3`
+- Release metadata commit: PENDING (Phase 6)
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -28,9 +28,9 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 2. `v7.5` Numista Intelligence
 3. `v8.0` Smart Phone Cataloguer
 4. `v8.1` Batch Processing
-5. `v8.2` AI Grading Assistant
-6. `v8.3` Collector Workspace
-7. `v8.4` Connected Data
+5. `v8.2` AI Grading Assistant (released)
+6. `v8.3` Collector Workspace (released)
+7. `v8.4` Connected Data (next)
 8. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
@@ -71,7 +71,24 @@ Before each release, verify the current release prompt exists, previous archived
 * v8.3 roadmap lock: Collector Workspace scope defined, Phase 0 docs created.
 * v8.3 roadmap rationale: v8.3 unifies every existing tool, engine, report, and workflow into a single cohesive collector operating system. The workspace is a pure aggregation and orchestration layer that queries existing engines and presents their outputs in organized, actionable panels without adding new intelligence, new data models, or new collection storage.
 * Files created: `docs/releases/v8.3.md`, `project_docs/release_prompts/v8.3.txt`, `v8.3_implementation_plan.md`.
-* Roadmap lock commit: pending.
+* Roadmap lock commit: `c6dd6aa`.
+
+* v8.3 Collector Workspace released: `CollectorWorkspace`, `DashboardReport`, `InboxReport`, `CollectionSummaryReport`, `WantListReport`, `OpportunitiesReport`, `AIQueueReport`, `BatchQueueReport`, `PhotoVaultReport`, `WorkflowStatusReport`, `DataSafetyReport`, `ReportsMenu`, `WorkspaceReport`, `LifecycleInfo`; 10 panel aggregation methods, 16 report descriptors, lazy engine factory, refresh lifecycle, error resilience, GUI integration.
+* Phase 1 core engine: `collector_workspace.py` with `CollectorWorkspace`, 3 initial panels (dashboard, inbox, collection_summary), lazy engine initialization, and 19 unit tests.
+* Phase 2 panel expansion: 7 additional panels (want_list, opportunities, ai_queue, batch_queue, photo_vault, workflow_status, data_safety), keyword-only constructor, 17 new tests.
+* Phase 3 reports panel: `get_reports()` with 16 lazy report descriptors, `generate_report()`, `export_report()`, 24 new tests.
+* Phase 4 lifecycle diagnostics: `LifecycleInfo`, `get_lifecycle()`, refresh hardening, engine preservation tests, 13 new tests.
+* Phase 5 GUI integration: `Collector Home -> Collector Workspace` menu item, 1000x800 dialog with 11-tab notebook (Dashboard, Inbox, Collection, Want List, Opportunities, AI Queue, Batch Queue, Photo Vault, Workflow, Data Safety, Reports), "Refresh Workspace" button, "Open in Tool..." buttons delegating to existing methods, read-only display.
+* Implementation commits: `c6dd6aa` (Phase 0), `1a80185` (Phase 1), `97671b4` (Phase 2), `f7931ca` (Phase 3), `83c994f` (Phase 4), `aa59f57` (Phase 5).
+* Release tag: `v8.3`.
+* Tests passed: `py -m unittest test_collector_workspace.py` -> 77 tests OK; full `py -m unittest discover` -> 1124 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1047 to 1124.
+* Limitation: deterministic local aggregation only; no new intelligence, no new data models, no new collection storage, no computer vision, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.3.txt`.
+* Release notes: `docs/releases/v8.3.md`.
+* Roadmap lock commit: `c6dd6aa`.
+* Release metadata commit: PENDING (Phase 6).
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
@@ -785,9 +802,15 @@ The batch assessment returns a `BatchGradingReport`:
 - 0 failures, 0 errors.
 - Regression: all existing tests remain green.
 
+## v8.3 Test Status
+
+- `py -m unittest test_collector_workspace.py`: 77 tests OK.
+- `py -m unittest discover`: 1124 tests OK.
+- 0 failures, 0 errors.
+- Regression: all existing tests remain green.
+
 ## Recommended Next Steps
 
-1. Complete v8.3 Collector Workspace roadmap lock: design workspace architecture, reuse map, panel definitions, public API, GUI concept, phases 1-6, guardrails, test strategy, release strategy.
-2. Lock v8.3 roadmap, create docs/releases/v8.3.md, project_docs/release_prompts/v8.3.txt, v8.3_implementation_plan.md.
-3. Do not begin Phase 1 until Phase 0 is committed, pushed, and verified.
-4. After v8.3: continue v9.0 Collector Ecosystem planning.
+1. v8.3 Collector Workspace released. Take a usage pause before planning v8.4.
+2. Use the application, identify friction points, and let real usage drive v8.4 Connected Data features.
+3. After usage pause: begin v8.4 Connected Data planning.

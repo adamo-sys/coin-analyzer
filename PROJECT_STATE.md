@@ -2,16 +2,16 @@
 
 ## Current Version
 
-* Current release version: `v8.2`
-- Next planned release: `v8.3`
-- Active development target: `v8.3` Collector Workspace
+* Current release version: `v8.3`
+- Next planned release: `v8.4`
+- Active development target: `v8.4` Connected Data
 * Current Git branch: `main`
-* Last updated date: 2026-06-29
+* Last updated date: 2026-06-30
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.2`
-* Summary of what was included: AI Grading Assistant — deterministic grading guidance, collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration (Tools → AI Grading Assistant), and 1047-test regression pass without computer vision, image recognition, or automated grade assignment.
+* Most recent Git tag: `v8.3`
+* Summary of what was included: Collector Workspace — unified operating system aggregating every existing tool, engine, report, and workflow into a single cohesive workspace with 10 panel getters (dashboard, inbox, collection summary, want list, opportunities, AI queue, batch queue, photo vault, workflow, data safety), 16 report descriptors with lazy generation and export, lifecycle diagnostics, lazy engine initialization, in-memory cache, error resilience, GUI integration (Collector Home → Collector Workspace with 11-tab notebook), and 1124-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -69,6 +69,8 @@
 * `v5.4` acceptance audit passed on 2026-06-22; tag `v5.4` verified during release.
 * `v6.0` acceptance audit passed on 2026-06-22; tag `v6.0` verified during release.
 * `v6.1` acceptance audit passed on 2026-06-22; tag `v6.1` verified during release.
+* `v8.2` acceptance audit passed on 2026-06-29; tag `v8.2` points to `fdcf18d`.
+* `v8.3` acceptance audit passed on 2026-06-30; tag `v8.3` points to `ccc9bd0`.
 
 ## Completed Features
 
@@ -157,6 +159,7 @@
 * Acquisition Strategy: strategic acquisition plans with `AcquisitionStrategyEngine`, `AcquisitionPriority`, `AcquisitionPhase`, `StrategicAcquisitionPlan`, `PortfolioBalanceRecommendation`, `RiskAssessment`, `AcquisitionStrategyReport`, `StrategyDashboard`, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * Collection Assistant: guided cataloguing workflow with `CollectionAssistantEngine`, `CollectionAssistantCandidate`, `AssistantReviewQueue`, `AssistantSummary`, `ProductivityMetrics`, `SideBySideComparison`, `PhotoInfo`, `OCRCandidate`, `CollectionMatch`, `CollectionGapInfo`, `AcquisitionPriorityInfo`; photo import with auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * AI Grading Assistant: deterministic grading guidance with `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; collection grade pattern analysis by country/denomination/series, evidence-based confidence scoring, review flagging (PROCEED/CAUTION/REVIEW), batch assessment, OCR and Photo Vault integration, Collection Intelligence context (duplicate risk, upgrade opportunities, series completion), GUI integration (Tools -> AI Grading Assistant with single and batch assessment tabs), and CSV/Markdown export without computer vision, image recognition, machine learning, or automated grade assignment.
+* Collector Workspace: unified `CollectorWorkspace` ViewModel with 10 panel getters (`get_dashboard`, `get_inbox`, `get_collection_summary`, `get_want_list`, `get_opportunities`, `get_ai_queue`, `get_batch_queue`, `get_photo_vault`, `get_workflow_status`, `get_data_safety`), 16 report descriptors (`get_reports`, `generate_report`, `export_report`), lifecycle diagnostics (`get_lifecycle`), lazy engine initialization, in-memory cache, error resilience, and GUI integration (`Collector Home -> Collector Workspace` with 11-tab notebook dialog).
 
 ## Known Bugs
 
@@ -178,8 +181,8 @@ v7.5 = Numista Intelligence
 v8.0 = Smart Phone Cataloguer (released)
 v8.1 = Batch Processing (released)
 v8.2 = AI Grading Assistant (released)
-- v8.3 = Collector Workspace (active planning)
-v8.4 = Connected Data
+- v8.3 = Collector Workspace (released)
+v8.4 = Connected Data (active planning)
 v8.4 = Connected Data
 
 v9.0 = Collector Ecosystem
@@ -327,7 +330,7 @@ Current archive status:
 ### 2026-06-28
 
 * Locked v8.2 roadmap: AI Grading Assistant.
-* Roadmap lock commit: PENDING (Phase 0 in progress).
+* Roadmap lock commit: `226e84f`.
 * v8.2 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 adds deterministic grading guidance to help collectors assess candidate quality before purchase or cataloguing, reusing existing collection intelligence and photo metadata without computer vision or automated grade assignment.
 * Files created: `docs/releases/v8.2.md`, `project_docs/release_prompts/v8.2.txt`, `v8.2_implementation_plan.md`.
 
@@ -335,7 +338,7 @@ Current archive status:
 ### 2026-06-29
 
 * Locked v8.3 roadmap: Collector Workspace.
-* Roadmap lock commit: PENDING (Phase 0 in progress).
+* Roadmap lock commit: `c6dd6aa`.
 * v8.3 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 added deterministic AI Grading Assistant for candidate quality assessment; v8.3 unifies every existing tool, engine, report, and workflow into a single cohesive collector operating system. Instead of opening Tools -> * for every subsystem, the collector opens one workspace and sees everything that matters. The workspace is a pure aggregation and orchestration layer that queries existing engines and presents their outputs in organized, actionable panels without adding new intelligence, new data models, or new collection storage.
 * Files created: `docs/releases/v8.3.md`, `project_docs/release_prompts/v8.3.txt`, `v8.3_implementation_plan.md`.
 
@@ -358,6 +361,26 @@ Current archive status:
 * Release notes: `docs/releases/v8.2.md`.
 * Roadmap lock commit: `226e84f`.
 * Release metadata commit: `fdcf18d`.
+
+
+### 2026-06-30
+
+* Implemented v8.3 Collector Workspace: `CollectorWorkspace`, `DashboardReport`, `InboxReport`, `CollectionSummaryReport`, `WantListReport`, `OpportunitiesReport`, `AIQueueReport`, `BatchQueueReport`, `PhotoVaultReport`, `WorkflowStatusReport`, `DataSafetyReport`, `ReportsMenu`, `WorkspaceReport`, `LifecycleInfo`; 10 panel aggregation methods, 16 report descriptors, lazy engine factory, refresh lifecycle, error resilience, and GUI integration.
+* Phase 1 core engine: `collector_workspace.py` with `CollectorWorkspace`, 3 initial panels (dashboard, inbox, collection_summary), lazy engine initialization, and 19 unit tests.
+* Phase 2 panel expansion: 7 additional panels (want_list, opportunities, ai_queue, batch_queue, photo_vault, workflow_status, data_safety), keyword-only constructor, 17 new tests.
+* Phase 3 reports panel: `get_reports()` with 16 lazy report descriptors, `generate_report()`, `export_report()`, 24 new tests.
+* Phase 4 lifecycle diagnostics: `LifecycleInfo`, `get_lifecycle()`, refresh hardening, engine preservation tests, 13 new tests.
+* Phase 5 GUI integration: `Collector Home -> Collector Workspace` menu item, 1000x800 dialog with 11-tab notebook (Dashboard, Inbox, Collection, Want List, Opportunities, AI Queue, Batch Queue, Photo Vault, Workflow, Data Safety, Reports), "Refresh Workspace" button, "Open in Tool..." buttons delegating to existing methods, read-only display.
+* Implementation commits: `c6dd6aa` (Phase 0), `1a80185` (Phase 1), `97671b4` (Phase 2), `f7931ca` (Phase 3), `83c994f` (Phase 4), `aa59f57` (Phase 5).
+* Release tag: `v8.3`.
+* Tests passed: `py -m unittest test_collector_workspace.py` -> 77 tests OK; full `py -m unittest discover` -> 1124 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1047 to 1124.
+* Limitation: deterministic local aggregation only; no new intelligence, no new data models, no new collection storage, no computer vision, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.3.txt`.
+* Release notes: `docs/releases/v8.3.md`.
+* Roadmap lock commit: `c6dd6aa`.
+* Release metadata commit: `ccc9bd0`.
 
 
 ### 2026-06-25
