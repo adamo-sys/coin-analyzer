@@ -25,6 +25,7 @@ from collector_workspace import (
     DataSafetyReport,
     ReportDescriptor,
     ReportsMenu,
+    LifecycleInfo,
 )
 
 
@@ -1300,6 +1301,295 @@ class TestCollectorWorkspacePhase3Integration(unittest.TestCase):
         finally:
             if os.path.exists(path):
                 os.remove(path)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Unit Tests — Refresh & Lifecycle
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase4Unit(unittest.TestCase):
+    """Unit tests for Phase 4 lifecycle and refresh hardening."""
+
+    def test_lifecycle_info_no_engines_created(self) -> None:
+        """get_lifecycle() should return zeros when no engines created."""
+        ws = CollectorWorkspace([])
+        info = ws.get_lifecycle()
+
+        self.assertIsInstance(info, LifecycleInfo)
+        self.assertEqual(info.engine_count, 0)
+        self.assertEqual(info.cached_panel_count, 0)
+        self.assertFalse(info.reports_menu_cached)
+        self.assertEqual(info.panel_names_cached, [])
+        self.assertEqual(info.collection_item_count, 0)
+        # Verify no engines were created as a side effect
+        self.assertEqual(len(ws._engines), 0)
+
+    def test_lifecycle_info_after_panels_accessed(self) -> None:
+        """get_lifecycle() should reflect engine and cache state after panel access."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        # Pre-populate engines and cache with mocks
+        mock_home = MagicMock()
+        mock_home.generate_report.return_value = MagicMock(
+            health_score=80, top_priority=None, recent_activity=[], daily_actions=[]
+        )
+        mock_os = {
+            "home": MagicMock(),
+            "health": MagicMock(),
+        }
+        mock_os["home"].generate_home.return_value = MagicMock(best_next_purchase=None)
+        mock_os["health"].generate_report.return_value = MagicMock(persistence_findings=[])
+        mock_workflow = MagicMock()
+        mock_workflow.daily_summary.return_value = MagicMock(recommended_tasks=[])
+        mock_quality = MagicMock()
+        mock_quality.generate_report.return_value = MagicMock(overall_quality_score=70)
+        mock_integrity = MagicMock()
+        mock_integrity.run.return_value = MagicMock(integrity_score=MagicMock(score=90))
+
+        ws._engines["collector_home_dashboard"] = mock_home
+        ws._engines["collector_operating_system"] = mock_os
+        ws._engines["collector_workflows"] = mock_workflow
+        ws._engines["collection_quality"] = mock_quality
+        ws._engines["collection_integrity"] = mock_integrity
+
+        ws.get_dashboard()
+        ws.get_inbox()
+
+        info = ws.get_lifecycle()
+        self.assertGreaterEqual(info.engine_count, 5)
+        self.assertEqual(info.cached_panel_count, 2)
+        self.assertIn("dashboard", info.panel_names_cached)
+        self.assertIn("inbox", info.panel_names_cached)
+        self.assertEqual(info.collection_item_count, 1)
+
+    def test_lifecycle_info_after_refresh(self) -> None:
+        """get_lifecycle() should show cleared cache after refresh."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        ws._engines["mock"] = MagicMock()
+        ws._cache["dashboard"] = DashboardReport()
+        ws._cache["inbox"] = InboxReport()
+
+        info_before = ws.get_lifecycle()
+        self.assertEqual(info_before.cached_panel_count, 2)
+        self.assertEqual(info_before.engine_count, 1)
+
+        ws.refresh()
+
+        info_after = ws.get_lifecycle()
+        self.assertEqual(info_after.cached_panel_count, 0)
+        self.assertEqual(info_after.engine_count, 1)  # engines preserved
+        self.assertEqual(info_after.panel_names_cached, [])
+        self.assertFalse(info_after.reports_menu_cached)
+
+    def test_refresh_preserves_engine_instances(self) -> None:
+        """refresh() should preserve the exact same engine objects."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        mock_engine = MagicMock()
+        ws._engines["test_engine"] = mock_engine
+        ws._cache["test_panel"] = DashboardReport()
+
+        ws.refresh()
+
+        self.assertIs(ws._engines["test_engine"], mock_engine)
+        self.assertEqual(len(ws._cache), 0)
+
+    def test_double_failure_after_refresh(self) -> None:
+        """Engine that fails before and after refresh should return error both times."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        mock_engine = MagicMock()
+        mock_engine.generate_report.side_effect = RuntimeError("Engine failed")
+        ws._engines["collection_quality"] = mock_engine
+
+        # First call
+        report1 = ws.get_dashboard()
+        # Dashboard uses multiple engines; quality failure should be in errors
+        quality_errors = [e for e in report1.engine_errors if "Quality" in e]
+        self.assertEqual(len(quality_errors), 1)
+
+        ws.refresh()
+
+        # Second call after refresh
+        report2 = ws.get_dashboard()
+        quality_errors2 = [e for e in report2.engine_errors if "Quality" in e]
+        self.assertEqual(len(quality_errors2), 1)
+
+    def test_cascading_errors_no_cross_pollution(self) -> None:
+        """Errors in one panel should not pollute another panel's error list."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        # Pre-populate two engines: one fails, one succeeds
+        mock_home = MagicMock()
+        mock_home.generate_report.return_value = MagicMock(
+            health_score=80, top_priority=None, recent_activity=[], daily_actions=[]
+        )
+        mock_quality = MagicMock()
+        mock_quality.generate_report.side_effect = RuntimeError("Quality down")
+        mock_integrity = MagicMock()
+        mock_integrity.run.return_value = MagicMock(integrity_score=MagicMock(score=90))
+        mock_os = {
+            "home": MagicMock(),
+            "health": MagicMock(),
+        }
+        mock_os["home"].generate_home.return_value = MagicMock(best_next_purchase=None)
+        mock_os["health"].generate_report.return_value = MagicMock(persistence_findings=[])
+        mock_workflow = MagicMock()
+        mock_workflow.daily_summary.return_value = MagicMock(recommended_tasks=[])
+
+        ws._engines["collector_home_dashboard"] = mock_home
+        ws._engines["collector_operating_system"] = mock_os
+        ws._engines["collector_workflows"] = mock_workflow
+        ws._engines["collection_quality"] = mock_quality
+        ws._engines["collection_integrity"] = mock_integrity
+
+        dashboard = ws.get_dashboard()
+        # Dashboard has quality error but also integrity data
+        self.assertTrue(any("Quality" in e for e in dashboard.engine_errors))
+        self.assertIsNotNone(dashboard.integrity_score)  # Integrity succeeded
+        self.assertEqual(dashboard.integrity_score, 90)
+
+    def test_partial_recovery_after_refresh(self) -> None:
+        """Engine that fails first call but succeeds after refresh should recover."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        mock_engine = MagicMock()
+        mock_engine.generate_report.side_effect = [
+            RuntimeError("First failure"),
+            MagicMock(overall_quality_score=85),
+        ]
+        ws._engines["collection_quality"] = mock_engine
+        ws._engines["collector_home_dashboard"] = MagicMock()
+        ws._engines["collector_home_dashboard"].generate_report.return_value = MagicMock(
+            health_score=80, top_priority=None, recent_activity=[], daily_actions=[]
+        )
+        ws._engines["collector_operating_system"] = {
+            "home": MagicMock(generate_home=MagicMock(return_value=MagicMock(best_next_purchase=None))),
+            "health": MagicMock(generate_report=MagicMock(return_value=MagicMock(persistence_findings=[]))),
+        }
+        ws._engines["collector_workflows"] = MagicMock()
+        ws._engines["collector_workflows"].daily_summary.return_value = MagicMock(recommended_tasks=[])
+        ws._engines["collection_integrity"] = MagicMock()
+        ws._engines["collection_integrity"].run.return_value = MagicMock(integrity_score=MagicMock(score=90))
+
+        # First call — quality fails
+        report1 = ws.get_dashboard()
+        self.assertTrue(any("Quality" in e for e in report1.engine_errors))
+        self.assertIsNone(report1.quality_score)
+
+        ws.refresh()
+
+        # Second call — quality succeeds
+        report2 = ws.get_dashboard()
+        self.assertEqual(report2.quality_score, 85)
+        self.assertFalse(any("Quality" in e for e in report2.engine_errors))
+
+    def test_per_instance_cache_isolation(self) -> None:
+        """Two workspace instances should have independent caches."""
+        ws1 = CollectorWorkspace(["item1"])
+        ws2 = CollectorWorkspace(["item2", "item3"])
+
+        ws1._cache["panel"] = DashboardReport()
+        ws2._cache["panel"] = InboxReport()
+
+        self.assertIsInstance(ws1._cache["panel"], DashboardReport)
+        self.assertIsInstance(ws2._cache["panel"], InboxReport)
+        self.assertEqual(ws1.get_lifecycle().collection_item_count, 1)
+        self.assertEqual(ws2.get_lifecycle().collection_item_count, 2)
+
+    def test_cache_key_uniqueness(self) -> None:
+        """All 11 panel cache keys should be unique."""
+        keys = [
+            "dashboard", "inbox", "collection_summary",
+            "want_list", "opportunities", "ai_queue", "batch_queue",
+            "photo_vault", "workflow_status", "data_safety",
+            "reports",
+        ]
+        self.assertEqual(len(keys), len(set(keys)), "Cache keys must be unique")
+        self.assertEqual(len(keys), 11)
+
+    def test_get_lifecycle_does_not_initialize_engines(self) -> None:
+        """get_lifecycle() must not create engines as a side effect."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        ws.get_lifecycle()
+        ws.get_lifecycle()
+        self.assertEqual(len(ws._engines), 0)
+
+    def test_get_lifecycle_does_not_mutate_cache(self) -> None:
+        """get_lifecycle() must not modify the cache."""
+        ws = CollectorWorkspace([])
+        ws._cache["dashboard"] = DashboardReport()
+        before_keys = list(ws._cache.keys())
+        ws.get_lifecycle()
+        after_keys = list(ws._cache.keys())
+        self.assertEqual(before_keys, after_keys)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase4Integration(unittest.TestCase):
+    """Integration tests for Phase 4 lifecycle with real engines."""
+
+    def _make_real_items(self) -> List[Any]:
+        """Create CoinItem instances that real engines can process."""
+        from coin_collection import CoinItem
+        from datetime import datetime
+
+        now = datetime.now().isoformat()
+        return [
+            CoinItem(
+                id="usa_1900", image_path="", country="USA", denomination="Cent",
+                year="1900", grade="VF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="usa_1901", image_path="", country="USA", denomination="Cent",
+                year="1901", grade="XF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="uk_1900", image_path="", country="UK", denomination="Penny",
+                year="1900", grade="G", notes="", date_added=now, quantity=1,
+            ),
+        ]
+
+    def test_lifecycle_with_real_engines(self) -> None:
+        """Use real engines to verify lifecycle diagnostics."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+
+        info_before = ws.get_lifecycle()
+        self.assertEqual(info_before.engine_count, 0)
+        self.assertEqual(info_before.cached_panel_count, 0)
+
+        ws.get_dashboard()
+        info_after = ws.get_lifecycle()
+        self.assertGreater(info_after.engine_count, 0)
+        self.assertEqual(info_after.cached_panel_count, 1)
+        self.assertEqual(info_after.collection_item_count, 3)
+
+    def test_refresh_with_real_engines(self) -> None:
+        """Use real engines to verify refresh behavior."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+
+        report1 = ws.get_dashboard()
+        info1 = ws.get_lifecycle()
+        engine_ids_before = set(id(e) for e in ws._engines.values())
+
+        ws.refresh()
+        info2 = ws.get_lifecycle()
+        self.assertEqual(info2.cached_panel_count, 0)
+        self.assertEqual(info2.engine_count, info1.engine_count)
+
+        report2 = ws.get_dashboard()
+        self.assertIsNot(report1, report2)
+        self.assertEqual(report1.quality_score, report2.quality_score)
+
+        # Verify engine instances are the same objects
+        engine_ids_after = set(id(e) for e in ws._engines.values())
+        self.assertEqual(engine_ids_before, engine_ids_after)
 
 
 # ---------------------------------------------------------------------------

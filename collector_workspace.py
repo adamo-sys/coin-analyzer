@@ -155,6 +155,18 @@ class DataSafetyReport(WorkspaceReport):
 
 
 @dataclass
+class LifecycleInfo:
+    """Diagnostic snapshot of CollectorWorkspace runtime state. No engine calls."""
+
+    engine_count: int = 0
+    cached_panel_count: int = 0
+    total_panels: int = 10
+    reports_menu_cached: bool = False
+    panel_names_cached: List[str] = field(default_factory=list)
+    collection_item_count: int = 0
+
+
+@dataclass
 class ReportDescriptor:
     """Metadata for a single report type available in the workspace."""
 
@@ -390,11 +402,21 @@ class CollectorWorkspace:
         else:
             raise ValueError(f"Unknown engine: {name}")
 
-    # -- Refresh ----------------------------------------------------------
+    # -- Refresh & Lifecycle ------------------------------------------------
 
     def refresh(self) -> None:
         """Clear all caches. Next panel query will re-query engines."""
         self._cache.clear()
+
+    def get_lifecycle(self) -> LifecycleInfo:
+        """Return a diagnostic snapshot of workspace state. No engine calls, no mutations."""
+        return LifecycleInfo(
+            engine_count=len(self._engines),
+            cached_panel_count=len(self._cache),
+            reports_menu_cached="reports" in self._cache,
+            panel_names_cached=list(self._cache.keys()),
+            collection_item_count=len(self._collection_items),
+        )
 
     # -- Panel aggregation (Phase 1: three panels only) -------------------
 
