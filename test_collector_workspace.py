@@ -23,6 +23,8 @@ from collector_workspace import (
     PhotoVaultReport,
     WorkflowStatusReport,
     DataSafetyReport,
+    ReportDescriptor,
+    ReportsMenu,
 )
 
 
@@ -993,6 +995,311 @@ class TestCollectorWorkspacePhase2Integration(unittest.TestCase):
         self.assertIsInstance(photo_vault, PhotoVaultReport)
         self.assertIsInstance(workflow_status, WorkflowStatusReport)
         self.assertIsInstance(data_safety, DataSafetyReport)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Unit Tests — Reports Panel
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
+    """Unit tests for Phase 3 Reports Panel (mock-based)."""
+
+    def test_get_reports_returns_menu_without_generating(self) -> None:
+        """get_reports should return a ReportsMenu without calling any engine."""
+        ws = CollectorWorkspace([])
+        menu = ws.get_reports()
+
+        self.assertIsInstance(menu, ReportsMenu)
+        self.assertGreater(menu.total_reports, 0)
+        self.assertEqual(menu.engine_errors, [])
+        # No engines should be created
+        self.assertEqual(len(ws._engines), 0)
+
+    def test_get_reports_lists_all_report_descriptors(self) -> None:
+        """get_reports should list all report descriptors with categories."""
+        ws = CollectorWorkspace([])
+        menu = ws.get_reports()
+
+        self.assertGreaterEqual(menu.total_reports, 16)
+        self.assertGreater(len(menu.categories), 0)
+        # 3 reports are unavailable by default (photo_vault, photo_audit, watchlist_scan need context)
+        self.assertEqual(menu.available_reports, menu.total_reports - 3)
+
+    def test_get_reports_all_available_with_full_context(self) -> None:
+        """With all context provided, all reports should be available."""
+        ws = CollectorWorkspace([], photo_records=[MagicMock()], watchlists=[MagicMock()])
+        menu = ws.get_reports()
+        self.assertEqual(menu.available_reports, menu.total_reports)
+
+    def test_get_reports_marks_unavailable_without_context(self) -> None:
+        """Reports requiring missing context should be marked unavailable."""
+        ws = CollectorWorkspace([], photo_records=None, watchlists=None)
+        menu = ws.get_reports()
+
+        photo_vault = menu.by_name("photo_vault")
+        self.assertIsNotNone(photo_vault)
+        self.assertFalse(photo_vault.available)
+
+        photo_audit = menu.by_name("photo_audit")
+        self.assertIsNotNone(photo_audit)
+        self.assertFalse(photo_audit.available)
+
+        watchlist = menu.by_name("watchlist_scan")
+        self.assertIsNotNone(watchlist)
+        self.assertFalse(watchlist.available)
+
+    def test_get_reports_marks_available_with_context(self) -> None:
+        """Reports with provided context should be marked available."""
+        ws = CollectorWorkspace([], photo_records=[MagicMock()], watchlists=[MagicMock()])
+        menu = ws.get_reports()
+
+        self.assertTrue(menu.by_name("photo_vault").available)
+        self.assertTrue(menu.by_name("photo_audit").available)
+        self.assertTrue(menu.by_name("watchlist_scan").available)
+
+    def test_reports_menu_by_category(self) -> None:
+        """by_category should filter reports correctly."""
+        ws = CollectorWorkspace([])
+        menu = ws.get_reports()
+
+        collection_reports = menu.by_category("Collection")
+        self.assertGreater(len(collection_reports), 0)
+        for r in collection_reports:
+            self.assertEqual(r.category, "Collection")
+
+    def test_reports_menu_by_name(self) -> None:
+        """by_name should return the correct descriptor or None."""
+        ws = CollectorWorkspace([])
+        menu = ws.get_reports()
+
+        desc = menu.by_name("collection_quality")
+        self.assertIsNotNone(desc)
+        self.assertEqual(desc.title, "Collection Quality Report")
+
+        self.assertIsNone(menu.by_name("nonexistent_report"))
+
+    def test_generate_report_lazily_generates_by_name(self) -> None:
+        """generate_report should call the correct engine method and return a dict."""
+        ws = CollectorWorkspace([])
+
+        mock_report = MagicMock()
+        mock_report.to_dict.return_value = {"overall_quality_score": 85}
+
+        mock_engine = MagicMock()
+        mock_engine.generate_report.return_value = mock_report
+        ws._engines["collection_quality"] = mock_engine
+
+        result = ws.generate_report("collection_quality")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["overall_quality_score"], 85)
+        mock_engine.generate_report.assert_called_once()
+
+    def test_generate_report_raises_for_unknown_name(self) -> None:
+        """generate_report should raise ValueError for unknown report name."""
+        ws = CollectorWorkspace([])
+        with self.assertRaises(ValueError) as ctx:
+            ws.generate_report("nonexistent_report")
+        self.assertIn("Unknown report", str(ctx.exception))
+
+    def test_generate_report_returns_unavailable_for_missing_context(self) -> None:
+        """generate_report should return structured error for unavailable report."""
+        ws = CollectorWorkspace([], photo_records=None)
+        result = ws.generate_report("photo_vault")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["error"], "Report unavailable")
+        self.assertIn("photo_vault", result["reason"])
+
+    def test_generate_report_returns_error_on_engine_failure(self) -> None:
+        """generate_report should return structured error dict on engine failure."""
+        ws = CollectorWorkspace([])
+
+        mock_engine = MagicMock()
+        mock_engine.generate_report.side_effect = RuntimeError("Engine failed")
+        ws._engines["collection_quality"] = mock_engine
+
+        result = ws.generate_report("collection_quality")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["error"], "Report generation failed")
+        self.assertIn("Engine failed", result["reason"])
+
+    def test_generate_report_handles_operating_system(self) -> None:
+        """generate_report should use engine['health'] for operating system reports."""
+        ws = CollectorWorkspace([])
+
+        mock_report = MagicMock()
+        mock_report.to_dict.return_value = {"strengths": ["Good coverage"]}
+
+        mock_health = MagicMock()
+        mock_health.generate_report.return_value = mock_report
+
+        ws._engines["collector_operating_system"] = {"home": MagicMock(), "health": mock_health}
+
+        result = ws.generate_report("health_report")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["strengths"], ["Good coverage"])
+        mock_health.generate_report.assert_called_once()
+
+    def test_export_report_delegates_to_engine(self) -> None:
+        """export_report should generate report then call engine export method."""
+        ws = CollectorWorkspace([])
+
+        mock_report = MagicMock()
+        mock_engine = MagicMock()
+        mock_engine.generate_report.return_value = mock_report
+        mock_engine.export_markdown.return_value = True
+        ws._engines["collection_quality"] = mock_engine
+
+        result = ws.export_report("collection_quality", "markdown", "/tmp/report.md")
+
+        self.assertTrue(result)
+        mock_engine.generate_report.assert_called_once()
+        mock_engine.export_markdown.assert_called_once_with("/tmp/report.md")
+
+    def test_export_report_delegates_to_report_object(self) -> None:
+        """export_report should fallback to report object's export method if engine lacks it."""
+        ws = CollectorWorkspace([])
+
+        mock_report = MagicMock()
+        mock_report.export_csv.return_value = True
+        mock_engine = MagicMock()
+        mock_engine.generate_report.return_value = mock_report
+        # engine has no export_csv
+        del mock_engine.export_csv
+        ws._engines["collection_quality"] = mock_engine
+
+        result = ws.export_report("collection_quality", "csv", "/tmp/report.csv")
+
+        self.assertTrue(result)
+        mock_report.export_csv.assert_called_once_with("/tmp/report.csv")
+
+    def test_export_report_raises_for_unknown_name(self) -> None:
+        """export_report should raise ValueError for unknown report name."""
+        ws = CollectorWorkspace([])
+        with self.assertRaises(ValueError) as ctx:
+            ws.export_report("nonexistent", "markdown", "/tmp/x.md")
+        self.assertIn("Unknown report", str(ctx.exception))
+
+    def test_export_report_raises_for_unavailable(self) -> None:
+        """export_report should raise RuntimeError for unavailable report."""
+        ws = CollectorWorkspace([], photo_records=None)
+        with self.assertRaises(RuntimeError) as ctx:
+            ws.export_report("photo_vault", "markdown", "/tmp/x.md")
+        self.assertIn("not available", str(ctx.exception))
+
+    def test_export_report_raises_for_unsupported_format(self) -> None:
+        """export_report should raise ValueError for unsupported format."""
+        ws = CollectorWorkspace([])
+        with self.assertRaises(ValueError) as ctx:
+            ws.export_report("collection_quality", "pdf", "/tmp/x.pdf")
+        self.assertIn("Unsupported format", str(ctx.exception))
+
+    def test_reports_are_cached(self) -> None:
+        """get_reports should cache the menu."""
+        ws = CollectorWorkspace([])
+        menu1 = ws.get_reports()
+        menu2 = ws.get_reports()
+        self.assertIs(menu1, menu2)
+
+    def test_refresh_clears_reports_cache(self) -> None:
+        """refresh() should clear the reports cache too."""
+        ws = CollectorWorkspace([])
+        ws.get_reports()
+        self.assertIn("reports", ws._cache)
+        ws.refresh()
+        self.assertNotIn("reports", ws._cache)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Integration Tests
+# ---------------------------------------------------------------------------
+
+class TestCollectorWorkspacePhase3Integration(unittest.TestCase):
+    """Integration tests for Phase 3 Reports Panel with real engines."""
+
+    def _make_real_items(self) -> List[Any]:
+        """Create CoinItem instances that real engines can process."""
+        from coin_collection import CoinItem
+        from datetime import datetime
+
+        now = datetime.now().isoformat()
+        return [
+            CoinItem(
+                id="usa_1900", image_path="", country="USA", denomination="Cent",
+                year="1900", grade="VF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="usa_1901", image_path="", country="USA", denomination="Cent",
+                year="1901", grade="XF", notes="", date_added=now, quantity=1,
+            ),
+            CoinItem(
+                id="uk_1900", image_path="", country="UK", denomination="Penny",
+                year="1900", grade="G", notes="", date_added=now, quantity=1,
+            ),
+        ]
+
+    def test_get_reports_with_real_collection(self) -> None:
+        """Use real collection to verify reports menu."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+        menu = ws.get_reports()
+
+        self.assertIsInstance(menu, ReportsMenu)
+        self.assertGreaterEqual(menu.total_reports, 16)
+        self.assertGreater(len(menu.categories), 0)
+        # All reports should be available (no photo_records or watchlists required for basic ones)
+        self.assertGreaterEqual(menu.available_reports, 10)
+
+    def test_generate_report_collection_quality_with_real_engines(self) -> None:
+        """Use real engines to generate a specific report."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+        result = ws.generate_report("collection_quality")
+
+        self.assertIsInstance(result, dict)
+        self.assertIn("overall_quality_score", result)
+        self.assertIsInstance(result["overall_quality_score"], int)
+
+    def test_generate_report_collection_integrity_with_real_engines(self) -> None:
+        """Use real engines to generate integrity report."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+        result = ws.generate_report("collection_integrity")
+
+        self.assertIsInstance(result, dict)
+        self.assertIn("integrity_score", result)
+
+    def test_generate_report_returns_unavailable_for_photo_without_context(self) -> None:
+        """photo_vault should be unavailable without photo_records."""
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items, photo_records=None)
+        result = ws.generate_report("photo_vault")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get("error"), "Report unavailable")
+
+    def test_export_report_collection_quality_with_real_engines(self) -> None:
+        """Use real engines to export a report to a temp file."""
+        import tempfile
+        import os
+
+        items = self._make_real_items()
+        ws = CollectorWorkspace(items)
+
+        with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as tmp:
+            path = tmp.name
+
+        try:
+            result = ws.export_report("collection_quality", "markdown", path)
+            self.assertTrue(result)
+            self.assertTrue(os.path.exists(path))
+            self.assertGreater(os.path.getsize(path), 0)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
 
 
 # ---------------------------------------------------------------------------

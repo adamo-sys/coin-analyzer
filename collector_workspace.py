@@ -154,6 +154,40 @@ class DataSafetyReport(WorkspaceReport):
     session_only_areas: int = 0
 
 
+@dataclass
+class ReportDescriptor:
+    """Metadata for a single report type available in the workspace."""
+
+    name: str
+    title: str
+    category: str
+    description: str
+    engine_name: str
+    method_name: str
+    has_markdown_export: bool = False
+    has_csv_export: bool = False
+    available: bool = True
+
+
+@dataclass
+class ReportsMenu(WorkspaceReport):
+    """Menu of all available report types."""
+
+    reports: List[ReportDescriptor] = field(default_factory=list)
+    categories: List[str] = field(default_factory=list)
+    total_reports: int = 0
+    available_reports: int = 0
+
+    def by_category(self, category: str) -> List[ReportDescriptor]:
+        return [r for r in self.reports if r.category == category]
+
+    def by_name(self, name: str) -> Optional[ReportDescriptor]:
+        for r in self.reports:
+            if r.name == name:
+                return r
+        return None
+
+
 # ---------------------------------------------------------------------------
 # CollectorWorkspace
 # ---------------------------------------------------------------------------
@@ -754,3 +788,291 @@ class CollectorWorkspace:
         report.engine_errors = errors
         self._cache["data_safety"] = report
         return report
+
+    # ---------------------------------------------------------------------------
+    # Reports Panel (Phase 3)
+    # ---------------------------------------------------------------------------
+
+    def get_reports(self) -> ReportsMenu:
+        """Return a menu of all available report types. No eager generation."""
+        if "reports" in self._cache:
+            return self._cache["reports"]
+
+        menu = ReportsMenu()
+        descriptors = self._report_registry()
+        menu.reports = descriptors
+        menu.categories = sorted(set(r.category for r in descriptors))
+        menu.total_reports = len(descriptors)
+        menu.available_reports = sum(1 for r in descriptors if r.available)
+        self._cache["reports"] = menu
+        return menu
+
+    def generate_report(self, name: str) -> Dict[str, Any]:
+        """Lazily generate a specific report by name. Returns the report as a dict."""
+        menu = self.get_reports()
+        descriptor = menu.by_name(name)
+        if not descriptor:
+            raise ValueError(f"Unknown report: {name}")
+        if not descriptor.available:
+            return {
+                "error": "Report unavailable",
+                "reason": f"Report '{name}' requires context that is not provided (e.g., watchlists, photo_records, candidates)",
+                "name": name,
+            }
+
+        try:
+            report = self._invoke_report_method(descriptor)
+        except Exception as e:
+            return {
+                "error": "Report generation failed",
+                "reason": str(e),
+                "name": name,
+            }
+
+        return report.to_dict() if hasattr(report, "to_dict") else dict(report)
+
+    def export_report(self, name: str, format: str, path: str) -> bool:
+        """Export a specific report to a file. Delegates to engine or report export method."""
+        if format not in ("markdown", "csv"):
+            raise ValueError(f"Unsupported format: {format}")
+
+        menu = self.get_reports()
+        descriptor = menu.by_name(name)
+        if not descriptor:
+            raise ValueError(f"Unknown report: {name}")
+        if not descriptor.available:
+            raise RuntimeError(f"Report '{name}' is not available (missing context)")
+
+        export_attr = "export_markdown" if format == "markdown" else "export_csv"
+
+        try:
+            report = self._invoke_report_method(descriptor)
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate report '{name}': {e}") from e
+
+        # Try engine first, then report object
+        engine = self._get_engine(descriptor.engine_name)
+        if descriptor.engine_name == "collector_operating_system":
+            engine = engine["health"]
+        export_method = getattr(engine, export_attr, None)
+        if export_method is None:
+            export_method = getattr(report, export_attr, None)
+        if export_method is None:
+            raise ValueError(f"No export method '{export_attr}' for report '{name}'")
+
+        return export_method(path)
+
+    # -- Internal helpers --------------------------------------------------
+
+    def _invoke_report_method(self, descriptor: ReportDescriptor) -> Any:
+        """Invoke the engine method for a report descriptor."""
+        engine = self._get_engine(descriptor.engine_name)
+        if descriptor.engine_name == "collector_operating_system":
+            engine = engine["health"]
+            method = getattr(engine, descriptor.method_name)
+            return method()
+        elif descriptor.engine_name == "collection_snapshot":
+            # Snapshot: create snapshot then get latest report
+            snapshot_mgr = engine
+            current = snapshot_mgr.create_snapshot(
+                self._collection_items,
+                want_list_intents=self._want_list_intents,
+                photo_records=self._photo_records,
+                market_awareness_engine=self._market_awareness_engine,
+                shopping_candidates=self._shopping_candidates,
+            )
+            return snapshot_mgr.latest_report(current)
+        elif descriptor.engine_name == "ai_grading":
+            # AI Grading: batch assess with no candidates returns empty report
+            method = getattr(engine, descriptor.method_name)
+            return method([])
+        elif descriptor.engine_name == "watchlist_engine":
+            method = getattr(engine, descriptor.method_name)
+            return method(self._collection_items, self._watchlists)
+        elif descriptor.engine_name == "deal_hunter":
+            method = getattr(engine, descriptor.method_name)
+            return method([])
+        else:
+            method = getattr(engine, descriptor.method_name)
+            return method()
+
+    def _report_registry(self) -> List[ReportDescriptor]:
+        """Registry of all available report types. No engine calls."""
+        return [
+            ReportDescriptor(
+                name="collection_dashboard",
+                title="Collection Dashboard",
+                category="Collection",
+                description="Overview of collection items, duplicates, upgrades, and gaps",
+                engine_name="collection_dashboard",
+                method_name="generate_dashboard",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="collection_quality",
+                title="Collection Quality Report",
+                category="Collection Health",
+                description="Quality score across completeness, diversity, upgrade, and certification",
+                engine_name="collection_quality",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="collection_integrity",
+                title="Collection Integrity Report",
+                category="Collection Health",
+                description="Integrity score, warnings, and recommendations",
+                engine_name="collection_integrity",
+                method_name="run",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="collection_snapshot",
+                title="Collection Snapshot",
+                category="Progress",
+                description="Growth summary and series progress since last snapshot",
+                engine_name="collection_snapshot",
+                method_name="latest_report",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="home_dashboard",
+                title="Collector Home Dashboard",
+                category="Dashboard",
+                description="Daily collector status, actions, and opportunities",
+                engine_name="collector_home_dashboard",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="health_report",
+                title="Collection Health Report",
+                category="Dashboard",
+                description="Consolidated health report with strengths, weaknesses, and priorities",
+                engine_name="collector_operating_system",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="market_awareness",
+                title="Market Awareness Report",
+                category="Market",
+                description="Observations, purchases, sales, and auction records",
+                engine_name="market_awareness",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="portfolio_performance",
+                title="Portfolio Performance Report",
+                category="Portfolio",
+                description="Portfolio summary, value estimates, and performance metrics",
+                engine_name="portfolio_performance",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="opportunities",
+                title="Top Opportunities Report",
+                category="Shopping",
+                description="Top opportunities ranked by collection impact and budget fit",
+                engine_name="opportunity_engine",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="shopping_assistant",
+                title="Shopping Recommendations",
+                category="Shopping",
+                description="Smart shopping recommendations and best next purchase",
+                engine_name="smart_shopping",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="deal_hunter",
+                title="Deal Hunter Report",
+                category="Shopping",
+                description="Deal analysis and recommendations for listings",
+                engine_name="deal_hunter",
+                method_name="generate_report",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="ai_grading",
+                title="AI Grading Assessment",
+                category="AI Assistant",
+                description="Batch grading assessments and grade patterns",
+                engine_name="ai_grading",
+                method_name="assess_batch",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="photo_vault",
+                title="Photo Vault Coverage",
+                category="Photo",
+                description="Photo coverage metrics and missing photos",
+                engine_name="photo_vault",
+                method_name="coverage_summary",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=bool(self._photo_records),
+            ),
+            ReportDescriptor(
+                name="photo_audit",
+                title="Photo Vault Integrity Audit",
+                category="Photo",
+                description="Photo integrity audit findings and recommendations",
+                engine_name="photo_vault_audit",
+                method_name="run",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=bool(self._photo_records),
+            ),
+            ReportDescriptor(
+                name="workflow_summary",
+                title="Workflow Summary",
+                category="Workflow",
+                description="Daily workflow summary and recommended tasks",
+                engine_name="collector_workflows",
+                method_name="daily_summary",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="watchlist_scan",
+                title="Watchlist Scan Results",
+                category="Alerts",
+                description="Watchlist matches and alerts for collection candidates",
+                engine_name="watchlist_engine",
+                method_name="scan",
+                has_markdown_export=True,
+                has_csv_export=True,
+                available=bool(self._watchlists),
+            ),
+        ]
