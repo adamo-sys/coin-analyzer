@@ -66,13 +66,15 @@ A living document for ideas, experiments, bugs, UX improvements, and future rele
 
 ## 🚀 Future Releases
 
-### v8.5 — Collector Intelligence *(Proposed)*
+### v8.5 — Collector Advisor *(Approved — Phase 0 Complete)*
 
-A deterministic recommendation layer. No ML. No LLM. No black box. Just explainable scoring built on everything already built.
+A deterministic recommendation layer. No ML. No LLM. No black box. Just explainable recommendations built on everything already built.
 
-**Mission:** Transform existing reports into actionable "what should I do next?" guidance.
+**Mission:** Collector Advisor helps the collector decide what to do next using deterministic, explainable recommendations built entirely from existing engines.
 
-**Potential module:** `collector_intelligence.py` → `CollectorIntelligenceEngine`
+**Module:** `collector_advisor.py` → `CollectorAdvisor`
+
+**Naming rationale:** "Advisor" signals recommendations rather than analysis. Distinct from `CollectionIntelligenceEngine` (analysis) and `ConnectedDataEngine` (cross-referencing).
 
 **Possible outputs:**
 - Priority acquisitions
@@ -83,11 +85,14 @@ A deterministic recommendation layer. No ML. No LLM. No black box. Just explaina
 - Budget allocation suggestions
 - "Next best action"
 
-**Architectural rule:** Reuse first. Compute second. The engine orchestrates existing intelligence rather than reimplementing it.
+**Architectural rules:**
+1. Reuse first. Compute second. The Advisor orchestrates existing intelligence rather than reimplementing it.
+2. Every recommendation must be explainable. Every recommendation DTO includes `evidence: List[str]` with human-readable reasons.
+3. Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change.
 
-**Phase 0 deliverables expected:** Mission, Reuse map, Public API, DTO ownership, Data flow, Dependency rules, Extension points, Test strategy, Risks, Six-phase roadmap.
+**Phase 0 deliverables:** `docs/releases/v8.5.md`, `v8.5_implementation_plan.md`, `ROADMAP.md` update.
 
-**New permanent rule:** Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change.
+**Status:** Phase 0 approved. Phase 1 implementation pending.
 
 ---
 

@@ -6,8 +6,8 @@
 - Branch: `main`
 - Current project state file reports release version: `v8.4`
 - Next planned release: `v8.5`
-- Active development target: `v8.5` (pending design)
-- Current active task: v8.4 Connected Data Phase 6 complete
+- Active development target: `v8.5` Collector Advisor (Phase 0 design in progress)
+- Current active task: v8.5 Collector Advisor Phase 0 (roadmap lock design)
 - Last release: v8.4 Connected Data (released)
 - Implementation commit: `927986b` (Phase 5)
 - Release tag: `v8.4`
@@ -853,6 +853,6 @@ The batch assessment returns a `BatchGradingReport`:
 ## Recommended Next Steps
 
 1. v8.4 release engineering complete. Tag `v8.4` verified locally and remotely.
-2. `ROADMAP.md` created with structured backlog (ideas, experiments, bugs, UX improvements, future releases).
-3. v8.5 "Collector Intelligence" proposed in `ROADMAP.md` as deterministic recommendation layer.
-4. Next: v8.5 Phase 0 roadmap lock — begin design when approved.
+2. `ROADMAP.md` created with structured backlog.
+3. v8.5 "Collector Advisor" Phase 0 approved — design docs created (`docs/releases/v8.5.md`, `v8.5_implementation_plan.md`).
+4. Next: Commit Phase 0 docs, push, then begin Phase 1 implementation when approved.

@@ -4,7 +4,7 @@
 
 * Current release version: `v8.4`
 - Next planned release: `v8.5`
-- Active development target: `v8.5` (pending design)
+- Active development target: `v8.5` Collector Advisor (Phase 0 design in progress)
 * Current Git branch: `main`
 * Last updated date: 2026-07-01
 

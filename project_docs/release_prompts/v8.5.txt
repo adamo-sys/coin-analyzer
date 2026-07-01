@@ -1,0 +1,44 @@
+Begin v8.5 Phase 0 — DESIGN ONLY.
+
+Mission:
+Collector Advisor
+
+Goal:
+Build a deterministic, explainable recommendation layer that answers "What should I do next?" by orchestrating existing engines — not reimplementing them.
+
+Before designing:
+Review:
+- ARCHITECTURE.md
+- AI_ONBOARDING.md
+- AI_HANDOFF.md
+- PROJECT_STATE.md
+- TASK_QUEUE.md
+- RELEASE_HISTORY.md
+- PROJECT_PHILOSOPHY.md
+- ROADMAP.md
+
+Respect permanent rules:
+- Existing desktop application remains the authoritative collection engine.
+- No new intelligence engine — all analysis stays in existing engines.
+- No new persistence layer — Advisor reads from existing engines only.
+- No duplicated business logic — orchestrate, don't absorb.
+- Every recommendation must be explainable (evidence: List[str]).
+- Public APIs are stable after Phase 1 unless breaking change is explicitly documented and justified.
+- Deterministic, testable, explainable.
+- No ML, no LLM, no black box.
+- Advisory only — the collector decides, the software explains.
+
+Naming:
+Use "CollectorAdvisor" (not "CollectorIntelligenceEngine"). The name signals recommendations rather than analysis.
+
+Key question to answer:
+"What decisions should the software help Adam make?"
+
+Not: "What features can we add?"
+
+Deliverables:
+- docs/releases/v8.5.md
+- v8.5_implementation_plan.md
+- Updated PROJECT_STATE.md, AI_HANDOFF.md, ROADMAP.md
+
+Stop after Phase 0. Do not begin Phase 1 until approved.
