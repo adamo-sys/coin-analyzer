@@ -8226,6 +8226,7 @@ Total Unique Dates: {total_unique_dates}
         tabs["photo_vault"] = self._create_photo_vault_tab(notebook, workspace)
         tabs["workflow"] = self._create_workflow_tab(notebook, workspace)
         tabs["data_safety"] = self._create_data_safety_tab(notebook, workspace)
+        tabs["connected_data"] = self._create_connected_data_tab(notebook, workspace)
         tabs["reports"] = self._create_reports_tab(notebook, workspace)
         return tabs
 
@@ -8363,6 +8364,17 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Open in Sync & Backup", command=self.open_sync_backup).pack(side=tk.LEFT, padx=(0, 6))
         return {"frame": frame, "text": text}
 
+    def _create_connected_data_tab(self, notebook, workspace):
+        """Create Connected Data tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Connected Data")
+        text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        report = workspace.get_connected_data()
+        text.insert(tk.END, self._format_connected_data(report))
+        text.config(state=tk.DISABLED)
+        return {"frame": frame, "text": text}
+
     def _create_reports_tab(self, notebook, workspace):
         """Create Reports tab with list and export buttons."""
         frame = ttk.Frame(notebook, padding="10")
@@ -8458,6 +8470,7 @@ Total Unique Dates: {total_unique_dates}
             "photo_vault": (workspace.get_photo_vault, self._format_photo_vault),
             "workflow": (workspace.get_workflow_status, self._format_workflow_status),
             "data_safety": (workspace.get_data_safety, self._format_data_safety),
+            "connected_data": (workspace.get_connected_data, self._format_connected_data),
         }
         for key, (getter, formatter) in panel_methods.items():
             text = tabs[key]["text"]
@@ -8643,6 +8656,39 @@ Total Unique Dates: {total_unique_dates}
             lines.extend(["", "Integrity Warnings", "-" * 40])
             for warning in report.integrity_warnings:
                 lines.append(f"- {warning}")
+        lines.append(self._format_engine_errors(report.engine_errors))
+        return "\n".join(lines) + "\n"
+
+    def _format_connected_data(self, report):
+        """Format connected data panel for display."""
+        lines = ["Connected Data", "=" * 40, ""]
+
+        if report.summary:
+            summary = report.summary
+            lines.append(f"Total Connections:      {report.total_connections}")
+            lines.append(f"Overall Match Rate:     {summary.overall_link_rate:.0%}")
+            lines.append("")
+            lines.append("By Source Type")
+            lines.append("-" * 40)
+            if summary.total_photos:
+                lines.append(f"  Photos:    {summary.photos_linked}/{summary.total_photos} linked")
+            if summary.total_ocr:
+                lines.append(f"  OCR:       {summary.ocr_linked}/{summary.total_ocr} linked")
+            if summary.total_grading:
+                lines.append(f"  Grading:   {summary.grading_linked}/{summary.total_grading} linked")
+            if summary.total_watchlist:
+                lines.append(f"  Watchlist: {summary.watchlist_linked}/{summary.total_watchlist} linked")
+        else:
+            lines.append("No connection data available.")
+
+        if report.top_connections:
+            lines.append("")
+            lines.append("Top Connections")
+            lines.append("-" * 40)
+            for c in report.top_connections[:10]:
+                match_type = c.match_type.value if c.match_type else "unknown"
+                lines.append(f"  {c.source_type} → {c.target_type}: {c.source_id} → {c.target_id} ({match_type})")
+
         lines.append(self._format_engine_errors(report.engine_errors))
         return "\n".join(lines) + "\n"
 

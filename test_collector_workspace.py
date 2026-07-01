@@ -1901,6 +1901,29 @@ class TestCollectorWorkspaceGUISmoke(unittest.TestCase):
         import coin_collection_gui
         self.assertTrue(hasattr(coin_collection_gui.CoinCollectionGUI, "_format_engine_errors"))
 
+    def test_gui_has_connected_data_tab(self) -> None:
+        """CoinCollectionGUI should have _create_connected_data_tab method."""
+        import coin_collection_gui
+        self.assertTrue(
+            hasattr(coin_collection_gui.CoinCollectionGUI, "_create_connected_data_tab"),
+            "CoinCollectionGUI should have _create_connected_data_tab",
+        )
+
+    def test_gui_has_format_connected_data(self) -> None:
+        """CoinCollectionGUI should have _format_connected_data method."""
+        import coin_collection_gui
+        self.assertTrue(
+            hasattr(coin_collection_gui.CoinCollectionGUI, "_format_connected_data"),
+            "CoinCollectionGUI should have _format_connected_data",
+        )
+
+    def test_gui_has_refresh_connected_data(self) -> None:
+        """_refresh_workspace_tabs should reference connected_data in panel_methods."""
+        import coin_collection_gui
+        import inspect
+        source = inspect.getsource(coin_collection_gui.CoinCollectionGUI._refresh_workspace_tabs)
+        self.assertIn("connected_data", source)
+
 
 # ---------------------------------------------------------------------------
 # Run
