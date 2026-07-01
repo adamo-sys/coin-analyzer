@@ -969,5 +969,116 @@ class TestConnectedDataEngineEdgeCases(unittest.TestCase):
         self.assertEqual(report.match_count, 0)
 
 
+# ---------------------------------------------------------------------------
+# Phase 4: Reporting tests
+# ---------------------------------------------------------------------------
+
+class TestConnectedDataEngineReporting(unittest.TestCase):
+    """Tests for format_markdown and generate_gap_summary."""
+
+    def test_format_markdown_empty_report(self):
+        """Empty report formats gracefully."""
+        engine = ConnectedDataEngine(ConnectedContext(collection_items=[]))
+        cross_ref = engine.generate_cross_reference_report()
+        md = engine.format_markdown(cross_ref)
+        self.assertIn("# Connected Data Cross-Reference Report", md)
+        self.assertIn("Generated:", md)
+
+    def test_format_markdown_with_connections(self):
+        """Markdown includes connections and gaps."""
+        photo = MagicMock()
+        photo.file_path = "/photos/coin1.jpg"
+        photo.id = "p1"
+        
+        grading = MagicMock()
+        grading.photo_references = ["/photos/coin1.jpg"]
+        grading.id = "g1"
+        
+        context = ConnectedContext(
+            collection_items=[],
+            photo_records=[photo],
+            grading_assessments=[grading]
+        )
+        engine = ConnectedDataEngine(context)
+        cross_ref = engine.generate_cross_reference_report()
+        md = engine.format_markdown(cross_ref)
+        
+        self.assertIn("# Connected Data Cross-Reference Report", md)
+        self.assertIn("photo", md)
+        self.assertIn("grading", md)
+        self.assertIn("p1", md)
+        self.assertIn("g1", md)
+
+    def test_generate_gap_summary_empty(self):
+        """Empty report produces empty gaps."""
+        engine = ConnectedDataEngine(ConnectedContext(collection_items=[]))
+        cross_ref = engine.generate_cross_reference_report()
+        gaps = engine.generate_gap_summary(cross_ref)
+        self.assertEqual(gaps, {})
+
+    def test_generate_gap_summary_with_unmatched(self):
+        """Gap summary extracts unmatched items."""
+        photo = MagicMock()
+        photo.file_path = "/photos/coin1.jpg"
+        photo.id = "p1"
+        
+        # No matching grading
+        context = ConnectedContext(
+            collection_items=[],
+            photo_records=[photo],
+            grading_assessments=[]
+        )
+        engine = ConnectedDataEngine(context)
+        cross_ref = engine.generate_cross_reference_report()
+        gaps = engine.generate_gap_summary(cross_ref)
+        
+        self.assertIn("photo", gaps)
+        self.assertIn("p1", gaps["photo"])
+
+    def test_export_markdown(self):
+        """export_markdown writes to file and returns True."""
+        import tempfile
+        import os
+        
+        engine = ConnectedDataEngine(ConnectedContext(collection_items=[]))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "report.md")
+            result = engine.export_markdown(path)
+            self.assertTrue(result)
+            self.assertTrue(os.path.exists(path))
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("# Connected Data Cross-Reference Report", content)
+
+    def test_export_markdown_with_report(self):
+        """export_markdown can accept an existing report."""
+        import tempfile
+        import os
+        
+        photo = MagicMock()
+        photo.file_path = "/photos/coin1.jpg"
+        photo.id = "p1"
+        
+        grading = MagicMock()
+        grading.photo_references = ["/photos/coin1.jpg"]
+        grading.id = "g1"
+        
+        context = ConnectedContext(
+            collection_items=[],
+            photo_records=[photo],
+            grading_assessments=[grading]
+        )
+        engine = ConnectedDataEngine(context)
+        cross_ref = engine.generate_cross_reference_report()
+        
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "report.md")
+            result = engine.export_markdown(path, cross_ref)
+            self.assertTrue(result)
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("p1", content)
+
+
 if __name__ == "__main__":
     unittest.main()

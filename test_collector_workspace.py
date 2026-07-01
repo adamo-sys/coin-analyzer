@@ -1752,6 +1752,45 @@ class TestCollectorWorkspaceConnectedData(unittest.TestCase):
         call_kwargs = mock_shopping.generate_report.call_args[1]
         self.assertNotIn("connected_data_engine", call_kwargs)
 
+    # ---------------------------------------------------------------------------
+    # Phase 4: Reports Panel integration tests
+    # ---------------------------------------------------------------------------
+
+    def test_reports_menu_includes_connected_data(self) -> None:
+        """Reports menu includes connected_data descriptor."""
+        ws = CollectorWorkspace([])
+        menu = ws.get_reports()
+        descriptor = menu.by_name("connected_data")
+        self.assertIsNotNone(descriptor)
+        self.assertEqual(descriptor.title, "Connected Data Cross-Reference")
+        self.assertEqual(descriptor.category, "Data Integrity")
+        self.assertTrue(descriptor.has_markdown_export)
+        self.assertFalse(descriptor.has_csv_export)
+        self.assertTrue(descriptor.available)
+
+    def test_generate_report_connected_data(self) -> None:
+        """Can generate connected_data report by name."""
+        ws = CollectorWorkspace([])
+        result = ws.generate_report("connected_data")
+        self.assertIn("cross_reference", result)
+        self.assertIn("summary", result)
+        self.assertIn("generated_at", result)
+
+    def test_export_report_connected_data_markdown(self) -> None:
+        """Can export connected_data report to markdown."""
+        import tempfile
+        import os
+
+        ws = CollectorWorkspace([])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "connected_data.md")
+            result = ws.export_report("connected_data", "markdown", path)
+            self.assertTrue(result)
+            self.assertTrue(os.path.exists(path))
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("# Connected Data Cross-Reference Report", content)
+
 
 class TestCollectorWorkspacePhase4Integration(unittest.TestCase):
     """Integration tests for Phase 4 lifecycle with real engines."""

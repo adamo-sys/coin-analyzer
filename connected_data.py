@@ -913,3 +913,81 @@ class ConnectedDataEngine:
             deal_candidates = getattr(status, "deal_candidates", []) or []
             candidates.extend(deal_candidates)
         return candidates
+
+    # -- Reporting helpers --------------------------------------------------
+
+    def format_markdown(self, report: CrossReferenceReport) -> str:
+        """Format cross-reference report as markdown. Pure presentation. No queries."""
+        lines = ["# Connected Data Cross-Reference Report", ""]
+        lines.append(f"Generated: {report.generated_at}")
+        lines.append("")
+
+        # Summary table
+        lines.append("## Summary")
+        lines.append("| Source | Target | Total Source | Total Target | Matches | Rate |")
+        lines.append("|--------|--------|-------------|-------------|---------|------|")
+        for r in report.reports:
+            rate = f"{r.match_rate:.0%}" if r.total_source else "N/A"
+            lines.append(f"| {r.source_type} | {r.target_type} | {r.total_source} | {r.total_target} | {r.match_count} | {rate} |")
+
+        # Connections per pair
+        has_connections = any(r.connections for r in report.reports)
+        if has_connections:
+            lines.append("")
+            lines.append("## Connections by Pair")
+            for r in report.reports:
+                if r.connections:
+                    lines.append("")
+                    lines.append(f"### {r.source_type} → {r.target_type}")
+                    lines.append("| Source ID | Target ID | Match Type | Match Key |")
+                    lines.append("|-----------|-----------|------------|-----------|")
+                    for c in r.connections:
+                        match_type = c.match_type.value if c.match_type else ""
+                        match_key = c.match_key or ""
+                        lines.append(f"| {c.source_id} | {c.target_id} | {match_type} | {match_key} |")
+
+        # Gaps
+        has_gaps = any(r.unmatched_sources or r.unmatched_targets for r in report.reports)
+        if has_gaps:
+            lines.append("")
+            lines.append("## Gaps")
+            for r in report.reports:
+                if r.unmatched_sources:
+                    lines.append("")
+                    lines.append(f"### Unmatched {r.source_type}")
+                    for uid in r.unmatched_sources:
+                        lines.append(f"- {uid}")
+                if r.unmatched_targets:
+                    lines.append("")
+                    lines.append(f"### Unmatched {r.target_type}")
+                    for uid in r.unmatched_targets:
+                        lines.append(f"- {uid}")
+
+        return "\n".join(lines) + "\n"
+
+    def generate_gap_summary(self, report: CrossReferenceReport) -> Dict[str, List[str]]:
+        """Extract unmatched items per source type from existing report."""
+        gaps: Dict[str, List[str]] = {}
+        for r in report.reports:
+            if r.unmatched_sources:
+                gaps.setdefault(r.source_type, []).extend(r.unmatched_sources)
+            if r.unmatched_targets:
+                gaps.setdefault(r.target_type, []).extend(r.unmatched_targets)
+        # Deduplicate
+        return {k: sorted(set(v)) for k, v in gaps.items()}
+
+    def export_markdown(self, path: str, report: Optional[CrossReferenceReport] = None) -> bool:
+        """Export cross-reference report to markdown file.
+
+        If report is not provided, generates a fresh cross-reference report.
+        """
+        try:
+            if report is None:
+                report = self.generate_cross_reference_report()
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(self.format_markdown(report))
+            return True
+        except Exception as exc:
+            print(f"Error exporting connected data markdown: {exc}")
+            return False
+

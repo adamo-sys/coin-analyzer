@@ -161,6 +161,20 @@ class ConnectedDataReport(WorkspaceReport):
             return self.summary.overall_link_rate
         return 0.0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dict. Nested objects serialize via their own to_dict()."""
+        return {
+            "generated_at": self.generated_at.isoformat() if self.generated_at else None,
+            "engine_errors": self.engine_errors,
+            "total_connections": self.total_connections,
+            "overall_match_rate": self.overall_match_rate,
+            "summary": self.summary.to_dict() if self.summary and hasattr(self.summary, "to_dict") else None,
+            "cross_reference": self.cross_reference.to_dict() if self.cross_reference and hasattr(self.cross_reference, "to_dict") else None,
+            "top_connections": [
+                c.to_dict() if hasattr(c, "to_dict") else dict(c) if hasattr(c, "__dict__") else str(c)
+                for c in self.top_connections
+            ],
+        }
 
 @dataclass
 class DataSafetyReport(WorkspaceReport):
@@ -1002,6 +1016,14 @@ class CollectorWorkspace:
         elif descriptor.engine_name == "deal_hunter":
             method = getattr(engine, descriptor.method_name)
             return method([])
+        elif descriptor.engine_name == "connected_data":
+            # Connected Data: generate cross-reference report + gap summary
+            cross_ref = engine.generate_cross_reference_report()
+            summary = engine.generate_summary()
+            return ConnectedDataReport(
+                cross_reference=cross_ref,
+                summary=summary,
+            )
         else:
             method = getattr(engine, descriptor.method_name)
             return method()
@@ -1170,6 +1192,17 @@ class CollectorWorkspace:
                 description="Daily workflow summary and recommended tasks",
                 engine_name="collector_workflows",
                 method_name="daily_summary",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
+                name="connected_data",
+                title="Connected Data Cross-Reference",
+                category="Data Integrity",
+                description="Cross-reference connections between photos, OCR, grading, batch, watchlist, and shopping data",
+                engine_name="connected_data",
+                method_name="generate_cross_reference_report",
                 has_markdown_export=True,
                 has_csv_export=False,
                 available=True,
