@@ -2,16 +2,16 @@
 
 ## Current Version
 
-* Current release version: `v8.3`
-- Next planned release: `v8.4`
-- Active development target: `v8.4` Connected Data (Phase 0 design)
+* Current release version: `v8.4`
+- Next planned release: `v8.5`
+- Active development target: `v8.5` (pending design)
 * Current Git branch: `main`
-* Last updated date: 2026-06-30
+* Last updated date: 2026-07-01
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.3`
-* Summary of what was included: Collector Workspace — unified operating system aggregating every existing tool, engine, report, and workflow into a single cohesive workspace with 10 panel getters (dashboard, inbox, collection summary, want list, opportunities, AI queue, batch queue, photo vault, workflow, data safety), 16 report descriptors with lazy generation and export, lifecycle diagnostics, lazy engine initialization, in-memory cache, error resilience, GUI integration (Collector Home → Collector Workspace with 11-tab notebook), and 1124-test regression pass.
+* Most recent Git tag: `v8.4`
+* Summary of what was included: Connected Data — cross-referencing and auto-propagation layer that connects existing engines so photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry. Thin `ConnectedDataEngine` facade with `ConnectionType` enums, `MatchType` classification, and class-level `_DISPATCH_TABLE`; 12 connection-type pair coverage; 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) + `format_markdown`, `generate_gap_summary`, `export_markdown`; `ConnectedDataReport` integrated into `CollectorWorkspace` with `get_connected_data()` lazy engine initialization; metadata-only enrichment in `SmartShoppingAssistant.generate_report()` via optional `connected_data_engine` parameter; 16 report descriptors expanded with Connected Data; GUI Connected Data tab between Data Safety and Reports; 1213-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -70,6 +70,7 @@
 * `v6.0` acceptance audit passed on 2026-06-22; tag `v6.0` verified during release.
 * `v6.1` acceptance audit passed on 2026-06-22; tag `v6.1` verified during release.
 * `v8.2` acceptance audit passed on 2026-06-29; tag `v8.2` points to `fdcf18d`.
+* `v8.4` acceptance audit passed on 2026-07-01; tag `v8.4` points to release metadata commit.
 * `v8.3` acceptance audit passed on 2026-06-30; tag `v8.3` points to `ccc9bd0`.
 
 ## Completed Features
@@ -160,6 +161,7 @@
 * Collection Assistant: guided cataloguing workflow with `CollectionAssistantEngine`, `CollectionAssistantCandidate`, `AssistantReviewQueue`, `AssistantSummary`, `ProductivityMetrics`, `SideBySideComparison`, `PhotoInfo`, `OCRCandidate`, `CollectionMatch`, `CollectionGapInfo`, `AcquisitionPriorityInfo`; photo import with auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), and CSV/Markdown export without AI reasoning, forecasting, machine learning, or external APIs.
 * AI Grading Assistant: deterministic grading guidance with `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; collection grade pattern analysis by country/denomination/series, evidence-based confidence scoring, review flagging (PROCEED/CAUTION/REVIEW), batch assessment, OCR and Photo Vault integration, Collection Intelligence context (duplicate risk, upgrade opportunities, series completion), GUI integration (Tools -> AI Grading Assistant with single and batch assessment tabs), and CSV/Markdown export without computer vision, image recognition, machine learning, or automated grade assignment.
 * Collector Workspace: unified `CollectorWorkspace` ViewModel with 10 panel getters (`get_dashboard`, `get_inbox`, `get_collection_summary`, `get_want_list`, `get_opportunities`, `get_ai_queue`, `get_batch_queue`, `get_photo_vault`, `get_workflow_status`, `get_data_safety`), 16 report descriptors (`get_reports`, `generate_report`, `export_report`), lifecycle diagnostics (`get_lifecycle`), lazy engine initialization, in-memory cache, error resilience, and GUI integration (`Collector Home -> Collector Workspace` with 11-tab notebook dialog).
+* Connected Data: thin `ConnectedDataEngine` cross-reference facade with `ConnectionType` enums, `MatchType` classification, class-level `_DISPATCH_TABLE`, 12 connection-type pairs, exact-year fuzzy matching, exact path matching, derived links, and 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) plus `format_markdown`, `generate_gap_summary`, `export_markdown`. `ConnectedDataReport` integrated into `CollectorWorkspace` via `get_connected_data()` with lazy engine initialization, cache, error resilience. Metadata-only enrichment in `SmartShoppingAssistant.generate_report()` via optional `connected_data_engine` keyword-only parameter. Connected Data GUI tab in workspace notebook. Deterministic, read-only, no new persistence, no new intelligence, no mutation.
 
 ## Known Bugs
 
@@ -181,9 +183,9 @@ v7.5 = Numista Intelligence
 v8.0 = Smart Phone Cataloguer (released)
 v8.1 = Batch Processing (released)
 v8.2 = AI Grading Assistant (released)
-- v8.3 = Collector Workspace (released)
-- v8.4 = Connected Data (Phase 0 design)
-v8.4 = Connected Data
+v8.3 = Collector Workspace (released)
+v8.4 = Connected Data (released)
+v8.5 = (pending design)
 
 v9.0 = Collector Ecosystem
 
@@ -225,7 +227,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Build v8.1 Batch Processing unless a release-blocking defect is found.
+Design v8.5 scope and begin Phase 0 roadmap lock.
 
 
 ## Release Prompt Archive
@@ -388,9 +390,29 @@ Current archive status:
 * Locked v8.4 roadmap: Connected Data.
 * v8.4 roadmap rationale: v8.0 established the Smart Phone Cataloguer for single-photo cataloguing; v8.1 extended it to batch folder processing; v8.2 added deterministic AI Grading Assistant for candidate quality assessment; v8.3 unified every existing tool, engine, report, and workflow into a single cohesive collector workspace; v8.4 connects existing engines so information entered once becomes available everywhere it is relevant — photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry.
 * Files created: `docs/releases/v8.4.md`, `project_docs/release_prompts/v8.4.txt`, `v8.4_implementation_plan.md`.
-* Roadmap lock commit: PENDING (Phase 0 in progress).
-* v8.4 design scope: Connected Data — cross-referencing and auto-propagation layer. Thin `ConnectedDataEngine` facade. Keyword-only context enhancements to existing engines. New workspace connection methods. Auto-population buttons. Connected workspace tabs. No new intelligence engine. No new persistence layer. No duplicated business logic.
+* Roadmap lock commit: `ee5d2ee`.
+* v8.4 design scope: Connected Data — cross-referencing and auto-propagation layer. Thin `ConnectedDataEngine` facade. Keyword-only context enhancements to existing engines. New workspace connection methods. Connected Data tab in workspace GUI. No new intelligence engine. No new persistence layer. No duplicated business logic.
 * Architecture doc created: `ARCHITECTURE.md` (post-v8.3 architectural map).
+
+
+### 2026-07-01
+
+* Implemented v8.4 Connected Data: `ConnectedDataEngine`, `ConnectionType`, `MatchType`, `Connection`, `ConnectedReport`, `CrossReferenceReport`, `ConnectionSummary`; deterministic cross-referencing facade with class-level `_DISPATCH_TABLE`, 12 connection-type pairs, exact-year fuzzy matching, exact path matching, derived links, 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) plus `format_markdown`, `generate_gap_summary`, `export_markdown`.
+* Phase 1 core engine: `connected_data.py` with `ConnectedDataEngine`, `ConnectedContext`, 59 unit tests, and no existing file modifications.
+* Phase 2 workspace integration: `ConnectedDataReport` added to `CollectorWorkspace`, `get_connected_data()` with lazy engine initialization, `_build_connected_context()`, in-memory cache, error resilience, 11 new tests.
+* Phase 3 selective engine context: `SmartShoppingAssistant.generate_report()` accepts optional `connected_data_engine` keyword-only parameter; metadata-only enrichment with watchlist match counts, match rates, and total recommendation counts; no reordering, no scoring, no filtering, 7 new tests.
+* Phase 4 reporting integration: Connected Data `ReportDescriptor` in `get_reports()`, `format_markdown()`, `generate_gap_summary()`, `export_markdown()`, 16 report descriptors, 9 new tests.
+* Phase 5 GUI integration: `_create_connected_data_tab()` and `_format_connected_data()` in `coin_collection_gui.py`; Connected Data tab between Data Safety and Reports; workspace-driven only; 3 new tests.
+* Implementation commits: `ee5d2ee` (Phase 0), `d03f75f` (Phase 1), `c848620` (Phase 2), `01d963d` (Phase 3), `e355ce2` (Phase 4), `927986b` (Phase 5).
+* Release tag: `v8.4`.
+* Tests passed: `py -m unittest test_connected_data.py` -> 59 tests OK; `py -m unittest test_collector_workspace.py` -> 77 tests OK; full `py -m unittest discover` -> 1213 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1124 to 1213.
+* Limitation: deterministic read-only cross-referencing only; no new intelligence engine, no new persistence layer, no duplicated business logic, no computer vision, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.4.txt`.
+* Release notes: `docs/releases/v8.4.md`.
+* Roadmap lock commit: `ee5d2ee`.
+* Release metadata commit: PENDING (Phase 6).
 
 
 ### 2026-06-25

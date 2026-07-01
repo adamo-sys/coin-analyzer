@@ -2,15 +2,15 @@
 
 ## Snapshot
 
-- Date: 2026-06-30
+- Date: 2026-07-01
 - Branch: `main`
-- Current project state file reports release version: `v8.3`
-- Next planned release: `v8.4`
-- Active development target: `v8.4` Connected Data
-- Current active task: v8.4 Connected Data Phase 0 (roadmap lock design)
-- Last release: v8.3 Collector Workspace (released)
-- Implementation commit: `aa59f57` (Phase 5)
-- Release tag: `v8.3`
+- Current project state file reports release version: `v8.4`
+- Next planned release: `v8.5`
+- Active development target: `v8.5` (pending design)
+- Current active task: v8.4 Connected Data Phase 6 (release engineering)
+- Last release: v8.4 Connected Data (released)
+- Implementation commit: `927986b` (Phase 5)
+- Release tag: `v8.4` (pending Phase 6 verification)
 - Release metadata commit: PENDING (Phase 6)
 
 ## Official v2.7-to-v3.0 Roadmap
@@ -30,8 +30,9 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 4. `v8.1` Batch Processing
 5. `v8.2` AI Grading Assistant (released)
 6. `v8.3` Collector Workspace (released)
-7. `v8.4` Connected Data (next)
-8. `v9.0` Collector Ecosystem
+7. `v8.4` Connected Data (released)
+8. `v8.5` (pending design)
+9. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
 
@@ -88,6 +89,24 @@ Before each release, verify the current release prompt exists, previous archived
 * Release prompt archived: `project_docs/release_prompts/v8.3.txt`.
 * Release notes: `docs/releases/v8.3.md`.
 * Roadmap lock commit: `c6dd6aa`.
+* Release metadata commit: PENDING (Phase 6).
+
+
+* v8.4 Connected Data released: `ConnectedDataEngine`, `ConnectionType`, `MatchType`, `Connection`, `ConnectedReport`, `CrossReferenceReport`, `ConnectionSummary`; deterministic cross-referencing facade with class-level `_DISPATCH_TABLE`, 12 connection-type pairs, exact-year fuzzy matching, exact path matching, derived links, 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) plus `format_markdown`, `generate_gap_summary`, `export_markdown`.
+* Phase 1 core engine: `connected_data.py` with `ConnectedDataEngine`, `ConnectedContext`, 59 unit tests, no existing file modifications.
+* Phase 2 workspace integration: `ConnectedDataReport` added to `CollectorWorkspace`, `get_connected_data()` with lazy engine initialization, `_build_connected_context()`, in-memory cache, error resilience, 11 new tests.
+* Phase 3 selective engine context: `SmartShoppingAssistant.generate_report()` accepts optional `connected_data_engine` keyword-only parameter; metadata-only enrichment with watchlist match counts, match rates, and total recommendation counts; no reordering, no scoring, no filtering, 7 new tests.
+* Phase 4 reporting integration: Connected Data `ReportDescriptor` in `get_reports()`, `format_markdown()`, `generate_gap_summary()`, `export_markdown()`, 16 report descriptors, 9 new tests.
+* Phase 5 GUI integration: `_create_connected_data_tab()` and `_format_connected_data()` in `coin_collection_gui.py`; Connected Data tab between Data Safety and Reports; workspace-driven only; 3 new tests.
+* Implementation commits: `ee5d2ee` (Phase 0), `d03f75f` (Phase 1), `c848620` (Phase 2), `01d963d` (Phase 3), `e355ce2` (Phase 4), `927986b` (Phase 5).
+* Release tag: `v8.4`.
+* Tests passed: `py -m unittest test_connected_data.py` -> 59 tests OK; `py -m unittest test_collector_workspace.py` -> 77 tests OK; full `py -m unittest discover` -> 1213 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1124 to 1213.
+* Limitation: deterministic read-only cross-referencing only; no new intelligence engine, no new persistence layer, no duplicated business logic, no computer vision, no machine learning, no automated grade assignment, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.4.txt`.
+* Release notes: `docs/releases/v8.4.md`.
+* Roadmap lock commit: `ee5d2ee`.
 * Release metadata commit: PENDING (Phase 6).
 
 
@@ -809,17 +828,30 @@ The batch assessment returns a `BatchGradingReport`:
 - 0 failures, 0 errors.
 - Regression: all existing tests remain green.
 
-## v8.4 Connected Data (Phase 0 — Roadmap Lock)
+## v8.4 Connected Data (Released)
 
-* Locked v8.4 roadmap: Connected Data.
-* v8.4 roadmap rationale: v8.4 connects existing engines so information entered once becomes available everywhere it is relevant — photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry.
-* Files created: `docs/releases/v8.4.md`, `project_docs/release_prompts/v8.4.txt`, `v8.4_implementation_plan.md`.
-* Roadmap lock commit: PENDING (Phase 0 in progress).
-* Architecture doc created: `ARCHITECTURE.md` (post-v8.3 architectural map).
-* Recommended next steps: v8.4 Phase 0 approval → Phase 1 Connected Data Core Engine.
+* Implemented v8.4 Connected Data: `ConnectedDataEngine`, `ConnectionType`, `MatchType`, `Connection`, `ConnectedReport`, `CrossReferenceReport`, `ConnectionSummary`; deterministic cross-referencing facade with class-level `_DISPATCH_TABLE`, 12 connection-type pairs, exact-year fuzzy matching, exact path matching, derived links, 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) plus `format_markdown`, `generate_gap_summary`, `export_markdown`.
+* Phase 1 core engine: `connected_data.py` with `ConnectedDataEngine`, `ConnectedContext`, 59 unit tests, no existing file modifications.
+* Phase 2 workspace integration: `ConnectedDataReport` added to `CollectorWorkspace`, `get_connected_data()` with lazy engine initialization, `_build_connected_context()`, in-memory cache, error resilience, 11 new tests.
+* Phase 3 selective engine context: `SmartShoppingAssistant.generate_report()` accepts optional `connected_data_engine` keyword-only parameter; metadata-only enrichment with watchlist match counts, match rates, and total recommendation counts; no reordering, no scoring, no filtering, 7 new tests.
+* Phase 4 reporting integration: Connected Data `ReportDescriptor` in `get_reports()`, `format_markdown()`, `generate_gap_summary()`, `export_markdown()`, 16 report descriptors, 9 new tests.
+* Phase 5 GUI integration: `_create_connected_data_tab()` and `_format_connected_data()` in `coin_collection_gui.py`; Connected Data tab between Data Safety and Reports; workspace-driven only; 3 new tests.
+* Phase 6 release engineering: metadata updates, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `docs/releases/v8.4.md`, `RELEASE_HISTORY.md`, annotated tag `v8.4`, push verification.
+* Implementation commits: `ee5d2ee` (Phase 0), `d03f75f` (Phase 1), `c848620` (Phase 2), `01d963d` (Phase 3), `e355ce2` (Phase 4), `927986b` (Phase 5).
+* Release tag: `v8.4`.
+* Roadmap lock commit: `ee5d2ee`.
+* Release metadata commit: PENDING (Phase 6 in progress).
+
+## v8.4 Test Status
+
+- `py -m unittest test_connected_data.py`: 59 tests OK.
+- `py -m unittest test_collector_workspace.py`: 77 tests OK.
+- `py -m unittest discover`: 1213 tests OK.
+- 0 failures, 0 errors.
+- Regression: all existing tests remain green.
 
 ## Recommended Next Steps
 
-1. v8.4 Connected Data Phase 0 approved. Begin Phase 1 implementation.
-2. Implement Connected Data Core Engine (`ConnectedContext`, `ConnectedDataEngine`).
-3. Then proceed through Phase 2-6 per `v8.4_implementation_plan.md`.
+1. v8.4 release engineering complete. Verify tag `v8.4` exists locally and remotely.
+2. Begin v8.5 design and Phase 0 roadmap lock.
+3. Do not begin v8.5 implementation until v8.4 tag and release metadata are verified.
