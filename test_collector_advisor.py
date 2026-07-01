@@ -609,6 +609,248 @@ class TestCollectorAdvisor(unittest.TestCase):
         self.assertEqual(ids, ["rec_a", "rec_m", "rec_z"])
 
     # ------------------------------------------------------------------
+    # Phase 3 enrichment tests
+    # ------------------------------------------------------------------
+
+    def test_recommendations_have_at_least_two_evidence_items(self):
+        """When cross-panel data is available, every recommendation has >=2 evidence items."""
+        want_list = MagicMock(
+            upgrade_candidates=[
+                {"id": "upg_1", "country": "Canada", "denomination": "Large Cent", "year": "1859", "current_grade": "VG8", "target_grade": "AU50"},
+            ],
+            gap_targets=[
+                {"id": "gap_1", "country": "Canada", "denomination": "5 cents", "year": "1910"},
+            ],
+            watchlist_matches=[],
+            total_upgrades=1,
+            total_gaps=1,
+            total_watchlist_matches=0,
+            engine_errors=[],
+        )
+        collection_summary = MagicMock(
+            total_items=75,
+            total_countries=5,
+            total_denominations=10,
+            total_years=50,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=65,
+            integrity_score=None,
+            engine_errors=[],
+        )
+        dashboard = MagicMock(
+            health_score=80,
+            quality_score=45,
+            integrity_score=90,
+            top_priority="Fill Canada gaps",
+            best_next_purchase="Acquire Canada 5 cents 1910",
+            todays_tasks=[],
+            recent_activity=[],
+            data_safety_status=None,
+            backup_ready=False,
+            engine_errors=[],
+        )
+        opportunities = MagicMock(
+            top_recommendations=[
+                {"id": "opp_1", "title": "Buy 1912 5¢", "description": "Good deal"},
+            ],
+            best_next_purchase="Buy 1912 5¢",
+            highest_impact=None,
+            total_opportunities=1,
+            budget_recommendations=["Focus on Canada"],
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(
+            get_want_list=want_list,
+            get_collection_summary=collection_summary,
+            get_dashboard=dashboard,
+            get_opportunities=opportunities,
+        )
+        advisor = CollectorAdvisor(workspace)
+        report = advisor.generate_advisory_report()
+
+        for rec in report.recommendations:
+            self.assertGreaterEqual(len(rec.evidence), 2,
+                f"Recommendation {rec.recommendation_id} should have >=2 evidence items")
+
+    def test_cross_panel_evidence_sources_labeled(self):
+        """Evidence items should reference the correct source panels."""
+        want_list = MagicMock(
+            upgrade_candidates=[],
+            gap_targets=[
+                {"id": "gap_1", "country": "Canada", "denomination": "5 cents", "year": "1910"},
+            ],
+            watchlist_matches=[],
+            total_upgrades=0,
+            total_gaps=1,
+            total_watchlist_matches=0,
+            engine_errors=[],
+        )
+        collection_summary = MagicMock(
+            total_items=10,
+            total_countries=2,
+            total_denominations=3,
+            total_years=8,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=55,
+            integrity_score=None,
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(
+            get_want_list=want_list,
+            get_collection_summary=collection_summary,
+        )
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_priority_acquisitions()
+
+        self.assertGreater(len(recs), 0)
+        gap_rec = recs[0]
+        sources = {e.source_engine for e in gap_rec.evidence}
+        self.assertIn("want_list_generator", sources)
+        self.assertIn("collection_intelligence", sources)
+        self.assertIn("collection_summary", sources)
+
+    def test_photo_vault_enriches_duplicate_disposal(self):
+        """PhotoVaultReport duplicate count enriches duplicate disposal evidence."""
+        summary = MagicMock(
+            total_items=75,
+            total_countries=5,
+            total_denominations=10,
+            total_years=50,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=None,
+            integrity_score=None,
+            engine_errors=[],
+        )
+        photo_vault = MagicMock(
+            total_collection_items=75,
+            items_with_photos=70,
+            items_without_photos=5,
+            coverage_percentage=93.3,
+            certified_items=0,
+            certified_with_photos=0,
+            missing_photo_count=5,
+            duplicate_photo_count=3,
+            recommended_actions=[],
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(
+            get_collection_summary=summary,
+            get_photo_vault=photo_vault,
+        )
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_duplicate_disposal()
+
+        self.assertGreater(len(recs), 0)
+        dup_rec = recs[0]
+        photo_evidence = [e for e in dup_rec.evidence if e.source_engine == "photo_vault"]
+        self.assertGreaterEqual(len(photo_evidence), 1)
+        self.assertIn("3", photo_evidence[0].description)
+
+    def test_dashboard_quality_enriches_budget_allocation(self):
+        """Dashboard quality score and collection summary both enrich budget recommendations."""
+        dashboard = MagicMock(
+            health_score=80,
+            quality_score=40,
+            integrity_score=90,
+            top_priority=None,
+            best_next_purchase=None,
+            todays_tasks=[],
+            recent_activity=[],
+            data_safety_status=None,
+            backup_ready=False,
+            engine_errors=[],
+        )
+        collection_summary = MagicMock(
+            total_items=100,
+            total_countries=10,
+            total_denominations=20,
+            total_years=60,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=42,
+            integrity_score=None,
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(
+            get_dashboard=dashboard,
+            get_collection_summary=collection_summary,
+        )
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_budget_allocation()
+
+        quality_recs = [r for r in recs if r.recommendation_id == "budget_quality"]
+        self.assertGreaterEqual(len(quality_recs), 1)
+        rec = quality_recs[0]
+        sources = {e.source_engine for e in rec.evidence}
+        self.assertIn("collection_summary", sources)
+        self.assertIn("collection_quality", sources)
+        self.assertIn("collector_advisor", sources)
+
+    def test_graceful_degradation_missing_cross_panel(self):
+        """When cross-panel data is missing, recommendations still have >=2 evidence."""
+        want_list = MagicMock(
+            upgrade_candidates=[],
+            gap_targets=[
+                {"id": "gap_1", "country": "Canada", "denomination": "5 cents", "year": "1910"},
+            ],
+            watchlist_matches=[],
+            total_upgrades=0,
+            total_gaps=1,
+            total_watchlist_matches=0,
+            engine_errors=[],
+        )
+        workspace = MagicMock()
+        workspace.get_want_list = MagicMock(return_value=want_list)
+        workspace.get_opportunities = MagicMock(side_effect=Exception("opportunities failed"))
+        workspace.get_collection_summary = MagicMock(side_effect=Exception("summary failed"))
+        workspace.get_dashboard = MagicMock(side_effect=Exception("dashboard failed"))
+        workspace.get_ai_queue = MagicMock(return_value=MagicMock(
+            total_pending=0, collection_assistant_pending=0, batch_processing_pending=0,
+            ai_grading_review=0, workflow_items=[], items=[], engine_errors=[],
+        ))
+        workspace.get_photo_vault = MagicMock(return_value=MagicMock(
+            total_collection_items=0, items_with_photos=0, items_without_photos=0,
+            coverage_percentage=100.0, certified_items=0, certified_with_photos=0,
+            missing_photo_count=0, duplicate_photo_count=0, recommended_actions=[],
+            engine_errors=[],
+        ))
+        workspace.get_batch_queue = MagicMock(return_value=MagicMock(
+            total_pending=0, collection_assistant_pending=0, batch_processing_pending=0,
+            ai_grading_review=0, workflow_items=[], items=[], engine_errors=[],
+        ))
+        workspace.get_workflow_status = MagicMock(return_value=MagicMock(
+            active_workflows=[], todays_tasks=[], pending_reviews=0,
+            next_actions=[], workflow_health=None, engine_errors=[],
+        ))
+        workspace.get_data_safety = MagicMock(return_value=MagicMock(
+            backup_ready=True, last_snapshot_age=None, integrity_warnings=[],
+            persistence_areas=[], total_persistence_areas=0, persisted_areas=0,
+            session_only_areas=0, engine_errors=[],
+        ))
+        workspace.get_connected_data = MagicMock(return_value=MagicMock(
+            summary=None, cross_reference=None, top_connections=[], engine_errors=[],
+        ))
+        workspace.get_inbox = MagicMock(return_value=MagicMock(
+            total_pending=0, collection_assistant_pending=0, batch_processing_pending=0,
+            ai_grading_review=0, workflow_items=[], items=[], engine_errors=[],
+        ))
+
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_priority_acquisitions()
+
+        self.assertGreater(len(recs), 0)
+        for rec in recs:
+            self.assertGreaterEqual(len(rec.evidence), 2,
+                f"Recommendation {rec.recommendation_id} should have >=2 evidence even without cross-panel data")
+
+    # ------------------------------------------------------------------
     # Graceful degradation tests
     # ------------------------------------------------------------------
 

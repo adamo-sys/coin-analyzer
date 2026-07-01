@@ -228,7 +228,7 @@ class CollectorAdvisor:
     def recommend_priority_acquisitions(self) -> List[CollectorRecommendation]:
         """Recommend highest-priority acquisitions from want-list, gaps, and opportunities.
 
-        Sources: WantListReport, OpportunitiesReport, CollectionSummaryReport
+        Sources: WantListReport, OpportunitiesReport, CollectionSummaryReport, DashboardReport
         """
         recommendations: List[CollectorRecommendation] = []
 
@@ -242,6 +242,24 @@ class CollectorAdvisor:
         except Exception:
             opportunities = None
 
+        try:
+            collection_summary = self.workspace.get_collection_summary()
+        except Exception:
+            collection_summary = None
+
+        try:
+            dashboard = self.workspace.get_dashboard()
+        except Exception:
+            dashboard = None
+
+        # Extract cross-panel context for evidence enrichment
+        total_items = getattr(collection_summary, "total_items", 0) if collection_summary else 0
+        quality_score = getattr(collection_summary, "quality_score", None) if collection_summary else None
+        total_gaps = getattr(want_list, "total_gaps", 0) if want_list else 0
+        total_upgrades = getattr(want_list, "total_upgrades", 0) if want_list else 0
+        best_next_purchase = getattr(dashboard, "best_next_purchase", None) if dashboard else None
+        total_opportunities = getattr(opportunities, "total_opportunities", 0) if opportunities else 0
+
         # Want-list gaps (highest priority)
         if want_list and want_list.gap_targets:
             for idx, gap in enumerate(want_list.gap_targets[:3]):
@@ -250,25 +268,42 @@ class CollectorAdvisor:
                 year = gap.get("year", "")
                 title = f"Acquire {country} {denomination} {year}".strip()
                 rec_id = f"acq_gap_{idx}"
+
+                evidence = [
+                    RecommendationReason(
+                        category="priority",
+                        description=f"Collection gap target identified in want-list ({total_gaps} total gaps)",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ),
+                    RecommendationReason(
+                        category="priority",
+                        description=f"No owned example of {country} {denomination} {year}",
+                        source_engine="collection_intelligence",
+                        confidence="HIGH",
+                    ),
+                ]
+                if total_items > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection currently has {total_items} items",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+                if best_next_purchase and (country in str(best_next_purchase) or denomination in str(best_next_purchase)):
+                    evidence.append(RecommendationReason(
+                        category="alignment",
+                        description=f"Aligns with dashboard best-next-purchase: {best_next_purchase}",
+                        source_engine="dashboard",
+                        confidence="MEDIUM",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
                     recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Fill collection gap: {country} {denomination} {year}",
-                    evidence=[
-                        RecommendationReason(
-                            category="priority",
-                            description=f"Collection gap target identified in want-list",
-                            source_engine="want_list_generator",
-                            confidence="HIGH",
-                        ),
-                        RecommendationReason(
-                            category="priority",
-                            description=f"No owned example of {country} {denomination} {year}",
-                            source_engine="collection_intelligence",
-                            confidence="HIGH",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="HIGH",
                     urgency="SHORT_TERM",
                     related_items=[str(gap.get("id", "")),],
@@ -282,25 +317,35 @@ class CollectorAdvisor:
                 year = upgrade.get("year", "")
                 title = f"Upgrade {country} {denomination} {year}".strip()
                 rec_id = f"acq_upg_{idx}"
+
+                evidence = [
+                    RecommendationReason(
+                        category="upgrade",
+                        description=f"Upgrade candidate in want-list ({total_upgrades} total upgrade targets)",
+                        source_engine="want_list_generator",
+                        confidence="MEDIUM",
+                    ),
+                    RecommendationReason(
+                        category="upgrade",
+                        description=f"Higher grade example may improve collection quality",
+                        source_engine="upgrade_advisor",
+                        confidence="MEDIUM",
+                    ),
+                ]
+                if quality_score is not None:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection quality score is {quality_score}",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
                     recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Upgrade opportunity: {country} {denomination} {year}",
-                    evidence=[
-                        RecommendationReason(
-                            category="upgrade",
-                            description=f"Upgrade candidate in want-list",
-                            source_engine="want_list_generator",
-                            confidence="MEDIUM",
-                        ),
-                        RecommendationReason(
-                            category="upgrade",
-                            description=f"Higher grade example may improve collection quality",
-                            source_engine="upgrade_advisor",
-                            confidence="MEDIUM",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="MEDIUM",
                     urgency="LONG_TERM",
                     related_items=[str(upgrade.get("id", "")),],
@@ -311,25 +356,42 @@ class CollectorAdvisor:
             for idx, rec in enumerate(opportunities.top_recommendations[:2]):
                 title = rec.get("title", rec.get("description", f"Opportunity {idx}"))
                 rec_id = f"acq_opp_{idx}"
+
+                evidence = [
+                    RecommendationReason(
+                        category="opportunity",
+                        description=f"Top-ranked acquisition opportunity (#{idx + 1} of {total_opportunities})",
+                        source_engine="smart_shopping",
+                        confidence="HIGH",
+                    ),
+                    RecommendationReason(
+                        category="opportunity",
+                        description=f"Evaluated for collection fit and impact",
+                        source_engine="opportunity_engine",
+                        confidence="MEDIUM",
+                    ),
+                ]
+                if total_gaps > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_gaps} unfilled gaps",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if best_next_purchase and title in str(best_next_purchase):
+                    evidence.append(RecommendationReason(
+                        category="alignment",
+                        description=f"Aligns with dashboard best-next-purchase: {best_next_purchase}",
+                        source_engine="dashboard",
+                        confidence="MEDIUM",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
                     recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Ranked opportunity from smart shopping analysis",
-                    evidence=[
-                        RecommendationReason(
-                            category="opportunity",
-                            description=f"Top-ranked acquisition opportunity",
-                            source_engine="smart_shopping",
-                            confidence="HIGH",
-                        ),
-                        RecommendationReason(
-                            category="opportunity",
-                            description=f"Evaluated for collection fit and impact",
-                            source_engine="opportunity_engine",
-                            confidence="MEDIUM",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="HIGH" if idx == 0 else "MEDIUM",
                     urgency="SHORT_TERM" if idx == 0 else "LONG_TERM",
                     related_items=[str(rec.get("id", "")),],
@@ -340,7 +402,7 @@ class CollectorAdvisor:
     def recommend_grade_submissions(self) -> List[CollectorRecommendation]:
         """Recommend candidates for grading submission based on assessments.
 
-        Sources: AIQueueReport, PhotoVaultReport
+        Sources: AIQueueReport, PhotoVaultReport, CollectionSummaryReport
         """
         recommendations: List[CollectorRecommendation] = []
 
@@ -354,55 +416,105 @@ class CollectorAdvisor:
         except Exception:
             photo_vault = None
 
+        try:
+            collection_summary = self.workspace.get_collection_summary()
+        except Exception:
+            collection_summary = None
+
+        # Cross-panel context
+        total_items = getattr(collection_summary, "total_items", 0) if collection_summary else 0
+        quality_score = getattr(collection_summary, "quality_score", None) if collection_summary else None
+
         # Items with photos but no grading (simplified heuristic)
         if photo_vault and photo_vault.coverage_percentage is not None:
             if photo_vault.coverage_percentage < 100.0:
                 missing = photo_vault.missing_photo_count or 0
                 if missing > 0:
+                    evidence = [
+                        RecommendationReason(
+                            category="grading",
+                            description=f"{missing} items without photos",
+                            source_engine="photo_vault",
+                            confidence="HIGH",
+                        ),
+                        RecommendationReason(
+                            category="grading",
+                            description="Photos are required for grading submission",
+                            source_engine="ai_grading_assistant",
+                            confidence="HIGH",
+                        ),
+                    ]
+                    if total_items > 0:
+                        evidence.append(RecommendationReason(
+                            category="context",
+                            description=f"Collection has {total_items} total items",
+                            source_engine="collection_summary",
+                            confidence="HIGH",
+                        ))
+                    if quality_score is not None:
+                        evidence.append(RecommendationReason(
+                            category="context",
+                            description=f"Collection quality score is {quality_score}",
+                            source_engine="collection_summary",
+                            confidence="HIGH",
+                        ))
+                    certified = getattr(photo_vault, "certified_items", 0) or 0
+                    certified_with_photos = getattr(photo_vault, "certified_with_photos", 0) or 0
+                    if certified > 0:
+                        evidence.append(RecommendationReason(
+                            category="context",
+                            description=f"{certified} certified items, {certified_with_photos} with photos",
+                            source_engine="photo_vault",
+                            confidence="HIGH",
+                        ))
+
                     recommendations.append(CollectorRecommendation(
                         recommendation_id="grade_photo_coverage",
                         recommendation_type=RecommendationCategory.GRADE_SUBMIT,
                         title="Add photos for unphotographed items",
                         description=f"{missing} collection items lack photos. Add photos before grading.",
-                        evidence=[
-                            RecommendationReason(
-                                category="grading",
-                                description=f"{missing} items without photos",
-                                source_engine="photo_vault",
-                                confidence="HIGH",
-                            ),
-                            RecommendationReason(
-                                category="grading",
-                                description="Photos are required for grading submission",
-                                source_engine="ai_grading_assistant",
-                                confidence="HIGH",
-                            ),
-                        ],
+                        evidence=evidence,
                         priority="MEDIUM",
                         urgency="LONG_TERM",
                     ))
 
         # AI grading review queue
         if ai_queue and ai_queue.ai_grading_review > 0:
+            evidence = [
+                RecommendationReason(
+                    category="grading",
+                    description=f"{ai_queue.ai_grading_review} grading assessment(s) awaiting review",
+                    source_engine="ai_grading_assistant",
+                    confidence="HIGH",
+                ),
+                RecommendationReason(
+                    category="grading",
+                    description="Review assessments before submitting for professional grading",
+                    source_engine="collector_advisor",
+                    confidence="HIGH",
+                ),
+            ]
+            if total_items > 0:
+                evidence.append(RecommendationReason(
+                    category="context",
+                    description=f"Collection has {total_items} total items",
+                    source_engine="collection_summary",
+                    confidence="HIGH",
+                ))
+            if quality_score is not None:
+                evidence.append(RecommendationReason(
+                    category="context",
+                    description=f"Collection quality score is {quality_score}",
+                    source_engine="collection_summary",
+                    confidence="HIGH",
+                ))
+
             recommendations.append(CollectorRecommendation(
                 recommendation_id="grade_ai_review",
                 recommendation_type=RecommendationCategory.GRADE_SUBMIT,
                 title="Review AI grading assessments",
                 description=f"{ai_queue.ai_grading_review} grading assessment(s) awaiting review.",
-                evidence=[
-                    RecommendationReason(
-                        category="grading",
-                        description=f"{ai_queue.ai_grading_review} grading assessments pending review",
-                        source_engine="ai_grading_assistant",
-                        confidence="HIGH",
-                    ),
-                    RecommendationReason(
-                        category="grading",
-                        description="Review assessments before submitting for professional grading",
-                        source_engine="collector_advisor",
-                        confidence="HIGH",
-                    ),
-                ],
+                evidence=evidence,
                 priority="MEDIUM",
                 urgency="SHORT_TERM",
             ))
@@ -412,7 +524,7 @@ class CollectorAdvisor:
     def recommend_upgrades(self) -> List[CollectorRecommendation]:
         """Recommend upgrade candidates from collection intelligence.
 
-        Sources: WantListReport, OpportunitiesReport
+        Sources: WantListReport, OpportunitiesReport, CollectionSummaryReport, DashboardReport
         """
         recommendations: List[CollectorRecommendation] = []
 
@@ -426,6 +538,23 @@ class CollectorAdvisor:
         except Exception:
             opportunities = None
 
+        try:
+            collection_summary = self.workspace.get_collection_summary()
+        except Exception:
+            collection_summary = None
+
+        try:
+            dashboard = self.workspace.get_dashboard()
+        except Exception:
+            dashboard = None
+
+        # Cross-panel context
+        total_items = getattr(collection_summary, "total_items", 0) if collection_summary else 0
+        quality_score = getattr(collection_summary, "quality_score", None) if collection_summary else None
+        dashboard_quality = getattr(dashboard, "quality_score", None) if dashboard else None
+        total_opportunities = getattr(opportunities, "total_opportunities", 0) if opportunities else 0
+        total_upgrades = getattr(want_list, "total_upgrades", 0) if want_list else 0
+
         # Upgrade candidates from want list
         if want_list and want_list.upgrade_candidates:
             for idx, upgrade in enumerate(want_list.upgrade_candidates[:3]):
@@ -436,26 +565,50 @@ class CollectorAdvisor:
                 target_grade = upgrade.get("target_grade", "")
                 title = f"Upgrade {country} {denomination} {year}".strip()
                 rec_id = f"upg_{idx}"
+
+                evidence = [
+                    RecommendationReason(
+                        category="upgrade",
+                        description=f"Upgrade candidate identified in want-list ({total_upgrades} total upgrade targets)",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ),
+                    RecommendationReason(
+                        category="upgrade",
+                        description=f"Collection contains lower-grade example ({current_grade} -> {target_grade})",
+                        source_engine="upgrade_advisor",
+                        confidence="HIGH",
+                    ),
+                ]
+                if total_items > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_items} total items",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+                if quality_score is not None:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection quality score is {quality_score}",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+                if dashboard_quality is not None:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Dashboard quality score is {dashboard_quality}",
+                        source_engine="dashboard",
+                        confidence="HIGH",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
                     recommendation_type=RecommendationCategory.UPGRADE,
                     title=title,
                     description=f"Upgrade from {current_grade} to {target_grade} "
                                   f"for {country} {denomination} {year}",
-                    evidence=[
-                        RecommendationReason(
-                            category="upgrade",
-                            description=f"Upgrade candidate identified in want-list",
-                            source_engine="want_list_generator",
-                            confidence="HIGH",
-                        ),
-                        RecommendationReason(
-                            category="upgrade",
-                            description=f"Collection contains lower-grade example",
-                            source_engine="upgrade_advisor",
-                            confidence="HIGH",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="MEDIUM",
                     urgency="LONG_TERM",
                     related_items=[str(upgrade.get("id", "")),],
@@ -463,25 +616,48 @@ class CollectorAdvisor:
 
         # Highest-impact upgrade from opportunities
         if opportunities and opportunities.highest_impact:
+            evidence = [
+                RecommendationReason(
+                    category="upgrade",
+                    description=f"Highest-impact upgrade opportunity",
+                    source_engine="opportunity_engine",
+                    confidence="HIGH",
+                ),
+                RecommendationReason(
+                    category="impact",
+                    description=f"Evaluated for collection quality delta",
+                    source_engine="acquisition_impact",
+                    confidence="MEDIUM",
+                ),
+            ]
+            if total_opportunities > 0:
+                evidence.append(RecommendationReason(
+                    category="context",
+                    description=f"{total_opportunities} total opportunities available",
+                    source_engine="opportunity_engine",
+                    confidence="HIGH",
+                ))
+            if total_items > 0:
+                evidence.append(RecommendationReason(
+                    category="context",
+                    description=f"Collection has {total_items} total items",
+                    source_engine="collection_summary",
+                    confidence="HIGH",
+                ))
+            if quality_score is not None:
+                evidence.append(RecommendationReason(
+                    category="context",
+                    description=f"Collection quality score is {quality_score}",
+                    source_engine="collection_summary",
+                    confidence="HIGH",
+                ))
+
             recommendations.append(CollectorRecommendation(
                 recommendation_id="upg_highest_impact",
                 recommendation_type=RecommendationCategory.UPGRADE,
                 title=f"Highest-impact upgrade: {opportunities.highest_impact}",
                 description="This upgrade offers the greatest collection improvement potential.",
-                evidence=[
-                    RecommendationReason(
-                        category="upgrade",
-                        description="Highest-impact upgrade opportunity",
-                        source_engine="opportunity_engine",
-                        confidence="HIGH",
-                    ),
-                    RecommendationReason(
-                        category="impact",
-                        description="Evaluated for collection quality delta",
-                        source_engine="acquisition_impact",
-                        confidence="MEDIUM",
-                    ),
-                ],
+                evidence=evidence,
                 priority="HIGH",
                 urgency="SHORT_TERM",
             ))
@@ -491,7 +667,7 @@ class CollectorAdvisor:
     def recommend_duplicate_disposal(self) -> List[CollectorRecommendation]:
         """Recommend duplicate candidates for sale/trade/disposal.
 
-        Sources: CollectionSummaryReport, WantListReport
+        Sources: CollectionSummaryReport, WantListReport, PhotoVaultReport
         """
         recommendations: List[CollectorRecommendation] = []
 
@@ -505,31 +681,64 @@ class CollectorAdvisor:
         except Exception:
             want_list = None
 
+        try:
+            photo_vault = self.workspace.get_photo_vault()
+        except Exception:
+            photo_vault = None
+
+        # Cross-panel context
+        total_gaps = getattr(want_list, "total_gaps", 0) if want_list else 0
+        total_upgrades = getattr(want_list, "total_upgrades", 0) if want_list else 0
+        duplicate_photo_count = getattr(photo_vault, "duplicate_photo_count", 0) if photo_vault else 0
+
         # Simple heuristic: if we have many items, suggest reviewing duplicates
         if summary and summary.total_items > 0:
             # Note: we don't have direct duplicate count in CollectionSummaryReport,
             # so we use a conservative advisory based on collection size
             if summary.total_items > 50:
+                evidence = [
+                    RecommendationReason(
+                        category="duplicate",
+                        description=f"Collection size ({summary.total_items}) suggests review needed",
+                        source_engine="collection_intelligence",
+                        confidence="MEDIUM",
+                    ),
+                    RecommendationReason(
+                        category="duplicate",
+                        description="Duplicate disposal frees budget for priority acquisitions",
+                        source_engine="collector_advisor",
+                        confidence="HIGH",
+                    ),
+                ]
+                if total_gaps > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_gaps} unfilled gaps to fund",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if total_upgrades > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_upgrades} upgrade targets",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if duplicate_photo_count > 0:
+                    evidence.append(RecommendationReason(
+                        category="duplicate",
+                        description=f"Photo vault identifies {duplicate_photo_count} duplicate photos",
+                        source_engine="photo_vault",
+                        confidence="HIGH",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id="dup_review",
                     recommendation_type=RecommendationCategory.DISPOSE_DUPLICATE,
                     title="Review collection for duplicate disposal",
                     description=f"Collection has {summary.total_items} items. "
                                   f"Review duplicates and surplus items for sale or trade.",
-                    evidence=[
-                        RecommendationReason(
-                            category="duplicate",
-                            description=f"Collection size ({summary.total_items}) suggests review needed",
-                            source_engine="collection_intelligence",
-                            confidence="MEDIUM",
-                        ),
-                        RecommendationReason(
-                            category="duplicate",
-                            description="Duplicate disposal frees budget for priority acquisitions",
-                            source_engine="collector_advisor",
-                            confidence="HIGH",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="LOW",
                     urgency="ONGOING",
                 ))
@@ -539,7 +748,7 @@ class CollectorAdvisor:
     def recommend_budget_allocation(self) -> List[CollectorRecommendation]:
         """Recommend budget allocation across priority categories.
 
-        Sources: OpportunitiesReport, DashboardReport
+        Sources: OpportunitiesReport, DashboardReport, WantListReport, CollectionSummaryReport
         """
         recommendations: List[CollectorRecommendation] = []
 
@@ -553,28 +762,69 @@ class CollectorAdvisor:
         except Exception:
             dashboard = None
 
+        try:
+            want_list = self.workspace.get_want_list()
+        except Exception:
+            want_list = None
+
+        try:
+            collection_summary = self.workspace.get_collection_summary()
+        except Exception:
+            collection_summary = None
+
+        # Cross-panel context
+        total_gaps = getattr(want_list, "total_gaps", 0) if want_list else 0
+        total_upgrades = getattr(want_list, "total_upgrades", 0) if want_list else 0
+        total_watchlist_matches = getattr(want_list, "total_watchlist_matches", 0) if want_list else 0
+        total_items = getattr(collection_summary, "total_items", 0) if collection_summary else 0
+        quality_score = getattr(collection_summary, "quality_score", None) if collection_summary else None
+        total_opportunities = getattr(opportunities, "total_opportunities", 0) if opportunities else 0
+
         # Budget recommendations from opportunities
         if opportunities and opportunities.budget_recommendations:
             for idx, rec in enumerate(opportunities.budget_recommendations[:2]):
+                evidence = [
+                    RecommendationReason(
+                        category="budget",
+                        description=f"Budget recommendation: {rec}",
+                        source_engine="opportunity_engine",
+                        confidence="MEDIUM",
+                    ),
+                    RecommendationReason(
+                        category="budget",
+                        description="Evaluated for collection fit and priority alignment",
+                        source_engine="acquisition_strategy",
+                        confidence="MEDIUM",
+                    ),
+                ]
+                if total_gaps > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_gaps} unfilled gaps",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if total_upgrades > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_upgrades} upgrade targets",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if total_watchlist_matches > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Watchlist has {total_watchlist_matches} matched items",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=f"budget_{idx}",
                     recommendation_type=RecommendationCategory.BUDGET_ALLOCATE,
                     title=f"Budget allocation: {rec}",
                     description=f"Budget recommendation from opportunity analysis: {rec}",
-                    evidence=[
-                        RecommendationReason(
-                            category="budget",
-                            description=f"Budget recommendation: {rec}",
-                            source_engine="opportunity_engine",
-                            confidence="MEDIUM",
-                        ),
-                        RecommendationReason(
-                            category="budget",
-                            description="Evaluated for collection fit and priority alignment",
-                            source_engine="acquisition_strategy",
-                            confidence="MEDIUM",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="MEDIUM",
                     urgency="LONG_TERM",
                 ))
@@ -582,26 +832,56 @@ class CollectorAdvisor:
         # Quality-based budget suggestion
         if dashboard and dashboard.quality_score is not None:
             if dashboard.quality_score < 50:
+                evidence = [
+                    RecommendationReason(
+                        category="budget",
+                        description=f"Quality score ({dashboard.quality_score}) suggests investment needed",
+                        source_engine="collection_quality",
+                        confidence="MEDIUM",
+                    ),
+                    RecommendationReason(
+                        category="budget",
+                        description="Higher-grade acquisitions improve overall collection quality",
+                        source_engine="collector_advisor",
+                        confidence="HIGH",
+                    ),
+                ]
+                if total_items > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_items} total items",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+                if total_gaps > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection has {total_gaps} unfilled gaps",
+                        source_engine="want_list_generator",
+                        confidence="HIGH",
+                    ))
+                if total_opportunities > 0:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"{total_opportunities} opportunities identified",
+                        source_engine="opportunity_engine",
+                        confidence="HIGH",
+                    ))
+                if quality_score is not None:
+                    evidence.append(RecommendationReason(
+                        category="context",
+                        description=f"Collection quality score is {quality_score}",
+                        source_engine="collection_summary",
+                        confidence="HIGH",
+                    ))
+
                 recommendations.append(CollectorRecommendation(
                     recommendation_id="budget_quality",
                     recommendation_type=RecommendationCategory.BUDGET_ALLOCATE,
                     title="Allocate budget to quality improvements",
                     description=f"Collection quality score is {dashboard.quality_score}. "
                                   f"Consider allocating budget to higher-grade acquisitions.",
-                    evidence=[
-                        RecommendationReason(
-                            category="budget",
-                            description=f"Quality score ({dashboard.quality_score}) suggests investment needed",
-                            source_engine="collection_quality",
-                            confidence="MEDIUM",
-                        ),
-                        RecommendationReason(
-                            category="budget",
-                            description="Higher-grade acquisitions improve overall collection quality",
-                            source_engine="collector_advisor",
-                            confidence="HIGH",
-                        ),
-                    ],
+                    evidence=evidence,
                     priority="MEDIUM",
                     urgency="LONG_TERM",
                 ))
