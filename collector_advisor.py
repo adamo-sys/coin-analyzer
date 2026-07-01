@@ -17,7 +17,27 @@ Permanent rules:
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
+
+
+# ---------------------------------------------------------------------------
+# RecommendationCategory enum
+# ---------------------------------------------------------------------------
+
+class RecommendationCategory(Enum):
+    """Deterministic recommendation category.
+
+    Enum values are strings for backward compatibility.
+    Phase 2 addition: replaces raw recommendation_type strings.
+    """
+
+    PRIORITY_ACQUISITION = "PRIORITY_ACQUISITION"
+    GRADE_SUBMIT = "GRADE_SUBMIT"
+    UPGRADE = "UPGRADE"
+    DISPOSE_DUPLICATE = "DISPOSE_DUPLICATE"
+    BUDGET_ALLOCATE = "BUDGET_ALLOCATE"
+    NEXT_ACTION = "NEXT_ACTION"
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +66,30 @@ class CollectorRecommendation:
 
     Every recommendation must include non-empty evidence.
     """
+
+    recommendation_id: str
+    recommendation_type: RecommendationCategory
+    title: str
+    description: str
+    evidence: List[RecommendationReason] = field(default_factory=list)
+    priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW — deterministic categories only
+    urgency: str = "ONGOING"  # IMMEDIATE, SHORT_TERM, LONG_TERM, ONGOING
+    status: str = "ACTIVE"  # ACTIVE, COMPLETED, DISMISSED, REVIEW
+    related_items: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.evidence:
+            raise ValueError(
+                "Every CollectorRecommendation must include non-empty evidence. "
+                "Use RecommendationReason to document why this recommendation exists."
+            )
+
+    @property
+    def evidence_summary(self) -> str:
+        """Human-readable evidence summary for display."""
+        lines = [f"  • [{r.source_engine}] {r.description} (confidence: {r.confidence})"
+                 for r in self.evidence]
+        return "\n".join(lines)
 
     recommendation_id: str
     recommendation_type: str
@@ -208,7 +252,7 @@ class CollectorAdvisor:
                 rec_id = f"acq_gap_{idx}"
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
-                    recommendation_type="PRIORITY_ACQUISITION",
+                    recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Fill collection gap: {country} {denomination} {year}",
                     evidence=[
@@ -240,7 +284,7 @@ class CollectorAdvisor:
                 rec_id = f"acq_upg_{idx}"
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
-                    recommendation_type="PRIORITY_ACQUISITION",
+                    recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Upgrade opportunity: {country} {denomination} {year}",
                     evidence=[
@@ -269,7 +313,7 @@ class CollectorAdvisor:
                 rec_id = f"acq_opp_{idx}"
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
-                    recommendation_type="PRIORITY_ACQUISITION",
+                    recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
                     title=title,
                     description=f"Ranked opportunity from smart shopping analysis",
                     evidence=[
@@ -317,7 +361,7 @@ class CollectorAdvisor:
                 if missing > 0:
                     recommendations.append(CollectorRecommendation(
                         recommendation_id="grade_photo_coverage",
-                        recommendation_type="GRADE_SUBMIT",
+                        recommendation_type=RecommendationCategory.GRADE_SUBMIT,
                         title="Add photos for unphotographed items",
                         description=f"{missing} collection items lack photos. Add photos before grading.",
                         evidence=[
@@ -342,7 +386,7 @@ class CollectorAdvisor:
         if ai_queue and ai_queue.ai_grading_review > 0:
             recommendations.append(CollectorRecommendation(
                 recommendation_id="grade_ai_review",
-                recommendation_type="GRADE_SUBMIT",
+                recommendation_type=RecommendationCategory.GRADE_SUBMIT,
                 title="Review AI grading assessments",
                 description=f"{ai_queue.ai_grading_review} grading assessment(s) awaiting review.",
                 evidence=[
@@ -394,7 +438,7 @@ class CollectorAdvisor:
                 rec_id = f"upg_{idx}"
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=rec_id,
-                    recommendation_type="UPGRADE",
+                    recommendation_type=RecommendationCategory.UPGRADE,
                     title=title,
                     description=f"Upgrade from {current_grade} to {target_grade} "
                                   f"for {country} {denomination} {year}",
@@ -421,7 +465,7 @@ class CollectorAdvisor:
         if opportunities and opportunities.highest_impact:
             recommendations.append(CollectorRecommendation(
                 recommendation_id="upg_highest_impact",
-                recommendation_type="UPGRADE",
+                recommendation_type=RecommendationCategory.UPGRADE,
                 title=f"Highest-impact upgrade: {opportunities.highest_impact}",
                 description="This upgrade offers the greatest collection improvement potential.",
                 evidence=[
@@ -468,7 +512,7 @@ class CollectorAdvisor:
             if summary.total_items > 50:
                 recommendations.append(CollectorRecommendation(
                     recommendation_id="dup_review",
-                    recommendation_type="DISPOSE_DUPLICATE",
+                    recommendation_type=RecommendationCategory.DISPOSE_DUPLICATE,
                     title="Review collection for duplicate disposal",
                     description=f"Collection has {summary.total_items} items. "
                                   f"Review duplicates and surplus items for sale or trade.",
@@ -514,7 +558,7 @@ class CollectorAdvisor:
             for idx, rec in enumerate(opportunities.budget_recommendations[:2]):
                 recommendations.append(CollectorRecommendation(
                     recommendation_id=f"budget_{idx}",
-                    recommendation_type="BUDGET_ALLOCATE",
+                    recommendation_type=RecommendationCategory.BUDGET_ALLOCATE,
                     title=f"Budget allocation: {rec}",
                     description=f"Budget recommendation from opportunity analysis: {rec}",
                     evidence=[
@@ -540,7 +584,7 @@ class CollectorAdvisor:
             if dashboard.quality_score < 50:
                 recommendations.append(CollectorRecommendation(
                     recommendation_id="budget_quality",
-                    recommendation_type="BUDGET_ALLOCATE",
+                    recommendation_type=RecommendationCategory.BUDGET_ALLOCATE,
                     title="Allocate budget to quality improvements",
                     description=f"Collection quality score is {dashboard.quality_score}. "
                                   f"Consider allocating budget to higher-grade acquisitions.",
@@ -598,13 +642,13 @@ class CollectorAdvisor:
 
         if next_best:
             lines.append(f"Next Best Action: {next_best.title}")
-            lines.append(f"Type: {next_best.recommendation_type}")
+            lines.append(f"Type: {next_best.recommendation_type.value}")
             lines.append(f"Priority: {next_best.priority}")
             lines.append("")
 
         by_type: Dict[str, List[CollectorRecommendation]] = {}
         for rec in recommendations:
-            by_type.setdefault(rec.recommendation_type, []).append(rec)
+            by_type.setdefault(rec.recommendation_type.value, []).append(rec)
 
         for rec_type, recs in sorted(by_type.items()):
             lines.append(f"{rec_type}: {len(recs)} recommendation(s)")
@@ -619,6 +663,6 @@ class CollectorAdvisor:
         """Extract opportunity descriptions from recommendations."""
         opportunities: List[str] = []
         for rec in recommendations:
-            if rec.recommendation_type in ("PRIORITY_ACQUISITION", "UPGRADE"):
+            if rec.recommendation_type in (RecommendationCategory.PRIORITY_ACQUISITION, RecommendationCategory.UPGRADE):
                 opportunities.append(f"{rec.title} ({rec.priority} priority)")
         return opportunities

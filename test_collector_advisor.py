@@ -18,6 +18,7 @@ from datetime import datetime
 from collector_advisor import (
     CollectorAdvisor,
     CollectorRecommendation,
+    RecommendationCategory,
     RecommendationReason,
     AdvisorReport,
     _priority_sort_key,
@@ -62,7 +63,7 @@ class TestCollectorRecommendation(unittest.TestCase):
         ]
         rec = CollectorRecommendation(
             recommendation_id="rec_1",
-            recommendation_type="PRIORITY_ACQUISITION",
+            recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
             title="Test Recommendation",
             description="A test recommendation",
             evidence=evidence,
@@ -80,7 +81,7 @@ class TestCollectorRecommendation(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             CollectorRecommendation(
                 recommendation_id="rec_empty",
-                recommendation_type="UPGRADE",
+                recommendation_type=RecommendationCategory.UPGRADE,
                 title="Empty Evidence",
                 description="Should fail",
                 evidence=[],
@@ -93,7 +94,7 @@ class TestCollectorRecommendation(unittest.TestCase):
         ]
         rec = CollectorRecommendation(
             recommendation_id="rec_1",
-            recommendation_type="PRIORITY_ACQUISITION",
+            recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
             title="Test",
             description="Test desc",
             evidence=evidence,
@@ -119,7 +120,7 @@ class TestAdvisorReport(unittest.TestCase):
         evidence = [RecommendationReason("priority", "reason", "engine")]
         rec = CollectorRecommendation(
             recommendation_id="rec_1",
-            recommendation_type="PRIORITY_ACQUISITION",
+            recommendation_type=RecommendationCategory.PRIORITY_ACQUISITION,
             title="Test",
             description="Test",
             evidence=evidence,
@@ -300,7 +301,7 @@ class TestCollectorAdvisor(unittest.TestCase):
 
         self.assertGreater(len(report.recommendations), 0)
         # Should have gap recommendations
-        gap_recs = [r for r in report.recommendations if r.recommendation_type == "PRIORITY_ACQUISITION"]
+        gap_recs = [r for r in report.recommendations if r.recommendation_type == RecommendationCategory.PRIORITY_ACQUISITION]
         self.assertGreaterEqual(len(gap_recs), 2)
 
         # Every recommendation has evidence
@@ -325,7 +326,7 @@ class TestCollectorAdvisor(unittest.TestCase):
         recs = advisor.recommend_priority_acquisitions()
 
         self.assertGreater(len(recs), 0)
-        opp_recs = [r for r in recs if r.recommendation_type == "PRIORITY_ACQUISITION"]
+        opp_recs = [r for r in recs if r.recommendation_type == RecommendationCategory.PRIORITY_ACQUISITION]
         self.assertGreaterEqual(len(opp_recs), 2)
         for rec in recs:
             self.assertGreater(len(rec.evidence), 0)
@@ -393,7 +394,7 @@ class TestCollectorAdvisor(unittest.TestCase):
 
         self.assertGreater(len(recs), 0)
         for rec in recs:
-            self.assertEqual(rec.recommendation_type, "UPGRADE")
+            self.assertEqual(rec.recommendation_type, RecommendationCategory.UPGRADE)
             self.assertGreater(len(rec.evidence), 0)
 
     def test_recommend_duplicate_disposal_with_large_collection(self):
@@ -415,7 +416,7 @@ class TestCollectorAdvisor(unittest.TestCase):
         recs = advisor.recommend_duplicate_disposal()
 
         self.assertGreater(len(recs), 0)
-        self.assertEqual(recs[0].recommendation_type, "DISPOSE_DUPLICATE")
+        self.assertEqual(recs[0].recommendation_type, RecommendationCategory.DISPOSE_DUPLICATE)
         self.assertGreater(len(recs[0].evidence), 0)
 
     def test_recommend_duplicate_disposal_small_collection(self):
@@ -454,7 +455,7 @@ class TestCollectorAdvisor(unittest.TestCase):
 
         self.assertGreater(len(recs), 0)
         for rec in recs:
-            self.assertEqual(rec.recommendation_type, "BUDGET_ALLOCATE")
+            self.assertEqual(rec.recommendation_type, RecommendationCategory.BUDGET_ALLOCATE)
             self.assertGreater(len(rec.evidence), 0)
 
     def test_recommend_budget_allocation_with_low_quality(self):
@@ -484,9 +485,9 @@ class TestCollectorAdvisor(unittest.TestCase):
         """next_action returns highest-priority recommendation from provided list."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_1", "PRIORITY_ACQUISITION", "Low", "desc", evidence, priority="LOW"),
-            CollectorRecommendation("rec_2", "UPGRADE", "High", "desc", evidence, priority="HIGH"),
-            CollectorRecommendation("rec_3", "PRIORITY_ACQUISITION", "Medium", "desc", evidence, priority="MEDIUM"),
+            CollectorRecommendation("rec_1", RecommendationCategory.PRIORITY_ACQUISITION, "Low", "desc", evidence, priority="LOW"),
+            CollectorRecommendation("rec_2", RecommendationCategory.UPGRADE, "High", "desc", evidence, priority="HIGH"),
+            CollectorRecommendation("rec_3", RecommendationCategory.PRIORITY_ACQUISITION, "Medium", "desc", evidence, priority="MEDIUM"),
         ]
         workspace = self._mock_workspace()
         advisor = CollectorAdvisor(workspace)
@@ -574,9 +575,9 @@ class TestCollectorAdvisor(unittest.TestCase):
         """HIGH priority recommendations sort before MEDIUM, before LOW."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_low", "PRIORITY_ACQUISITION", "Low", "desc", evidence, priority="LOW"),
-            CollectorRecommendation("rec_high", "UPGRADE", "High", "desc", evidence, priority="HIGH"),
-            CollectorRecommendation("rec_medium", "PRIORITY_ACQUISITION", "Medium", "desc", evidence, priority="MEDIUM"),
+            CollectorRecommendation("rec_low", RecommendationCategory.PRIORITY_ACQUISITION, "Low", "desc", evidence, priority="LOW"),
+            CollectorRecommendation("rec_high", RecommendationCategory.UPGRADE, "High", "desc", evidence, priority="HIGH"),
+            CollectorRecommendation("rec_medium", RecommendationCategory.PRIORITY_ACQUISITION, "Medium", "desc", evidence, priority="MEDIUM"),
         ]
         sorted_recs = sorted(recs, key=_priority_sort_key)
         ids = [r.recommendation_id for r in sorted_recs]
@@ -586,10 +587,10 @@ class TestCollectorAdvisor(unittest.TestCase):
         """IMMEDIATE urgency sorts before SHORT_TERM, before LONG_TERM, before ONGOING."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_ongoing", "PRIORITY_ACQUISITION", "Ongoing", "desc", evidence, priority="HIGH", urgency="ONGOING"),
-            CollectorRecommendation("rec_immediate", "PRIORITY_ACQUISITION", "Immediate", "desc", evidence, priority="HIGH", urgency="IMMEDIATE"),
-            CollectorRecommendation("rec_long", "PRIORITY_ACQUISITION", "Long", "desc", evidence, priority="HIGH", urgency="LONG_TERM"),
-            CollectorRecommendation("rec_short", "PRIORITY_ACQUISITION", "Short", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
+            CollectorRecommendation("rec_ongoing", RecommendationCategory.PRIORITY_ACQUISITION, "Ongoing", "desc", evidence, priority="HIGH", urgency="ONGOING"),
+            CollectorRecommendation("rec_immediate", RecommendationCategory.PRIORITY_ACQUISITION, "Immediate", "desc", evidence, priority="HIGH", urgency="IMMEDIATE"),
+            CollectorRecommendation("rec_long", RecommendationCategory.PRIORITY_ACQUISITION, "Long", "desc", evidence, priority="HIGH", urgency="LONG_TERM"),
+            CollectorRecommendation("rec_short", RecommendationCategory.PRIORITY_ACQUISITION, "Short", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
         ]
         sorted_recs = sorted(recs, key=_priority_sort_key)
         ids = [r.recommendation_id for r in sorted_recs]
@@ -599,9 +600,9 @@ class TestCollectorAdvisor(unittest.TestCase):
         """Same priority and urgency: stable ID breaks ties."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_z", "PRIORITY_ACQUISITION", "Z", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
-            CollectorRecommendation("rec_a", "PRIORITY_ACQUISITION", "A", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
-            CollectorRecommendation("rec_m", "PRIORITY_ACQUISITION", "M", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
+            CollectorRecommendation("rec_z", RecommendationCategory.PRIORITY_ACQUISITION, "Z", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
+            CollectorRecommendation("rec_a", RecommendationCategory.PRIORITY_ACQUISITION, "A", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
+            CollectorRecommendation("rec_m", RecommendationCategory.PRIORITY_ACQUISITION, "M", "desc", evidence, priority="HIGH", urgency="SHORT_TERM"),
         ]
         sorted_recs = sorted(recs, key=_priority_sort_key)
         ids = [r.recommendation_id for r in sorted_recs]
@@ -666,7 +667,7 @@ class TestCollectorAdvisor(unittest.TestCase):
         self.assertIsNotNone(report.summary)
 
         # Should have recommendations from the working panel (collection_summary → duplicate disposal)
-        dup_recs = [r for r in report.recommendations if r.recommendation_type == "DISPOSE_DUPLICATE"]
+        dup_recs = [r for r in report.recommendations if r.recommendation_type == RecommendationCategory.DISPOSE_DUPLICATE]
         self.assertGreaterEqual(len(dup_recs), 1, "Should have duplicate disposal recommendation from working panel")
 
         # Every recommendation must have evidence
@@ -684,8 +685,8 @@ class TestCollectorAdvisor(unittest.TestCase):
         """Summary includes recommendation counts and next best action."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_1", "PRIORITY_ACQUISITION", "Buy A", "desc", evidence, priority="HIGH"),
-            CollectorRecommendation("rec_2", "UPGRADE", "Upgrade B", "desc", evidence, priority="MEDIUM"),
+            CollectorRecommendation("rec_1", RecommendationCategory.PRIORITY_ACQUISITION, "Buy A", "desc", evidence, priority="HIGH"),
+            CollectorRecommendation("rec_2", RecommendationCategory.UPGRADE, "Upgrade B", "desc", evidence, priority="MEDIUM"),
         ]
         workspace = self._mock_workspace()
         advisor = CollectorAdvisor(workspace)
@@ -700,9 +701,9 @@ class TestCollectorAdvisor(unittest.TestCase):
         """Opportunities extraction filters acquisition and upgrade recommendations."""
         evidence = [RecommendationReason("priority", "reason", "engine")]
         recs = [
-            CollectorRecommendation("rec_1", "PRIORITY_ACQUISITION", "Buy A", "desc", evidence, priority="HIGH"),
-            CollectorRecommendation("rec_2", "UPGRADE", "Upgrade B", "desc", evidence, priority="MEDIUM"),
-            CollectorRecommendation("rec_3", "BUDGET_ALLOCATE", "Budget C", "desc", evidence, priority="LOW"),
+            CollectorRecommendation("rec_1", RecommendationCategory.PRIORITY_ACQUISITION, "Buy A", "desc", evidence, priority="HIGH"),
+            CollectorRecommendation("rec_2", RecommendationCategory.UPGRADE, "Upgrade B", "desc", evidence, priority="MEDIUM"),
+            CollectorRecommendation("rec_3", RecommendationCategory.BUDGET_ALLOCATE, "Budget C", "desc", evidence, priority="LOW"),
         ]
         workspace = self._mock_workspace()
         advisor = CollectorAdvisor(workspace)
@@ -777,6 +778,91 @@ class TestCollectorAdvisorIntegration(unittest.TestCase):
         ids1 = [r.recommendation_id for r in report1.recommendations]
         ids2 = [r.recommendation_id for r in report2.recommendations]
         self.assertEqual(ids1, ids2)
+
+class TestCollectorWorkspaceAdvisorIntegration(unittest.TestCase):
+    """Integration tests for CollectorWorkspace.get_advisor()."""
+
+    def test_workspace_get_advisor_empty_collection(self):
+        """Workspace with empty collection returns valid AdvisorReport."""
+        try:
+            from collector_workspace import CollectorWorkspace
+        except ImportError:
+            self.skipTest("collector_workspace not available")
+
+        workspace = CollectorWorkspace([])
+        report = workspace.get_advisor()
+
+        from collector_advisor import AdvisorReport
+        self.assertIsInstance(report, AdvisorReport)
+        self.assertIsNotNone(report.summary)
+        # Empty workspace may still produce recommendations from panel heuristics
+        # Every recommendation must have evidence
+        for rec in report.recommendations:
+            self.assertGreater(len(rec.evidence), 0, f"Missing evidence: {rec.recommendation_id}")
+
+    def test_workspace_get_advisor_cached(self):
+        """Second call returns cached result (same object)."""
+        try:
+            from collector_workspace import CollectorWorkspace
+        except ImportError:
+            self.skipTest("collector_workspace not available")
+
+        workspace = CollectorWorkspace([])
+        report1 = workspace.get_advisor()
+        report2 = workspace.get_advisor()
+
+        self.assertIs(report1, report2)
+
+    def test_workspace_get_advisor_with_collection(self):
+        """Workspace with items produces recommendations with evidence."""
+        try:
+            from collector_workspace import CollectorWorkspace
+        except ImportError:
+            self.skipTest("collector_workspace not available")
+
+        items = [
+            {"country": "Canada", "denomination": "Large Cent", "year": "1859", "grade": "VG8"},
+            {"country": "Newfoundland", "denomination": "5 cents", "year": "1910", "grade": "F12"},
+            {"country": "Canada", "denomination": "5 cents", "year": "1910", "grade": "VG8"},
+        ]
+        workspace = CollectorWorkspace(items)
+        report = workspace.get_advisor()
+
+        from collector_advisor import AdvisorReport
+        self.assertIsInstance(report, AdvisorReport)
+
+        # Every recommendation has evidence
+        for rec in report.recommendations:
+            self.assertGreater(len(rec.evidence), 0, f"Missing evidence: {rec.recommendation_id}")
+
+    def test_workspace_refresh_clears_advisor_cache(self):
+        """refresh() clears advisor cache so next call regenerates."""
+        try:
+            from collector_workspace import CollectorWorkspace
+        except ImportError:
+            self.skipTest("collector_workspace not available")
+
+        workspace = CollectorWorkspace([])
+        report1 = workspace.get_advisor()
+        workspace.refresh()
+        report2 = workspace.get_advisor()
+
+        self.assertIsNot(report1, report2)
+
+    def test_workspace_advisor_consumes_only_dtos(self):
+        """Advisor does not import any engine modules directly."""
+        import collector_advisor as ca_module
+        import inspect
+
+        source = inspect.getsource(ca_module.CollectorAdvisor)
+        # Should not contain direct imports of engine modules
+        forbidden = ["collection_intelligence", "smart_shopping", "ai_grading",
+                     "opportunity_engine", "upgrade_advisor"]
+        for name in forbidden:
+            self.assertNotIn(f"import {name}", source,
+                             f"Advisor should not import {name} directly")
+            self.assertNotIn(f"from {name}", source,
+                             f"Advisor should not import {name} directly")
 
 
 if __name__ == "__main__":

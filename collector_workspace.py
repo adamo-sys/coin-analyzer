@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+# v8.5 Phase 2: lazy import to avoid circular dependency at module load
+# CollectorAdvisor is imported on first use inside get_advisor()
+
 
 # ---------------------------------------------------------------------------
 # Report dataclasses (plain, serializable, no engine objects)
@@ -911,6 +914,35 @@ class CollectorWorkspace:
 
         report.engine_errors = errors
         self._cache["connected_data"] = report
+        return report
+
+    def get_advisor(self) -> Any:
+        """Generate advisory recommendations from all workspace panels.
+
+        Returns an AdvisorReport with prioritized, explainable recommendations
+        for what the collector should do next. Lazy initialization: the
+        CollectorAdvisor is created on first call and the result is cached.
+
+        v8.5 Phase 2: workspace integration. The Advisor consumes only
+        workspace DTOs (no direct engine calls).
+        """
+        if "advisor" in self._cache:
+            return self._cache["advisor"]
+
+        # Lazy import to avoid circular dependency at module load time
+        from collector_advisor import CollectorAdvisor, AdvisorReport
+
+        report = AdvisorReport()
+        errors: List[str] = []
+
+        try:
+            advisor = CollectorAdvisor(self)
+            report = advisor.generate_advisory_report()
+        except Exception as e:
+            errors.append(f"Advisor: {e}")
+            report.engine_errors = errors
+
+        self._cache["advisor"] = report
         return report
 
     # ---------------------------------------------------------------------------
