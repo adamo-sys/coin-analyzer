@@ -330,6 +330,7 @@ Current archive status:
 * A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
 * Never leave a completed version untagged.
 * Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change. This prevents later phases from subtly reshaping DTOs or method signatures without deliberate review.
+* Deterministic recommendation ordering: given identical inputs and configuration, the CollectorAdvisor must always produce identical recommendation ordering and evidence. This protects against subtle regressions and makes testing deterministic.
 * `ROADMAP.md` is the living backlog for ideas, experiments, bugs, UX improvements, and future releases. Refer to it when planning new work.
 * `PROJECT_STATE.md` and `TASK_QUEUE.md` are the source of truth for active project status; `ROADMAP.md` is the source of truth for planned and proposed work.
 

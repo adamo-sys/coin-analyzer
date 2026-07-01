@@ -112,6 +112,7 @@ Vision: A fully integrated collector ecosystem where the app not only organizes 
 6. **Lazy connection.** Cross-references are computed on demand, not eagerly.
 7. **Graceful degradation.** If related data is missing, the tool works normally without it.
 8. **Public API stability after Phase 1.** Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change. This prevents later phases from subtly reshaping DTOs or method signatures without deliberate review.
+9. **Deterministic recommendation ordering.** Given identical inputs and configuration, the CollectorAdvisor must always produce identical recommendation ordering and evidence. This protects against subtle regressions and makes testing deterministic.
 
 ---
 
