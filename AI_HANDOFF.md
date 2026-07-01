@@ -89,7 +89,7 @@ Before each release, verify the current release prompt exists, previous archived
 * Release prompt archived: `project_docs/release_prompts/v8.3.txt`.
 * Release notes: `docs/releases/v8.3.md`.
 * Roadmap lock commit: `c6dd6aa`.
-* Release metadata commit: `11881d2`.
+* Release metadata commit: `5691743`.
 
 
 * v8.4 Connected Data released: `ConnectedDataEngine`, `ConnectionType`, `MatchType`, `Connection`, `ConnectedReport`, `CrossReferenceReport`, `ConnectionSummary`; deterministic cross-referencing facade with class-level `_DISPATCH_TABLE`, 12 connection-type pairs, exact-year fuzzy matching, exact path matching, derived links, 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) plus `format_markdown`, `generate_gap_summary`, `export_markdown`.
@@ -107,7 +107,7 @@ Before each release, verify the current release prompt exists, previous archived
 * Release prompt archived: `project_docs/release_prompts/v8.4.txt`.
 * Release notes: `docs/releases/v8.4.md`.
 * Roadmap lock commit: `ee5d2ee`.
-* Release metadata commit: `11881d2`.
+* Release metadata commit: `5691743`.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
@@ -840,7 +840,7 @@ The batch assessment returns a `BatchGradingReport`:
 * Implementation commits: `ee5d2ee` (Phase 0), `d03f75f` (Phase 1), `c848620` (Phase 2), `01d963d` (Phase 3), `e355ce2` (Phase 4), `927986b` (Phase 5).
 * Release tag: `v8.4`.
 * Roadmap lock commit: `ee5d2ee`.
-* Release metadata commit: `11881d2`.
+* Release metadata commit: `5691743`.
 
 ## v8.4 Test Status
 
