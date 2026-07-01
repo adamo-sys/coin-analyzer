@@ -49,24 +49,25 @@ A living document for ideas, experiments, bugs, UX improvements, and future rele
 
 ## ✨ UX Improvements
 
-| # | Improvement | Priority | Effort |
-|---|-------------|----------|--------|
-| 1 | Improve Buy Advisor validation messages | Low | Small |
-| 2 | Add autocomplete for country/denomination | Medium | Medium |
-| 3 | Add image preview in collection list | Medium | Medium |
-| 4 | Add batch editing | Medium | Medium |
-| 5 | Add undo/redo | Medium | Large |
-| 6 | Better error messages when engines fail | Low | Small |
-| 7 | Keyboard shortcuts for common actions | Low | Small |
-| 8 | Dark mode support | Low | Large |
-| 9 | Collection list filtering (by country, year, denomination) | Medium | Medium |
-| 10 | Export directly to email/share | Low | Medium |
+| # | Improvement | Priority | Effort | Notes |
+|---|-------------|----------|--------|-------|
+| 1 | Improve Buy Advisor validation messages | Low | Small | |
+| 2 | Add autocomplete for country/denomination | Medium | Medium | |
+| 3 | Add image preview in collection list | Medium | Medium | |
+| 4 | Add batch editing | Medium | Medium | |
+| 5 | Add undo/redo | Medium | Large | |
+| 6 | Better error messages when engines fail | Low | Small | |
+| 7 | Keyboard shortcuts for common actions | Low | Small | |
+| 8 | Dark mode support | Low | Large | |
+| 9 | Collection list filtering (by country, year, denomination) | Medium | Medium | |
+| 10 | Export directly to email/share | Low | Medium | |
+| 11 | `RecommendationPriority` enum for presentation clarity | Low | Small | Typed enum lets GUI sort naturally without inventing weights.
 
 ---
 
 ## 🚀 Future Releases
 
-### v8.5 — Collector Advisor *(Approved — Phase 0 Complete)*
+### v8.5 — Collector Advisor *(Phase 3 Complete — Pause before Phase 4)*
 
 A deterministic recommendation layer. No ML. No LLM. No black box. Just explainable recommendations built on everything already built.
 
@@ -76,23 +77,27 @@ A deterministic recommendation layer. No ML. No LLM. No black box. Just explaina
 
 **Naming rationale:** "Advisor" signals recommendations rather than analysis. Distinct from `CollectionIntelligenceEngine` (analysis) and `ConnectedDataEngine` (cross-referencing).
 
-**Possible outputs:**
-- Priority acquisitions
-- Grade submission candidates
-- Upgrade candidates
-- Duplicate disposal candidates
-- Collection risk indicators
-- Budget allocation suggestions
-- "Next best action"
+**Stable recommendation categories (frozen after Phase 3):**
+- `PRIORITY_ACQUISITION`
+- `GRADE_SUBMIT`
+- `UPGRADE`
+- `DISPOSE_DUPLICATE`
+- `BUDGET_ALLOCATE`
+- `NEXT_ACTION`
+
+> No new categories without explicit justification and a breaking-change review. Future v8.5+ work improves evidence quality, prioritization, confidence, and explanation — not recommendation quantity.
 
 **Architectural rules:**
 1. Reuse first. Compute second. The Advisor orchestrates existing intelligence rather than reimplementing it.
-2. Every recommendation must be explainable. Every recommendation DTO includes `evidence: List[str]` with human-readable reasons.
+2. Every recommendation must be explainable. Every recommendation DTO includes `evidence: List[RecommendationReason]` with human-readable, source-labeled reasons.
 3. Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change.
+4. **Category freeze after Phase 3.** The six `RecommendationCategory` enum values are treated as stable public API. New categories require explicit justification.
 
-**Phase 0 deliverables:** `docs/releases/v8.5.md`, `v8.5_implementation_plan.md`, `ROADMAP.md` update.
+**Phase 3 deliverables (complete):** Cross-panel evidence enrichment. All 6 `recommend_*()` methods now consume multiple workspace panels and produce ≥2 evidence items per recommendation when panels are available. Evidence is source-labeled. Graceful degradation preserved. 1,254 tests passing.
 
-**Status:** Phase 0 approved. Phase 1 implementation pending.
+**Next step:** Manual collector session before Phase 4 planning. Open the Workspace, browse each panel, generate Advisor recommendations, export reports, walk through a realistic acquisition workflow. Only then draft Phase 4 based on observed UX friction.
+
+**Status:** Phase 3 complete at `a7bfb46`. Category freeze in effect. Pause for manual testing before Phase 4.
 
 ---
 
@@ -113,6 +118,7 @@ Vision: A fully integrated collector ecosystem where the app not only organizes 
 7. **Graceful degradation.** If related data is missing, the tool works normally without it.
 8. **Public API stability after Phase 1.** Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change. This prevents later phases from subtly reshaping DTOs or method signatures without deliberate review.
 9. **Deterministic recommendation ordering.** Given identical inputs and configuration, the CollectorAdvisor must always produce identical recommendation ordering and evidence. This protects against subtle regressions and makes testing deterministic.
+10. **Recommendation category freeze.** The six `RecommendationCategory` enum values are treated as stable public API after Phase 3. New categories require explicit justification and a breaking-change review. Future work improves evidence quality, prioritization, and confidence rather than multiplying recommendation types.
 
 ---
 
