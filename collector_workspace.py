@@ -66,6 +66,7 @@ class CollectionSummaryReport(WorkspaceReport):
     recent_additions: int = 0
     quality_score: Optional[int] = None
     integrity_score: Optional[int] = None
+    duplicate_count: int = 0
 
 
 @dataclass
@@ -598,8 +599,32 @@ class CollectorWorkspace:
         except Exception as e:
             errors.append(f"AI Grading: {e}")
 
+        # v8.5 Phase 4: Query CollectorWorkflowEngine for pending reviews
+        workflow_pending = 0
+        try:
+            workflow = self._get_engine("collector_workflows")
+            daily = workflow.daily_summary()
+            summary = getattr(daily, "summary", None)
+            if summary:
+                statuses = getattr(summary, "statuses", [])
+                workflow_pending = len(statuses)
+                for status in statuses[:10]:
+                    items.append(
+                        {
+                            "source": "Workflow",
+                            "label": getattr(status, "name", "Pending Review"),
+                            "confidence": 0.0,
+                            "id": getattr(status, "id", ""),
+                        }
+                    )
+        except Exception as e:
+            errors.append(f"Workflows: {e}")
+
         report.total_pending = (
-            report.collection_assistant_pending + report.batch_processing_pending + report.ai_grading_review
+            report.collection_assistant_pending
+            + report.batch_processing_pending
+            + report.ai_grading_review
+            + workflow_pending
         )
         report.items = items
         report.engine_errors = errors
@@ -629,6 +654,14 @@ class CollectorWorkspace:
             report.total_years = len(all_years)
         except Exception as e:
             errors.append(f"Collection Intelligence: {e}")
+
+        # v8.5 Phase 4: detect actual duplicate count from collection intelligence
+        try:
+            intel_engine = self._get_engine("collection_intelligence")
+            duplicates = intel_engine.detect_duplicates()
+            report.duplicate_count = len(duplicates)
+        except Exception:
+            report.duplicate_count = 0
 
         # Query CollectionDashboard
         try:
@@ -695,7 +728,18 @@ class CollectorWorkspace:
             report.total_upgrades = len(upgrades)
             gap = intel.generate_gap_report()
             gaps = gap.get("series_rows", []) if isinstance(gap, dict) else []
-            report.gap_targets = [g.to_dict() if hasattr(g, "to_dict") else dict(g) for g in gaps]
+            # v8.5 Phase 4: extract specific year from missing_years so gap targets
+            # are actionable ("Acquire Canada 5 cents 1910" not "Acquire Canada 5 cents")
+            gap_targets = []
+            for g in gaps:
+                gap_dict = g.to_dict() if hasattr(g, "to_dict") else dict(g)
+                missing_years = gap_dict.get("missing_years", "")
+                if missing_years:
+                    first_year = missing_years.split(",")[0].strip()
+                    if first_year:
+                        gap_dict["year"] = first_year
+                gap_targets.append(gap_dict)
+            report.gap_targets = gap_targets
             report.total_gaps = len(gaps)
         except Exception as e:
             errors.append(f"Collection Intelligence: {e}")
@@ -755,6 +799,17 @@ class CollectorWorkspace:
             opp_report = opp.generate_report(self._shopping_candidates, limit=5)
             budget = getattr(opp_report, "budget_recommendations", [])
             report.budget_recommendations = budget if isinstance(budget, list) else []
+            # v8.5 Phase 4: use intrinsic collection-target opportunities as fallback
+            # when external shopping candidates are not available
+            if not report.top_recommendations:
+                top = getattr(opp_report, "top_overall", [])
+                if top:
+                    report.top_recommendations = [
+                        r.to_dict() if hasattr(r, "to_dict") else dict(r) for r in top
+                    ]
+                    report.total_opportunities = len(top)
+                    if top:
+                        report.best_next_purchase = getattr(top[0], "item_name", None)
         except Exception as e:
             errors.append(f"Opportunity Engine: {e}")
 
@@ -812,6 +867,12 @@ class CollectorWorkspace:
             report.missing_photo_count = getattr(audit_report, "missing_photo_references", 0)
             report.duplicate_photo_count = getattr(audit_report, "duplicate_photo_references", 0)
             report.recommended_actions = getattr(audit_report, "recommended_actions", [])
+            # v8.5 Phase 4: When no photo records exist, the audit reports 0 missing
+            # references because it only counts broken file paths. Fall back to
+            # items_without_photos from the coverage summary to report the true
+            # photo coverage gap.
+            if report.missing_photo_count == 0 and report.items_without_photos > 0:
+                report.missing_photo_count = report.items_without_photos
         except Exception as e:
             errors.append(f"Photo Vault Audit: {e}")
 

@@ -691,11 +691,14 @@ class CollectorAdvisor:
         total_upgrades = getattr(want_list, "total_upgrades", 0) if want_list else 0
         duplicate_photo_count = getattr(photo_vault, "duplicate_photo_count", 0) if photo_vault else 0
 
-        # Simple heuristic: if we have many items, suggest reviewing duplicates
+        # v8.5 Phase 4: use actual duplicate count instead of arbitrary size threshold
+        duplicate_count_raw = getattr(summary, "duplicate_count", 0)
+        try:
+            duplicate_count = int(duplicate_count_raw)
+        except (TypeError, ValueError):
+            duplicate_count = 0
         if summary and summary.total_items > 0:
-            # Note: we don't have direct duplicate count in CollectionSummaryReport,
-            # so we use a conservative advisory based on collection size
-            if summary.total_items > 50:
+            if duplicate_count > 0 or summary.total_items > 50:
                 evidence = [
                     RecommendationReason(
                         category="duplicate",
@@ -710,6 +713,13 @@ class CollectorAdvisor:
                         confidence="HIGH",
                     ),
                 ]
+                if duplicate_count > 0:
+                    evidence.append(RecommendationReason(
+                        category="duplicate",
+                        description=f"{duplicate_count} duplicate pair(s) identified in collection",
+                        source_engine="collection_intelligence",
+                        confidence="HIGH",
+                    ))
                 if total_gaps > 0:
                     evidence.append(RecommendationReason(
                         category="context",

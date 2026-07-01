@@ -420,7 +420,7 @@ class TestCollectorAdvisor(unittest.TestCase):
         self.assertGreater(len(recs[0].evidence), 0)
 
     def test_recommend_duplicate_disposal_small_collection(self):
-        """Small collections produce no duplicate disposal recommendations."""
+        """Small collections with no duplicates produce no duplicate disposal recommendations."""
         summary = MagicMock(
             total_items=10,
             total_countries=2,
@@ -431,6 +431,7 @@ class TestCollectorAdvisor(unittest.TestCase):
             recent_additions=0,
             quality_score=None,
             integrity_score=None,
+            duplicate_count=0,
             engine_errors=[],
         )
         workspace = self._mock_workspace(get_collection_summary=summary)
@@ -1105,6 +1106,125 @@ class TestCollectorWorkspaceAdvisorIntegration(unittest.TestCase):
                              f"Advisor should not import {name} directly")
             self.assertNotIn(f"from {name}", source,
                              f"Advisor should not import {name} directly")
+
+
+class TestCollectorAdvisorPhase4SignalQuality(unittest.TestCase):
+    """Unit tests for v8.5 Phase 4 upstream signal quality fixes."""
+
+    def _mock_workspace(self, **panel_overrides):
+        """Create a mock workspace with configurable panel returns."""
+        workspace = MagicMock()
+
+        defaults = {
+            "get_dashboard": MagicMock(
+                health_score=None, quality_score=None, integrity_score=None,
+                top_priority=None, best_next_purchase=None, todays_tasks=[],
+                recent_activity=[], data_safety_status=None, backup_ready=False,
+                engine_errors=[],
+            ),
+            "get_inbox": MagicMock(
+                total_pending=0, collection_assistant_pending=0,
+                batch_processing_pending=0, ai_grading_review=0,
+                workflow_items=[], items=[], engine_errors=[],
+            ),
+            "get_collection_summary": MagicMock(
+                total_items=0, total_countries=0, total_denominations=0,
+                total_years=0, grade_coverage=None, series_completion=[],
+                recent_additions=0, quality_score=None, integrity_score=None,
+                duplicate_count=0, engine_errors=[],
+            ),
+            "get_want_list": MagicMock(
+                upgrade_candidates=[], gap_targets=[], watchlist_matches=[],
+                total_upgrades=0, total_gaps=0, total_watchlist_matches=0,
+                engine_errors=[],
+            ),
+            "get_opportunities": MagicMock(
+                top_recommendations=[], best_next_purchase=None,
+                highest_impact=None, total_opportunities=0,
+                budget_recommendations=[], engine_errors=[],
+            ),
+            "get_ai_queue": MagicMock(
+                total_assessments=0, proceed_count=0, caution_count=0,
+                review_count=0, assessments=[], engine_errors=[],
+            ),
+            "get_photo_vault": MagicMock(
+                total_collection_items=0, items_with_photos=0,
+                items_without_photos=0, coverage_percentage=0.0,
+                certified_items=0, certified_with_photos=0,
+                missing_photo_count=0, duplicate_photo_count=0,
+                recommended_actions=[], engine_errors=[],
+            ),
+            "get_workflow_status": MagicMock(
+                active_workflows=[], todays_tasks=[],
+                pending_reviews=0, next_actions=[], workflow_health=None,
+                engine_errors=[],
+            ),
+            "get_data_safety": MagicMock(
+                backup_ready=True, last_snapshot_age=None,
+                integrity_warnings=[], persistence_areas=[],
+                total_persistence_areas=0, persisted_areas=0,
+                session_only_areas=0, engine_errors=[],
+            ),
+            "get_connected_data": MagicMock(
+                summary=None, cross_reference=None, top_connections=[],
+                engine_errors=[],
+            ),
+        }
+
+        for panel_name, panel_value in panel_overrides.items():
+            defaults[panel_name] = panel_value
+
+        for panel_name, panel_value in defaults.items():
+            setattr(workspace, panel_name, lambda pv=panel_value: pv)
+
+        return workspace
+
+    def test_recommend_duplicate_disposal_with_actual_duplicates(self):
+        """Small collection with duplicate pairs should trigger disposal recommendation."""
+        summary = MagicMock(
+            total_items=10,
+            total_countries=2,
+            total_denominations=3,
+            total_years=8,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=None,
+            integrity_score=None,
+            duplicate_count=2,
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(get_collection_summary=summary)
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_duplicate_disposal()
+
+        self.assertGreater(len(recs), 0)
+        self.assertEqual(recs[0].recommendation_type, RecommendationCategory.DISPOSE_DUPLICATE)
+        # Evidence should include actual duplicate count
+        dup_evidence = [e for e in recs[0].evidence if "duplicate pair" in e.description.lower()]
+        self.assertGreaterEqual(len(dup_evidence), 1)
+        self.assertIn("2", dup_evidence[0].description)
+
+    def test_recommend_duplicate_disposal_without_duplicates(self):
+        """Small collection without duplicates should NOT trigger disposal."""
+        summary = MagicMock(
+            total_items=10,
+            total_countries=2,
+            total_denominations=3,
+            total_years=8,
+            grade_coverage=None,
+            series_completion=[],
+            recent_additions=0,
+            quality_score=None,
+            integrity_score=None,
+            duplicate_count=0,
+            engine_errors=[],
+        )
+        workspace = self._mock_workspace(get_collection_summary=summary)
+        advisor = CollectorAdvisor(workspace)
+        recs = advisor.recommend_duplicate_disposal()
+
+        self.assertEqual(len(recs), 0)
 
 
 if __name__ == "__main__":
