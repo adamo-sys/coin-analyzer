@@ -412,7 +412,7 @@ Current archive status:
 * Release prompt archived: `project_docs/release_prompts/v8.4.txt`.
 * Release notes: `docs/releases/v8.4.md`.
 * Roadmap lock commit: `ee5d2ee`.
-* Release metadata commit: PENDING (Phase 6).
+* Release metadata commit: `11881d2`.
 
 
 ### 2026-06-25
