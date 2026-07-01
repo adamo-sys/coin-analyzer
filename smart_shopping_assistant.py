@@ -161,6 +161,7 @@ class ShoppingRecommendationReport:
     best_next_purchase: Optional[ShoppingRecommendation] = None
     highest_impact_candidate: Optional[ShoppingRecommendation] = None
     highest_priority_want_list_target: Optional[ShoppingRecommendation] = None
+    connected_data: Optional[Dict[str, Any]] = None  # NEW: Phase 3 metadata
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -168,6 +169,7 @@ class ShoppingRecommendationReport:
             "best_next_purchase": self.best_next_purchase.to_dict() if self.best_next_purchase else None,
             "highest_impact_candidate": self.highest_impact_candidate.to_dict() if self.highest_impact_candidate else None,
             "highest_priority_want_list_target": self.highest_priority_want_list_target.to_dict() if self.highest_priority_want_list_target else None,
+            "connected_data": self.connected_data,
         }
 
 
@@ -190,6 +192,7 @@ class SmartShoppingAssistant:
         include_want_list_targets: bool = True,
         include_market_observations: bool = False,
         limit: int = 10,
+        connected_data_engine: Any = None,  # NEW: Phase 3
     ) -> ShoppingRecommendationReport:
         """Rank candidate opportunities without modifying collection data."""
 
@@ -220,12 +223,33 @@ class SmartShoppingAssistant:
             recommendation.rank = index
 
         top_rows = recommendations[:limit]
-        return ShoppingRecommendationReport(
+        report = ShoppingRecommendationReport(
             recommendations=top_rows,
             best_next_purchase=top_rows[0] if top_rows else None,
             highest_impact_candidate=max(top_rows, key=lambda row: row.impact_score, default=None),
             highest_priority_want_list_target=self._highest_priority_want_list(top_rows),
         )
+
+        # Phase 3: metadata-only enrichment (no reordering, no scoring, no filtering)
+        if connected_data_engine:
+            try:
+                from connected_data import ConnectionType
+
+                match_report = connected_data_engine.connect(
+                    ConnectionType.WATCHLIST, ConnectionType.SHOPPING
+                )
+                matched_ids = {c.target_id for c in match_report.connections}
+                total_recs = len(report.recommendations)
+                report.connected_data = {
+                    "watchlist_matches": len(matched_ids),
+                    "total_recommendations": total_recs,
+                    "match_rate": len(matched_ids) / total_recs if total_recs else 0.0,
+                }
+            except Exception:
+                # Metadata enrichment failed; report is still valid without it
+                report.connected_data = None
+
+        return report
 
     def format_markdown(self, report: Optional[ShoppingRecommendationReport] = None) -> str:
         report = report or self.generate_report()

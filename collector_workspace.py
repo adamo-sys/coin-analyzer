@@ -269,6 +269,28 @@ class CollectorWorkspace:
         self._engines: Dict[str, Any] = {}
         self._cache: Dict[str, WorkspaceReport] = {}
 
+    # -- Connected Data Context builder ------------------------------------
+
+    def _build_connected_context(self) -> Any:
+        """Build ConnectedContext from existing constructor params. No new data."""
+        from connected_data import ConnectedContext
+
+        return ConnectedContext(
+            collection_items=self._collection_items,
+            photo_records=self._photo_records,
+            ocr_reports=self._ocr_reports,
+            grading_assessments=None,
+            market_records=None,
+            shopping_candidates=self._shopping_candidates,
+            want_list_intents=self._want_list_intents,
+            watchlists=self._watchlists,
+            workflow_statuses=self._workflow_statuses,
+            session_context=None,
+            photo_candidates=self._photo_candidates,
+            acknowledged_action_ids=self._acknowledged_action_ids,
+            batch_candidates=None,
+        )
+
     # -- Lazy engine initialization ----------------------------------------
 
     def _get_engine(self, name: str) -> Any:
@@ -421,24 +443,9 @@ class CollectorWorkspace:
             return PersistenceManager()
 
         elif name == "connected_data":
-            from connected_data import ConnectedDataEngine, ConnectedContext
+            from connected_data import ConnectedDataEngine
 
-            context = ConnectedContext(
-                collection_items=self._collection_items,
-                photo_records=self._photo_records,
-                ocr_reports=self._ocr_reports,
-                grading_assessments=None,
-                market_records=None,
-                shopping_candidates=self._shopping_candidates,
-                want_list_intents=self._want_list_intents,
-                watchlists=self._watchlists,
-                workflow_statuses=self._workflow_statuses,
-                session_context=None,
-                photo_candidates=self._photo_candidates,
-                acknowledged_action_ids=self._acknowledged_action_ids,
-                batch_candidates=None,
-            )
-            return ConnectedDataEngine(context)
+            return ConnectedDataEngine(self._build_connected_context())
 
         else:
             raise ValueError(f"Unknown engine: {name}")
@@ -701,11 +708,22 @@ class CollectorWorkspace:
         # SmartShoppingAssistant: top recommendations
         try:
             shopping = self._get_engine("smart_shopping")
-            shop_report = shopping.generate_report(
-                self._shopping_candidates,
-                include_want_list_targets=bool(self._want_list_intents),
-                limit=10,
-            )
+            # Phase 3: pass ConnectedDataEngine for watchlist-shopping metadata
+            try:
+                connected_engine = self._get_engine("connected_data")
+                shop_report = shopping.generate_report(
+                    self._shopping_candidates,
+                    include_want_list_targets=bool(self._want_list_intents),
+                    limit=10,
+                    connected_data_engine=connected_engine,
+                )
+            except Exception:
+                # Fallback: call without connected data
+                shop_report = shopping.generate_report(
+                    self._shopping_candidates,
+                    include_want_list_targets=bool(self._want_list_intents),
+                    limit=10,
+                )
             recs = getattr(shop_report, "recommendations", [])
             report.top_recommendations = [r.to_dict() if hasattr(r, "to_dict") else dict(r) for r in recs]
             report.total_opportunities = len(recs)

@@ -278,6 +278,76 @@ class TestSmartShoppingAssistant(unittest.TestCase):
 
         self.assertEqual(report.best_next_purchase.photo_reference_ids, ["photo_listing_1", "photo_reference_1"])
 
+    # ---------------------------------------------------------------------------
+    # Phase 3: Connected Data integration tests
+    # ---------------------------------------------------------------------------
+
+    def test_generate_report_without_connected_data(self):
+        """Existing call without connected_data_engine works unchanged."""
+        report = SmartShoppingAssistant(self.items, self.intents, self.market).generate_report(
+            [], include_want_list_targets=True
+        )
+        self.assertIsInstance(report, ShoppingRecommendationReport)
+        self.assertIsNone(report.connected_data)
+        self.assertIsNotNone(report.best_next_purchase)
+
+    def test_generate_report_with_connected_data(self):
+        """Connected data engine populates metadata on report."""
+        from connected_data import ConnectedDataEngine, ConnectedContext
+        from unittest.mock import MagicMock
+
+        watchlist_item = MagicMock()
+        watchlist_item.id = "wl1"
+        watchlist_item.keyword = "Newfoundland"
+        watchlist_item.name = None
+
+        shopping = MagicMock()
+        shopping.id = "s1"
+        shopping.title = "1901 Newfoundland 50 cents"
+        shopping.country = "Newfoundland"
+        shopping.denomination = "50 cents"
+        shopping.year = "1901"
+
+        context = ConnectedContext(
+            collection_items=self.items,
+            watchlists=[watchlist_item],
+            shopping_candidates=[shopping],
+            want_list_intents=self.intents,
+        )
+        engine = ConnectedDataEngine(context)
+
+        report = SmartShoppingAssistant(self.items, self.intents, self.market).generate_report(
+            [], include_want_list_targets=True, connected_data_engine=engine
+        )
+        self.assertIsNotNone(report.connected_data)
+        self.assertIn("watchlist_matches", report.connected_data)
+        self.assertIn("total_recommendations", report.connected_data)
+        self.assertIn("match_rate", report.connected_data)
+
+    def test_generate_report_with_connected_data_engine_failure(self):
+        """Connected data engine failure handled gracefully; report is still valid."""
+        from unittest.mock import MagicMock
+
+        broken_engine = MagicMock()
+        broken_engine.connect.side_effect = RuntimeError("Engine failed")
+
+        report = SmartShoppingAssistant(self.items, self.intents, self.market).generate_report(
+            [], include_want_list_targets=True, connected_data_engine=broken_engine
+        )
+        self.assertIsInstance(report, ShoppingRecommendationReport)
+        self.assertIsNone(report.connected_data)
+        self.assertIsNotNone(report.best_next_purchase)
+
+    def test_shop_report_connected_data_field_serializes(self):
+        """ShoppingRecommendationReport with connected_data serializes correctly."""
+        report = ShoppingRecommendationReport(
+            recommendations=[],
+            connected_data={"watchlist_matches": 2, "total_recommendations": 5, "match_rate": 0.4},
+        )
+        d = report.to_dict()
+        self.assertEqual(d["connected_data"]["watchlist_matches"], 2)
+        self.assertEqual(d["connected_data"]["match_rate"], 0.4)
+
 
 if __name__ == "__main__":
     unittest.main()

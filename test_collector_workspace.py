@@ -1669,10 +1669,89 @@ class TestCollectorWorkspaceConnectedData(unittest.TestCase):
         report = ConnectedDataReport(summary=summary)
         self.assertEqual(report.overall_match_rate, 0.5)
 
+    def test_build_connected_context(self) -> None:
+        """_build_connected_context returns ConnectedContext with all workspace fields."""
+        ws = CollectorWorkspace(
+            collection_items=["item1"],
+            photo_records=["p1"],
+            ocr_reports=["o1"],
+            shopping_candidates=["s1"],
+            want_list_intents=["w1"],
+            watchlists=["wl1"],
+        )
+        context = ws._build_connected_context()
+        self.assertEqual(context.collection_items, ["item1"])
+        self.assertEqual(context.photo_records, ["p1"])
+        self.assertEqual(context.ocr_reports, ["o1"])
+        self.assertEqual(context.shopping_candidates, ["s1"])
+        self.assertEqual(context.want_list_intents, ["w1"])
+        self.assertEqual(context.watchlists, ["wl1"])
+        self.assertIsNone(context.grading_assessments)
+        self.assertIsNone(context.market_records)
+        self.assertIsNone(context.batch_candidates)
 
-# ---------------------------------------------------------------------------
-# Phase 4 Integration Tests
-# ---------------------------------------------------------------------------
+    def test_get_opportunities_with_connected_data(self) -> None:
+        """get_opportunities passes connected_data_engine to SmartShoppingAssistant."""
+        ws = CollectorWorkspace(
+            collection_items=["item1"],
+            shopping_candidates=["s1"],
+            want_list_intents=["w1"],
+        )
+        # Mock the smart shopping engine to capture the call
+        mock_shopping = MagicMock()
+        mock_report = MagicMock()
+        mock_report.recommendations = []
+        mock_report.best_next_purchase = None
+        mock_report.highest_impact_candidate = None
+        mock_report.connected_data = {"watchlist_matches": 3, "total_recommendations": 0, "match_rate": 0.0}
+        mock_shopping.generate_report.return_value = mock_report
+
+        ws._engines["smart_shopping"] = mock_shopping
+        ws._engines["opportunity_engine"] = MagicMock()
+        ws._engines["opportunity_engine"].generate_report.return_value = MagicMock(budget_recommendations=[])
+
+        report = ws.get_opportunities()
+        self.assertEqual(report.total_opportunities, 0)
+        # Verify generate_report was called with connected_data_engine
+        call_kwargs = mock_shopping.generate_report.call_args[1]
+        self.assertIn("connected_data_engine", call_kwargs)
+
+    def test_get_opportunities_fallback_without_connected_data(self) -> None:
+        """If connected_data engine cannot be retrieved, get_opportunities falls back."""
+        ws = CollectorWorkspace(
+            collection_items=["item1"],
+            shopping_candidates=["s1"],
+        )
+        mock_shopping = MagicMock()
+        mock_report = MagicMock()
+        mock_report.recommendations = []
+        mock_report.best_next_purchase = None
+        mock_report.highest_impact_candidate = None
+        mock_shopping.generate_report.return_value = mock_report
+
+        ws._engines["smart_shopping"] = mock_shopping
+        ws._engines["opportunity_engine"] = MagicMock()
+        ws._engines["opportunity_engine"].generate_report.return_value = MagicMock(budget_recommendations=[])
+        # Do NOT pre-populate connected_data engine — force _create_engine to fail
+        # by overriding _create_engine for this specific name
+        original_create = ws._create_engine
+
+        def failing_create(name: str) -> Any:
+            if name == "connected_data":
+                raise RuntimeError("Engine unavailable")
+            return original_create(name)
+
+        ws._create_engine = failing_create
+
+        report = ws.get_opportunities()
+        # Should still succeed (fallback path)
+        self.assertEqual(report.total_opportunities, 0)
+        # Verify generate_report was called once (fallback only, since _get_engine failed)
+        self.assertEqual(mock_shopping.generate_report.call_count, 1)
+        # Verify it was called WITHOUT connected_data_engine
+        call_kwargs = mock_shopping.generate_report.call_args[1]
+        self.assertNotIn("connected_data_engine", call_kwargs)
+
 
 class TestCollectorWorkspacePhase4Integration(unittest.TestCase):
     """Integration tests for Phase 4 lifecycle with real engines."""
