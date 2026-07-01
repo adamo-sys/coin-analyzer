@@ -185,9 +185,11 @@ v8.1 = Batch Processing (released)
 v8.2 = AI Grading Assistant (released)
 v8.3 = Collector Workspace (released)
 v8.4 = Connected Data (released)
-v8.5 = (pending design)
+v8.5 = (pending design — see `ROADMAP.md`)
 
 v9.0 = Collector Ecosystem
+
+**Roadmap source of truth:** `ROADMAP.md` captures ideas, experiments, bugs, UX improvements, and future releases. This section reflects committed releases only.
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
 
@@ -327,6 +329,9 @@ Current archive status:
 * Every completed version must end with implementation, acceptance audit, tag creation, and push verification.
 * A version is not complete until its release tag exists locally and remotely and both tag targets are verified.
 * Never leave a completed version untagged.
+* Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change. This prevents later phases from subtly reshaping DTOs or method signatures without deliberate review.
+* `ROADMAP.md` is the living backlog for ideas, experiments, bugs, UX improvements, and future releases. Refer to it when planning new work.
+* `PROJECT_STATE.md` and `TASK_QUEUE.md` are the source of truth for active project status; `ROADMAP.md` is the source of truth for planned and proposed work.
 
 ## Recent Changes
 ### 2026-06-28

@@ -7,11 +7,11 @@
 - Current project state file reports release version: `v8.4`
 - Next planned release: `v8.5`
 - Active development target: `v8.5` (pending design)
-- Current active task: v8.4 Connected Data Phase 6 (release engineering)
+- Current active task: v8.4 Connected Data Phase 6 complete
 - Last release: v8.4 Connected Data (released)
 - Implementation commit: `927986b` (Phase 5)
-- Release tag: `v8.4` (pending Phase 6 verification)
-- Release metadata commit: `11881d2`
+- Release tag: `v8.4`
+- Release metadata commit: `5691743`
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -852,6 +852,7 @@ The batch assessment returns a `BatchGradingReport`:
 
 ## Recommended Next Steps
 
-1. v8.4 release engineering complete. Verify tag `v8.4` exists locally and remotely.
-2. Begin v8.5 design and Phase 0 roadmap lock.
-3. Do not begin v8.5 implementation until v8.4 tag and release metadata are verified.
+1. v8.4 release engineering complete. Tag `v8.4` verified locally and remotely.
+2. `ROADMAP.md` created with structured backlog (ideas, experiments, bugs, UX improvements, future releases).
+3. v8.5 "Collector Intelligence" proposed in `ROADMAP.md` as deterministic recommendation layer.
+4. Next: v8.5 Phase 0 roadmap lock — begin design when approved.
