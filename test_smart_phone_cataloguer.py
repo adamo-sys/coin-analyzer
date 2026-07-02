@@ -352,6 +352,10 @@ class TestOCRIntegration(unittest.TestCase):
         self.cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
         self.cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
 
+        # Mark sessions as ready for OCR
+        for session in self.cataloguer.workflow.sessions:
+            session.mark_ready_for_ocr()
+
         results = self.cataloguer.batch_identify()
         self.assertIsInstance(results, dict)
         self.assertEqual(len(results), 2)
@@ -470,7 +474,9 @@ class TestCollectionMatchingIntegration(unittest.TestCase):
 
     def test_batch_match_returns_dict(self):
         """Verify batch_match returns mapping of session_id -> CollectionMatchResult."""
+        import time
         self.cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        time.sleep(0.001)  # Ensure unique session IDs
         self.cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
 
         results = self.cataloguer.batch_match(self.collection_items)

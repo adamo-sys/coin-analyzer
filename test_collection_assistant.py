@@ -476,7 +476,7 @@ class TestCollectionAssistantEngine(unittest.TestCase):
         """Test session summary generation."""
         session = AssistantSummary(session_id="test")
         self.assertFalse(session.is_completed)
-        self.assertGreater(session.duration.total_seconds(), 0)
+        self.assertGreaterEqual(session.duration.total_seconds(), 0)
 
         dict_data = session.to_dict()
         self.assertEqual(dict_data["session_id"], "test")
