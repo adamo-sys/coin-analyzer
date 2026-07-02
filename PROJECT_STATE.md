@@ -6,7 +6,7 @@
 - Next planned release: `v8.5`
 - Active development target: `v8.5` Collector Advisor (Phase 0 design in progress)
 * Current Git branch: `main`
-* Last updated date: 2026-07-01
+* Last updated date: 2026-07-02
 
 ## Last Release Tag
 
@@ -85,6 +85,7 @@
 * Manual entry support: allows manually entered collection items and basic autocomplete suggestions from Numista-backed data.
 * Experimental image detection: CV/OCR-based identification exists but is suggestion-only and not treated as truth.
 * Test infrastructure: root-level `unittest` discovery, isolated `test_data` fixtures, `run_tests.bat`, `TESTING.md`, and GitHub Actions workflow.
+* Infrastructure milestone (v8.5): production-quality dependency management with requirements.txt (core), requirements-dev.txt (development tools), requirements-ocr.txt (optional OCR), requirements-gui.txt (GUI), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, clean-install verification (1261 tests pass), and GitHub Actions CI workflow testing against Python 3.11, 3.12, and 3.14.
 * Task queue: `TASK_QUEUE.md` tracks prioritized work, status, and changelog entries.
 * Collection Intelligence Engine: reusable analysis for country, denomination, series, missing years, completion percentages, duplicates, upgrade candidates, and acquisition priorities.
 * Focused Collection Intelligence Engine: deterministic manual candidate evaluation that classifies owned matches, upgrades, duplicates, want-list matches, collection gaps, unrelated items, and review-needed cases without modifying collection data.
