@@ -111,11 +111,12 @@ v8.6 transitions Coin Analyzer from isolated recommendations toward guided colle
 
 **Phase order:**
 1. Workflow Engine
-2. Portfolio Dashboard
-3. Explainability improvements
-4. Batch Processing
-5. Collection Health
-6. Recommendation Memory
+2. Workflow Workspace Integration
+3. Portfolio Dashboard
+4. Explainability improvements
+5. Batch Processing
+6. Collection Health
+7. Recommendation Memory
 
 **Phase 1 scope:** Create one workflow engine/facade for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
 
@@ -129,7 +130,7 @@ v8.6 transitions Coin Analyzer from isolated recommendations toward guided colle
 
 **Vision source:** `VISION.md` captures the long-term platform direction and should be checked before expanding v8.6 scope.
 
-**Status:** Phase 1 Workflow Engine complete. Await approval before Phase 2 Portfolio Dashboard.
+**Status:** Phase 2 Workflow Workspace Integration complete. Await approval before the next v8.6 phase.
 
 ---
 

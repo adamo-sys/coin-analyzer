@@ -3,6 +3,8 @@
 v8.3 Phase 1: Core aggregation engine. Zero business logic.
 """
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -1006,6 +1008,41 @@ class CollectorWorkspace:
         self._cache["advisor"] = report
         return report
 
+    def get_workflows(self) -> Any:
+        """Return the default workflow workspace view.
+
+        v8.6 Phase 2: workspace integration. This panel-style workflow view
+        defaults to the Daily Inbox unified workflow.
+        """
+        if "workflow_default" in self._cache:
+            return self._cache["workflow_default"]
+
+        from collector_workflows import WorkflowRequest, WorkflowType
+
+        report = self.get_workflow(WorkflowRequest(WorkflowType.DAILY_INBOX))
+        self._cache["workflow_default"] = report
+        return report
+
+    def get_workflow(self, request: Any) -> Any:
+        """Run one explicitly requested unified workflow through the workspace."""
+        from collector_workflows import WorkflowRequest
+
+        if not isinstance(request, WorkflowRequest):
+            return self._blocked_workflow_report("Workflow request must be a WorkflowRequest.")
+
+        cache_key = self._workflow_cache_key(request)
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        try:
+            engine = self._get_engine("collector_workflows")
+            report = engine.run_workflow(request)
+        except Exception as e:
+            report = self._blocked_workflow_report(str(e))
+
+        self._cache[cache_key] = report
+        return report
+
     # ---------------------------------------------------------------------------
     # Reports Panel (Phase 3)
     # ---------------------------------------------------------------------------
@@ -1060,6 +1097,11 @@ class CollectorWorkspace:
         if not descriptor.available:
             raise RuntimeError(f"Report '{name}' is not available (missing context)")
 
+        if descriptor.name == "workflow_review":
+            if format != "markdown":
+                raise ValueError("Workflow Review supports markdown export only")
+            return self._export_workflow_markdown(path)
+
         export_attr = "export_markdown" if format == "markdown" else "export_csv"
 
         try:
@@ -1083,6 +1125,9 @@ class CollectorWorkspace:
 
     def _invoke_report_method(self, descriptor: ReportDescriptor) -> Any:
         """Invoke the engine method for a report descriptor."""
+        if descriptor.name == "workflow_review":
+            return self.get_workflows()
+
         engine = self._get_engine(descriptor.engine_name)
         if descriptor.engine_name == "collector_operating_system":
             engine = engine["health"]
@@ -1290,6 +1335,17 @@ class CollectorWorkspace:
                 available=True,
             ),
             ReportDescriptor(
+                name="workflow_review",
+                title="Workflow Review",
+                category="Workflow",
+                description="Unified Daily Inbox workflow review from the v8.6 workflow engine",
+                engine_name="collector_workflows",
+                method_name="run_workflow",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
+            ),
+            ReportDescriptor(
                 name="connected_data",
                 title="Connected Data Cross-Reference",
                 category="Data Integrity",
@@ -1312,3 +1368,113 @@ class CollectorWorkspace:
                 available=bool(self._watchlists),
             ),
         ]
+
+    def _workflow_cache_key(self, request: Any) -> str:
+        """Return a deterministic cache key in the workflow cache namespace."""
+        payload = self._workflow_request_payload(request)
+        encoded = json.dumps(payload, sort_keys=True, default=str)
+        digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+        return f"workflow:{digest}"
+
+    def _workflow_request_payload(self, request: Any) -> Dict[str, Any]:
+        return {
+            "workflow_type": getattr(getattr(request, "workflow_type", None), "value", str(getattr(request, "workflow_type", ""))),
+            "candidate": self._workflow_value_payload(getattr(request, "candidate", None)),
+            "owned_item": self._workflow_value_payload(getattr(request, "owned_item", None)),
+            "raw_ocr_text": getattr(request, "raw_ocr_text", ""),
+            "context": self._workflow_value_payload(getattr(request, "context", {})),
+        }
+
+    def _workflow_value_payload(self, value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, dict):
+            return {
+                str(k): self._workflow_value_payload(v)
+                for k, v in sorted(value.items(), key=lambda item: str(item[0]))
+            }
+        if isinstance(value, (list, tuple)):
+            return [self._workflow_value_payload(item) for item in value]
+        if hasattr(value, "to_dict"):
+            return self._workflow_value_payload(value.to_dict())
+        fields = {}
+        for name in ("id", "title", "country", "denomination", "year", "grade", "asking_price", "estimate_cad"):
+            if hasattr(value, name):
+                fields[name] = self._workflow_value_payload(getattr(value, name))
+        return fields or repr(value)
+
+    def _blocked_workflow_report(self, detail: str) -> Any:
+        from collector_workflows import (
+            UnifiedWorkflowReport,
+            WorkflowAction,
+            WorkflowEvidence,
+            WorkflowSeverity,
+            WorkflowState,
+            WorkflowType,
+        )
+
+        message = detail or "Workflow request failed in workspace."
+        evidence = [
+            WorkflowEvidence(
+                "CollectorWorkspace",
+                message,
+                WorkflowSeverity.ERROR,
+                "Review workspace workflow integration",
+            )
+        ]
+        return UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.BLOCKED,
+            "Workflow Review",
+            "Workflow could not complete in the workspace.",
+            evidence=evidence,
+            next_actions=[
+                WorkflowAction(
+                    "Review workflow integration error",
+                    message,
+                    "CollectorWorkspace",
+                    WorkflowState.BLOCKED,
+                    evidence,
+                )
+            ],
+            warnings=[message],
+        )
+
+    def _format_workflow_markdown(self, report: Any) -> str:
+        lines = [
+            f"# {getattr(report, 'title', 'Workflow Review')}",
+            "",
+            f"- Workflow Type: {getattr(getattr(report, 'workflow_type', None), 'value', '')}",
+            f"- State: {getattr(getattr(report, 'state', None), 'value', '')}",
+            f"- Summary: {getattr(report, 'summary', '')}",
+            "",
+            "## Evidence",
+            "",
+        ]
+        evidence = getattr(report, "evidence", []) or []
+        if evidence:
+            for item in evidence:
+                severity = getattr(getattr(item, "severity", None), "value", getattr(item, "severity", "INFO"))
+                lines.append(f"- [{severity}] {getattr(item, 'source', '')}: {getattr(item, 'detail', '')}")
+        else:
+            lines.append("- No workflow evidence.")
+
+        lines.extend(["", "## Next Actions", ""])
+        actions = getattr(report, "next_actions", []) or []
+        if actions:
+            for action in actions:
+                lines.append(f"- {getattr(action, 'label', '')}: {getattr(action, 'reason', '')}")
+        else:
+            lines.append("- No workflow actions.")
+
+        warnings = getattr(report, "warnings", []) or []
+        if warnings:
+            lines.extend(["", "## Warnings", ""])
+            lines.extend(f"- {warning}" for warning in warnings)
+        return "\n".join(lines).strip() + "\n"
+
+    def _export_workflow_markdown(self, path: str) -> bool:
+        report = self.get_workflows()
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(self._format_workflow_markdown(report))
+        return True

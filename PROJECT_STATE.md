@@ -4,7 +4,7 @@
 
 * Current release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 2 complete; Phase 3 awaiting approval)
 * Current Git branch: `main`
 * Last updated date: 2026-07-03
 
@@ -12,6 +12,21 @@
 
 * Most recent Git tag: `v8.5`
 * Summary of what was included: Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories, deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), and comprehensive .gitignore. 1261-test regression pass.
+
+## Coin Analyzer Statistics
+
+Last updated: 2026-07-03 after v8.6 Phase 1.
+
+* Python modules: 93 non-test modules, 168 Python files total.
+* Test modules: 75.
+* Current full regression: 1284 tests OK.
+* Release line: `v0.2` -> `v8.6` active; 70 local release tags through `v8.5`.
+* Architecture and governance docs: 8+ core docs (`VISION.md`, `ARCHITECTURE.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `ROADMAP.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`, `project_docs/release_prompts/RELEASE_GOVERNANCE.md`).
+* Workspace GUI tabs: 12.
+* Workspace report descriptors: 18.
+* Unified workflow types: 5.
+* Recommendation categories: 6 frozen public categories.
+
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -187,7 +202,7 @@ v8.2 = AI Grading Assistant (released)
 v8.3 = Collector Workspace (released)
 v8.4 = Connected Data (released)
 v8.5 = Collector Advisor (released)
-v8.6 = Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
+v8.6 = Collector Intelligence & Workflow (Phase 2 complete; Phase 3 awaiting approval)
 
 v9.0 = Collector Ecosystem
 
@@ -233,7 +248,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Await approval for v8.6 Phase 2 Portfolio Dashboard. Do not begin v8.6 Phase 2+ without explicit approval.
+Await approval for the next v8.6 phase. Do not begin Portfolio Dashboard, Explainability, Batch Processing, Collection Health, or Recommendation Memory without explicit approval.
 
 
 ## Release Prompt Archive

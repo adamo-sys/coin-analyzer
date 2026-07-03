@@ -6,8 +6,8 @@
 - Branch: `main`
 - Current project state file reports release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
-- Current active task: Await approval for v8.6 Phase 2 Portfolio Dashboard
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 2 complete; next phase awaiting approval)
+- Current active task: Await approval for the next v8.6 phase
 - Last release: v8.5 Collector Advisor (released)
 - Latest implementation commit: `b5ba9ec` (CI brittle test fixes)
 - Release tag: `v8.5`
@@ -131,7 +131,7 @@ Vision source of truth: `VISION.md` sits above `ROADMAP.md` and captures the lon
 * Release metadata commit: `v8.5` tag target.
 
 * v8.6 roadmap lock complete: Collector Intelligence & Workflow.
-* Phase order: Workflow Engine, Portfolio Dashboard, Explainability improvements, Batch Processing, Collection Health, Recommendation Memory.
+* Phase order: Workflow Engine, Workflow Workspace Integration, Portfolio Dashboard, Explainability improvements, Batch Processing, Collection Health, Recommendation Memory.
 * Phase 1 scope: create one workflow engine/facade for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
 * Phase 1 constraints: reuse existing engines first; no collection mutation; no automatic buying, selling, grading, deletion, submission, or conflict resolution; no new persistence; no GUI work unless explicitly approved after API stabilization.
 * Vision document created: `VISION.md`.
@@ -140,6 +140,8 @@ Vision source of truth: `VISION.md` sits above `ROADMAP.md` and captures the lon
 * Implementation plan: `v8.6_implementation_plan.md`.
 * v8.6 Phase 1 Workflow Engine complete: added unified workflow DTOs, workflow states, and `CollectorWorkflowEngine.run_workflow(request)` in `collector_workflows.py`; wrapped Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox without removing existing APIs.
 * Phase 1 tests passed: `python -m unittest test_collector_workflows.py` -> 18 tests OK; `python -m unittest discover` -> 1272 tests OK.
+* v8.6 Phase 2 Workflow Workspace Integration complete: added `CollectorWorkspace.get_workflows()` for the default Daily Inbox workspace view, `CollectorWorkspace.get_workflow(request)` for explicit workflow execution, workflow cache namespace, `workflow_review` report descriptor under Workflow, markdown-only export, and workspace-level BLOCKED degradation.
+* Phase 2 tests passed: `python -m unittest test_collector_workspace.py` -> 114 tests OK; `python -m unittest discover` -> 1284 tests OK.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.

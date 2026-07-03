@@ -4,6 +4,8 @@ Strategy: Unit tests with mocks for engine isolation, plus integration tests
 with real engines using test collection fixtures.
 """
 
+import os
+import tempfile
 import unittest
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -27,6 +29,15 @@ from collector_workspace import (
     ReportDescriptor,
     ReportsMenu,
     LifecycleInfo,
+)
+from collector_workflows import (
+    UnifiedWorkflowReport,
+    WorkflowAction,
+    WorkflowEvidence,
+    WorkflowRequest,
+    WorkflowSeverity,
+    WorkflowState,
+    WorkflowType,
 )
 
 
@@ -818,6 +829,136 @@ class TestCollectorWorkspacePhase2Unit(unittest.TestCase):
         self.assertEqual(report.workflow_health, "Review Ready")
         self.assertEqual(report.engine_errors, [])
 
+    def test_get_workflows_returns_default_daily_inbox(self) -> None:
+        """get_workflows should return the default Daily Inbox unified workflow."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        mock_engine = MagicMock()
+        expected = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("test", "daily inbox ready")],
+            next_actions=[WorkflowAction("Review inbox", evidence=[WorkflowEvidence("test", "review")])],
+        )
+        mock_engine.run_workflow.return_value = expected
+        ws._engines["collector_workflows"] = mock_engine
+
+        report = ws.get_workflows()
+
+        self.assertIs(report, expected)
+        request = mock_engine.run_workflow.call_args[0][0]
+        self.assertEqual(request.workflow_type, WorkflowType.DAILY_INBOX)
+        self.assertIn("workflow_default", ws._cache)
+
+    def test_get_workflow_executes_explicit_request(self) -> None:
+        """get_workflow should pass an explicit request to the workflow engine."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        mock_engine = MagicMock()
+        expected = UnifiedWorkflowReport(
+            WorkflowType.DUPLICATE_REVIEW,
+            WorkflowState.COMPLETE,
+            "Duplicate Review",
+            "No duplicates",
+            evidence=[WorkflowEvidence("test", "no duplicates")],
+            next_actions=[WorkflowAction("No duplicate action required", evidence=[WorkflowEvidence("test", "done")])],
+        )
+        mock_engine.run_workflow.return_value = expected
+        ws._engines["collector_workflows"] = mock_engine
+        request = WorkflowRequest(WorkflowType.DUPLICATE_REVIEW)
+
+        report = ws.get_workflow(request)
+
+        self.assertIs(report, expected)
+        mock_engine.run_workflow.assert_called_once_with(request)
+
+    def test_get_workflows_uses_workflow_cache_namespace(self) -> None:
+        """Default workflows should cache as workflow_default and workflow hash."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        mock_engine = MagicMock()
+        mock_engine.run_workflow.return_value = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("test", "ready")],
+            next_actions=[WorkflowAction("Review", evidence=[WorkflowEvidence("test", "ready")])],
+        )
+        ws._engines["collector_workflows"] = mock_engine
+
+        first = ws.get_workflows()
+        second = ws.get_workflows()
+
+        self.assertIs(first, second)
+        self.assertEqual(mock_engine.run_workflow.call_count, 1)
+        self.assertIn("workflow_default", ws._cache)
+        self.assertTrue(any(key.startswith("workflow:") for key in ws._cache))
+
+    def test_refresh_clears_workflow_cache(self) -> None:
+        """refresh should clear workflow cache entries while keeping engines."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        ws._engines["collector_workflows"] = MagicMock()
+        ws._cache["workflow_default"] = MagicMock()
+        ws._cache["workflow:abc"] = MagicMock()
+
+        ws.refresh()
+
+        self.assertNotIn("workflow_default", ws._cache)
+        self.assertNotIn("workflow:abc", ws._cache)
+        self.assertIn("collector_workflows", ws._engines)
+
+    def test_get_workflow_invalid_request_returns_blocked(self) -> None:
+        """Invalid workflow requests should degrade instead of escaping to GUI."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+
+        report = ws.get_workflow("not a request")
+
+        self.assertEqual(report.state, WorkflowState.BLOCKED)
+        self.assertTrue(report.evidence)
+        self.assertTrue(report.warnings)
+
+    def test_get_workflow_source_failure_returns_blocked(self) -> None:
+        """Workflow engine failures should return BLOCKED reports."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        mock_engine = MagicMock()
+        mock_engine.run_workflow.side_effect = RuntimeError("workflow failed")
+        ws._engines["collector_workflows"] = mock_engine
+
+        report = ws.get_workflow(WorkflowRequest(WorkflowType.COLLECTION_REVIEW))
+
+        self.assertEqual(report.state, WorkflowState.BLOCKED)
+        self.assertIn("workflow failed", report.warnings)
+        self.assertEqual(report.evidence[0].severity, WorkflowSeverity.ERROR)
+
+    def test_get_workflow_needs_input_flows_through_engine(self) -> None:
+        """Missing input reports should pass through from the workflow engine."""
+        ws = CollectorWorkspace(_make_mock_items(1))
+        expected = UnifiedWorkflowReport(
+            WorkflowType.ACQUISITION_REVIEW,
+            WorkflowState.NEEDS_INPUT,
+            "Acquisition Review",
+            "Candidate required",
+            evidence=[WorkflowEvidence("engine", "candidate required", WorkflowSeverity.WARNING)],
+            next_actions=[WorkflowAction("Provide candidate", evidence=[WorkflowEvidence("engine", "candidate required")])],
+            warnings=["candidate required"],
+        )
+        mock_engine = MagicMock()
+        mock_engine.run_workflow.return_value = expected
+        ws._engines["collector_workflows"] = mock_engine
+
+        report = ws.get_workflow(WorkflowRequest(WorkflowType.ACQUISITION_REVIEW))
+
+        self.assertEqual(report.state, WorkflowState.NEEDS_INPUT)
+        self.assertIs(report, expected)
+
+    def test_identical_workflow_requests_are_deterministic(self) -> None:
+        """Two identical requests should produce identical serialized reports."""
+        ws = CollectorWorkspace(_make_mock_items(3))
+        first = ws.get_workflow(WorkflowRequest(WorkflowType.DUPLICATE_REVIEW))
+        second = ws.get_workflow(WorkflowRequest(WorkflowType.DUPLICATE_REVIEW))
+
+        self.assertEqual(first.to_dict(), second.to_dict())
+
     def test_get_data_safety_aggregates_persistence_and_integrity(self) -> None:
         """get_data_safety should aggregate persistence manager and integrity audit."""
         ws = CollectorWorkspace([])
@@ -1085,6 +1226,17 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
 
         self.assertIsNone(menu.by_name("nonexistent_report"))
 
+    def test_reports_menu_includes_workflow_review(self) -> None:
+        """Reports menu should include markdown-only Workflow Review descriptor."""
+        ws = CollectorWorkspace([])
+        descriptor = ws.get_reports().by_name("workflow_review")
+
+        self.assertIsNotNone(descriptor)
+        self.assertEqual(descriptor.title, "Workflow Review")
+        self.assertEqual(descriptor.category, "Workflow")
+        self.assertTrue(descriptor.has_markdown_export)
+        self.assertFalse(descriptor.has_csv_export)
+
     def test_generate_report_lazily_generates_by_name(self) -> None:
         """generate_report should call the correct engine method and return a dict."""
         ws = CollectorWorkspace([])
@@ -1101,6 +1253,26 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result["overall_quality_score"], 85)
         mock_engine.generate_report.assert_called_once()
+
+    def test_generate_report_workflow_review(self) -> None:
+        """workflow_review report should serialize the default workflow report."""
+        ws = CollectorWorkspace([])
+        mock_engine = MagicMock()
+        mock_engine.run_workflow.return_value = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("test", "ready")],
+            next_actions=[WorkflowAction("Review", evidence=[WorkflowEvidence("test", "ready")])],
+        )
+        ws._engines["collector_workflows"] = mock_engine
+
+        result = ws.generate_report("workflow_review")
+
+        self.assertEqual(result["workflow_type"], "DAILY_INBOX")
+        self.assertEqual(result["state"], "READY")
+        self.assertEqual(mock_engine.run_workflow.call_count, 1)
 
     def test_generate_report_raises_for_unknown_name(self) -> None:
         """generate_report should raise ValueError for unknown report name."""
@@ -1182,6 +1354,38 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
 
         self.assertTrue(result)
         mock_report.export_csv.assert_called_once_with("/tmp/report.csv")
+
+    def test_export_report_workflow_review_markdown(self) -> None:
+        """workflow_review should export markdown through the workspace."""
+        ws = CollectorWorkspace([])
+        mock_engine = MagicMock()
+        mock_engine.run_workflow.return_value = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("test", "ready")],
+            next_actions=[WorkflowAction("Review", evidence=[WorkflowEvidence("test", "ready")])],
+        )
+        ws._engines["collector_workflows"] = mock_engine
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "workflow.md")
+            result = ws.export_report("workflow_review", "markdown", path)
+            with open(path, "r", encoding="utf-8") as handle:
+                content = handle.read()
+
+        self.assertTrue(result)
+        self.assertIn("Daily Inbox", content)
+        self.assertIn("## Evidence", content)
+        self.assertIn("## Next Actions", content)
+
+    def test_export_report_workflow_review_rejects_csv(self) -> None:
+        """workflow_review is markdown-only."""
+        ws = CollectorWorkspace([])
+
+        with self.assertRaises(ValueError):
+            ws.export_report("workflow_review", "csv", "/tmp/workflow.csv")
 
     def test_export_report_raises_for_unknown_name(self) -> None:
         """export_report should raise ValueError for unknown report name."""

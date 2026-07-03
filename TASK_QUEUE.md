@@ -29,20 +29,32 @@ Status: Phase 1 - Workflow Engine Complete
 - [x] Add missing/empty input tests
 - [x] Run full regression (1272 tests)
 
-### Phase 2 - Portfolio Dashboard
+### Phase 2 - Workflow Workspace Integration
+- [x] Add get_workflows() default Daily Inbox workspace view
+- [x] Add get_workflow(request) explicit workflow execution API
+- [x] Reuse CollectorWorkflowEngine.run_workflow()
+- [x] Add workflow cache namespace
+- [x] Ensure refresh clears workflow cache
+- [x] Add Workflow Review report descriptor under Workflow
+- [x] Support markdown export only
+- [x] Add deterministic identical-request regression test
+- [x] Run workspace tests (114 tests)
+- [x] Run full regression (1284 tests)
+
+### Phase 3 - Portfolio Dashboard
 - [ ] Promote portfolio metrics toward application home screen
 - [ ] Add completion percentage, average grade, upgrade opportunities, value, silver/gold weight, wants completed, recent acquisitions, and ROI estimates from local data
 
-### Phase 3 - Explainability Improvements
+### Phase 4 - Explainability Improvements
 - [ ] Standardize recommendation reasoning, confidence, risks, uncertainty, and source evidence
 
-### Phase 4 - Batch Processing
+### Phase 5 - Batch Processing
 - [ ] Improve folder photo workflow: OCR, identify, match collection, generate report
 
-### Phase 5 - Collection Health
+### Phase 6 - Collection Health
 - [ ] Identify duplicates, lower-grade duplicates, upgrades, missing key dates, overrepresented series, and underrepresented series
 
-### Phase 6 - Recommendation Memory
+### Phase 7 - Recommendation Memory
 - [ ] Design reviewed persistence schema for passed coins, bought coins, seller reliability, price history, and repeated listings
 - [ ] Implement only after schema approval
 
