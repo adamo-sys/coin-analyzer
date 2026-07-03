@@ -1405,6 +1405,7 @@ class CollectorWorkspace:
 
     def _blocked_workflow_report(self, detail: str) -> Any:
         from collector_workflows import (
+            RecommendedTool,
             UnifiedWorkflowReport,
             WorkflowAction,
             WorkflowEvidence,
@@ -1435,9 +1436,12 @@ class CollectorWorkspace:
                     "CollectorWorkspace",
                     WorkflowState.BLOCKED,
                     evidence,
+                    recommended_tool=RecommendedTool.WORKFLOW,
                 )
             ],
             warnings=[message],
+            state_reason="CollectorWorkspace could not retrieve a workflow report because the workflow engine failed.",
+            recommended_tool=RecommendedTool.WORKFLOW,
         )
 
     def _format_workflow_markdown(self, report: Any) -> str:
@@ -1447,6 +1451,8 @@ class CollectorWorkspace:
             f"- Workflow Type: {getattr(getattr(report, 'workflow_type', None), 'value', '')}",
             f"- State: {getattr(getattr(report, 'state', None), 'value', '')}",
             f"- Summary: {getattr(report, 'summary', '')}",
+            f"- State Reason: {getattr(report, 'state_reason', '')}",
+            f"- Recommended Tool: {getattr(report, 'recommended_tool_label', '')}",
             "",
             "## Evidence",
             "",
@@ -1463,7 +1469,9 @@ class CollectorWorkspace:
         actions = getattr(report, "next_actions", []) or []
         if actions:
             for action in actions:
-                lines.append(f"- {getattr(action, 'label', '')}: {getattr(action, 'reason', '')}")
+                tool_label = getattr(action, "recommended_tool_label", "")
+                suffix = f" (Open: {tool_label})" if tool_label else ""
+                lines.append(f"- {getattr(action, 'label', '')}: {getattr(action, 'reason', '')}{suffix}")
         else:
             lines.append("- No workflow actions.")
 

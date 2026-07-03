@@ -71,6 +71,45 @@ class WorkflowSeverity(Enum):
     ERROR = "ERROR"
 
 
+class RecommendedTool(Enum):
+    """Metadata-only tool vocabulary for workflow navigation hints."""
+
+    NONE = "NONE"
+    WANT_LIST = "WANT_LIST"
+    AI_GRADING = "AI_GRADING"
+    UPGRADE_ADVISOR = "UPGRADE_ADVISOR"
+    DUPLICATE_REVIEW = "DUPLICATE_REVIEW"
+    SMART_SHOPPING = "SMART_SHOPPING"
+    WORKFLOW = "WORKFLOW"
+    COLLECTION_DASHBOARD = "COLLECTION_DASHBOARD"
+    COLLECTION_INTEGRITY = "COLLECTION_INTEGRITY"
+    PHOTO_VAULT = "PHOTO_VAULT"
+    OCR_EXPERIMENT = "OCR_EXPERIMENT"
+
+
+RECOMMENDED_TOOL_LABELS = {
+    RecommendedTool.NONE: "",
+    RecommendedTool.WANT_LIST: "Want List",
+    RecommendedTool.AI_GRADING: "AI Grading",
+    RecommendedTool.UPGRADE_ADVISOR: "Upgrade Advisor",
+    RecommendedTool.DUPLICATE_REVIEW: "Duplicate Review",
+    RecommendedTool.SMART_SHOPPING: "Smart Shopping Assistant",
+    RecommendedTool.WORKFLOW: "Workflow Review",
+    RecommendedTool.COLLECTION_DASHBOARD: "Collection Dashboard",
+    RecommendedTool.COLLECTION_INTEGRITY: "Collection Integrity Report",
+    RecommendedTool.PHOTO_VAULT: "Photo Vault",
+    RecommendedTool.OCR_EXPERIMENT: "OCR Experiment",
+}
+
+WORKFLOW_TOOL_MAP = {
+    WorkflowType.ACQUISITION_REVIEW: RecommendedTool.SMART_SHOPPING,
+    WorkflowType.COLLECTION_REVIEW: RecommendedTool.COLLECTION_DASHBOARD,
+    WorkflowType.UPGRADE_REVIEW: RecommendedTool.UPGRADE_ADVISOR,
+    WorkflowType.DUPLICATE_REVIEW: RecommendedTool.DUPLICATE_REVIEW,
+    WorkflowType.DAILY_INBOX: RecommendedTool.WORKFLOW,
+}
+
+
 def _coerce_workflow_type(value: Any) -> WorkflowType:
     if isinstance(value, WorkflowType):
         return value
@@ -96,6 +135,45 @@ def _coerce_severity(value: Any) -> WorkflowSeverity:
         return WorkflowSeverity(str(value or WorkflowSeverity.INFO.value).strip().upper())
     except ValueError:
         return WorkflowSeverity.INFO
+
+
+def _coerce_recommended_tool(value: Any) -> RecommendedTool:
+    if isinstance(value, RecommendedTool):
+        return value
+    if value in (None, ""):
+        return RecommendedTool.NONE
+    text = str(value).strip()
+    try:
+        return RecommendedTool[text.upper()]
+    except KeyError:
+        try:
+            return RecommendedTool(text.upper())
+        except ValueError:
+            return RecommendedTool.NONE
+
+
+def _default_state_reason(
+    workflow_type: WorkflowType,
+    state: WorkflowState,
+    title: str,
+    summary: str,
+    evidence: Iterable["WorkflowEvidence"],
+) -> str:
+    warning = next((item.detail for item in evidence if item.severity == WorkflowSeverity.WARNING), "")
+    error = next((item.detail for item in evidence if item.severity == WorkflowSeverity.ERROR), "")
+    name = title or workflow_type.value.replace("_", " ").title()
+    if state == WorkflowState.NEEDS_INPUT:
+        return warning or summary or f"{name} requires additional input before workflow evidence can be generated."
+    if state == WorkflowState.BLOCKED:
+        detail = error or summary
+        if detail:
+            return f"{name} failed because {detail}."
+        return f"{name} could not complete because a source workflow component failed."
+    if state == WorkflowState.REVIEW_REQUIRED:
+        return warning or f"{name} produced evidence that requires collector review before any action."
+    if state == WorkflowState.COMPLETE:
+        return summary or f"{name} found no immediate workflow action in the available data."
+    return f"{name} generated reviewable workflow output from the available data."
 
 
 @dataclass
@@ -131,12 +209,18 @@ class WorkflowAction:
     source: str = ""
     state: WorkflowState = WorkflowState.REVIEW_REQUIRED
     evidence: List[WorkflowEvidence] = field(default_factory=list)
+    recommended_tool: RecommendedTool = RecommendedTool.NONE
+    recommended_tool_label: str = ""
 
     def __post_init__(self) -> None:
         self.label = str(self.label or "").strip()
         self.reason = str(self.reason or "").strip()
         self.source = str(self.source or "collector_workflows").strip()
         self.state = _coerce_state(self.state)
+        self.recommended_tool = _coerce_recommended_tool(self.recommended_tool)
+        self.recommended_tool_label = str(
+            self.recommended_tool_label or RECOMMENDED_TOOL_LABELS.get(self.recommended_tool, "")
+        ).strip()
         self.evidence = [
             evidence if isinstance(evidence, WorkflowEvidence) else WorkflowEvidence(**evidence)
             for evidence in self.evidence
@@ -152,6 +236,8 @@ class WorkflowAction:
             "source": self.source,
             "state": self.state.value,
             "evidence": [evidence.to_dict() for evidence in self.evidence],
+            "recommended_tool": self.recommended_tool.value,
+            "recommended_tool_label": self.recommended_tool_label,
         }
 
 
@@ -183,12 +269,22 @@ class UnifiedWorkflowReport:
     next_actions: List[WorkflowAction] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     source_reports: Dict[str, Any] = field(default_factory=dict)
+    state_reason: str = ""
+    recommended_tool: RecommendedTool = RecommendedTool.NONE
+    recommended_tool_label: str = ""
 
     def __post_init__(self) -> None:
         self.workflow_type = _coerce_workflow_type(self.workflow_type)
         self.state = _coerce_state(self.state)
         self.title = str(self.title or "").strip()
         self.summary = str(self.summary or "").strip()
+        self.state_reason = str(self.state_reason or "").strip()
+        self.recommended_tool = _coerce_recommended_tool(self.recommended_tool)
+        if self.recommended_tool == RecommendedTool.NONE:
+            self.recommended_tool = WORKFLOW_TOOL_MAP.get(self.workflow_type, RecommendedTool.WORKFLOW)
+        self.recommended_tool_label = str(
+            self.recommended_tool_label or RECOMMENDED_TOOL_LABELS.get(self.recommended_tool, "")
+        ).strip()
         self.evidence = [
             evidence if isinstance(evidence, WorkflowEvidence) else WorkflowEvidence(**evidence)
             for evidence in self.evidence
@@ -197,6 +293,14 @@ class UnifiedWorkflowReport:
             action if isinstance(action, WorkflowAction) else WorkflowAction(**action)
             for action in self.next_actions
         ]
+        if not self.state_reason:
+            self.state_reason = _default_state_reason(
+                self.workflow_type,
+                self.state,
+                self.title,
+                self.summary,
+                self.evidence,
+            )
         self.warnings = _dedupe(self.warnings)
         self.source_reports = dict(self.source_reports or {})
 
@@ -206,6 +310,9 @@ class UnifiedWorkflowReport:
             "state": self.state.value,
             "title": self.title,
             "summary": self.summary,
+            "state_reason": self.state_reason,
+            "recommended_tool": self.recommended_tool.value,
+            "recommended_tool_label": self.recommended_tool_label,
             "evidence": [evidence.to_dict() for evidence in self.evidence],
             "next_actions": [action.to_dict() for action in self.next_actions],
             "warnings": list(self.warnings),
@@ -830,17 +937,21 @@ class CollectorWorkflowEngine:
                 "UpgradeAdvisor",
                 WorkflowState.REVIEW_REQUIRED,
                 [evidence[0]],
+                recommended_tool=RecommendedTool.UPGRADE_ADVISOR,
             )
         ]
+        state = self._state_from_evidence(evidence)
         return UnifiedWorkflowReport(
             WorkflowType.UPGRADE_REVIEW,
-            self._state_from_evidence(evidence),
+            state,
             "Upgrade Review",
             f"{recommendation.verdict}: {candidate['country']} {candidate['denomination']} {candidate['year']}".strip(),
             evidence=self._sort_evidence(evidence),
             next_actions=actions,
             warnings=warnings,
             source_reports={"upgrade_recommendation": recommendation},
+            state_reason=self._state_reason_for_workflow(WorkflowType.UPGRADE_REVIEW, state, evidence),
+            recommended_tool=RecommendedTool.UPGRADE_ADVISOR,
         )
 
     def _run_duplicate_review(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
@@ -862,6 +973,7 @@ class CollectorWorkflowEngine:
                 "CollectionIntelligenceEngine",
                 WorkflowState.REVIEW_REQUIRED,
                 [evidence[0]],
+                recommended_tool=RecommendedTool.DUPLICATE_REVIEW,
             ))
         if upgrade_candidates:
             actions.append(WorkflowAction(
@@ -870,6 +982,7 @@ class CollectorWorkflowEngine:
                 "CollectionIntelligenceEngine",
                 WorkflowState.REVIEW_REQUIRED,
                 [evidence[1]],
+                recommended_tool=RecommendedTool.UPGRADE_ADVISOR,
             ))
         if not actions:
             actions.append(WorkflowAction(
@@ -878,15 +991,19 @@ class CollectorWorkflowEngine:
                 "CollectionIntelligenceEngine",
                 WorkflowState.COMPLETE,
                 [evidence[0]],
+                recommended_tool=RecommendedTool.DUPLICATE_REVIEW,
             ))
+        state = WorkflowState.REVIEW_REQUIRED if duplicates or upgrade_candidates else WorkflowState.COMPLETE
         return UnifiedWorkflowReport(
             WorkflowType.DUPLICATE_REVIEW,
-            WorkflowState.REVIEW_REQUIRED if duplicates or upgrade_candidates else WorkflowState.COMPLETE,
+            state,
             "Duplicate Review",
             f"{len(duplicates)} duplicate group(s); {len(upgrade_candidates)} upgrade candidate(s)",
             evidence=self._sort_evidence(evidence),
             next_actions=actions,
             source_reports={"duplicates": duplicates, "upgrade_candidates": upgrade_candidates},
+            state_reason=self._state_reason_for_workflow(WorkflowType.DUPLICATE_REVIEW, state, evidence),
+            recommended_tool=RecommendedTool.DUPLICATE_REVIEW,
         )
 
     def _run_daily_inbox(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
@@ -910,15 +1027,18 @@ class CollectorWorkflowEngine:
             evidence = [WorkflowEvidence(title, summary.headline or "Workflow produced no status items.")]
         actions = self._actions_from_summary(summary)
         warnings = [evidence_item.detail for evidence_item in evidence if evidence_item.severity in {WorkflowSeverity.WARNING, WorkflowSeverity.ERROR}]
+        state = self._state_from_summary(summary, evidence, actions)
         return UnifiedWorkflowReport(
             workflow_type,
-            self._state_from_summary(summary, evidence, actions),
+            state,
             title,
             summary.headline,
             evidence=self._sort_evidence(evidence),
             next_actions=actions,
             warnings=warnings,
             source_reports=source_reports,
+            state_reason=self._state_reason_for_workflow(workflow_type, state, evidence),
+            recommended_tool=WORKFLOW_TOOL_MAP.get(workflow_type, RecommendedTool.WORKFLOW),
         )
 
     @staticmethod
@@ -935,22 +1055,89 @@ class CollectorWorkflowEngine:
         fallback = status_evidence[:1] or [WorkflowEvidence(summary.workflow_name, summary.headline or "Review workflow output.")]
         actions = []
         for action in summary.next_actions:
+            tool = CollectorWorkflowEngine._recommended_tool_for_action(action, fallback)
             actions.append(WorkflowAction(
                 action,
                 summary.headline,
                 summary.workflow_name,
                 WorkflowState.REVIEW_REQUIRED,
                 fallback,
+                recommended_tool=tool,
             ))
         if not actions:
+            tool = CollectorWorkflowEngine._recommended_tool_for_action(summary.headline, fallback)
             actions.append(WorkflowAction(
                 "Review workflow report",
                 summary.headline,
                 summary.workflow_name,
                 WorkflowState.REVIEW_REQUIRED,
                 fallback,
+                recommended_tool=tool,
             ))
         return actions
+
+    @staticmethod
+    def _recommended_tool_for_action(label: str, evidence: Iterable[WorkflowEvidence]) -> RecommendedTool:
+        text = " ".join(
+            [str(label or "")]
+            + [item.source for item in evidence]
+            + [item.detail for item in evidence]
+            + [item.action for item in evidence]
+        ).lower()
+        if "ocr" in text:
+            return RecommendedTool.OCR_EXPERIMENT
+        if "photo" in text:
+            return RecommendedTool.PHOTO_VAULT
+        if "integrity" in text:
+            return RecommendedTool.COLLECTION_INTEGRITY
+        if "shopping" in text or "acquisition" in text or "opportunity" in text:
+            return RecommendedTool.SMART_SHOPPING
+        if "duplicate" in text:
+            return RecommendedTool.DUPLICATE_REVIEW
+        if "upgrade" in text:
+            return RecommendedTool.UPGRADE_ADVISOR
+        return RecommendedTool.WORKFLOW
+
+    @staticmethod
+    def _state_reason_for_workflow(
+        workflow_type: WorkflowType,
+        state: WorkflowState,
+        evidence: Iterable[WorkflowEvidence],
+    ) -> str:
+        evidence_list = list(evidence or [])
+        if workflow_type == WorkflowType.ACQUISITION_REVIEW and state == WorkflowState.NEEDS_INPUT:
+            return "Acquisition Review requires a candidate before workflow evidence can be generated."
+        if workflow_type == WorkflowType.UPGRADE_REVIEW and state == WorkflowState.NEEDS_INPUT:
+            return "Upgrade Review requires a candidate before workflow evidence can be generated."
+        if workflow_type == WorkflowType.DUPLICATE_REVIEW:
+            if state == WorkflowState.COMPLETE:
+                return "No duplicate groups were detected from the current collection data."
+            if state == WorkflowState.REVIEW_REQUIRED:
+                return "Duplicate or lower-grade duplicate evidence was found and requires collector review."
+        if workflow_type == WorkflowType.DAILY_INBOX:
+            if state == WorkflowState.REVIEW_REQUIRED:
+                return "Daily Inbox found workflow items that require collector review."
+            if state == WorkflowState.READY:
+                return "Daily Inbox generated reviewable workflow tasks from current workspace data."
+        if workflow_type == WorkflowType.COLLECTION_REVIEW:
+            if state == WorkflowState.REVIEW_REQUIRED:
+                return "Collection Review found warnings that require collector review."
+            if state == WorkflowState.READY:
+                return "Collection Review generated reviewable collection health output."
+        if workflow_type == WorkflowType.UPGRADE_REVIEW and state == WorkflowState.REVIEW_REQUIRED:
+            return "Upgrade Advisor evidence requires collector review before any upgrade decision."
+        if workflow_type == WorkflowType.ACQUISITION_REVIEW:
+            if state == WorkflowState.REVIEW_REQUIRED:
+                return "Acquisition Review found warnings or decision evidence that require collector review."
+            if state == WorkflowState.READY:
+                return "Acquisition Review generated reviewable acquisition evidence for the candidate."
+        return _default_state_reason(
+            workflow_type,
+            state,
+            CollectorWorkflowEngine._workflow_title(workflow_type),
+            "",
+            evidence_list,
+        )
 
     @staticmethod
     def _sort_evidence(evidence: Iterable[WorkflowEvidence]) -> List[WorkflowEvidence]:
@@ -1012,26 +1199,58 @@ class CollectorWorkflowEngine:
     @staticmethod
     def _needs_input_report(workflow_type: WorkflowType, title: str, detail: str) -> UnifiedWorkflowReport:
         evidence = [WorkflowEvidence("CollectorWorkflowEngine", detail, WorkflowSeverity.WARNING, "Provide required workflow input")]
+        tool = WORKFLOW_TOOL_MAP.get(workflow_type, RecommendedTool.WORKFLOW)
         return UnifiedWorkflowReport(
             workflow_type,
             WorkflowState.NEEDS_INPUT,
             title,
             detail,
             evidence=evidence,
-            next_actions=[WorkflowAction("Provide required workflow input", detail, "CollectorWorkflowEngine", WorkflowState.NEEDS_INPUT, evidence)],
+            next_actions=[
+                WorkflowAction(
+                    "Provide required workflow input",
+                    detail,
+                    "CollectorWorkflowEngine",
+                    WorkflowState.NEEDS_INPUT,
+                    evidence,
+                    recommended_tool=tool,
+                )
+            ],
             warnings=[detail],
+            state_reason=CollectorWorkflowEngine._state_reason_for_workflow(
+                workflow_type,
+                WorkflowState.NEEDS_INPUT,
+                evidence,
+            ),
+            recommended_tool=tool,
         )
 
     @staticmethod
     def _blocked_report(workflow_type: WorkflowType, title: str, error: Exception) -> UnifiedWorkflowReport:
         detail = str(error) or error.__class__.__name__
         evidence = [WorkflowEvidence("CollectorWorkflowEngine", detail, WorkflowSeverity.ERROR, "Review source engine failure")]
+        tool = WORKFLOW_TOOL_MAP.get(workflow_type, RecommendedTool.WORKFLOW)
         return UnifiedWorkflowReport(
             workflow_type,
             WorkflowState.BLOCKED,
             title,
             "Workflow could not complete because a source engine failed.",
             evidence=evidence,
-            next_actions=[WorkflowAction("Review workflow failure", detail, "CollectorWorkflowEngine", WorkflowState.BLOCKED, evidence)],
+            next_actions=[
+                WorkflowAction(
+                    "Review workflow failure",
+                    detail,
+                    "CollectorWorkflowEngine",
+                    WorkflowState.BLOCKED,
+                    evidence,
+                    recommended_tool=tool,
+                )
+            ],
             warnings=[detail],
+            state_reason=CollectorWorkflowEngine._state_reason_for_workflow(
+                workflow_type,
+                WorkflowState.BLOCKED,
+                evidence,
+            ),
+            recommended_tool=tool,
         )

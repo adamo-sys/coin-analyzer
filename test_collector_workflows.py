@@ -12,6 +12,7 @@ from collector_workflows import (
     CollectorWorkflowEngine,
     CollectionReviewReport,
     PhotoReviewWorkflow,
+    RecommendedTool,
     UnifiedWorkflowReport,
     WorkflowAction,
     WorkflowEvidence,
@@ -181,7 +182,7 @@ class TestCollectorWorkflows(unittest.TestCase):
 
     def test_unified_workflow_dtos(self):
         evidence = WorkflowEvidence("Unit Test", "Evidence detail")
-        action = WorkflowAction("Review item", evidence=[evidence])
+        action = WorkflowAction("Review item", evidence=[evidence], recommended_tool=RecommendedTool.WORKFLOW)
         request = WorkflowRequest(WorkflowType.COLLECTION_REVIEW)
         report = UnifiedWorkflowReport(
             WorkflowType.COLLECTION_REVIEW,
@@ -190,11 +191,33 @@ class TestCollectorWorkflows(unittest.TestCase):
             "Ready",
             evidence=[evidence],
             next_actions=[action],
+            state_reason="Collection Review is ready for review.",
+            recommended_tool=RecommendedTool.COLLECTION_DASHBOARD,
         )
 
         self.assertEqual(request.workflow_type, WorkflowType.COLLECTION_REVIEW)
-        self.assertEqual(report.to_dict()["workflow_type"], "COLLECTION_REVIEW")
+        payload = report.to_dict()
+        self.assertEqual(payload["workflow_type"], "COLLECTION_REVIEW")
+        self.assertEqual(payload["state_reason"], "Collection Review is ready for review.")
+        self.assertEqual(payload["recommended_tool"], "COLLECTION_DASHBOARD")
+        self.assertEqual(payload["recommended_tool_label"], "Collection Dashboard")
+        self.assertEqual(payload["next_actions"][0]["recommended_tool"], "WORKFLOW")
+        self.assertEqual(payload["next_actions"][0]["recommended_tool_label"], "Workflow Review")
         self.assertTrue(report.next_actions[0].evidence)
+
+    def test_unified_workflow_dtos_default_explainability_metadata(self):
+        report = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("Unit Test", "Ready")],
+            next_actions=[WorkflowAction("Review inbox")],
+        )
+
+        self.assertIn("Daily Inbox", report.state_reason)
+        self.assertEqual(report.recommended_tool, RecommendedTool.WORKFLOW)
+        self.assertEqual(report.recommended_tool_label, "Workflow Review")
 
     def test_run_workflow_acquisition_review(self):
         candidate = PhotoCandidate(
@@ -223,6 +246,8 @@ class TestCollectorWorkflows(unittest.TestCase):
         )
 
         self.assertEqual(report.state, WorkflowState.NEEDS_INPUT)
+        self.assertIn("candidate", report.state_reason.lower())
+        self.assertEqual(report.recommended_tool, RecommendedTool.SMART_SHOPPING)
         self.assertTrue(report.warnings)
         self.assertTrue(all(action.evidence for action in report.next_actions))
 
@@ -256,6 +281,8 @@ class TestCollectorWorkflows(unittest.TestCase):
         )
 
         self.assertEqual(report.state, WorkflowState.NEEDS_INPUT)
+        self.assertIn("candidate", report.state_reason.lower())
+        self.assertEqual(report.recommended_tool, RecommendedTool.UPGRADE_ADVISOR)
         self.assertTrue(report.evidence)
 
     def test_run_workflow_duplicate_review(self):
@@ -265,9 +292,21 @@ class TestCollectorWorkflows(unittest.TestCase):
 
         self.assertEqual(report.workflow_type, WorkflowType.DUPLICATE_REVIEW)
         self.assertEqual(report.state, WorkflowState.REVIEW_REQUIRED)
+        self.assertIn("duplicate", report.state_reason.lower())
+        self.assertEqual(report.recommended_tool, RecommendedTool.DUPLICATE_REVIEW)
+        self.assertTrue(any(action.recommended_tool in {RecommendedTool.DUPLICATE_REVIEW, RecommendedTool.UPGRADE_ADVISOR} for action in report.next_actions))
         self.assertIn("duplicates", report.source_reports)
         self.assertTrue(any("duplicate group" in evidence.detail for evidence in report.evidence))
         self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_duplicate_review_complete_has_explanation(self):
+        report = CollectorWorkflowEngine([], self.want_list).run_workflow(
+            WorkflowRequest(WorkflowType.DUPLICATE_REVIEW)
+        )
+
+        self.assertEqual(report.state, WorkflowState.COMPLETE)
+        self.assertIn("No duplicate", report.state_reason)
+        self.assertEqual(report.recommended_tool, RecommendedTool.DUPLICATE_REVIEW)
 
     def test_run_workflow_daily_inbox(self):
         ocr_report = OCRExperiment().run("front.jpg", raw_text="blurred")
@@ -279,6 +318,9 @@ class TestCollectorWorkflows(unittest.TestCase):
         ).run_workflow(WorkflowRequest(WorkflowType.DAILY_INBOX))
 
         self.assertEqual(report.workflow_type, WorkflowType.DAILY_INBOX)
+        self.assertTrue(report.state_reason)
+        self.assertEqual(report.recommended_tool, RecommendedTool.WORKFLOW)
+        self.assertTrue(any(action.recommended_tool in {RecommendedTool.OCR_EXPERIMENT, RecommendedTool.SMART_SHOPPING, RecommendedTool.PHOTO_VAULT, RecommendedTool.WORKFLOW} for action in report.next_actions))
         self.assertIn("daily_summary", report.source_reports)
         self.assertTrue(report.next_actions)
         self.assertTrue(all(action.evidence for action in report.next_actions))
@@ -297,6 +339,8 @@ class TestCollectorWorkflows(unittest.TestCase):
         report = engine.run_workflow(WorkflowRequest(WorkflowType.COLLECTION_REVIEW))
 
         self.assertEqual(report.state, WorkflowState.BLOCKED)
+        self.assertIn("failed", report.state_reason)
+        self.assertEqual(report.recommended_tool, RecommendedTool.COLLECTION_DASHBOARD)
         self.assertIn("source unavailable", report.warnings)
         self.assertTrue(all(action.evidence for action in report.next_actions))
 
@@ -310,6 +354,7 @@ class TestCollectorWorkflows(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertEqual([evidence.to_dict() for evidence in first.evidence], [evidence.to_dict() for evidence in second.evidence])
         self.assertEqual([action.to_dict() for action in first.next_actions], [action.to_dict() for action in second.next_actions])
+        self.assertEqual(first.to_dict(), second.to_dict())
 
 
 if __name__ == "__main__":

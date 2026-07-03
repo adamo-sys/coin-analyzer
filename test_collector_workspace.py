@@ -31,6 +31,7 @@ from collector_workspace import (
     LifecycleInfo,
 )
 from collector_workflows import (
+    RecommendedTool,
     UnifiedWorkflowReport,
     WorkflowAction,
     WorkflowEvidence,
@@ -1264,7 +1265,15 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
             "Daily Inbox",
             "Ready",
             evidence=[WorkflowEvidence("test", "ready")],
-            next_actions=[WorkflowAction("Review", evidence=[WorkflowEvidence("test", "ready")])],
+            next_actions=[
+                WorkflowAction(
+                    "Review",
+                    evidence=[WorkflowEvidence("test", "ready")],
+                    recommended_tool=RecommendedTool.WORKFLOW,
+                )
+            ],
+            state_reason="Daily Inbox generated reviewable workflow tasks.",
+            recommended_tool=RecommendedTool.WORKFLOW,
         )
         ws._engines["collector_workflows"] = mock_engine
 
@@ -1272,6 +1281,10 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
 
         self.assertEqual(result["workflow_type"], "DAILY_INBOX")
         self.assertEqual(result["state"], "READY")
+        self.assertEqual(result["state_reason"], "Daily Inbox generated reviewable workflow tasks.")
+        self.assertEqual(result["recommended_tool"], "WORKFLOW")
+        self.assertEqual(result["recommended_tool_label"], "Workflow Review")
+        self.assertEqual(result["next_actions"][0]["recommended_tool"], "WORKFLOW")
         self.assertEqual(mock_engine.run_workflow.call_count, 1)
 
     def test_generate_report_raises_for_unknown_name(self) -> None:
@@ -1365,7 +1378,15 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
             "Daily Inbox",
             "Ready",
             evidence=[WorkflowEvidence("test", "ready")],
-            next_actions=[WorkflowAction("Review", evidence=[WorkflowEvidence("test", "ready")])],
+            next_actions=[
+                WorkflowAction(
+                    "Review",
+                    evidence=[WorkflowEvidence("test", "ready")],
+                    recommended_tool=RecommendedTool.WORKFLOW,
+                )
+            ],
+            state_reason="Daily Inbox generated reviewable workflow tasks.",
+            recommended_tool=RecommendedTool.WORKFLOW,
         )
         ws._engines["collector_workflows"] = mock_engine
 
@@ -1377,6 +1398,9 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertIn("Daily Inbox", content)
+        self.assertIn("State Reason: Daily Inbox generated reviewable workflow tasks.", content)
+        self.assertIn("Recommended Tool: Workflow Review", content)
+        self.assertIn("Open: Workflow Review", content)
         self.assertIn("## Evidence", content)
         self.assertIn("## Next Actions", content)
 
