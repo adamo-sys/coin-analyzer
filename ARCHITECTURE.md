@@ -1,8 +1,8 @@
 # Coin Analyzer Architecture
 
-> **Version:** post-v8.3  
+> **Version:** post-v8.5 / v8.6 roadmap lock
 > **Status:** living document  
-> **Scope:** architectural map of the collector application after the Collector Workspace release.
+> **Scope:** architectural map of the collector application after the Collector Advisor release and at the start of v8.6 Collector Intelligence & Workflow.
 
 ---
 
@@ -73,7 +73,7 @@ The application is built as a **layered system of reusable engines** coordinated
 | `smart_phone_cataloguer.py` | Photo → OCR → candidate → entry | `SmartPhoneCataloguer`, `CatalogueResult` |
 | `collection_assistant.py` | Guided cataloguing workflow | `CollectionAssistantEngine` |
 | `collector_advisor.py` | Unified acquisition guidance (v8.5) | `CollectorAdvisor`, `AdvisorRecommendation`, `AdvisorReport` |
-| `collector_workflows.py` | Acquisition / review / daily summary | `CollectorWorkflowEngine` |
+| `collector_workflows.py` | Unified workflow review target (v8.6) | `CollectorWorkflowEngine`, `WorkflowSummary` |
 | `collector_workflow_integration.py` | End-to-end workflow sessions | `CollectorWorkflowIntegrationEngine` |
 | `mobile_collection_entry.py` | Field entry candidates | `MobileCollectionEntryEngine` |
 | `live_deal_hunter.py` | User-triggered RSS/XML ingestion | `LiveDealHunter`, `RSSListingConnector` |

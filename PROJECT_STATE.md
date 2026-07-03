@@ -4,7 +4,7 @@
 
 * Current release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: TBD
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 Workflow Engine next)
 * Current Git branch: `main`
 * Last updated date: 2026-07-03
 
@@ -187,10 +187,13 @@ v8.2 = AI Grading Assistant (released)
 v8.3 = Collector Workspace (released)
 v8.4 = Connected Data (released)
 v8.5 = Collector Advisor (released)
+v8.6 = Collector Intelligence & Workflow (Phase 0 complete; Phase 1 next)
 
 v9.0 = Collector Ecosystem
 
-**Roadmap source of truth:** `ROADMAP.md` captures ideas, experiments, bugs, UX improvements, and future releases. This section reflects committed releases only.
+**Vision source of truth:** `VISION.md` describes the long-term platform direction and feature principles.
+
+**Roadmap source of truth:** `ROADMAP.md` captures ideas, experiments, bugs, UX improvements, and future releases. This section reflects committed releases and active roadmap locks.
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
 
@@ -230,7 +233,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Phase 6 v8.5 release engineering: finalize metadata, tag `v8.5`, push, and verify local/remote refs. Do not begin v8.6 until release verification is complete.
+Begin v8.6 Phase 1 Workflow Engine only. Do not begin v8.6 Phase 2+ until Phase 1 is implemented, tested, and reviewed.
 
 
 ## Release Prompt Archive
@@ -249,6 +252,7 @@ Current archive status:
 * v6.3 prompt archived at `project_docs/release_prompts/v6.3.txt` before v6.3 development.
 * v7.0 prompt archived at `project_docs/release_prompts/v7.0.txt` before v7.0 development.
 * v8.5 prompt archived at `project_docs/release_prompts/v8.5.txt` before v8.5 release.
+* v8.6 prompt archived at `project_docs/release_prompts/v8.6.txt` before v8.6 development.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 

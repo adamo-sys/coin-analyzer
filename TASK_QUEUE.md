@@ -1,5 +1,51 @@
 # Task Queue
 
+## v8.6 Collector Intelligence & Workflow
+
+Status: Phase 0 - Roadmap Lock Complete
+
+### Phase 0 - Roadmap Lock
+- [x] Create VISION.md
+- [x] Create docs/releases/v8.6.md
+- [x] Create project_docs/release_prompts/v8.6.txt
+- [x] Create v8.6_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update ROADMAP.md
+- [x] Update TASK_QUEUE.md (this file)
+- [x] Update ARCHITECTURE.md
+- [x] Commit Phase 0
+- [x] Push Phase 0
+
+### Phase 1 - Workflow Engine
+- [ ] Design unified workflow request/report API
+- [ ] Support Acquisition Review
+- [ ] Support Collection Review
+- [ ] Support Upgrade Review
+- [ ] Support Duplicate Review
+- [ ] Support Daily Inbox
+- [ ] Reuse existing engines without duplicating business logic
+- [ ] Add deterministic ordering and evidence tests
+- [ ] Add missing/empty input tests
+- [ ] Run full regression
+
+### Phase 2 - Portfolio Dashboard
+- [ ] Promote portfolio metrics toward application home screen
+- [ ] Add completion percentage, average grade, upgrade opportunities, value, silver/gold weight, wants completed, recent acquisitions, and ROI estimates from local data
+
+### Phase 3 - Explainability Improvements
+- [ ] Standardize recommendation reasoning, confidence, risks, uncertainty, and source evidence
+
+### Phase 4 - Batch Processing
+- [ ] Improve folder photo workflow: OCR, identify, match collection, generate report
+
+### Phase 5 - Collection Health
+- [ ] Identify duplicates, lower-grade duplicates, upgrades, missing key dates, overrepresented series, and underrepresented series
+
+### Phase 6 - Recommendation Memory
+- [ ] Design reviewed persistence schema for passed coins, bought coins, seller reliability, price history, and repeated listings
+- [ ] Implement only after schema approval
+
 ## v8.5 Collector Advisor
 
 Status: Complete — v8.5 Released

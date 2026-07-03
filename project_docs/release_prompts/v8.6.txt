@@ -1,0 +1,64 @@
+Begin v8.6 Phase 0 - DESIGN ONLY.
+
+Theme:
+Collector Intelligence & Workflow
+
+Mission:
+Evolve Coin Analyzer from "gives advice" to "acts like a collection assistant."
+
+Primary Phase 1 target:
+Workflow Engine
+
+Create one unified workflow engine/facade for:
+- Acquisition Review
+- Collection Review
+- Upgrade Review
+- Duplicate Review
+- Daily Inbox
+
+Before designing or implementing:
+Review:
+- VISION.md
+- ARCHITECTURE.md
+- AI_ONBOARDING.md
+- AI_HANDOFF.md
+- PROJECT_STATE.md
+- TASK_QUEUE.md
+- RELEASE_HISTORY.md
+- PROJECT_PHILOSOPHY.md
+- ROADMAP.md
+- docs/releases/v8.6.md
+- v8.6_implementation_plan.md
+
+Respect permanent rules:
+- Existing desktop application remains the authoritative collection engine.
+- Use existing engines first; do not duplicate business logic.
+- No collection mutation in workflow review.
+- No automatic buying, selling, grading, deletion, submission, or conflict resolution.
+- No ML, no LLM, no black box.
+- Deterministic, testable, explainable.
+- Every recommendation and workflow action must expose evidence and source context.
+- Public APIs are stable after Phase 1 unless a breaking change is documented and justified.
+- No new persistence in Phase 1.
+- Recommendation Memory requires explicit schema review before implementation.
+
+Phase order:
+1. Workflow Engine
+2. Portfolio Dashboard
+3. Explainability improvements
+4. Batch Processing
+5. Collection Health
+6. Recommendation Memory
+
+Deliverables for Phase 0:
+- VISION.md
+- docs/releases/v8.6.md
+- project_docs/release_prompts/v8.6.txt
+- v8.6_implementation_plan.md
+- Updated PROJECT_STATE.md
+- Updated AI_HANDOFF.md
+- Updated ROADMAP.md
+- Updated TASK_QUEUE.md
+- Updated ARCHITECTURE.md
+
+Stop after Phase 0 unless explicitly approved to begin Phase 1.

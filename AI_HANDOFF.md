@@ -6,8 +6,8 @@
 - Branch: `main`
 - Current project state file reports release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: TBD
-- Current active task: v8.5 Phase 6 release engineering
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 Workflow Engine next)
+- Current active task: v8.6 Phase 1 Workflow Engine
 - Last release: v8.5 Collector Advisor (released)
 - Latest implementation commit: `b5ba9ec` (CI brittle test fixes)
 - Release tag: `v8.5`
@@ -32,7 +32,8 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 6. `v8.3` Collector Workspace (released)
 7. `v8.4` Connected Data (released)
 8. `v8.5` Collector Advisor (released)
-9. `v9.0` Collector Ecosystem
+9. `v8.6` Collector Intelligence & Workflow (Phase 1 next)
+10. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
 
@@ -50,6 +51,8 @@ v4.2 rationale: v4.0 introduced live opportunity discovery and v4.1 hardened liv
 Release prompts are project documentation and architecture history. Store them under `project_docs/release_prompts/`, preserve historical prompts, and version new prompts by release number such as `v5.1.txt`, `v5.2.txt`, `v5.3.txt`, `v5.4.txt`, `v6.0.txt`, `v6.1.txt`, `v6.2.txt`, and `v6.3.txt`.
 
 Before each release, verify the current release prompt exists, previous archived prompts remain available, and release notes document whether the prompt was archived and where it lives.
+
+Vision source of truth: `VISION.md` sits above `ROADMAP.md` and captures the long-term platform direction, guiding principles, and feature-addition filters.
 
 ## What Changed
 * v8.2 AI Grading Assistant released: `AIGradingAssistant`, `GradingCandidate`, `GradingAssessment`, `GradePattern`, `BatchGradingReport`; deterministic grading guidance via collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration.
@@ -126,6 +129,15 @@ Before each release, verify the current release prompt exists, previous archived
 * Release notes: `docs/releases/v8.5.md`.
 * Roadmap lock commit: `9e65158`.
 * Release metadata commit: `v8.5` tag target.
+
+* v8.6 roadmap lock complete: Collector Intelligence & Workflow.
+* Phase order: Workflow Engine, Portfolio Dashboard, Explainability improvements, Batch Processing, Collection Health, Recommendation Memory.
+* Phase 1 scope: create one workflow engine/facade for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
+* Phase 1 constraints: reuse existing engines first; no collection mutation; no automatic buying, selling, grading, deletion, submission, or conflict resolution; no new persistence; no GUI work unless explicitly approved after API stabilization.
+* Vision document created: `VISION.md`.
+* Release prompt archived: `project_docs/release_prompts/v8.6.txt`.
+* Release notes: `docs/releases/v8.6.md`.
+* Implementation plan: `v8.6_implementation_plan.md`.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.

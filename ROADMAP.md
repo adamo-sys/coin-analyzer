@@ -95,9 +95,41 @@ A deterministic recommendation layer. No ML. No LLM. No black box. Just explaina
 
 **Completed release scope:** Collector Advisor core engine, workspace integration, GUI Advisor tab, frozen categories, deterministic ordering, upstream signal-quality fixes, dependency management, CI workflow, and release metadata. Final regression: 1261 tests passing.
 
-**Next step:** Complete v8.5 tag and remote verification before any v8.6 planning.
+**Next step:** v8.6 roadmap lock.
 
 **Status:** Complete. Key commits: `9e65158` (Phase 0), `894785b` (Phase 1), `c101015` (Phase 2), `a7bfb46` (Phase 3), `7c34837` (Phase 4), `22cfbe0` (Phase 5), `b5ba9ec` (CI fixes).
+
+---
+
+### v8.6 - Collector Intelligence & Workflow *(Phase 0 Roadmap Lock)*
+
+v8.6 transitions Coin Analyzer from isolated recommendations toward guided collector work.
+
+**Mission:** Evolve the app from "gives advice" to "acts like a collection assistant."
+
+**Theme:** Collector Intelligence & Workflow.
+
+**Phase order:**
+1. Workflow Engine
+2. Portfolio Dashboard
+3. Explainability improvements
+4. Batch Processing
+5. Collection Health
+6. Recommendation Memory
+
+**Phase 1 scope:** Create one workflow engine/facade for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
+
+**Phase 1 rules:**
+1. Reuse existing engines first.
+2. Do not duplicate business logic from Collection Intelligence, Advisor, Workspace, Portfolio, Quality, Integrity, or existing workflow modules.
+3. No collection mutation.
+4. No automatic buying, selling, grading, deletion, submission, or conflict resolution.
+5. No new persistence in Phase 1.
+6. No GUI work until the workflow API is stable unless explicitly approved.
+
+**Vision source:** `VISION.md` captures the long-term platform direction and should be checked before expanding v8.6 scope.
+
+**Status:** Phase 0 roadmap lock complete. Next implementation target is Phase 1 Workflow Engine only.
 
 ---
 
