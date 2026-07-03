@@ -43,7 +43,7 @@ A living document for ideas, experiments, bugs, UX improvements, and future rele
 | 2 | Batch photo processing workflow | Complete (v8.1) | Folder of photos → batch OCR → batch identification → batch review |
 | 3 | AI Grading Assistant confidence scoring | Complete (v8.2) | Collection grade patterns + evidence = explainable guidance |
 | 4 | Connected Data cross-referencing | Complete (v8.4) | Information entered once → reused everywhere |
-| 5 | Collector Intelligence recommendation layer | Proposed (v8.5) | Existing reports → deterministic "what should I do next?" |
+| 5 | Collector Intelligence recommendation layer | Complete (v8.5) | Existing reports → deterministic "what should I do next?" |
 
 ---
 
@@ -67,7 +67,7 @@ A living document for ideas, experiments, bugs, UX improvements, and future rele
 
 ## 🚀 Future Releases
 
-### v8.5 — Collector Advisor *(Phase 3 Complete — Pause before Phase 4)*
+### v8.5 — Collector Advisor *(Complete)*
 
 A deterministic recommendation layer. No ML. No LLM. No black box. Just explainable recommendations built on everything already built.
 
@@ -77,27 +77,27 @@ A deterministic recommendation layer. No ML. No LLM. No black box. Just explaina
 
 **Naming rationale:** "Advisor" signals recommendations rather than analysis. Distinct from `CollectionIntelligenceEngine` (analysis) and `ConnectedDataEngine` (cross-referencing).
 
-**Stable recommendation categories (frozen after Phase 3):**
-- `PRIORITY_ACQUISITION`
-- `GRADE_SUBMIT`
-- `UPGRADE`
-- `DISPOSE_DUPLICATE`
-- `BUDGET_ALLOCATE`
-- `NEXT_ACTION`
+**Stable recommendation categories (frozen):**
+- `BUY_NOW`
+- `BUY_IF_PRICE_RIGHT`
+- `WATCH`
+- `NEGOTIATE`
+- `PASS`
+- `REVIEW`
 
-> No new categories without explicit justification and a breaking-change review. Future v8.5+ work improves evidence quality, prioritization, confidence, and explanation — not recommendation quantity.
+> No new categories without explicit justification and a breaking-change review. Future work improves evidence quality, prioritization, confidence, and explanation — not recommendation quantity.
 
 **Architectural rules:**
 1. Reuse first. Compute second. The Advisor orchestrates existing intelligence rather than reimplementing it.
 2. Every recommendation must be explainable. Every recommendation DTO includes `evidence: List[RecommendationReason]` with human-readable, source-labeled reasons.
 3. Public APIs are stable after Phase 1 unless a later phase explicitly documents and justifies a breaking change.
-4. **Category freeze after Phase 3.** The six `RecommendationCategory` enum values are treated as stable public API. New categories require explicit justification.
+4. The six `AdvisorCategory` enum values are treated as stable public API. New categories require explicit justification.
 
-**Phase 3 deliverables (complete):** Cross-panel evidence enrichment. All 6 `recommend_*()` methods now consume multiple workspace panels and produce ≥2 evidence items per recommendation when panels are available. Evidence is source-labeled. Graceful degradation preserved. 1,254 tests passing.
+**Completed release scope:** Collector Advisor core engine, workspace integration, GUI Advisor tab, frozen categories, deterministic ordering, upstream signal-quality fixes, dependency management, CI workflow, and release metadata. Final regression: 1261 tests passing.
 
-**Next step:** Manual collector session before Phase 4 planning. Open the Workspace, browse each panel, generate Advisor recommendations, export reports, walk through a realistic acquisition workflow. Only then draft Phase 4 based on observed UX friction.
+**Next step:** Complete v8.5 tag and remote verification before any v8.6 planning.
 
-**Status:** Phase 3 complete at `a7bfb46`. Category freeze in effect. Pause for manual testing before Phase 4.
+**Status:** Complete. Key commits: `9e65158` (Phase 0), `894785b` (Phase 1), `c101015` (Phase 2), `a7bfb46` (Phase 3), `7c34837` (Phase 4), `22cfbe0` (Phase 5), `b5ba9ec` (CI fixes).
 
 ---
 

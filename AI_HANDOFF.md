@@ -2,16 +2,16 @@
 
 ## Snapshot
 
-- Date: 2026-07-01
+- Date: 2026-07-02
 - Branch: `main`
-- Current project state file reports release version: `v8.4`
-- Next planned release: `v8.5`
-- Active development target: `v8.5` Collector Advisor (Phase 0 design in progress)
-- Current active task: v8.5 Collector Advisor Phase 0 (roadmap lock design)
-- Last release: v8.4 Connected Data (released)
-- Implementation commit: `927986b` (Phase 5)
-- Release tag: `v8.4`
-- Release metadata commit: `5691743`
+- Current project state file reports release version: `v8.5`
+- Next planned release: `v8.6`
+- Active development target: TBD
+- Current active task: v8.5 Phase 6 release engineering
+- Last release: v8.5 Collector Advisor (released)
+- Latest implementation commit: `b5ba9ec` (CI brittle test fixes)
+- Release tag: `v8.5`
+- Release metadata commit: `v8.5` tag target
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -31,7 +31,7 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 5. `v8.2` AI Grading Assistant (released)
 6. `v8.3` Collector Workspace (released)
 7. `v8.4` Connected Data (released)
-8. `v8.5` (pending design)
+8. `v8.5` Collector Advisor (released)
 9. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
@@ -108,6 +108,24 @@ Before each release, verify the current release prompt exists, previous archived
 * Release notes: `docs/releases/v8.4.md`.
 * Roadmap lock commit: `ee5d2ee`.
 * Release metadata commit: `5691743`.
+
+* v8.5 Collector Advisor released: `CollectorAdvisor`, `AdvisorRecommendation`, `AdvisorReport`, `AdvisorCategory`; unified acquisition guidance engine with explainable recommendations, frozen recommendation categories (BUY_NOW, BUY_IF_PRICE_RIGHT, WATCH, NEGOTIATE, PASS, REVIEW), deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), comprehensive .gitignore, and CI test brittleness fixes.
+* Phase 1 core engine: `collector_advisor.py` with `CollectorAdvisor`, `AdvisorRecommendation`, `AdvisorReport`, 43 unit tests.
+* Phase 2 workspace integration: `AdvisorReport` added to `CollectorWorkspace`, `get_advisor()` with lazy engine initialization, 11 new tests.
+* Phase 3 GUI integration: Advisor tab in `coin_collection_gui.py`, 3 new tests.
+* Phase 4 signal quality fixes: category freeze, deterministic ordering, upstream signal hardening.
+* Phase 5 infrastructure: requirements files, setup script, documentation, CI workflow, CI brittle test fixes.
+* Phase 6 release engineering: metadata updates, release notes, tagging.
+* Implementation commits: `9e65158` (Phase 0), `894785b` (Phase 1), `c101015` (Phase 2), `a7bfb46` (Phase 3), `7c34837` (Phase 4), `22cfbe0` (Phase 5 infrastructure), `b5ba9ec` (CI brittle test fixes), `v8.5` tag target (Phase 6 release metadata).
+* Release tag: `v8.5`.
+* Tests passed: `py -m unittest test_collector_advisor.py` -> 43 tests OK; `py -m unittest test_collector_workspace.py` -> 102 tests OK; full `py -m unittest discover` -> 1261 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1213 to 1261.
+* Limitation: deterministic local guidance only; no computer vision, no machine learning, no live pricing, no scraping, no APIs, no collection mutation.
+* Release prompt archived: `project_docs/release_prompts/v8.5.txt`.
+* Release notes: `docs/releases/v8.5.md`.
+* Roadmap lock commit: `9e65158`.
+* Release metadata commit: `v8.5` tag target.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.

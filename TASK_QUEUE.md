@@ -1,5 +1,63 @@
 # Task Queue
 
+## v8.5 Collector Advisor
+
+Status: Complete — v8.5 Released
+
+### Phase 0 — Roadmap Lock
+- [x] Create docs/releases/v8.5.md
+- [x] Create project_docs/release_prompts/v8.5.txt
+- [x] Create v8.5_implementation_plan.md
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update TASK_QUEUE.md (this file)
+- [x] Update RELEASE_HISTORY.md
+- [x] Commit Phase 0
+- [x] Push Phase 0
+- [x] Pass RELEASE GATE
+
+### Phase 1 — Core Engine
+- [x] Design collector_advisor.py public API
+- [x] Implement CollectorAdvisor
+- [x] Implement AdvisorRecommendation, AdvisorReport, AdvisorCategory
+- [x] Unit tests for public API (43 tests)
+
+### Phase 2 — Workspace Integration
+- [x] Integrate AdvisorReport into CollectorWorkspace
+- [x] Implement get_advisor() with lazy engine initialization
+- [x] Integration tests (11 new tests)
+
+### Phase 3 — GUI Integration
+- [x] Add Advisor tab to coin_collection_gui.py
+- [x] Implement advisor display and controls
+- [x] GUI tests (3 new tests)
+
+### Phase 4 — Signal Quality Fixes
+- [x] Freeze recommendation categories (BUY_NOW, BUY_IF_PRICE_RIGHT, WATCH, NEGOTIATE, PASS, REVIEW)
+- [x] Implement deterministic ordering
+- [x] Upstream signal hardening
+
+### Phase 5 — Infrastructure
+- [x] Add requirements.txt (core dependencies)
+- [x] Add requirements-dev.txt (development tools)
+- [x] Add requirements-ocr.txt (optional OCR)
+- [x] Add requirements-gui.txt (GUI support)
+- [x] Add setup_dev.ps1 bootstrap script
+- [x] Add DEPENDENCIES.md documentation
+- [x] Update .gitignore with comprehensive exclusions
+- [x] Update GitHub Actions workflow (Python 3.12)
+- [x] Fix CI test brittleness (3 tests)
+- [x] Clean-install verification (1261 tests pass)
+
+### Phase 6 — Release
+- [x] Final regression (1261 tests)
+- [x] Metadata updates (PROJECT_STATE.md, AI_HANDOFF.md, TASK_QUEUE.md)
+- [x] Finalize docs/releases/v8.5.md
+- [x] Update RELEASE_HISTORY.md
+- [x] Tag v8.5
+- [x] Commit and push
+- [x] Publish
+
 ## v8.1 Batch Processing
 
 Status: Complete — v8.1 Released

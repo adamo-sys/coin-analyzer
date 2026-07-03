@@ -72,6 +72,7 @@ The application is built as a **layered system of reusable engines** coordinated
 | `batch_processing.py` | Folder → batch candidates → review | `BatchProcessingEngine`, `BatchCandidate` |
 | `smart_phone_cataloguer.py` | Photo → OCR → candidate → entry | `SmartPhoneCataloguer`, `CatalogueResult` |
 | `collection_assistant.py` | Guided cataloguing workflow | `CollectionAssistantEngine` |
+| `collector_advisor.py` | Unified acquisition guidance (v8.5) | `CollectorAdvisor`, `AdvisorRecommendation`, `AdvisorReport` |
 | `collector_workflows.py` | Acquisition / review / daily summary | `CollectorWorkflowEngine` |
 | `collector_workflow_integration.py` | End-to-end workflow sessions | `CollectorWorkflowIntegrationEngine` |
 | `mobile_collection_entry.py` | Field entry candidates | `MobileCollectionEntryEngine` |

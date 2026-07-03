@@ -2,16 +2,16 @@
 
 ## Current Version
 
-* Current release version: `v8.4`
-- Next planned release: `v8.5`
-- Active development target: `v8.5` Collector Advisor (Phase 0 design in progress)
+* Current release version: `v8.5`
+- Next planned release: `v8.6`
+- Active development target: TBD
 * Current Git branch: `main`
-* Last updated date: 2026-07-02
+* Last updated date: 2026-07-03
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.4`
-* Summary of what was included: Connected Data — cross-referencing and auto-propagation layer that connects existing engines so photos, OCR results, grading assessments, collection intelligence, market awareness, and session context flow automatically between tools without manual re-entry. Thin `ConnectedDataEngine` facade with `ConnectionType` enums, `MatchType` classification, and class-level `_DISPATCH_TABLE`; 12 connection-type pair coverage; 3 public methods (`connect`, `generate_cross_reference_report`, `generate_summary`) + `format_markdown`, `generate_gap_summary`, `export_markdown`; `ConnectedDataReport` integrated into `CollectorWorkspace` with `get_connected_data()` lazy engine initialization; metadata-only enrichment in `SmartShoppingAssistant.generate_report()` via optional `connected_data_engine` parameter; 16 report descriptors expanded with Connected Data; GUI Connected Data tab between Data Safety and Reports; 1213-test regression pass.
+* Most recent Git tag: `v8.5`
+* Summary of what was included: Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories, deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), and comprehensive .gitignore. 1261-test regression pass.
 * `v0.3` release audit passed on 2026-06-15.
 * `v0.4` integration audit passed on 2026-06-15; no defects required code fixes.
 * `v0.4` release tests passed on 2026-06-15: 47 OK.
@@ -186,7 +186,7 @@ v8.1 = Batch Processing (released)
 v8.2 = AI Grading Assistant (released)
 v8.3 = Collector Workspace (released)
 v8.4 = Connected Data (released)
-v8.5 = (pending design — see `ROADMAP.md`)
+v8.5 = Collector Advisor (released)
 
 v9.0 = Collector Ecosystem
 
@@ -230,7 +230,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Design v8.5 scope and begin Phase 0 roadmap lock.
+Phase 6 v8.5 release engineering: finalize metadata, tag `v8.5`, push, and verify local/remote refs. Do not begin v8.6 until release verification is complete.
 
 
 ## Release Prompt Archive
@@ -248,6 +248,7 @@ Current archive status:
 * v6.2 prompt archived at `project_docs/release_prompts/v6.2.txt` before v6.2 development.
 * v6.3 prompt archived at `project_docs/release_prompts/v6.3.txt` before v6.3 development.
 * v7.0 prompt archived at `project_docs/release_prompts/v7.0.txt` before v7.0 development.
+* v8.5 prompt archived at `project_docs/release_prompts/v8.5.txt` before v8.5 release.
 * Existing historical prompts remain available in `project_docs/release_prompts/`.
 * Release notes should document whether the release prompt was archived and the archived prompt path.
 

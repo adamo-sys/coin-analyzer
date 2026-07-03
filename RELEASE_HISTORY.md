@@ -2,6 +2,7 @@
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
+| `v8.5` | See verified tag `v8.5` | Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories (BUY_NOW, BUY_IF_PRICE_RIGHT, WATCH, NEGOTIATE, PASS, REVIEW), deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), comprehensive .gitignore, and CI test brittleness fixes. 1261-test regression pass. |
 | `v8.0` | `PENDING` | Smart Phone Cataloguer with photo capture workflow, OCR-assisted identification, mobile collection entry, collector workflow integration, and 959-test regression pass. |
 | `v8.1` | `09dd0fe` | Batch Processing with folder photo intake, batch OCR & identification, collection intelligence batch analysis, batch reporting & export, GUI integration, and 1015-test regression pass. |
 | `v8.2` | `fdcf18d` | AI Grading Assistant with deterministic grading guidance, collection grade pattern analysis, evidence-based confidence scoring, review flagging, batch assessment, CSV/Markdown export, GUI integration, and 1047-test regression pass without computer vision, image recognition, or automated grade assignment. |
