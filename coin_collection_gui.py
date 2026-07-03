@@ -8345,10 +8345,18 @@ Total Unique Dates: {total_unique_dates}
         notebook.add(frame, text="Workflow")
         text = tk.Text(frame, wrap=tk.WORD, padx=10, pady=10)
         text.pack(fill=tk.BOTH, expand=True)
-        report = workspace.get_workflow_status()
-        text.insert(tk.END, self._format_workflow_status(report))
+        report = workspace.get_workflows()
+        text.insert(tk.END, self._format_unified_workflow(report))
         text.config(state=tk.DISABLED)
-        return {"frame": frame, "text": text}
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(6, 0))
+        tab = {"frame": frame, "text": text, "button_frame": button_frame}
+        self._render_workflow_tool_buttons(
+            tab,
+            report,
+            lambda: self._refresh_workflow_tab(tab, workspace),
+        )
+        return tab
 
     def _create_data_safety_tab(self, notebook, workspace):
         """Create Data Safety tab."""
@@ -8468,21 +8476,102 @@ Total Unique Dates: {total_unique_dates}
             "ai_queue": (workspace.get_ai_queue, self._format_ai_queue),
             "batch_queue": (workspace.get_batch_queue, self._format_batch_queue),
             "photo_vault": (workspace.get_photo_vault, self._format_photo_vault),
-            "workflow": (workspace.get_workflow_status, self._format_workflow_status),
+            "workflow": (workspace.get_workflows, self._format_unified_workflow),
             "data_safety": (workspace.get_data_safety, self._format_data_safety),
             "connected_data": (workspace.get_connected_data, self._format_connected_data),
         }
         for key, (getter, formatter) in panel_methods.items():
             text = tabs[key]["text"]
+            report = getter()
             text.config(state=tk.NORMAL)
             text.delete("1.0", tk.END)
-            text.insert(tk.END, formatter(getter()))
+            text.insert(tk.END, formatter(report))
             text.config(state=tk.DISABLED)
+            if key == "workflow":
+                self._render_workflow_tool_buttons(
+                    tabs[key],
+                    report,
+                    lambda tab=tabs[key]: self._refresh_workflow_tab(tab, workspace),
+                )
         # Reports tab is rebuilt from scratch
         old_reports = tabs["reports"]["frame"]
         parent = old_reports.master
         old_reports.destroy()
         tabs["reports"] = self._create_reports_tab(parent, workspace)
+
+    def _refresh_workflow_tab(self, tab, workspace):
+        """Refresh only the unified workflow tab from CollectorWorkspace."""
+        report = workspace.get_workflows()
+        text = tab["text"]
+        text.config(state=tk.NORMAL)
+        text.delete("1.0", tk.END)
+        text.insert(tk.END, self._format_unified_workflow(report))
+        text.config(state=tk.DISABLED)
+        self._render_workflow_tool_buttons(
+            tab,
+            report,
+            lambda: self._refresh_workflow_tab(tab, workspace),
+        )
+
+    def _render_workflow_tool_buttons(self, tab, report, refresh_command):
+        """Render metadata-driven workflow buttons for existing GUI tools only."""
+        button_frame = tab.get("button_frame")
+        if button_frame is None:
+            return
+        for child in button_frame.winfo_children():
+            child.destroy()
+        for label, command in self._workflow_tool_button_specs(report, refresh_command):
+            ttk.Button(button_frame, text=label, command=command).pack(side=tk.LEFT, padx=(0, 6))
+
+    def _workflow_tool_button_specs(self, report, refresh_command=None):
+        """Return deduplicated button specs for workflow tool metadata."""
+        specs = []
+        seen = set()
+        tools = [getattr(report, "recommended_tool", None)]
+        for action in getattr(report, "next_actions", []) or []:
+            tools.append(getattr(action, "recommended_tool", None))
+        for tool in tools:
+            value = self._workflow_tool_value(tool)
+            if value in seen:
+                continue
+            seen.add(value)
+            spec = self._workflow_tool_button_spec(value, refresh_command)
+            if spec:
+                specs.append(spec)
+        return specs
+
+    def _workflow_tool_button_spec(self, tool_value, refresh_command=None):
+        """Map a RecommendedTool value to an existing GUI method."""
+        mapping = {
+            "SMART_SHOPPING": ("Open Smart Shopping", "open_smart_shopping_assistant"),
+            "UPGRADE_ADVISOR": ("Open Upgrade Advisor", "open_upgrade_advisor"),
+            "DUPLICATE_REVIEW": ("Open Collection Assistant", "open_collection_assistant"),
+            "COLLECTION_DASHBOARD": ("Open Collector Home", "open_collector_home"),
+            "COLLECTION_INTEGRITY": ("Open Collection Integrity", "open_collection_integrity_audit"),
+            "PHOTO_VAULT": ("Open Photo Vault Audit", "open_photo_vault_audit"),
+            "OCR_EXPERIMENT": ("Open OCR Experiment", "open_ocr_experiment"),
+            "WANT_LIST": ("Open Want List Generator", "open_want_list_generator"),
+            "AI_GRADING": ("Open AI Grading Assistant", "open_ai_grading_assistant"),
+        }
+        value = self._workflow_tool_value(tool_value)
+        if value == "WORKFLOW":
+            if refresh_command is None:
+                return None
+            return ("Refresh Workflow", refresh_command)
+        label_method = mapping.get(value)
+        if not label_method:
+            return None
+        label, method_name = label_method
+        command = getattr(self, method_name, None)
+        if command is None:
+            return None
+        return (label, command)
+
+    @staticmethod
+    def _workflow_tool_value(tool):
+        """Normalize RecommendedTool enum/string metadata for GUI mapping."""
+        value = getattr(tool, "value", tool)
+        return str(value or "").strip().upper()
 
     # -- Formatting helpers (pure formatting, no business logic) -----------
 
@@ -8640,6 +8729,78 @@ Total Unique Dates: {total_unique_dates}
                 lines.append(f"- {action}")
         lines.append(self._format_engine_errors(report.engine_errors))
         return "\n".join(lines) + "\n"
+
+    def _format_unified_workflow(self, report):
+        """Format a UnifiedWorkflowReport for the Workspace Workflow tab."""
+        workflow_type = getattr(getattr(report, "workflow_type", None), "value", getattr(report, "workflow_type", ""))
+        state = getattr(getattr(report, "state", None), "value", getattr(report, "state", ""))
+        recommended_tool = self._workflow_tool_value(getattr(report, "recommended_tool", ""))
+        recommended_tool_label = getattr(report, "recommended_tool_label", "") or "N/A"
+        lines = [
+            getattr(report, "title", "Workflow Review") or "Workflow Review",
+            "=" * 40,
+            "",
+            f"Workflow Type:      {workflow_type or 'N/A'}",
+            f"State:              {state or 'N/A'}",
+            f"State Reason:       {getattr(report, 'state_reason', '') or 'N/A'}",
+            f"Recommended Tool:   {recommended_tool or 'N/A'}",
+            f"Tool Label:         {recommended_tool_label}",
+            "",
+            "Summary",
+            "-" * 40,
+            getattr(report, "summary", "") or "No workflow summary available.",
+            "",
+            "Next Actions",
+            "-" * 40,
+        ]
+
+        actions = getattr(report, "next_actions", []) or []
+        if actions:
+            for action in actions:
+                action_state = getattr(getattr(action, "state", None), "value", getattr(action, "state", ""))
+                action_tool = self._workflow_tool_value(getattr(action, "recommended_tool", ""))
+                action_tool_label = getattr(action, "recommended_tool_label", "") or "N/A"
+                lines.append(f"- {getattr(action, 'label', '') or 'Review workflow action'}")
+                reason = getattr(action, "reason", "")
+                if reason:
+                    lines.append(f"  Reason: {reason}")
+                lines.append(f"  State: {action_state or 'N/A'}")
+                lines.append(f"  Recommended Tool: {action_tool or 'N/A'}")
+                lines.append(f"  Open: {action_tool_label}")
+                evidence = getattr(action, "evidence", []) or []
+                if evidence:
+                    lines.append("  Evidence:")
+                    for item in evidence:
+                        lines.append(f"    - {self._format_workflow_evidence_item(item)}")
+        else:
+            lines.append("- No workflow actions available.")
+
+        lines.extend(["", "Evidence", "-" * 40])
+        evidence = getattr(report, "evidence", []) or []
+        if evidence:
+            for item in evidence:
+                lines.append(f"- {self._format_workflow_evidence_item(item)}")
+        else:
+            lines.append("- No workflow evidence available.")
+
+        warnings = getattr(report, "warnings", []) or []
+        if warnings:
+            lines.extend(["", "Warnings", "-" * 40])
+            for warning in warnings:
+                lines.append(f"- {warning}")
+        return "\n".join(lines) + "\n"
+
+    @staticmethod
+    def _format_workflow_evidence_item(item):
+        """Format one workflow evidence item."""
+        severity = getattr(getattr(item, "severity", None), "value", getattr(item, "severity", "INFO"))
+        source = getattr(item, "source", "") or "Workflow"
+        detail = getattr(item, "detail", "") or "No detail available."
+        action = getattr(item, "action", "")
+        text = f"[{severity}] {source}: {detail}"
+        if action:
+            text += f" | Action: {action}"
+        return text
 
     def _format_data_safety(self, report):
         lines = ["Data Safety", "=" * 40, ""]
