@@ -10,9 +10,11 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional
 
 from collection_dashboard import CollectionDashboard
+from collection_intelligence import CollectionIntelligenceEngine
 from collection_integrity import CollectionIntegrityAudit
 from collection_quality import CollectionQualityEngine
 from collection_snapshot import CollectionSnapshotManager
@@ -23,6 +25,7 @@ from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate, PhotoReview
 from photo_vault import PhotoCoverageReport, PhotoRecord, PhotoVaultIntegrityAudit
 from shopping_explainability import ExplainableRecommendationReport, ShoppingExplanationEngine
 from smart_shopping_assistant import ShoppingCandidate, ShoppingRecommendationReport, SmartShoppingAssistant
+from upgrade_advisor import UpgradeAdvisor
 
 
 def _now_iso() -> str:
@@ -38,6 +41,179 @@ def _dedupe(values: Iterable[str]) -> List[str]:
             seen.add(text.lower())
             result.append(text)
     return result
+
+
+class WorkflowType(Enum):
+    """Supported unified review workflow routes."""
+
+    ACQUISITION_REVIEW = "ACQUISITION_REVIEW"
+    COLLECTION_REVIEW = "COLLECTION_REVIEW"
+    UPGRADE_REVIEW = "UPGRADE_REVIEW"
+    DUPLICATE_REVIEW = "DUPLICATE_REVIEW"
+    DAILY_INBOX = "DAILY_INBOX"
+
+
+class WorkflowState(Enum):
+    """High-level state for a unified workflow report."""
+
+    READY = "READY"
+    NEEDS_INPUT = "NEEDS_INPUT"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    BLOCKED = "BLOCKED"
+    COMPLETE = "COMPLETE"
+
+
+class WorkflowSeverity(Enum):
+    """Normalized severity for workflow evidence."""
+
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+def _coerce_workflow_type(value: Any) -> WorkflowType:
+    if isinstance(value, WorkflowType):
+        return value
+    try:
+        return WorkflowType(str(value or "").strip())
+    except ValueError as exc:
+        raise ValueError(f"Unsupported workflow type: {value}") from exc
+
+
+def _coerce_state(value: Any) -> WorkflowState:
+    if isinstance(value, WorkflowState):
+        return value
+    try:
+        return WorkflowState(str(value or WorkflowState.REVIEW_REQUIRED.value).strip().upper())
+    except ValueError:
+        return WorkflowState.REVIEW_REQUIRED
+
+
+def _coerce_severity(value: Any) -> WorkflowSeverity:
+    if isinstance(value, WorkflowSeverity):
+        return value
+    try:
+        return WorkflowSeverity(str(value or WorkflowSeverity.INFO.value).strip().upper())
+    except ValueError:
+        return WorkflowSeverity.INFO
+
+
+@dataclass
+class WorkflowEvidence:
+    """Source-labeled evidence used by unified workflow reports and actions."""
+
+    source: str
+    detail: str
+    severity: WorkflowSeverity = WorkflowSeverity.INFO
+    action: str = ""
+
+    def __post_init__(self) -> None:
+        self.source = str(self.source or "collector_workflows").strip()
+        self.detail = str(self.detail or "").strip()
+        self.severity = _coerce_severity(self.severity)
+        self.action = str(self.action or "").strip()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source": self.source,
+            "detail": self.detail,
+            "severity": self.severity.value,
+            "action": self.action,
+        }
+
+
+@dataclass
+class WorkflowAction:
+    """Review-only next action with source evidence."""
+
+    label: str
+    reason: str = ""
+    source: str = ""
+    state: WorkflowState = WorkflowState.REVIEW_REQUIRED
+    evidence: List[WorkflowEvidence] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.label = str(self.label or "").strip()
+        self.reason = str(self.reason or "").strip()
+        self.source = str(self.source or "collector_workflows").strip()
+        self.state = _coerce_state(self.state)
+        self.evidence = [
+            evidence if isinstance(evidence, WorkflowEvidence) else WorkflowEvidence(**evidence)
+            for evidence in self.evidence
+        ]
+        if not self.evidence:
+            detail = self.reason or self.label or "Workflow action requires collector review."
+            self.evidence = [WorkflowEvidence(self.source, detail, WorkflowSeverity.INFO)]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "label": self.label,
+            "reason": self.reason,
+            "source": self.source,
+            "state": self.state.value,
+            "evidence": [evidence.to_dict() for evidence in self.evidence],
+        }
+
+
+@dataclass
+class WorkflowRequest:
+    """Request for one unified workflow route."""
+
+    workflow_type: WorkflowType
+    candidate: Optional[Any] = None
+    owned_item: Optional[Any] = None
+    raw_ocr_text: str = ""
+    context: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.workflow_type = _coerce_workflow_type(self.workflow_type)
+        self.raw_ocr_text = str(self.raw_ocr_text or "")
+        self.context = dict(self.context or {})
+
+
+@dataclass
+class UnifiedWorkflowReport:
+    """Normalized report returned by the unified workflow engine."""
+
+    workflow_type: WorkflowType
+    state: WorkflowState
+    title: str
+    summary: str
+    evidence: List[WorkflowEvidence] = field(default_factory=list)
+    next_actions: List[WorkflowAction] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    source_reports: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.workflow_type = _coerce_workflow_type(self.workflow_type)
+        self.state = _coerce_state(self.state)
+        self.title = str(self.title or "").strip()
+        self.summary = str(self.summary or "").strip()
+        self.evidence = [
+            evidence if isinstance(evidence, WorkflowEvidence) else WorkflowEvidence(**evidence)
+            for evidence in self.evidence
+        ]
+        self.next_actions = [
+            action if isinstance(action, WorkflowAction) else WorkflowAction(**action)
+            for action in self.next_actions
+        ]
+        self.warnings = _dedupe(self.warnings)
+        self.source_reports = dict(self.source_reports or {})
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "workflow_type": self.workflow_type.value,
+            "state": self.state.value,
+            "title": self.title,
+            "summary": self.summary,
+            "evidence": [evidence.to_dict() for evidence in self.evidence],
+            "next_actions": [action.to_dict() for action in self.next_actions],
+            "warnings": list(self.warnings),
+            "source_reports": {
+                key: value.to_dict() if hasattr(value, "to_dict") else str(value)
+                for key, value in self.source_reports.items()
+            },
+        }
 
 
 @dataclass
@@ -523,6 +699,25 @@ class CollectorWorkflowEngine:
         self.market_awareness_engine = market_awareness_engine or MarketAwarenessEngine()
         self.snapshot_manager = snapshot_manager or CollectionSnapshotManager()
 
+    def run_workflow(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        """Run one deterministic workflow route and normalize the result."""
+        if not isinstance(request, WorkflowRequest):
+            raise ValueError("run_workflow requires a WorkflowRequest.")
+        routes = {
+            WorkflowType.ACQUISITION_REVIEW: self._run_acquisition_review,
+            WorkflowType.COLLECTION_REVIEW: self._run_collection_review,
+            WorkflowType.UPGRADE_REVIEW: self._run_upgrade_review,
+            WorkflowType.DUPLICATE_REVIEW: self._run_duplicate_review,
+            WorkflowType.DAILY_INBOX: self._run_daily_inbox,
+        }
+        route = routes.get(request.workflow_type)
+        if route is None:
+            raise ValueError(f"Unsupported workflow type: {request.workflow_type}")
+        try:
+            return route(request)
+        except Exception as exc:
+            return self._blocked_report(request.workflow_type, self._workflow_title(request.workflow_type), exc)
+
     def acquisition_workflow(self, candidate: PhotoCandidate, raw_ocr_text: str = "") -> AcquisitionWorkflowReport:
         return AcquisitionWorkflow(
             self.collection_items,
@@ -578,3 +773,265 @@ class CollectorWorkflowEngine:
             statuses=statuses,
         )
         return CollectorDailySummary(summary, tasks)
+
+    def _run_acquisition_review(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        if request.candidate is None:
+            return self._needs_input_report(
+                WorkflowType.ACQUISITION_REVIEW,
+                "Acquisition Review",
+                "Acquisition Review requires a candidate.",
+            )
+        report = self.acquisition_workflow(request.candidate, raw_ocr_text=request.raw_ocr_text)
+        return self._normalize_summary_report(
+            WorkflowType.ACQUISITION_REVIEW,
+            "Acquisition Review",
+            report.summary,
+            {"acquisition": report},
+        )
+
+    def _run_collection_review(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        report = self.collection_review_workflow()
+        return self._normalize_summary_report(
+            WorkflowType.COLLECTION_REVIEW,
+            "Collection Review",
+            report.summary,
+            {"collection_review": report},
+        )
+
+    def _run_upgrade_review(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        if request.candidate is None:
+            return self._needs_input_report(
+                WorkflowType.UPGRADE_REVIEW,
+                "Upgrade Review",
+                "Upgrade Review requires a candidate.",
+            )
+        candidate = self._candidate_fields(request.candidate)
+        recommendation = UpgradeAdvisor(self.collection_items).analyze_upgrade(
+            candidate["country"],
+            candidate["denomination"],
+            candidate["year"],
+            candidate["grade"],
+            candidate["estimate"],
+        )
+        evidence = [
+            WorkflowEvidence("UpgradeAdvisor", recommendation.reason or recommendation.verdict, self._severity_for_text(recommendation.verdict), "Review upgrade verdict"),
+            WorkflowEvidence("UpgradeAdvisor", f"Upgrade score {recommendation.upgrade_score}", WorkflowSeverity.INFO, "Compare candidate against owned example"),
+        ]
+        if recommendation.existing_item_id:
+            evidence.append(WorkflowEvidence("UpgradeAdvisor", f"Existing item {recommendation.existing_item_id}: {recommendation.existing_grade}", WorkflowSeverity.INFO))
+        warnings = []
+        if recommendation.spot_price_warning:
+            warnings.append(recommendation.spot_price_warning)
+            evidence.append(WorkflowEvidence("MeltValueEngine", recommendation.spot_price_warning, WorkflowSeverity.WARNING))
+        actions = [
+            WorkflowAction(
+                "Review upgrade recommendation",
+                recommendation.reason or recommendation.verdict,
+                "UpgradeAdvisor",
+                WorkflowState.REVIEW_REQUIRED,
+                [evidence[0]],
+            )
+        ]
+        return UnifiedWorkflowReport(
+            WorkflowType.UPGRADE_REVIEW,
+            self._state_from_evidence(evidence),
+            "Upgrade Review",
+            f"{recommendation.verdict}: {candidate['country']} {candidate['denomination']} {candidate['year']}".strip(),
+            evidence=self._sort_evidence(evidence),
+            next_actions=actions,
+            warnings=warnings,
+            source_reports={"upgrade_recommendation": recommendation},
+        )
+
+    def _run_duplicate_review(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        intelligence = CollectionIntelligenceEngine(self.collection_items)
+        duplicates = intelligence.detect_duplicates()
+        upgrade_candidates = intelligence.detect_upgrade_candidates()
+        evidence = [
+            WorkflowEvidence("CollectionIntelligenceEngine", f"{len(duplicates)} duplicate group(s) detected", WorkflowSeverity.WARNING if duplicates else WorkflowSeverity.INFO, "Review duplicate holdings"),
+            WorkflowEvidence("CollectionIntelligenceEngine", f"{len(upgrade_candidates)} lower-grade duplicate upgrade candidate(s)", WorkflowSeverity.WARNING if upgrade_candidates else WorkflowSeverity.INFO, "Review lower-grade duplicates"),
+        ]
+        for duplicate in duplicates[:5]:
+            detail = f"{duplicate['country']} {duplicate['denomination']} {duplicate['year']}: {duplicate['count']} held".strip()
+            evidence.append(WorkflowEvidence("CollectionIntelligenceEngine", detail, WorkflowSeverity.WARNING, "Decide keep/trade/sell after manual review"))
+        actions = []
+        if duplicates:
+            actions.append(WorkflowAction(
+                "Review duplicate holdings",
+                "Duplicate groups need collector review before any action.",
+                "CollectionIntelligenceEngine",
+                WorkflowState.REVIEW_REQUIRED,
+                [evidence[0]],
+            ))
+        if upgrade_candidates:
+            actions.append(WorkflowAction(
+                "Review lower-grade duplicate upgrades",
+                "Keep strongest examples and review lower-grade duplicates.",
+                "CollectionIntelligenceEngine",
+                WorkflowState.REVIEW_REQUIRED,
+                [evidence[1]],
+            ))
+        if not actions:
+            actions.append(WorkflowAction(
+                "No duplicate action required",
+                "No duplicate holdings were detected.",
+                "CollectionIntelligenceEngine",
+                WorkflowState.COMPLETE,
+                [evidence[0]],
+            ))
+        return UnifiedWorkflowReport(
+            WorkflowType.DUPLICATE_REVIEW,
+            WorkflowState.REVIEW_REQUIRED if duplicates or upgrade_candidates else WorkflowState.COMPLETE,
+            "Duplicate Review",
+            f"{len(duplicates)} duplicate group(s); {len(upgrade_candidates)} upgrade candidate(s)",
+            evidence=self._sort_evidence(evidence),
+            next_actions=actions,
+            source_reports={"duplicates": duplicates, "upgrade_candidates": upgrade_candidates},
+        )
+
+    def _run_daily_inbox(self, request: WorkflowRequest) -> UnifiedWorkflowReport:
+        report = self.daily_summary()
+        return self._normalize_summary_report(
+            WorkflowType.DAILY_INBOX,
+            "Daily Inbox",
+            report.summary,
+            {"daily_summary": report},
+        )
+
+    def _normalize_summary_report(
+        self,
+        workflow_type: WorkflowType,
+        title: str,
+        summary: WorkflowSummary,
+        source_reports: Dict[str, Any],
+    ) -> UnifiedWorkflowReport:
+        evidence = self._evidence_from_statuses(summary.statuses)
+        if not evidence:
+            evidence = [WorkflowEvidence(title, summary.headline or "Workflow produced no status items.")]
+        actions = self._actions_from_summary(summary)
+        warnings = [evidence_item.detail for evidence_item in evidence if evidence_item.severity in {WorkflowSeverity.WARNING, WorkflowSeverity.ERROR}]
+        return UnifiedWorkflowReport(
+            workflow_type,
+            self._state_from_summary(summary, evidence, actions),
+            title,
+            summary.headline,
+            evidence=self._sort_evidence(evidence),
+            next_actions=actions,
+            warnings=warnings,
+            source_reports=source_reports,
+        )
+
+    @staticmethod
+    def _evidence_from_statuses(statuses: Iterable[WorkflowStatus]) -> List[WorkflowEvidence]:
+        evidence = []
+        for status in statuses:
+            detail = f"{status.status}: {status.detail or status.action}".strip()
+            evidence.append(WorkflowEvidence("WorkflowStatus", detail, _coerce_severity(status.severity), status.action))
+        return evidence
+
+    @staticmethod
+    def _actions_from_summary(summary: WorkflowSummary) -> List[WorkflowAction]:
+        status_evidence = CollectorWorkflowEngine._evidence_from_statuses(summary.statuses)
+        fallback = status_evidence[:1] or [WorkflowEvidence(summary.workflow_name, summary.headline or "Review workflow output.")]
+        actions = []
+        for action in summary.next_actions:
+            actions.append(WorkflowAction(
+                action,
+                summary.headline,
+                summary.workflow_name,
+                WorkflowState.REVIEW_REQUIRED,
+                fallback,
+            ))
+        if not actions:
+            actions.append(WorkflowAction(
+                "Review workflow report",
+                summary.headline,
+                summary.workflow_name,
+                WorkflowState.REVIEW_REQUIRED,
+                fallback,
+            ))
+        return actions
+
+    @staticmethod
+    def _sort_evidence(evidence: Iterable[WorkflowEvidence]) -> List[WorkflowEvidence]:
+        return sorted(evidence, key=lambda item: (item.source.lower(), item.detail.lower(), item.action.lower()))
+
+    @staticmethod
+    def _state_from_summary(summary: WorkflowSummary, evidence: List[WorkflowEvidence], actions: List[WorkflowAction]) -> WorkflowState:
+        if any(item.severity == WorkflowSeverity.ERROR for item in evidence):
+            return WorkflowState.BLOCKED
+        if any(item.severity == WorkflowSeverity.WARNING for item in evidence):
+            return WorkflowState.REVIEW_REQUIRED
+        if not actions:
+            return WorkflowState.COMPLETE
+        status = str(summary.status or "").strip().lower()
+        if status in {"ready", "review ready"}:
+            return WorkflowState.READY
+        return WorkflowState.REVIEW_REQUIRED
+
+    @staticmethod
+    def _state_from_evidence(evidence: List[WorkflowEvidence]) -> WorkflowState:
+        if any(item.severity == WorkflowSeverity.ERROR for item in evidence):
+            return WorkflowState.BLOCKED
+        if any(item.severity == WorkflowSeverity.WARNING for item in evidence):
+            return WorkflowState.REVIEW_REQUIRED
+        return WorkflowState.READY
+
+    @staticmethod
+    def _severity_for_text(value: str) -> WorkflowSeverity:
+        text = str(value or "").lower()
+        if any(term in text for term in ("pass", "hold", "duplicate", "warning", "review")):
+            return WorkflowSeverity.WARNING
+        return WorkflowSeverity.INFO
+
+    @staticmethod
+    def _candidate_fields(candidate: Any) -> Dict[str, Any]:
+        estimate = getattr(candidate, "estimate_cad", getattr(candidate, "asking_price", 0.0))
+        try:
+            estimate = float(estimate or 0.0)
+        except (TypeError, ValueError):
+            estimate = 0.0
+        return {
+            "country": str(getattr(candidate, "country", "") or "").strip(),
+            "denomination": str(getattr(candidate, "denomination", "") or "").strip(),
+            "year": str(getattr(candidate, "year", "") or "").strip(),
+            "grade": str(getattr(candidate, "grade", "") or "").strip(),
+            "estimate": estimate,
+        }
+
+    @staticmethod
+    def _workflow_title(workflow_type: WorkflowType) -> str:
+        return {
+            WorkflowType.ACQUISITION_REVIEW: "Acquisition Review",
+            WorkflowType.COLLECTION_REVIEW: "Collection Review",
+            WorkflowType.UPGRADE_REVIEW: "Upgrade Review",
+            WorkflowType.DUPLICATE_REVIEW: "Duplicate Review",
+            WorkflowType.DAILY_INBOX: "Daily Inbox",
+        }[workflow_type]
+
+    @staticmethod
+    def _needs_input_report(workflow_type: WorkflowType, title: str, detail: str) -> UnifiedWorkflowReport:
+        evidence = [WorkflowEvidence("CollectorWorkflowEngine", detail, WorkflowSeverity.WARNING, "Provide required workflow input")]
+        return UnifiedWorkflowReport(
+            workflow_type,
+            WorkflowState.NEEDS_INPUT,
+            title,
+            detail,
+            evidence=evidence,
+            next_actions=[WorkflowAction("Provide required workflow input", detail, "CollectorWorkflowEngine", WorkflowState.NEEDS_INPUT, evidence)],
+            warnings=[detail],
+        )
+
+    @staticmethod
+    def _blocked_report(workflow_type: WorkflowType, title: str, error: Exception) -> UnifiedWorkflowReport:
+        detail = str(error) or error.__class__.__name__
+        evidence = [WorkflowEvidence("CollectorWorkflowEngine", detail, WorkflowSeverity.ERROR, "Review source engine failure")]
+        return UnifiedWorkflowReport(
+            workflow_type,
+            WorkflowState.BLOCKED,
+            title,
+            "Workflow could not complete because a source engine failed.",
+            evidence=evidence,
+            next_actions=[WorkflowAction("Review workflow failure", detail, "CollectorWorkflowEngine", WorkflowState.BLOCKED, evidence)],
+            warnings=[detail],
+        )

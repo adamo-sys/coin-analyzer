@@ -12,8 +12,14 @@ from collector_workflows import (
     CollectorWorkflowEngine,
     CollectionReviewReport,
     PhotoReviewWorkflow,
+    UnifiedWorkflowReport,
+    WorkflowAction,
+    WorkflowEvidence,
+    WorkflowRequest,
+    WorkflowState,
     WorkflowStatus,
     WorkflowSummary,
+    WorkflowType,
 )
 from legacy_portfolio_importer import LegacyWantListIntent
 from ocr_experiment import OCRExperiment
@@ -172,6 +178,138 @@ class TestCollectorWorkflows(unittest.TestCase):
                 self.assertIn("workflow_status", handle.read())
             with open(md_path, "r", encoding="utf-8") as handle:
                 self.assertIn("Daily Collector Summary", handle.read())
+
+    def test_unified_workflow_dtos(self):
+        evidence = WorkflowEvidence("Unit Test", "Evidence detail")
+        action = WorkflowAction("Review item", evidence=[evidence])
+        request = WorkflowRequest(WorkflowType.COLLECTION_REVIEW)
+        report = UnifiedWorkflowReport(
+            WorkflowType.COLLECTION_REVIEW,
+            WorkflowState.READY,
+            "Collection Review",
+            "Ready",
+            evidence=[evidence],
+            next_actions=[action],
+        )
+
+        self.assertEqual(request.workflow_type, WorkflowType.COLLECTION_REVIEW)
+        self.assertEqual(report.to_dict()["workflow_type"], "COLLECTION_REVIEW")
+        self.assertTrue(report.next_actions[0].evidence)
+
+    def test_run_workflow_acquisition_review(self):
+        candidate = PhotoCandidate(
+            title="Newfoundland 50 cents 1904 VF20",
+            front_photo="front.jpg",
+            asking_price=120,
+        )
+
+        report = CollectorWorkflowEngine(self.items, self.want_list).run_workflow(
+            WorkflowRequest(
+                WorkflowType.ACQUISITION_REVIEW,
+                candidate=candidate,
+                raw_ocr_text="Newfoundland 1904 50 cents",
+            )
+        )
+
+        self.assertEqual(report.workflow_type, WorkflowType.ACQUISITION_REVIEW)
+        self.assertIn(report.state, {WorkflowState.READY, WorkflowState.REVIEW_REQUIRED})
+        self.assertIn("acquisition", report.source_reports)
+        self.assertTrue(report.evidence)
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_acquisition_missing_candidate(self):
+        report = CollectorWorkflowEngine(self.items, self.want_list).run_workflow(
+            WorkflowRequest(WorkflowType.ACQUISITION_REVIEW)
+        )
+
+        self.assertEqual(report.state, WorkflowState.NEEDS_INPUT)
+        self.assertTrue(report.warnings)
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_collection_review(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report = CollectorWorkflowEngine(
+                self.items,
+                self.want_list,
+                snapshot_manager=CollectionSnapshotManager(os.path.join(temp_dir, "snapshots.json")),
+            ).run_workflow(WorkflowRequest(WorkflowType.COLLECTION_REVIEW))
+
+        self.assertEqual(report.workflow_type, WorkflowType.COLLECTION_REVIEW)
+        self.assertIn("collection_review", report.source_reports)
+        self.assertTrue(any("Quality Reviewed" in evidence.detail for evidence in report.evidence))
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_upgrade_review(self):
+        candidate = make_item("candidate", "Canada", "10 cents", "1911", "AU-50")
+        report = CollectorWorkflowEngine(self.items, self.want_list).run_workflow(
+            WorkflowRequest(WorkflowType.UPGRADE_REVIEW, candidate=candidate)
+        )
+
+        self.assertEqual(report.workflow_type, WorkflowType.UPGRADE_REVIEW)
+        self.assertIn("upgrade_recommendation", report.source_reports)
+        self.assertTrue(any(evidence.source == "UpgradeAdvisor" for evidence in report.evidence))
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_upgrade_missing_candidate(self):
+        report = CollectorWorkflowEngine(self.items, self.want_list).run_workflow(
+            WorkflowRequest(WorkflowType.UPGRADE_REVIEW)
+        )
+
+        self.assertEqual(report.state, WorkflowState.NEEDS_INPUT)
+        self.assertTrue(report.evidence)
+
+    def test_run_workflow_duplicate_review(self):
+        report = CollectorWorkflowEngine(self.items, self.want_list).run_workflow(
+            WorkflowRequest(WorkflowType.DUPLICATE_REVIEW)
+        )
+
+        self.assertEqual(report.workflow_type, WorkflowType.DUPLICATE_REVIEW)
+        self.assertEqual(report.state, WorkflowState.REVIEW_REQUIRED)
+        self.assertIn("duplicates", report.source_reports)
+        self.assertTrue(any("duplicate group" in evidence.detail for evidence in report.evidence))
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_daily_inbox(self):
+        ocr_report = OCRExperiment().run("front.jpg", raw_text="blurred")
+        report = CollectorWorkflowEngine(
+            self.items,
+            self.want_list,
+            ocr_reports=[ocr_report],
+            shopping_candidates=[ShoppingCandidate("Newfoundland 50 cents 1904", asking_price=120)],
+        ).run_workflow(WorkflowRequest(WorkflowType.DAILY_INBOX))
+
+        self.assertEqual(report.workflow_type, WorkflowType.DAILY_INBOX)
+        self.assertIn("daily_summary", report.source_reports)
+        self.assertTrue(report.next_actions)
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_rejects_non_request(self):
+        with self.assertRaises(ValueError):
+            CollectorWorkflowEngine(self.items, self.want_list).run_workflow("COLLECTION_REVIEW")
+
+    def test_run_workflow_source_failure_degrades(self):
+        engine = CollectorWorkflowEngine(self.items, self.want_list)
+
+        def fail_collection_review():
+            raise RuntimeError("source unavailable")
+
+        engine.collection_review_workflow = fail_collection_review
+        report = engine.run_workflow(WorkflowRequest(WorkflowType.COLLECTION_REVIEW))
+
+        self.assertEqual(report.state, WorkflowState.BLOCKED)
+        self.assertIn("source unavailable", report.warnings)
+        self.assertTrue(all(action.evidence for action in report.next_actions))
+
+    def test_run_workflow_deterministic_and_read_only(self):
+        before = [item.to_dict() for item in self.items]
+        engine = CollectorWorkflowEngine(self.items, self.want_list)
+        first = engine.run_workflow(WorkflowRequest(WorkflowType.DUPLICATE_REVIEW))
+        second = engine.run_workflow(WorkflowRequest(WorkflowType.DUPLICATE_REVIEW))
+        after = [item.to_dict() for item in self.items]
+
+        self.assertEqual(before, after)
+        self.assertEqual([evidence.to_dict() for evidence in first.evidence], [evidence.to_dict() for evidence in second.evidence])
+        self.assertEqual([action.to_dict() for action in first.next_actions], [action.to_dict() for action in second.next_actions])
 
 
 if __name__ == "__main__":

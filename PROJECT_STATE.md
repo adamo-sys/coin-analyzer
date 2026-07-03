@@ -4,7 +4,7 @@
 
 * Current release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 Workflow Engine next)
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
 * Current Git branch: `main`
 * Last updated date: 2026-07-03
 
@@ -187,7 +187,7 @@ v8.2 = AI Grading Assistant (released)
 v8.3 = Collector Workspace (released)
 v8.4 = Connected Data (released)
 v8.5 = Collector Advisor (released)
-v8.6 = Collector Intelligence & Workflow (Phase 0 complete; Phase 1 next)
+v8.6 = Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
 
 v9.0 = Collector Ecosystem
 
@@ -233,7 +233,7 @@ Near-term maintenance candidates:
 
 ## Next Priority Task
 
-Begin v8.6 Phase 1 Workflow Engine only. Do not begin v8.6 Phase 2+ until Phase 1 is implemented, tested, and reviewed.
+Await approval for v8.6 Phase 2 Portfolio Dashboard. Do not begin v8.6 Phase 2+ without explicit approval.
 
 
 ## Release Prompt Archive

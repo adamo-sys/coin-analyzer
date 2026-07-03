@@ -2,7 +2,7 @@
 
 ## v8.6 Collector Intelligence & Workflow
 
-Status: Phase 0 - Roadmap Lock Complete
+Status: Phase 1 - Workflow Engine Complete
 
 ### Phase 0 - Roadmap Lock
 - [x] Create VISION.md
@@ -18,16 +18,16 @@ Status: Phase 0 - Roadmap Lock Complete
 - [x] Push Phase 0
 
 ### Phase 1 - Workflow Engine
-- [ ] Design unified workflow request/report API
-- [ ] Support Acquisition Review
-- [ ] Support Collection Review
-- [ ] Support Upgrade Review
-- [ ] Support Duplicate Review
-- [ ] Support Daily Inbox
-- [ ] Reuse existing engines without duplicating business logic
-- [ ] Add deterministic ordering and evidence tests
-- [ ] Add missing/empty input tests
-- [ ] Run full regression
+- [x] Design unified workflow request/report API
+- [x] Support Acquisition Review
+- [x] Support Collection Review
+- [x] Support Upgrade Review
+- [x] Support Duplicate Review
+- [x] Support Daily Inbox
+- [x] Reuse existing engines without duplicating business logic
+- [x] Add deterministic ordering and evidence tests
+- [x] Add missing/empty input tests
+- [x] Run full regression (1272 tests)
 
 ### Phase 2 - Portfolio Dashboard
 - [ ] Promote portfolio metrics toward application home screen

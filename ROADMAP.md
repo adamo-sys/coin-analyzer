@@ -129,7 +129,7 @@ v8.6 transitions Coin Analyzer from isolated recommendations toward guided colle
 
 **Vision source:** `VISION.md` captures the long-term platform direction and should be checked before expanding v8.6 scope.
 
-**Status:** Phase 0 roadmap lock complete. Next implementation target is Phase 1 Workflow Engine only.
+**Status:** Phase 1 Workflow Engine complete. Await approval before Phase 2 Portfolio Dashboard.
 
 ---
 

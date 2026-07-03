@@ -6,8 +6,8 @@
 - Branch: `main`
 - Current project state file reports release version: `v8.5`
 - Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 Workflow Engine next)
-- Current active task: v8.6 Phase 1 Workflow Engine
+- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 1 complete; Phase 2 awaiting approval)
+- Current active task: Await approval for v8.6 Phase 2 Portfolio Dashboard
 - Last release: v8.5 Collector Advisor (released)
 - Latest implementation commit: `b5ba9ec` (CI brittle test fixes)
 - Release tag: `v8.5`
@@ -32,7 +32,7 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 6. `v8.3` Collector Workspace (released)
 7. `v8.4` Connected Data (released)
 8. `v8.5` Collector Advisor (released)
-9. `v8.6` Collector Intelligence & Workflow (Phase 1 next)
+9. `v8.6` Collector Intelligence & Workflow (Phase 1 complete)
 10. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
@@ -138,6 +138,8 @@ Vision source of truth: `VISION.md` sits above `ROADMAP.md` and captures the lon
 * Release prompt archived: `project_docs/release_prompts/v8.6.txt`.
 * Release notes: `docs/releases/v8.6.md`.
 * Implementation plan: `v8.6_implementation_plan.md`.
+* v8.6 Phase 1 Workflow Engine complete: added unified workflow DTOs, workflow states, and `CollectorWorkflowEngine.run_workflow(request)` in `collector_workflows.py`; wrapped Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox without removing existing APIs.
+* Phase 1 tests passed: `python -m unittest test_collector_workflows.py` -> 18 tests OK; `python -m unittest discover` -> 1272 tests OK.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.
