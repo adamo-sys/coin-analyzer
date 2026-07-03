@@ -2,16 +2,16 @@
 
 ## Snapshot
 
-- Date: 2026-07-02
+- Date: 2026-07-03
 - Branch: `main`
-- Current project state file reports release version: `v8.5`
-- Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 2 complete; next phase awaiting approval)
-- Current active task: Await approval for the next v8.6 phase
-- Last release: v8.5 Collector Advisor (released)
-- Latest implementation commit: `b5ba9ec` (CI brittle test fixes)
-- Release tag: `v8.5`
-- Release metadata commit: `v8.5` tag target
+- Current project state file reports release version: `v8.6`
+- Next planned release: post-v8.6 collector usage and v8.7 planning
+- Active development target: v8.6 release complete
+- Current active task: Use Coin Analyzer as a collector before opening the next feature cycle
+- Last release: v8.6 Unified Workflow (released)
+- Latest implementation commit: v8.6 release metadata tag target
+- Release tag: `v8.6`
+- Release metadata commit: `v8.6` tag target
 
 ## Official v2.7-to-v3.0 Roadmap
 
@@ -32,7 +32,7 @@ Clarification: `v2.9` is not a new feature engine. It is a release-candidate pol
 6. `v8.3` Collector Workspace (released)
 7. `v8.4` Connected Data (released)
 8. `v8.5` Collector Advisor (released)
-9. `v8.6` Collector Intelligence & Workflow (Phase 1 complete)
+9. `v8.6` Unified Workflow (released)
 10. `v9.0` Collector Ecosystem
 
 Roadmap rationale: v7.0 established the platform architecture with service registry, plugin system, command framework, event bus, unified models, UI patterns, configuration, and state management. v7.1 added platform analytics for monitoring and insights, measuring every major subsystem using deterministic local data without AI, forecasting, or external APIs. v7.2 added Collection Insights that transform deterministic analytics into explainable, evidence-based observations about the collection, portfolio, workflow, and acquisition strategy. v7.3 added Acquisition Strategy that orchestrates existing collection intelligence, insights, analytics, opportunity scoring, and market intelligence into strategic acquisition plans with phased priorities, portfolio balance guidance, and risk-adjusted recommendations without AI reasoning, forecasting, machine learning, or external APIs. v7.4 adds Collection Assistant that orchestrates existing Photo Capture, OCR Identification, Collection Intelligence, Collection Insights, and Acquisition Strategy engines into a single guided review experience for dramatically reducing manual cataloguing work while preserving user review and approval for every collection change.
@@ -130,18 +130,24 @@ Vision source of truth: `VISION.md` sits above `ROADMAP.md` and captures the lon
 * Roadmap lock commit: `9e65158`.
 * Release metadata commit: `v8.5` tag target.
 
-* v8.6 roadmap lock complete: Collector Intelligence & Workflow.
-* Phase order: Workflow Engine, Workflow Workspace Integration, Portfolio Dashboard, Explainability improvements, Batch Processing, Collection Health, Recommendation Memory.
-* Phase 1 scope: create one workflow engine/facade for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
-* Phase 1 constraints: reuse existing engines first; no collection mutation; no automatic buying, selling, grading, deletion, submission, or conflict resolution; no new persistence; no GUI work unless explicitly approved after API stabilization.
-* Vision document created: `VISION.md`.
+* v8.6 Unified Workflow released: `CollectorWorkflowEngine.run_workflow(request)`, unified workflow DTOs, workflow states, workspace integration, explainability/navigation metadata, existing Workflow tab GUI integration, and polished Workflow Review markdown export.
+* Phase 0 roadmap lock: `VISION.md`, `docs/releases/v8.6.md`, `project_docs/release_prompts/v8.6.txt`, and `v8.6_implementation_plan.md`.
+* Phase 1 Workflow Engine: `WorkflowRequest`, `WorkflowEvidence`, `WorkflowAction`, `UnifiedWorkflowReport`, `WorkflowState`, `WorkflowType`, and five workflow routes (Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, Daily Inbox).
+* Phase 2 Workspace Integration: `CollectorWorkspace.get_workflows()`, `CollectorWorkspace.get_workflow(request)`, workflow cache namespace, `workflow_review` descriptor under Workflow, markdown-only export, and BLOCKED degradation.
+* Phase 3 Explainability & Navigation: `state_reason`, `RecommendedTool`, `recommended_tool`, and `recommended_tool_label` metadata on workflow reports/actions.
+* Phase 4 GUI Integration: existing Collector Workspace Workflow tab now consumes `CollectorWorkspace.get_workflows()` and displays unified workflow state, evidence, actions, and existing-tool buttons.
+* Phase 5 Reporting & Polish: release-quality Workflow Review markdown with stable summary, next action, recommended tool, actions, evidence, warnings, empty states, and deterministic formatting tests.
+* Phase 6 Release Engineering: metadata docs, release notes, regression, annotated `v8.6` tag, and remote ref verification.
+* Implementation commits: `785e229` (Phase 0), `54e695e` (Phase 1), `e5fa7ec` (Phase 2), `002ccd2` (Phase 3), `346616c` (Phase 4), `06eb6d9` (Phase 5), `v8.6` tag target (Phase 6 release metadata).
+* Release tag: `v8.6`.
+* Tests passed: `python -m unittest test_collector_workspace.py` -> 119 tests OK; full `python -m unittest discover` -> 1296 tests OK.
+* Full-suite audit status: PASS.
+* Coverage note: total passing tests increased from 1261 to 1296 across v8.6.
+* Limitation: deterministic local workflow assistance only; no new persistence, no collection mutation, no ML/CV, no scraping, no external APIs, no background jobs, no automatic buying/selling/grading/deletion/conflict resolution.
 * Release prompt archived: `project_docs/release_prompts/v8.6.txt`.
 * Release notes: `docs/releases/v8.6.md`.
-* Implementation plan: `v8.6_implementation_plan.md`.
-* v8.6 Phase 1 Workflow Engine complete: added unified workflow DTOs, workflow states, and `CollectorWorkflowEngine.run_workflow(request)` in `collector_workflows.py`; wrapped Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox without removing existing APIs.
-* Phase 1 tests passed: `python -m unittest test_collector_workflows.py` -> 18 tests OK; `python -m unittest discover` -> 1272 tests OK.
-* v8.6 Phase 2 Workflow Workspace Integration complete: added `CollectorWorkspace.get_workflows()` for the default Daily Inbox workspace view, `CollectorWorkspace.get_workflow(request)` for explicit workflow execution, workflow cache namespace, `workflow_review` report descriptor under Workflow, markdown-only export, and workspace-level BLOCKED degradation.
-* Phase 2 tests passed: `python -m unittest test_collector_workspace.py` -> 114 tests OK; `python -m unittest discover` -> 1284 tests OK.
+* Roadmap lock commit: `785e229`.
+* Release metadata commit: `v8.6` tag target.
 
 
 - Added `platform_analytics.py` with `PlatformAnalyticsEngine`, `AnalyticsMetric`, `AnalyticsTrend`, `ModuleMetrics`, `AnalyticsSnapshot`, `AnalyticsSummary`, `PlatformHealthScore`, and `AnalyticsDashboard` for deterministic platform analytics.

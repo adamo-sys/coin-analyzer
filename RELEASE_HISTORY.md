@@ -2,6 +2,7 @@
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
+| `v8.6` | See verified tag `v8.6` | Unified Workflow - deterministic workflow engine, CollectorWorkspace integration, explainability/navigation metadata, existing Workflow tab GUI integration, and polished markdown Workflow Review export. Supports Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox without new persistence, collection mutation, ML/CV, scraping, or external APIs. 1296-test regression pass. |
 | `v8.5` | See verified tag `v8.5` | Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories (BUY_NOW, BUY_IF_PRICE_RIGHT, WATCH, NEGOTIATE, PASS, REVIEW), deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), comprehensive .gitignore, and CI test brittleness fixes. 1261-test regression pass. |
 | `v8.0` | `PENDING` | Smart Phone Cataloguer with photo capture workflow, OCR-assisted identification, mobile collection entry, collector workflow integration, and 959-test regression pass. |
 | `v8.1` | `09dd0fe` | Batch Processing with folder photo intake, batch OCR & identification, collection intelligence batch analysis, batch reporting & export, GUI integration, and 1015-test regression pass. |

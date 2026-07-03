@@ -1,8 +1,8 @@
 # Coin Analyzer
 
-Current version: `v8.1`
+Current version: `v8.6`
 
-Latest tagged release: `v8.1`
+Latest tagged release: `v8.6`
 
 Coin Analyzer is a local desktop application for managing a coin and banknote collection, evaluating possible acquisitions, and keeping collection priorities grounded in the actual holdings on disk.
 
@@ -72,6 +72,7 @@ The app is especially tuned for Adam-specific priorities:
 - OCR Experiments: advisory-only OCR suggestion reports for candidate photos, with raw text, possible years, denominations, countries, note prefixes, certification numbers, deterministic confidence, warnings, manual-review requirement, persistence, and CSV/Markdown export.
 - OCR Validation Layer: evaluates whether OCR output can be trusted with HIGH/MEDIUM/LOW trust levels, validation scores, findings, warnings, explanations, manual-review recommendations, and CSV/Markdown export.
 - Workflow Integration: guided collector workflows that orchestrate existing Photo-Assisted Entry, OCR, OCR Validation, Smart Shopping, Shopping Explainability, Collection Dashboard, Quality, Integrity, Snapshot, and Photo Vault Audit systems without replacing them.
+- Unified Workflow: v8.6 workflow engine, workspace integration, explainability metadata, Workflow tab display, and markdown Workflow Review export for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
 - Collector Home Dashboard: one daily dashboard for status cards, ranked actions, top opportunities, review queues, data safety, progress, workflow status, and CSV/Markdown export.
 - Collector Companion Readiness and Status: v3.0 product audit for report/export consistency, end-to-end workflow quality, readiness checklist, workflow status, persistence, and CSV/Markdown export.
 - Collector Operating System: unified Collector Home and Collection Health Report that consolidate dashboard, quality, series, shopping, market, photo, and persistence findings.
@@ -154,7 +155,7 @@ Use the project test runner:
 .\run_tests.bat
 ```
 
-The v5.0 Mobile Collector Companion suite passed with `641 tests OK`.
+The v8.6 full regression suite passed with `1296 tests OK`.
 
 The test suite uses isolated fixtures in `test_data/` and must not mutate production collection data in `data/collection.json`.
 
@@ -162,6 +163,7 @@ The test suite uses isolated fixtures in `test_data/` and must not mutate produc
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
+| `v8.6` | See verified tag `v8.6` | Unified Workflow with workflow engine, CollectorWorkspace integration, explainability metadata, Workflow tab GUI integration, markdown Workflow Review export, and 1296-test regression pass. |
 | `v0.5` | `f90541b3622aeb0d846dc787437762f7600a6d35` | Stable Upgrade Advisor milestone with CI dependency compatibility fix. |
 | `v0.6` | `d976f9ec3d0e95124013db5f10cffd503b1acb03` | Focused Collection Intelligence Engine and Do I Own This foundation. |
 | `v0.7` | `3cf26ff6b07e7d0d39b4ff62a410bf753dece5c0` | Advisor decision-source consolidation on Collection Intelligence. |

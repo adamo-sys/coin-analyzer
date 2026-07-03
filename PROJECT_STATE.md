@@ -2,25 +2,25 @@
 
 ## Current Version
 
-* Current release version: `v8.5`
-- Next planned release: `v8.6`
-- Active development target: `v8.6` Collector Intelligence & Workflow (Phase 2 complete; Phase 3 awaiting approval)
+* Current release version: `v8.6`
+- Next planned release: post-v8.6 collector usage and v8.7 planning
+- Active development target: v8.6 release complete; use the application before opening the next feature cycle
 * Current Git branch: `main`
 * Last updated date: 2026-07-03
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.5`
-* Summary of what was included: Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories, deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), and comprehensive .gitignore. 1261-test regression pass.
+* Most recent Git tag: `v8.6`
+* Summary of what was included: Unified Workflow - workflow engine, CollectorWorkspace integration, explainability/navigation metadata, existing Workflow tab GUI integration, and polished markdown workflow reporting/export. Deterministic, local, review-only workflow assistance with no persistence expansion, no collection mutation, no ML/CV, no scraping, and no external APIs. 1296-test regression pass.
 
 ## Coin Analyzer Statistics
 
-Last updated: 2026-07-03 after v8.6 Phase 1.
+Last updated: 2026-07-03 after v8.6 release.
 
-* Python modules: 93 non-test modules, 168 Python files total.
-* Test modules: 75.
-* Current full regression: 1284 tests OK.
-* Release line: `v0.2` -> `v8.6` active; 70 local release tags through `v8.5`.
+* Python modules: 93 non-test modules, 169 Python files total.
+* Test modules: 76.
+* Current full regression: 1296 tests OK.
+* Release line: `v0.2` -> `v8.6` released; 71 local release tags through `v8.6`.
 * Architecture and governance docs: 8+ core docs (`VISION.md`, `ARCHITECTURE.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `ROADMAP.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`, `project_docs/release_prompts/RELEASE_GOVERNANCE.md`).
 * Workspace GUI tabs: 12.
 * Workspace report descriptors: 18.
@@ -87,6 +87,7 @@ Last updated: 2026-07-03 after v8.6 Phase 1.
 * `v8.2` acceptance audit passed on 2026-06-29; tag `v8.2` points to `fdcf18d`.
 * `v8.4` acceptance audit passed on 2026-07-01; tag `v8.4` points to release metadata commit.
 * `v8.3` acceptance audit passed on 2026-06-30; tag `v8.3` points to `ccc9bd0`.
+* `v8.6` acceptance audit passed on 2026-07-03; tag `v8.6` points to release metadata commit.
 
 ## Completed Features
 

@@ -189,6 +189,22 @@ Documentation is part of development.
 
 ---
 
+# Standard Major Release Lifecycle
+
+Use this lifecycle for major feature releases unless there is a clear reason to deviate:
+
+* Phase 0 - Roadmap Lock
+* Phase 1 - Core Engine
+* Phase 2 - Workspace Integration
+* Phase 3 - Explainability
+* Phase 4 - GUI Integration
+* Phase 5 - Reporting & Polish
+* Phase 6 - Release Engineering
+
+The goal is to stabilize ownership and APIs before adding GUI surface area. Engines own business logic, `CollectorWorkspace` owns application-facing aggregation, explainability makes decisions auditable, GUI consumes workspace APIs, reporting makes the feature durable, and release engineering verifies the final artifact.
+
+---
+
 # Commits
 
 Commit logical units of work.

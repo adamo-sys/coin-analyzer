@@ -18,6 +18,10 @@ Coin Analyzer should evolve from a feature-rich desktop application into a coher
 6. Recommendation memory lets the software compare current opportunities with past passes, purchases, sellers, and prices.
 7. Long-term platform work remains local-first, deterministic, auditable, and collector-controlled.
 
+## Current Status
+
+As of v8.6, the Unified Workflow architecture is implemented. Coin Analyzer now has a workflow engine, CollectorWorkspace integration, explainability/navigation metadata, existing Workspace Workflow tab display, and polished Workflow Review markdown export for Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox.
+
 ## Guiding Principles
 
 ### Local First

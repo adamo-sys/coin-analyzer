@@ -2,7 +2,7 @@
 
 ## v8.6 Collector Intelligence & Workflow
 
-Status: Phase 1 - Workflow Engine Complete
+Status: Complete - v8.6 Released
 
 ### Phase 0 - Roadmap Lock
 - [x] Create VISION.md
@@ -41,22 +41,38 @@ Status: Phase 1 - Workflow Engine Complete
 - [x] Run workspace tests (114 tests)
 - [x] Run full regression (1284 tests)
 
-### Phase 3 - Portfolio Dashboard
-- [ ] Promote portfolio metrics toward application home screen
-- [ ] Add completion percentage, average grade, upgrade opportunities, value, silver/gold weight, wants completed, recent acquisitions, and ROI estimates from local data
+### Phase 3 - Explainability & Navigation
+- [x] Add state_reason workflow explanations
+- [x] Add RecommendedTool metadata
+- [x] Add report/action-level recommended_tool_label metadata
+- [x] Preserve metadata-only navigation with no GUI launch logic
+- [x] Run full regression (1286 tests)
 
-### Phase 4 - Explainability Improvements
-- [ ] Standardize recommendation reasoning, confidence, risks, uncertainty, and source evidence
+### Phase 4 - GUI Integration
+- [x] Enhance existing Collector Workspace Workflow tab
+- [x] Consume CollectorWorkspace.get_workflows() only
+- [x] Display unified workflow report state, reason, actions, evidence, and tool metadata
+- [x] Add existing-method-only Open buttons
+- [x] Run full regression (1291 tests)
 
-### Phase 5 - Batch Processing
-- [ ] Improve folder photo workflow: OCR, identify, match collection, generate report
+### Phase 5 - Reporting & Export Polish
+- [x] Polish workflow_review markdown formatting
+- [x] Add stable empty-state export text
+- [x] Preserve markdown-only Reports Panel integration
+- [x] Add deterministic export regression tests
+- [x] Run full regression (1296 tests)
 
-### Phase 6 - Collection Health
-- [ ] Identify duplicates, lower-grade duplicates, upgrades, missing key dates, overrepresented series, and underrepresented series
-
-### Phase 7 - Recommendation Memory
-- [ ] Design reviewed persistence schema for passed coins, bought coins, seller reliability, price history, and repeated listings
-- [ ] Implement only after schema approval
+### Phase 6 - Release Engineering
+- [x] Update release docs and metadata
+- [x] Update PROJECT_STATE.md
+- [x] Update AI_HANDOFF.md
+- [x] Update RELEASE_HISTORY.md
+- [x] Finalize docs/releases/v8.6.md
+- [x] Update VISION.md current status
+- [x] Update DEVELOPMENT_GUIDELINES.md release lifecycle
+- [x] Run full regression
+- [x] Tag v8.6
+- [x] Push main and tag
 
 ## v8.5 Collector Advisor
 
