@@ -1397,12 +1397,152 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
                 content = handle.read()
 
         self.assertTrue(result)
-        self.assertIn("Daily Inbox", content)
-        self.assertIn("State Reason: Daily Inbox generated reviewable workflow tasks.", content)
-        self.assertIn("Recommended Tool: Workflow Review", content)
-        self.assertIn("Open: Workflow Review", content)
-        self.assertIn("## Evidence", content)
-        self.assertIn("## Next Actions", content)
+        self.assertIn("Workflow Summary", content)
+        self.assertIn("Workflow: DAILY_INBOX", content)
+        self.assertIn("State: READY", content)
+        self.assertIn("Reason: Daily Inbox generated reviewable workflow tasks.", content)
+        self.assertIn("Recommended Tool:", content)
+        self.assertIn("Workflow Review (WORKFLOW)", content)
+        self.assertIn("Actions", content)
+        self.assertIn("Evidence", content)
+        self.assertIn("Warnings", content)
+        self.assertIn("No workflow warnings.", content)
+
+    def test_workflow_markdown_includes_action_evidence_and_tool_keys(self) -> None:
+        """Workflow markdown should preserve action metadata for auditability."""
+        ws = CollectorWorkspace([])
+        evidence = WorkflowEvidence(
+            "WorkflowStatus",
+            "OCR Pending: 1 OCR report needs review",
+            WorkflowSeverity.WARNING,
+            "Review OCR validation reports",
+        )
+        report = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.REVIEW_REQUIRED,
+            "Daily Inbox",
+            "Daily collector priorities generated",
+            evidence=[evidence],
+            next_actions=[
+                WorkflowAction(
+                    "Review OCR items",
+                    "Daily collector priorities generated",
+                    "Daily Summary",
+                    WorkflowState.REVIEW_REQUIRED,
+                    [evidence],
+                    recommended_tool=RecommendedTool.OCR_EXPERIMENT,
+                )
+            ],
+            warnings=["OCR Pending: 1 OCR report needs review"],
+            state_reason="Daily Inbox found workflow items that require collector review.",
+            recommended_tool=RecommendedTool.WORKFLOW,
+        )
+
+        content = ws._format_workflow_markdown(report)
+
+        self.assertIn("Next Action:\nReview OCR items", content)
+        self.assertIn("1. Review OCR items", content)
+        self.assertIn("Recommended Tool: OCR Experiment", content)
+        self.assertIn("Recommended Tool Key: OCR_EXPERIMENT", content)
+        self.assertIn("[WARNING] WorkflowStatus: OCR Pending: 1 OCR report needs review", content)
+        self.assertIn("Action: Review OCR validation reports", content)
+
+    def test_workflow_markdown_empty_report_has_stable_empty_states(self) -> None:
+        """Empty workflow report sections should be deterministic and readable."""
+        ws = CollectorWorkspace([])
+        report = UnifiedWorkflowReport(
+            WorkflowType.DUPLICATE_REVIEW,
+            WorkflowState.COMPLETE,
+            "Duplicate Review",
+            "No duplicates",
+            evidence=[],
+            next_actions=[],
+            warnings=[],
+            state_reason="No duplicate groups were detected.",
+            recommended_tool=RecommendedTool.DUPLICATE_REVIEW,
+        )
+
+        content = ws._format_workflow_markdown(report)
+
+        self.assertIn("Workflow: DUPLICATE_REVIEW", content)
+        self.assertIn("State: COMPLETE", content)
+        self.assertIn("No workflow actions available.", content)
+        self.assertIn("No workflow evidence available.", content)
+        self.assertIn("No workflow warnings.", content)
+
+    def test_workflow_markdown_degraded_states_export_cleanly(self) -> None:
+        """NEEDS_INPUT and BLOCKED reports should export without special handling."""
+        ws = CollectorWorkspace([])
+        states = {
+            WorkflowState.READY: "Ready reason",
+            WorkflowState.NEEDS_INPUT: "Candidate input is required.",
+            WorkflowState.BLOCKED: "Workflow engine failed.",
+            WorkflowState.COMPLETE: "Workflow is complete.",
+        }
+
+        for state, reason in states.items():
+            with self.subTest(state=state.value):
+                report = UnifiedWorkflowReport(
+                    WorkflowType.DAILY_INBOX,
+                    state,
+                    "Workflow Review",
+                    "Summary",
+                    evidence=[
+                        WorkflowEvidence(
+                            "CollectorWorkspace",
+                            reason,
+                            WorkflowSeverity.ERROR if state == WorkflowState.BLOCKED else WorkflowSeverity.INFO,
+                        )
+                    ],
+                    next_actions=[],
+                    warnings=[reason] if state == WorkflowState.BLOCKED else [],
+                    state_reason=reason,
+                    recommended_tool=RecommendedTool.WORKFLOW,
+                )
+                content = ws._format_workflow_markdown(report)
+
+                self.assertIn(f"State: {state.value}", content)
+                self.assertIn(f"Reason: {reason}", content)
+                self.assertIn("Workflow Review (WORKFLOW)", content)
+
+    def test_workflow_markdown_is_deterministic_for_same_input(self) -> None:
+        """The same workflow report should produce identical markdown."""
+        ws = CollectorWorkspace([])
+        report = UnifiedWorkflowReport(
+            WorkflowType.DAILY_INBOX,
+            WorkflowState.READY,
+            "Daily Inbox",
+            "Ready",
+            evidence=[WorkflowEvidence("test", "ready")],
+            next_actions=[WorkflowAction("Review", recommended_tool=RecommendedTool.WORKFLOW)],
+            state_reason="Ready reason",
+            recommended_tool=RecommendedTool.WORKFLOW,
+        )
+
+        self.assertEqual(ws._format_workflow_markdown(report), ws._format_workflow_markdown(report))
+
+    def test_workflow_markdown_missing_optional_metadata_uses_na(self) -> None:
+        """Missing optional metadata should not break workflow markdown."""
+        ws = CollectorWorkspace([])
+        report = MagicMock()
+        report.title = ""
+        report.workflow_type = None
+        report.state = None
+        report.state_reason = ""
+        report.summary = ""
+        report.recommended_tool = None
+        report.recommended_tool_label = ""
+        report.next_actions = []
+        report.evidence = []
+        report.warnings = []
+
+        content = ws._format_workflow_markdown(report)
+
+        self.assertIn("Title: Workflow Review", content)
+        self.assertIn("Workflow: N/A", content)
+        self.assertIn("State: N/A", content)
+        self.assertIn("Reason: N/A", content)
+        self.assertIn("N/A (N/A)", content)
 
     def test_export_report_workflow_review_rejects_csv(self) -> None:
         """workflow_review is markdown-only."""

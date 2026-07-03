@@ -1445,41 +1445,103 @@ class CollectorWorkspace:
         )
 
     def _format_workflow_markdown(self, report: Any) -> str:
+        workflow_type = self._workflow_markdown_value(getattr(report, "workflow_type", None))
+        state = self._workflow_markdown_value(getattr(report, "state", None))
+        recommended_tool_key = self._workflow_markdown_value(getattr(report, "recommended_tool", None))
+        recommended_tool_label = getattr(report, "recommended_tool_label", "") or "N/A"
         lines = [
-            f"# {getattr(report, 'title', 'Workflow Review')}",
+            "Workflow Summary",
+            "================",
             "",
-            f"- Workflow Type: {getattr(getattr(report, 'workflow_type', None), 'value', '')}",
-            f"- State: {getattr(getattr(report, 'state', None), 'value', '')}",
-            f"- Summary: {getattr(report, 'summary', '')}",
-            f"- State Reason: {getattr(report, 'state_reason', '')}",
-            f"- Recommended Tool: {getattr(report, 'recommended_tool_label', '')}",
+            f"Title: {getattr(report, 'title', '') or 'Workflow Review'}",
+            f"Workflow: {workflow_type}",
+            f"State: {state}",
+            f"Reason: {getattr(report, 'state_reason', '') or 'N/A'}",
             "",
-            "## Evidence",
+            "Next Action:",
+            self._workflow_markdown_next_action(report),
+            "",
+            "Recommended Tool:",
+            f"{recommended_tool_label} ({recommended_tool_key})",
+            "",
+            "--------------------------------",
+            "",
+            "Actions",
+            "",
+            "--------------------------------",
             "",
         ]
+
+        actions = getattr(report, "next_actions", []) or []
+        if actions:
+            for index, action in enumerate(actions, start=1):
+                action_state = self._workflow_markdown_value(getattr(action, "state", None))
+                action_tool_key = self._workflow_markdown_value(getattr(action, "recommended_tool", None))
+                action_tool_label = getattr(action, "recommended_tool_label", "") or "N/A"
+                lines.append(f"{index}. {getattr(action, 'label', '') or 'Review workflow action'}")
+                lines.append(f"   - State: {action_state}")
+                lines.append(f"   - Reason: {getattr(action, 'reason', '') or 'N/A'}")
+                lines.append(f"   - Recommended Tool: {action_tool_label}")
+                lines.append(f"   - Recommended Tool Key: {action_tool_key}")
+                action_evidence = getattr(action, "evidence", []) or []
+                if action_evidence:
+                    lines.append("   - Evidence:")
+                    for item in action_evidence:
+                        lines.append(f"     - {self._format_workflow_markdown_evidence(item)}")
+                else:
+                    lines.append("   - Evidence: No action evidence available.")
+        else:
+            lines.append("No workflow actions available.")
+
+        lines.extend([
+            "",
+            "Evidence",
+            "",
+            "--------------------------------",
+            "",
+        ])
         evidence = getattr(report, "evidence", []) or []
         if evidence:
             for item in evidence:
-                severity = getattr(getattr(item, "severity", None), "value", getattr(item, "severity", "INFO"))
-                lines.append(f"- [{severity}] {getattr(item, 'source', '')}: {getattr(item, 'detail', '')}")
+                lines.append(f"- {self._format_workflow_markdown_evidence(item)}")
+                action = getattr(item, "action", "")
+                if action:
+                    lines.append(f"  - Action: {action}")
         else:
-            lines.append("- No workflow evidence.")
+            lines.append("No workflow evidence available.")
 
-        lines.extend(["", "## Next Actions", ""])
-        actions = getattr(report, "next_actions", []) or []
-        if actions:
-            for action in actions:
-                tool_label = getattr(action, "recommended_tool_label", "")
-                suffix = f" (Open: {tool_label})" if tool_label else ""
-                lines.append(f"- {getattr(action, 'label', '')}: {getattr(action, 'reason', '')}{suffix}")
-        else:
-            lines.append("- No workflow actions.")
-
+        lines.extend([
+            "",
+            "Warnings",
+            "",
+            "--------------------------------",
+            "",
+        ])
         warnings = getattr(report, "warnings", []) or []
         if warnings:
-            lines.extend(["", "## Warnings", ""])
             lines.extend(f"- {warning}" for warning in warnings)
+        else:
+            lines.append("No workflow warnings.")
         return "\n".join(lines).strip() + "\n"
+
+    @staticmethod
+    def _workflow_markdown_value(value: Any) -> str:
+        text = getattr(value, "value", value)
+        text = str(text or "").strip()
+        return text or "N/A"
+
+    @staticmethod
+    def _workflow_markdown_next_action(report: Any) -> str:
+        actions = getattr(report, "next_actions", []) or []
+        if not actions:
+            return "No workflow actions available."
+        return getattr(actions[0], "label", "") or "Review workflow report"
+
+    def _format_workflow_markdown_evidence(self, item: Any) -> str:
+        severity = self._workflow_markdown_value(getattr(item, "severity", "INFO"))
+        source = getattr(item, "source", "") or "Workflow"
+        detail = getattr(item, "detail", "") or "No detail available."
+        return f"[{severity}] {source}: {detail}"
 
     def _export_workflow_markdown(self, path: str) -> bool:
         report = self.get_workflows()
