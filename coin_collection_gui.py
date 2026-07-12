@@ -106,6 +106,36 @@ from platform_integration import PlatformIntegration
 from batch_processing import BatchProcessingEngine, BatchReport
 
 
+GRADE_SUGGESTIONS = (
+    "",
+    "PO-1",
+    "FR-2",
+    "AG-3",
+    "G-4",
+    "VG-8",
+    "F-12",
+    "VF-20",
+    "VF-30",
+    "EF-40",
+    "EF-45",
+    "AU-50",
+    "AU-53",
+    "AU-55",
+    "AU-58",
+    "MS-60",
+    "MS-61",
+    "MS-62",
+    "MS-63",
+    "MS-64",
+    "MS-65",
+    "MS-66",
+    "MS-67",
+    "MS-68",
+    "MS-69",
+    "MS-70",
+)
+
+
 class CoinCollectionGUI:
     """GUI for coin collection management."""
     
@@ -392,27 +422,40 @@ Total Unique Dates: {total_unique_dates}
         # Form fields
         ttk.Label(edit_frame, text="Country:").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.country_var = tk.StringVar()
-        country_entry = ttk.Entry(edit_frame, textvariable=self.country_var)
-        country_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
-        country_entry.bind('<KeyRelease>', lambda e: self.on_autocomplete('country', self.country_var.get()))
+        self.country_combo = ttk.Combobox(
+            edit_frame,
+            textvariable=self.country_var,
+            values=self.get_entry_suggestions("country"),
+        )
+        self.country_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.country_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('country', self.country_var.get()))
+        self.country_combo.bind('<<ComboboxSelected>>', lambda e: self.on_country_changed())
         
         ttk.Label(edit_frame, text="Denomination:").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.denomination_var = tk.StringVar()
-        denom_entry = ttk.Entry(edit_frame, textvariable=self.denomination_var)
-        denom_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
-        denom_entry.bind('<KeyRelease>', lambda e: self.on_autocomplete('denomination', self.denomination_var.get()))
+        self.denomination_combo = ttk.Combobox(
+            edit_frame,
+            textvariable=self.denomination_var,
+            values=self.get_entry_suggestions("denomination"),
+        )
+        self.denomination_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.denomination_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('denomination', self.denomination_var.get()))
+        self.denomination_combo.bind('<<ComboboxSelected>>', lambda e: self.on_denomination_changed())
         
         ttk.Label(edit_frame, text="Year:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.year_var = tk.StringVar()
-        year_entry = ttk.Entry(edit_frame, textvariable=self.year_var)
-        year_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
-        year_entry.bind('<KeyRelease>', lambda e: self.on_autocomplete('year', self.year_var.get()))
+        self.year_combo = ttk.Combobox(
+            edit_frame,
+            textvariable=self.year_var,
+            values=self.get_entry_suggestions("year"),
+        )
+        self.year_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.year_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('year', self.year_var.get()))
         
         ttk.Label(edit_frame, text="Grade:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.grade_var = tk.StringVar()
-        grade_combo = ttk.Combobox(edit_frame, textvariable=self.grade_var, 
-                                   values=["", "PO-1", "FR-2", "AG-3", "G-4", "VG-8", "F-12", "VF-20", "VF-30", "EF-40", "EF-45", "AU-50", "AU-53", "AU-55", "AU-58", "MS-60", "MS-61", "MS-62", "MS-63", "MS-64", "MS-65", "MS-66", "MS-67", "MS-68", "MS-69", "MS-70"])
-        grade_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.grade_combo = ttk.Combobox(edit_frame, textvariable=self.grade_var, values=GRADE_SUGGESTIONS)
+        self.grade_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         ttk.Label(edit_frame, text="Notes:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.notes_text = tk.Text(edit_frame, height=3, wrap=tk.WORD)
@@ -1055,6 +1098,7 @@ Total Unique Dates: {total_unique_dates}
         self.country_var.set(self.detection_result['country'])
         self.denomination_var.set(self.detection_result['denomination'])
         self.year_var.set(self.detection_result['year'])
+        self.refresh_entry_suggestions()
         
         # Show warning that these are suggestions
         messagebox.showwarning("Experimental Suggestion", 
@@ -1179,6 +1223,7 @@ Total Unique Dates: {total_unique_dates}
         self.year_var.set("")
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
+        self.refresh_entry_suggestions()
     
     def refresh_collection_list(self):
         """Refresh collection list view."""
@@ -1211,16 +1256,58 @@ Total Unique Dates: {total_unique_dates}
         """Clear search and show all items."""
         self.search_var.set("")
         self.refresh_collection_list()
+
+    def get_entry_suggestions(self, field: str, query: str = ""):
+        """Return main entry suggestions without restricting manual entry."""
+        if field == "grade":
+            return list(GRADE_SUGGESTIONS)
+        country = ""
+        denomination = ""
+        if field == "denomination":
+            country = self.country_var.get() if hasattr(self, "country_var") else ""
+        elif field == "year":
+            country = self.country_var.get() if hasattr(self, "country_var") else ""
+            denomination = self.denomination_var.get() if hasattr(self, "denomination_var") else ""
+        return self.app.collection.get_field_suggestions(
+            field,
+            query=query,
+            country=country,
+            denomination=denomination,
+        )
+
+    def refresh_entry_suggestions(self):
+        """Refresh editable combobox values from current collection context."""
+        if hasattr(self, "country_combo"):
+            self.country_combo["values"] = self.get_entry_suggestions("country")
+        if hasattr(self, "denomination_combo"):
+            self.denomination_combo["values"] = self.get_entry_suggestions("denomination")
+        if hasattr(self, "year_combo"):
+            self.year_combo["values"] = self.get_entry_suggestions("year")
+        if hasattr(self, "grade_combo"):
+            self.grade_combo["values"] = self.get_entry_suggestions("grade")
+
+    def on_country_changed(self):
+        """Update dependent suggestions after country changes."""
+        if hasattr(self, "denomination_combo"):
+            self.denomination_combo["values"] = self.get_entry_suggestions("denomination")
+        if hasattr(self, "year_combo"):
+            self.year_combo["values"] = self.get_entry_suggestions("year")
+
+    def on_denomination_changed(self):
+        """Update year suggestions after denomination changes."""
+        if hasattr(self, "year_combo"):
+            self.year_combo["values"] = self.get_entry_suggestions("year")
     
     def on_autocomplete(self, field: str, query: str):
         """Handle autocomplete for form fields."""
-        if len(query) < 2:  # Only trigger after 2 characters
-            return
-        
-        suggestions = self.app.collection.get_autocomplete_suggestions(field, query)
-        if suggestions:
-            # For now, just print suggestions - could implement dropdown in future
-            print(f"Autocomplete suggestions for {field}: {suggestions[:5]}")
+        if field == "country" and hasattr(self, "country_combo"):
+            self.country_combo["values"] = self.get_entry_suggestions("country", query=query)
+            self.on_country_changed()
+        elif field == "denomination" and hasattr(self, "denomination_combo"):
+            self.denomination_combo["values"] = self.get_entry_suggestions("denomination", query=query)
+            self.on_denomination_changed()
+        elif field == "year" and hasattr(self, "year_combo"):
+            self.year_combo["values"] = self.get_entry_suggestions("year", query=query)
     
     def analyze_collection(self):
         """Analyze collection for gaps and patterns."""

@@ -145,6 +145,60 @@ class CoinCollection:
         
         return results
     
+    def get_field_suggestions(
+        self,
+        field: str,
+        query: str = "",
+        country: str = "",
+        denomination: str = "",
+        limit: int = 50,
+    ) -> List[str]:
+        """
+        Get editable-entry suggestions from current collection data.
+
+        Suggestions are advisory only. They do not validate or restrict manual
+        values typed by the collector.
+        """
+        field = (field or "").strip().lower()
+        query = (query or "").strip().lower()
+        country_filter = (country or "").strip().lower()
+        denomination_filter = (denomination or "").strip().lower()
+        values_by_key = {}
+
+        for item in self.items:
+            if country_filter and (item.country or "").strip().lower() != country_filter:
+                continue
+            if denomination_filter and (item.denomination or "").strip().lower() != denomination_filter:
+                continue
+
+            value = ""
+            if field == "country":
+                value = item.country
+            elif field == "denomination":
+                value = item.denomination
+            elif field == "year":
+                value = item.year
+            elif field == "grade":
+                value = item.grade
+            elif field == "issuer":
+                value = item.issuer
+            elif field == "currency":
+                value = item.currency
+
+            value = str(value or "").strip()
+            if not value:
+                continue
+            if query and query not in value.lower():
+                continue
+            values_by_key.setdefault(value.lower(), value)
+
+        suggestions = list(values_by_key.values())
+        if field == "year":
+            suggestions.sort(key=self._year_sort_key)
+        else:
+            suggestions.sort(key=lambda value: value.lower())
+        return suggestions[:limit]
+
     def get_autocomplete_suggestions(self, field: str, query: str) -> List[str]:
         """
         Get autocomplete suggestions for a field from Numista dataset.
@@ -158,28 +212,14 @@ class CoinCollection:
         """
         if not query:
             return []
-        
-        query = query.lower().strip()
-        values = set()
-        
-        for item in self.items:
-            if item.from_numista:  # Only use Numista data for autocomplete
-                value = ""
-                if field == "country":
-                    value = item.country
-                elif field == "denomination":
-                    value = item.denomination
-                elif field == "year":
-                    value = item.year
-                elif field == "issuer":
-                    value = item.issuer
-                elif field == "currency":
-                    value = item.currency
-                
-                if value and query in value.lower():
-                    values.add(value)
-        
-        return sorted(list(values))[:20]  # Return top 20 matches
+        return self.get_field_suggestions(field, query=query, limit=20)
+
+    @staticmethod
+    def _year_sort_key(value: str):
+        text = str(value or "").strip()
+        if text.isdigit():
+            return (0, int(text), text)
+        return (1, text.lower(), text)
     
     def find_matching_coins(self, country: str, denomination: str, year: str) -> List[CoinItem]:
         """
