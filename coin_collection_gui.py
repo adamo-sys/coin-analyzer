@@ -2086,10 +2086,129 @@ Total Unique Dates: {total_unique_dates}
         """Return whether Create New should be available for the inbox selection."""
         return bool(rows and selected_set_id)
 
+    @staticmethod
+    def can_attach_existing_from_inbox(rows, selected_set_id):
+        """Return whether Attach to Existing should be available for the inbox selection."""
+        return bool(rows and selected_set_id)
+
+    @staticmethod
+    def normalized_photo_path_key(path):
+        """Return a stable key for duplicate photo-reference checks."""
+        return os.path.normcase(os.path.abspath(str(path or "").strip()))
+
     def item_photos_from_inbox_photo_set(self, manager, photo_set_id):
         """Convert a pending Photo Inbox set into entry-form photo metadata."""
         paths = [photo.path for photo in manager.get_photo_set_photos(photo_set_id)]
         return self.add_photo_paths_to_list([], paths)
+
+    def search_attach_targets(self, query="", limit=25):
+        """Find possible collection items for Photo Inbox attachment."""
+        collection = getattr(self.app, "collection", None)
+        if not collection:
+            return []
+        if str(query or "").strip():
+            items = collection.search_items(query)
+        else:
+            items = collection.get_all_items()
+        return list(items)[:limit]
+
+    def attach_target_summary(self, item):
+        """Build a concise target-item summary for confirmation and tests."""
+        if not item:
+            return "No target selected"
+        photos = self.photos_from_item(item)
+        primary = next((photo for photo in photos if photo.is_primary), None)
+        lines = [
+            f"ID: {item.id}",
+            f"Item: {item.country} {item.denomination} {item.year}".strip(),
+            f"Grade: {item.grade}",
+            f"Photos: {len(photos)}",
+            f"Primary image: {primary.path if primary else 'None'}",
+        ]
+        return "\n".join(lines)
+
+    def merge_inbox_photos_into_item(self, item, manager, photo_set_id):
+        """Append non-duplicate inbox photos while preserving existing item metadata."""
+        existing = self.photos_from_item(item)
+        seen = {self.normalized_photo_path_key(photo.path) for photo in existing if photo.path}
+        merged = self.clone_photos(existing)
+        skipped = []
+        added = []
+        for incoming_index, inbox_photo in enumerate(manager.get_photo_set_photos(photo_set_id)):
+            clean_path = str(getattr(inbox_photo, "path", "") or "").strip()
+            if not clean_path:
+                continue
+            key = self.normalized_photo_path_key(clean_path)
+            if key in seen:
+                skipped.append(clean_path)
+                continue
+            added.append(clean_path)
+            merged.append(
+                ItemPhoto(
+                    path=clean_path,
+                    role=self.default_photo_role(incoming_index),
+                    is_primary=False,
+                    display_order=len(merged),
+                )
+            )
+            seen.add(key)
+        return {
+            "photos": self.normalized_photo_state(merged),
+            "added_count": len(added),
+            "skipped_count": len(skipped),
+            "added_paths": added,
+            "skipped_paths": skipped,
+        }
+
+    def attach_photo_set_to_item(self, manager, photo_set_id, item, refresh_callback=None):
+        """Attach a Photo Inbox set to an existing item after a successful save."""
+        if not manager or not photo_set_id or not item:
+            return {
+                "success": False,
+                "added_count": 0,
+                "skipped_count": 0,
+                "error": "Select a collection item first.",
+            }
+        merge = self.merge_inbox_photos_into_item(item, manager, photo_set_id)
+        if merge["added_count"] == 0:
+            return {
+                "success": False,
+                "added_count": 0,
+                "skipped_count": merge["skipped_count"],
+                "error": "All photos in this Photo Set are already attached to the selected item.",
+            }
+        primary = next((photo for photo in merge["photos"] if photo.is_primary), None)
+        collection = getattr(self.app, "collection", None)
+        if not collection or not collection.update_item(
+            item.id,
+            {
+                "photos": merge["photos"],
+                "image_path": primary.path if primary else "",
+            },
+        ):
+            return {
+                "success": False,
+                "added_count": merge["added_count"],
+                "skipped_count": merge["skipped_count"],
+                "error": "Could not save the attachment to the selected item.",
+            }
+        if not manager.mark_attached(photo_set_id, item_id=str(item.id or "")):
+            return {
+                "success": False,
+                "added_count": merge["added_count"],
+                "skipped_count": merge["skipped_count"],
+                "error": "Photos were saved, but the Photo Inbox set could not be marked attached.",
+            }
+        if refresh_callback:
+            refresh_callback()
+        if hasattr(self, "refresh_collection_list"):
+            self.refresh_collection_list()
+        return {
+            "success": True,
+            "added_count": merge["added_count"],
+            "skipped_count": merge["skipped_count"],
+            "error": "",
+        }
 
     def load_photo_set_into_entry_form(self, manager, photo_set_id, refresh_callback=None):
         """Preload a Photo Inbox set into the existing collection-entry form."""
@@ -2132,6 +2251,125 @@ Total Unique Dates: {total_unique_dates}
         self.pending_inbox_photo_set_id = ""
         self.pending_inbox_refresh_callback = None
         self.pending_inbox_completion_done = False
+
+    def open_attach_photo_set_dialog(self, manager, photo_set_id, refresh_callback=None):
+        """Open a small search/select dialog for attaching a Photo Set."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Attach Photo Set")
+        dialog.geometry("760x520")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        incoming_count = len(manager.get_photo_set_photos(photo_set_id))
+        status_var = tk.StringVar(value=f"Selected Photo Set: {photo_set_id} | Photos: {incoming_count}")
+        search_var = tk.StringVar(value="")
+        selected_item_id = tk.StringVar(value="")
+        item_lookup = {}
+
+        ttk.Label(main_frame, textvariable=status_var).grid(row=0, column=0, columnspan=3, sticky=tk.W)
+        ttk.Label(main_frame, text="Search collection:").grid(row=1, column=0, sticky=tk.W, pady=(8, 4))
+        search_entry = ttk.Entry(main_frame, textvariable=search_var)
+        search_entry.grid(row=1, column=0, sticky=(tk.E, tk.W), padx=(120, 8), pady=(8, 4))
+
+        result_tree = ttk.Treeview(
+            main_frame,
+            columns=("country", "denomination", "year", "grade", "photos"),
+            show="headings",
+            height=10,
+        )
+        result_tree.heading("country", text="Country")
+        result_tree.heading("denomination", text="Denomination")
+        result_tree.heading("year", text="Year")
+        result_tree.heading("grade", text="Grade")
+        result_tree.heading("photos", text="Photos")
+        result_tree.column("country", width=140, anchor=tk.W)
+        result_tree.column("denomination", width=160, anchor=tk.W)
+        result_tree.column("year", width=80, anchor=tk.W)
+        result_tree.column("grade", width=90, anchor=tk.W)
+        result_tree.column("photos", width=70, anchor=tk.CENTER)
+        result_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.N, tk.S, tk.E, tk.W), pady=(4, 8))
+
+        preview = tk.Text(main_frame, height=7, wrap=tk.WORD)
+        preview.grid(row=3, column=0, columnspan=3, sticky=(tk.E, tk.W), pady=(0, 8))
+
+        def set_preview(text):
+            preview.config(state=tk.NORMAL)
+            preview.delete("1.0", tk.END)
+            preview.insert(tk.END, text)
+            preview.config(state=tk.DISABLED)
+
+        def run_search(event=None):
+            for row_id in result_tree.get_children():
+                result_tree.delete(row_id)
+            item_lookup.clear()
+            for item in self.search_attach_targets(search_var.get()):
+                photos = self.photos_from_item(item)
+                item_lookup[item.id] = item
+                result_tree.insert(
+                    "",
+                    tk.END,
+                    iid=item.id,
+                    values=(item.country, item.denomination, item.year, item.grade, len(photos)),
+                )
+            selected_item_id.set("")
+            attach_button.config(state=tk.DISABLED)
+            set_preview("Select an existing collectible to preview the attachment target.")
+
+        def on_target_selected(event=None):
+            selection = result_tree.selection()
+            if not selection:
+                selected_item_id.set("")
+                attach_button.config(state=tk.DISABLED)
+                return
+            selected_item_id.set(selection[0])
+            item = item_lookup.get(selection[0])
+            set_preview(self.attach_target_summary(item))
+            attach_button.config(state=tk.NORMAL if item else tk.DISABLED)
+
+        def attach_selected():
+            item = item_lookup.get(selected_item_id.get())
+            if not item:
+                messagebox.showwarning("Attach Photo Set", "Select a collection item first.")
+                return
+            merge = self.merge_inbox_photos_into_item(item, manager, photo_set_id)
+            if merge["added_count"] == 0:
+                messagebox.showwarning(
+                    "Attach Photo Set",
+                    "All photos in this Photo Set are already attached to the selected item. The Photo Set remains pending.",
+                )
+                return
+            detail = (
+                f"Attach {merge['added_count']} photo reference(s) to this item?\n\n"
+                f"{self.attach_target_summary(item)}"
+            )
+            if merge["skipped_count"]:
+                detail += f"\n\nSkipped duplicates: {merge['skipped_count']}"
+            if not messagebox.askyesno("Confirm Attachment", detail):
+                return
+            result = self.attach_photo_set_to_item(manager, photo_set_id, item, refresh_callback=refresh_callback)
+            if not result["success"]:
+                messagebox.showerror("Attach Photo Set", result["error"])
+                return
+            messagebox.showinfo(
+                "Attach Photo Set",
+                f"Added {result['added_count']} photo reference(s). Skipped {result['skipped_count']} duplicate(s).",
+            )
+            dialog.destroy()
+
+        result_tree.bind("<<TreeviewSelect>>", on_target_selected)
+        search_entry.bind("<Return>", run_search)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=4, column=0, columnspan=3, sticky=tk.E)
+        ttk.Button(button_frame, text="Search", command=run_search).pack(side=tk.LEFT, padx=(0, 6))
+        attach_button = ttk.Button(button_frame, text="Attach Photos", state=tk.DISABLED, command=attach_selected)
+        attach_button.pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
+
+        run_search()
 
     def entry_form_has_content(self):
         """Return whether the main entry form has unsaved collector input."""
@@ -2230,6 +2468,9 @@ Total Unique Dates: {total_unique_dates}
             create_button.config(
                 state=tk.NORMAL if self.can_create_new_from_inbox(rows, selected_set_id.get()) else tk.DISABLED
             )
+            attach_button.config(
+                state=tk.NORMAL if self.can_attach_existing_from_inbox(rows, selected_set_id.get()) else tk.DISABLED
+            )
             if scan_result:
                 status_var.set(self.photo_inbox_scan_summary(scan_result, len(rows)))
             else:
@@ -2260,6 +2501,7 @@ Total Unique Dates: {total_unique_dates}
             selected_set_id.set(selection[0])
             populate_photos(selection[0])
             create_button.config(state=tk.NORMAL)
+            attach_button.config(state=tk.NORMAL)
 
         def create_new_from_selected():
             photo_set_id = selected_set_id.get()
@@ -2283,6 +2525,13 @@ Total Unique Dates: {total_unique_dates}
             status_var.set(detail)
             messagebox.showinfo("Photo Inbox", detail)
 
+        def attach_existing_from_selected():
+            photo_set_id = selected_set_id.get()
+            if not photo_set_id:
+                messagebox.showwarning("Photo Inbox", "Select a Photo Set first.")
+                return
+            self.open_attach_photo_set_dialog(manager, photo_set_id, refresh_callback=populate_sets)
+
         def mark_selected(action):
             photo_set_id = selected_set_id.get()
             if not photo_set_id:
@@ -2304,7 +2553,13 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Refresh Inbox", command=refresh_inbox).pack(side=tk.LEFT, padx=(0, 6))
         create_button = ttk.Button(button_frame, text="Create New", state=tk.DISABLED, command=create_new_from_selected)
         create_button.pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame, text="Attach to Existing", state=tk.DISABLED).pack(side=tk.LEFT, padx=(0, 6))
+        attach_button = ttk.Button(
+            button_frame,
+            text="Attach to Existing",
+            state=tk.DISABLED,
+            command=attach_existing_from_selected,
+        )
+        attach_button.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Defer", command=lambda: mark_selected("defer")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Ignore", command=lambda: mark_selected("ignore")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
