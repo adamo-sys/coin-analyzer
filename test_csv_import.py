@@ -45,6 +45,8 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual(total_coins, 4)
         self.assertEqual(total_countries, 2)  # Canada and Newfoundland
         self.assertEqual(total_unique_dates, 3)  # 1967, 1968, 1909
+        self.assertTrue(all(item.image_path == "" for item in collection.items))
+        self.assertTrue(all(item.photos == [] for item in collection.items))
     
     def test_csv_import_with_missing_fields(self):
         """Test CSV import with missing required fields."""

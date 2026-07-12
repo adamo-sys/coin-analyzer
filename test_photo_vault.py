@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 
-from coin_collection import CoinItem
+from coin_collection import CoinItem, ItemPhoto, PhotoRole
 from collection_dashboard import CollectionDashboard
 from photo_assisted_entry import PhotoCandidate
 from photo_vault import PhotoRecord, PhotoVault, PhotoVaultIntegrityAudit
@@ -258,6 +258,69 @@ class TestPhotoVault(unittest.TestCase):
                 self.assertIn("issue_type", handle.read())
             with open(md_path, "r", encoding="utf-8") as handle:
                 self.assertIn("# Photo Vault Audit", handle.read())
+
+    def test_item_owned_photos_count_for_collection_coverage(self):
+        item = make_item(
+            "with_owned_photo",
+            "Canada",
+            "1 cent",
+            "1920",
+            "VF-20",
+            image_path="owned_front.jpg",
+            photos=[ItemPhoto("owned_front.jpg", PhotoRole.FRONT, True, "", 0)],
+        )
+
+        summary = PhotoVault(collection_items=[item]).coverage_summary()
+
+        self.assertEqual(summary.items_with_photos, 1)
+        self.assertEqual(summary.items_without_photos, 0)
+        self.assertEqual(summary.total_photos, 1)
+
+    def test_photo_vault_still_supports_supplemental_photo_records(self):
+        self.collection_item.image_path = "owned.jpg"
+        record = PhotoRecord("supplemental.jpg", "Collection Photo", linked_collection_item_id="nfld_1945_5c")
+
+        summary = PhotoVault([record], [self.collection_item]).coverage_summary()
+
+        self.assertEqual(summary.items_with_photos, 1)
+        self.assertEqual(summary.total_photos, 2)
+
+    def test_item_owned_missing_duplicate_and_invalid_photo_paths_are_audited(self):
+        item = make_item(
+            "audit_photos",
+            "Canada",
+            "1 cent",
+            "1920",
+            "VF-20",
+            image_path="missing.txt",
+            photos=[
+                ItemPhoto("missing.txt", PhotoRole.FRONT, True, "", 0),
+                ItemPhoto("missing.txt", PhotoRole.BACK, False, "", 1),
+            ],
+        )
+
+        report = PhotoVaultIntegrityAudit(collection_items=[item]).run()
+        issue_types = [issue.issue_type for issue in report.findings]
+
+        self.assertIn("Missing Photo Reference", issue_types)
+        self.assertIn("Duplicate Photo Reference", issue_types)
+        self.assertIn("Invalid File Extension", issue_types)
+        self.assertFalse(any(issue.issue_type == "Collection Item Without Photo" for issue in report.findings))
+
+    def test_photo_vault_search_indexes_item_owned_photos(self):
+        item = make_item(
+            "search_photo",
+            "Canada",
+            "1 cent",
+            "1920",
+            "VF-20",
+            image_path="coin_photos/collection/Canada/searchable_front.jpg",
+        )
+
+        matches = PhotoVault(collection_items=[item]).search("searchable_front")
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].linked_collection_item_id, "search_photo")
 
 
 if __name__ == "__main__":

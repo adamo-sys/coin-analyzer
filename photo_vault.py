@@ -236,17 +236,23 @@ class PhotoVaultIntegrityAudit:
     def run(self) -> PhotoCoverageReport:
         vault = PhotoVault(self.records, self.collection_items, self.root_path)
         summary = vault.coverage_summary()
+        audit_records = vault.collection_photo_records(include_supplemental=True)
+        candidate_reference_records = [
+            record for record in self.records
+            if not record.linked_collection_item_id
+        ]
+        all_records = audit_records + candidate_reference_records
         findings: List[PhotoVaultIssue] = []
-        findings.extend(self._record_issues())
+        findings.extend(self._record_issues(all_records))
         findings.extend(self._collection_coverage_issues())
         findings.extend(self._candidate_coverage_issues())
         missing = sum(1 for issue in findings if issue.issue_type == "Missing Photo Reference")
         duplicate = sum(1 for issue in findings if issue.issue_type == "Duplicate Photo Reference")
-        valid = sum(1 for record in self.records if record.file_path and os.path.exists(record.file_path))
+        valid = sum(1 for record in all_records if record.file_path and os.path.exists(record.file_path))
         candidate_total = len(self.photo_candidates)
         candidate_with_photo = sum(1 for candidate in self.photo_candidates if self._candidate_photo_refs(candidate))
         report = PhotoCoverageReport(
-            total_photo_records=len(self.records),
+            total_photo_records=len(all_records),
             valid_photo_references=valid,
             missing_photo_references=missing,
             duplicate_photo_references=duplicate,
@@ -258,10 +264,10 @@ class PhotoVaultIntegrityAudit:
         )
         return report
 
-    def _record_issues(self) -> List[PhotoVaultIssue]:
+    def _record_issues(self, records: Optional[Iterable[PhotoRecord]] = None) -> List[PhotoVaultIssue]:
         issues: List[PhotoVaultIssue] = []
         seen_paths: Dict[str, PhotoRecord] = {}
-        for record in self.records:
+        for record in list(records if records is not None else self.records):
             path = record.file_path
             reference = record.linked_coin_name or record.linked_candidate_id or record.linked_collection_item_id
             if not path:
@@ -326,7 +332,7 @@ class PhotoVaultIntegrityAudit:
         issues = []
         records_by_item: Set[str] = {
             str(record.linked_collection_item_id)
-            for record in self.records
+            for record in PhotoVault(self.records, self.collection_items, self.root_path).collection_photo_records(include_supplemental=True)
             if record.linked_collection_item_id
         }
         for item in self.collection_items:
@@ -475,11 +481,12 @@ class PhotoVault:
         ))
 
     def search(self, query: str) -> List[PhotoRecord]:
+        records = self.all_indexed_records()
         needle = self._normalize(query)
         if not needle:
-            return list(self.records)
+            return records
         return [
-            record for record in self.records
+            record for record in records
             if needle in self._record_search_text(record)
         ]
 
@@ -494,7 +501,7 @@ class PhotoVault:
 
     def collection_photo_statuses(self) -> List[CollectionPhotoStatus]:
         records_by_item: Dict[str, List[PhotoRecord]] = {}
-        for record in self.records:
+        for record in self.collection_photo_records(include_supplemental=True):
             if record.linked_collection_item_id:
                 records_by_item.setdefault(record.linked_collection_item_id, []).append(record)
 
@@ -534,8 +541,43 @@ class PhotoVault:
             certified_items=len(certified_items),
             certified_items_with_photos=certified_with_photos,
             certified_photo_coverage_percentage=self._percentage(certified_with_photos, len(certified_items)),
-            total_photos=len(self.records),
+            total_photos=len(self.all_indexed_records()),
         )
+
+    def all_indexed_records(self) -> List[PhotoRecord]:
+        return self.collection_photo_records(include_supplemental=True) + [
+            record for record in self.records if not record.linked_collection_item_id
+        ]
+
+    def collection_photo_records(self, include_supplemental: bool = True) -> List[PhotoRecord]:
+        records = self._item_owned_photo_records()
+        if include_supplemental:
+            records.extend(record for record in self.records if record.linked_collection_item_id)
+        return records
+
+    def _item_owned_photo_records(self) -> List[PhotoRecord]:
+        records: List[PhotoRecord] = []
+        for item in self.collection_items:
+            for photo in self._item_photos(item):
+                records.append(PhotoRecord(
+                    file_path=photo["path"],
+                    photo_type="Collection Photo",
+                    linked_collection_item_id=str(getattr(item, "id", "")),
+                    linked_coin_name=self._coin_name(item),
+                    notes=photo.get("notes", ""),
+                ))
+        return records
+
+    @staticmethod
+    def _item_photos(item: Any) -> List[Dict[str, str]]:
+        if hasattr(item, "normalized_photos"):
+            return [
+                {"path": getattr(photo, "path", ""), "notes": getattr(photo, "notes", "")}
+                for photo in item.normalized_photos()
+                if getattr(photo, "path", "")
+            ]
+        image_path = str(getattr(item, "image_path", "") or "").strip()
+        return [{"path": image_path, "notes": ""}] if image_path else []
 
     def format_markdown(self) -> str:
         summary = self.coverage_summary()
@@ -553,9 +595,10 @@ class PhotoVault:
             "## Photo Records",
             "",
         ]
-        if not self.records:
+        display_records = self.all_indexed_records()
+        if not display_records:
             lines.append("- No photo records available.")
-        for record in self.records:
+        for record in display_records:
             certs = ", ".join(record.certification_numbers()) or "none"
             lines.append(
                 f"- {record.photo_type}: {record.linked_coin_name or os.path.basename(record.file_path)} "
@@ -588,7 +631,7 @@ class PhotoVault:
                     "ngc_number",
                 ])
                 writer.writeheader()
-                for record in self.records:
+                for record in self.all_indexed_records():
                     writer.writerow(record.to_dict())
             return True
         except Exception as exc:

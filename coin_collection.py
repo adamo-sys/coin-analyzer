@@ -7,10 +7,92 @@ import json
 import csv
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Set
-from dataclasses import dataclass, asdict
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass, field
 import cv2
 import numpy as np
+
+
+class PhotoRole(str, Enum):
+    """Structured role for photos attached to a collection item."""
+
+    FRONT = "FRONT"
+    BACK = "BACK"
+    HOLDER_FRONT = "HOLDER_FRONT"
+    HOLDER_BACK = "HOLDER_BACK"
+    EDGE = "EDGE"
+    DETAIL = "DETAIL"
+    CERT_LABEL = "CERT_LABEL"
+    OTHER = "OTHER"
+
+    @classmethod
+    def normalize(cls, value: Any) -> "PhotoRole":
+        text = str(value or "").strip().upper().replace(" ", "_").replace("-", "_")
+        aliases = {
+            "OBVERSE": cls.FRONT,
+            "REVERSE": cls.BACK,
+            "FRONT_PHOTO": cls.FRONT,
+            "BACK_PHOTO": cls.BACK,
+            "LABEL": cls.CERT_LABEL,
+            "CERTIFICATION_LABEL": cls.CERT_LABEL,
+            "CERT": cls.CERT_LABEL,
+        }
+        if text in aliases:
+            return aliases[text]
+        try:
+            return cls(text)
+        except ValueError:
+            return cls.OTHER
+
+
+@dataclass
+class ItemPhoto:
+    """Photo metadata owned by a collection item; files are never moved."""
+
+    path: str
+    role: PhotoRole = PhotoRole.OTHER
+    is_primary: bool = False
+    notes: str = ""
+    display_order: int = 0
+
+    def __post_init__(self) -> None:
+        self.path = str(self.path or "").strip()
+        self.role = PhotoRole.normalize(self.role)
+        self.is_primary = bool(self.is_primary)
+        self.notes = str(self.notes or "").strip()
+        try:
+            self.display_order = int(self.display_order)
+        except (TypeError, ValueError):
+            self.display_order = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "path": self.path,
+            "role": self.role.value,
+            "is_primary": self.is_primary,
+            "notes": self.notes,
+            "display_order": self.display_order,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any, fallback_order: int = 0) -> Optional["ItemPhoto"]:
+        if isinstance(data, str):
+            path = data.strip()
+            return cls(path=path, display_order=fallback_order) if path else None
+        if not isinstance(data, dict):
+            return None
+        path = str(data.get("path") or data.get("file_path") or "").strip()
+        if not path:
+            return None
+        return cls(
+            path=path,
+            role=data.get("role") or data.get("photo_role") or data.get("photo_type") or PhotoRole.OTHER,
+            is_primary=bool(data.get("is_primary", False)),
+            notes=str(data.get("notes") or ""),
+            display_order=data.get("display_order", fallback_order),
+        )
+
 
 @dataclass
 class CoinItem:
@@ -36,15 +118,161 @@ class CoinItem:
     estimate_cad: float = 0.0
     comments: str = ""
     from_numista: bool = False
+    photos: List[ItemPhoto] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.image_path = str(self.image_path or "").strip()
+        self.photos = self._coerce_photos(self.photos)
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
-        return asdict(self)
+        self.sync_image_path_from_primary()
+        return {
+            "id": self.id,
+            "image_path": self.image_path,
+            "country": self.country,
+            "denomination": self.denomination,
+            "year": self.year,
+            "grade": self.grade,
+            "notes": self.notes,
+            "date_added": self.date_added,
+            "auto_detected": self.auto_detected,
+            "detection_confidence": self.detection_confidence,
+            "issuer": self.issuer,
+            "currency": self.currency,
+            "face_value": self.face_value,
+            "reference": self.reference,
+            "numista_n": self.numista_n,
+            "title": self.title,
+            "quantity": self.quantity,
+            "estimate_cad": self.estimate_cad,
+            "comments": self.comments,
+            "from_numista": self.from_numista,
+            "photos": [photo.to_dict() for photo in self.normalized_photos()],
+        }
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'CoinItem':
         """Create from dictionary."""
-        return cls(**data)
+        if not isinstance(data, dict):
+            data = {}
+        known = {
+            "id": str(data.get("id") or ""),
+            "image_path": str(data.get("image_path") or ""),
+            "country": str(data.get("country") or ""),
+            "denomination": str(data.get("denomination") or ""),
+            "year": str(data.get("year") or ""),
+            "grade": str(data.get("grade") or ""),
+            "notes": str(data.get("notes") or ""),
+            "date_added": str(data.get("date_added") or ""),
+            "auto_detected": bool(data.get("auto_detected", False)),
+            "detection_confidence": cls._float_or_default(data.get("detection_confidence"), 0.0),
+            "issuer": str(data.get("issuer") or ""),
+            "currency": str(data.get("currency") or ""),
+            "face_value": str(data.get("face_value") or ""),
+            "reference": str(data.get("reference") or ""),
+            "numista_n": str(data.get("numista_n") or ""),
+            "title": str(data.get("title") or ""),
+            "quantity": cls._int_or_default(data.get("quantity"), 1),
+            "estimate_cad": cls._float_or_default(data.get("estimate_cad"), 0.0),
+            "comments": str(data.get("comments") or ""),
+            "from_numista": bool(data.get("from_numista", False)),
+            "photos": cls._coerce_photos(data.get("photos", [])),
+        }
+        return cls(**known)
+
+    def normalized_photos(self) -> List[ItemPhoto]:
+        """Return deterministic photos, synthesizing legacy image_path if needed."""
+        photos = self._coerce_photos(self.photos)
+        if not photos and self.image_path:
+            photos = [ItemPhoto(self.image_path, PhotoRole.OTHER, True, "", 0)]
+        photos = [photo for photo in photos if photo.path]
+        photos.sort(key=lambda photo: (photo.display_order, photo.path.lower()))
+        for index, photo in enumerate(photos):
+            photo.display_order = index
+        primary_index = self._effective_primary_index(photos)
+        for index, photo in enumerate(photos):
+            photo.is_primary = index == primary_index
+        return photos
+
+    def primary_photo(self) -> Optional[ItemPhoto]:
+        photos = self.normalized_photos()
+        return photos[0] if photos else None
+
+    @property
+    def primary_image_path(self) -> str:
+        primary = self.primary_photo()
+        return primary.path if primary else self.image_path
+
+    def sync_image_path_from_primary(self) -> None:
+        primary = self.primary_photo()
+        if primary:
+            self.image_path = primary.path
+            self.photos = self.normalized_photos()
+
+    @staticmethod
+    def _coerce_photos(value: Any) -> List[ItemPhoto]:
+        if not value:
+            return []
+        if not isinstance(value, list):
+            value = [value]
+        photos = []
+        for index, row in enumerate(value):
+            photo = row if isinstance(row, ItemPhoto) else ItemPhoto.from_dict(row, index)
+            if photo and photo.path:
+                photos.append(photo)
+        return photos
+
+    @staticmethod
+    def _effective_primary_index(photos: List[ItemPhoto]) -> Optional[int]:
+        if not photos:
+            return None
+        for index, photo in enumerate(photos):
+            if photo.is_primary:
+                return index
+        return 0
+
+    @staticmethod
+    def _int_or_default(value: Any, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _float_or_default(value: Any, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+
+@dataclass
+class PhotoMigrationResult:
+    """Preview/apply result for explicit legacy photo migration."""
+
+    total_items: int = 0
+    legacy_image_path_items: int = 0
+    structured_photo_items: int = 0
+    blank_photo_items: int = 0
+    migrated_items: int = 0
+    duplicate_photo_paths: int = 0
+    multiple_primary_items: int = 0
+    no_primary_items: int = 0
+    warnings: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_items": self.total_items,
+            "legacy_image_path_items": self.legacy_image_path_items,
+            "structured_photo_items": self.structured_photo_items,
+            "blank_photo_items": self.blank_photo_items,
+            "migrated_items": self.migrated_items,
+            "duplicate_photo_paths": self.duplicate_photo_paths,
+            "multiple_primary_items": self.multiple_primary_items,
+            "no_primary_items": self.no_primary_items,
+            "warnings": list(self.warnings),
+        }
 
 
 class CoinCollection:
@@ -108,6 +336,56 @@ class CoinCollection:
         self.items = [item for item in self.items if item.id != item_id]
         self.save_collection()
         return True
+
+    def preview_photo_migration(self) -> PhotoMigrationResult:
+        """Preview legacy image_path-to-photos normalization without writing."""
+        return self._build_photo_migration_result(apply=False)
+
+    def apply_photo_migration(self) -> PhotoMigrationResult:
+        """Explicitly normalize item-owned photos and save when changes occur."""
+        result = self._build_photo_migration_result(apply=True)
+        if result.migrated_items:
+            self.save_collection()
+        return result
+
+    def _build_photo_migration_result(self, apply: bool) -> PhotoMigrationResult:
+        result = PhotoMigrationResult(total_items=len(self.items))
+        seen_paths = set()
+        for item in self.items:
+            raw_photos = CoinItem._coerce_photos(getattr(item, "photos", []))
+            primary_count = sum(1 for photo in raw_photos if photo.is_primary)
+            if raw_photos:
+                result.structured_photo_items += 1
+                if primary_count > 1:
+                    result.multiple_primary_items += 1
+                    result.warnings.append(f"{item.id}: multiple primary photos normalized deterministically")
+                elif primary_count == 0:
+                    result.no_primary_items += 1
+                    result.warnings.append(f"{item.id}: no primary photo; first photo becomes primary")
+            elif item.image_path:
+                result.legacy_image_path_items += 1
+            else:
+                result.blank_photo_items += 1
+
+            for photo in item.normalized_photos():
+                normalized_path = os.path.normcase(os.path.normpath(photo.path))
+                if normalized_path in seen_paths:
+                    result.duplicate_photo_paths += 1
+                    result.warnings.append(f"{item.id}: duplicate photo path detected: {photo.path}")
+                else:
+                    seen_paths.add(normalized_path)
+
+            before = [photo.to_dict() for photo in raw_photos]
+            before_image_path = item.image_path
+            normalized = item.normalized_photos()
+            after = [photo.to_dict() for photo in normalized]
+            after_image_path = normalized[0].path if normalized else item.image_path
+            if before != after or before_image_path != after_image_path:
+                result.migrated_items += 1
+                if apply:
+                    item.photos = normalized
+                    item.image_path = after_image_path
+        return result
     
     def get_item(self, item_id: str) -> Optional[CoinItem]:
         """Get item by ID."""
@@ -381,7 +659,8 @@ class CoinCollection:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for item in self.items:
-                    writer.writerow(item.to_dict())
+                    row = item.to_dict()
+                    writer.writerow({field: row.get(field, "") for field in fieldnames})
             print(f"Exported {len(self.items)} items to {output_path}")
             return True
         except Exception as e:

@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from datetime import datetime
 
-from coin_collection import CoinCollection, CoinItem
+from coin_collection import CoinCollection, CoinItem, ItemPhoto, PhotoRole
 
 
 def make_coin_item(item_id="test_001", **overrides):
@@ -121,6 +121,157 @@ class TestCoinCollectionBackend(unittest.TestCase):
 
         self.assertEqual(reloaded.items[0].notes, special_notes)
         self.assertEqual(rows[0]["notes"], special_notes)
+
+    def test_legacy_image_path_only_record_loads_and_synthesizes_photo(self):
+        image_path = "coin_photos/collection/Canada/1920_front.jpg"
+        legacy = make_coin_item("legacy_image", image_path=image_path).to_dict()
+        legacy.pop("photos")
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            json.dump([legacy], handle)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(collection.items[0].image_path, image_path)
+        photos = collection.items[0].normalized_photos()
+        self.assertEqual(len(photos), 1)
+        self.assertEqual(photos[0].path, image_path)
+        self.assertTrue(photos[0].is_primary)
+
+    def test_new_photos_only_record_loads_and_sets_primary_image_alias(self):
+        record = make_coin_item("photos_only", image_path="").to_dict()
+        record["image_path"] = ""
+        record["photos"] = [
+            {"path": "front.jpg", "role": "FRONT", "is_primary": True, "display_order": 0},
+            {"path": "back.jpg", "role": "BACK", "display_order": 1},
+        ]
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            json.dump([record], handle)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(collection.items[0].primary_image_path, "front.jpg")
+        self.assertEqual(collection.items[0].to_dict()["image_path"], "front.jpg")
+
+    def test_consistent_image_path_and_photos_round_trip_deterministically(self):
+        item = make_coin_item(
+            "consistent",
+            image_path="front.jpg",
+            photos=[
+                ItemPhoto("back.jpg", PhotoRole.BACK, False, "", 1),
+                ItemPhoto("front.jpg", PhotoRole.FRONT, True, "", 0),
+            ],
+        )
+        collection = CoinCollection(self.collection_path)
+        collection.add_item(item)
+
+        reloaded = CoinCollection(self.collection_path)
+        serialized = reloaded.items[0].to_dict()
+
+        self.assertEqual(serialized["image_path"], "front.jpg")
+        self.assertEqual([p["path"] for p in serialized["photos"]], ["front.jpg", "back.jpg"])
+        self.assertEqual(sum(1 for p in serialized["photos"] if p["is_primary"]), 1)
+
+    def test_conflicting_image_path_and_photos_prefer_primary_photo(self):
+        item = make_coin_item(
+            "conflict",
+            image_path="legacy.jpg",
+            photos=[ItemPhoto("primary.jpg", PhotoRole.FRONT, True, "", 0)],
+        )
+
+        self.assertEqual(item.primary_image_path, "primary.jpg")
+        self.assertEqual(item.to_dict()["image_path"], "primary.jpg")
+
+    def test_no_primary_photo_normalizes_first_photo(self):
+        item = make_coin_item(
+            "no_primary",
+            image_path="",
+            photos=[
+                ItemPhoto("b.jpg", PhotoRole.BACK, False, "", 5),
+                ItemPhoto("a.jpg", PhotoRole.FRONT, False, "", 1),
+            ],
+        )
+
+        photos = item.normalized_photos()
+
+        self.assertEqual(photos[0].path, "a.jpg")
+        self.assertTrue(photos[0].is_primary)
+        self.assertEqual(sum(1 for p in photos if p.is_primary), 1)
+
+    def test_multiple_primary_photos_normalize_deterministically(self):
+        item = make_coin_item(
+            "multi_primary",
+            image_path="",
+            photos=[
+                ItemPhoto("second.jpg", PhotoRole.BACK, True, "", 1),
+                ItemPhoto("first.jpg", PhotoRole.FRONT, True, "", 0),
+            ],
+        )
+
+        photos = item.normalized_photos()
+
+        self.assertEqual(photos[0].path, "first.jpg")
+        self.assertTrue(photos[0].is_primary)
+        self.assertFalse(photos[1].is_primary)
+
+    def test_malformed_photo_entries_do_not_prevent_collection_loading(self):
+        record = make_coin_item("malformed", image_path="legacy.jpg").to_dict()
+        record["photos"] = [
+            {"path": ""},
+            "string-photo.jpg",
+            123,
+            {"file_path": "file-path-photo.jpg", "role": "OBVERSE"},
+        ]
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            json.dump([record], handle)
+
+        collection = CoinCollection(self.collection_path)
+        photos = collection.items[0].normalized_photos()
+        paths = [photo.path for photo in photos]
+
+        self.assertEqual(paths, ["string-photo.jpg", "file-path-photo.jpg"])
+        self.assertEqual(photos[1].role, PhotoRole.FRONT)
+
+    def test_unknown_json_keys_do_not_break_collection_loading(self):
+        record = make_coin_item("unknown_keys").to_dict()
+        record["unexpected"] = "ignored"
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            json.dump([record], handle)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(len(collection.items), 1)
+        self.assertEqual(collection.items[0].id, "unknown_keys")
+
+    def test_photo_migration_preview_and_apply_are_idempotent(self):
+        collection = CoinCollection(self.collection_path)
+        collection.items = [
+            make_coin_item("legacy", image_path="legacy.jpg"),
+            make_coin_item("blank", image_path=""),
+        ]
+
+        preview = collection.preview_photo_migration()
+        first_apply = collection.apply_photo_migration()
+        second_apply = collection.apply_photo_migration()
+
+        self.assertEqual(preview.legacy_image_path_items, 1)
+        self.assertEqual(first_apply.migrated_items, 1)
+        self.assertEqual(second_apply.migrated_items, 0)
+        self.assertEqual(collection.items[0].photos[0].path, "legacy.jpg")
+
+    def test_csv_export_preserves_shape_and_primary_image_path(self):
+        collection = CoinCollection(self.collection_path)
+        collection.add_item(make_coin_item(
+            "csv_photo",
+            image_path="legacy.jpg",
+            photos=[ItemPhoto("primary.jpg", PhotoRole.FRONT, True, "", 0)],
+        ))
+
+        self.assertTrue(collection.export_to_csv(self.export_path))
+        with open(self.export_path, "r", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+
+        self.assertEqual(rows[0]["image_path"], "primary.jpg")
+        self.assertNotIn("photos", rows[0])
 
 
 if __name__ == "__main__":
