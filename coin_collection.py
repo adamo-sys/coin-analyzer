@@ -28,6 +28,8 @@ class PhotoRole(str, Enum):
 
     @classmethod
     def normalize(cls, value: Any) -> "PhotoRole":
+        if isinstance(value, cls):
+            return value
         text = str(value or "").strip().upper().replace(" ", "_").replace("-", "_")
         aliases = {
             "OBVERSE": cls.FRONT,
@@ -187,7 +189,7 @@ class CoinItem:
         if not photos and self.image_path:
             photos = [ItemPhoto(self.image_path, PhotoRole.OTHER, True, "", 0)]
         photos = [photo for photo in photos if photo.path]
-        photos.sort(key=lambda photo: (photo.display_order, photo.path.lower()))
+        photos.sort(key=lambda photo: photo.display_order)
         for index, photo in enumerate(photos):
             photo.display_order = index
         primary_index = self._effective_primary_index(photos)
@@ -197,7 +199,7 @@ class CoinItem:
 
     def primary_photo(self) -> Optional[ItemPhoto]:
         photos = self.normalized_photos()
-        return photos[0] if photos else None
+        return next((photo for photo in photos if photo.is_primary), photos[0] if photos else None)
 
     @property
     def primary_image_path(self) -> str:
@@ -771,8 +773,9 @@ class CoinCollectionApp:
             }
             return self.current_detection_result
     
-    def add_to_collection(self, country: str, denomination: str, year: str, 
-                         grade: str, notes: str, use_detection: bool = False) -> bool:
+    def add_to_collection(self, country: str, denomination: str, year: str,
+                         grade: str, notes: str, use_detection: bool = False,
+                         photos: Optional[List[ItemPhoto]] = None) -> bool:
         """Add current coin to collection."""
         if not self.current_image_path:
             print("No image uploaded")
@@ -789,6 +792,22 @@ class CoinCollectionApp:
             confidence = 0.0
             auto_detected = False
         
+        structured_photos = CoinItem._coerce_photos(photos or [])
+        if structured_photos:
+            structured_photos = CoinItem(
+                id="",
+                image_path=self.current_image_path,
+                country="",
+                denomination="",
+                year="",
+                grade="",
+                notes="",
+                date_added="",
+                photos=structured_photos,
+            ).normalized_photos()
+            primary_photo = next((photo for photo in structured_photos if photo.is_primary), structured_photos[0])
+            self.current_image_path = primary_photo.path
+
         item = CoinItem(
             id=item_id,
             image_path=self.current_image_path,
@@ -799,7 +818,8 @@ class CoinCollectionApp:
             notes=notes,
             date_added=datetime.now().isoformat(),
             auto_detected=auto_detected,
-            detection_confidence=confidence
+            detection_confidence=confidence,
+            photos=structured_photos,
         )
         
         self.collection.add_item(item)

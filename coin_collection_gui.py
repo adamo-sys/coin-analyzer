@@ -10,7 +10,7 @@ import os
 import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
-from coin_collection import CoinCollectionApp, CoinItem
+from coin_collection import CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
 from numista_intelligence import NumistaIntelligenceEngine
 from smart_phone_cataloguer import SmartPhoneCataloguer
 from collection_intelligence import CollectionIntelligenceEngine
@@ -202,6 +202,8 @@ class CoinCollectionGUI:
         # Current state
         self.current_image = None
         self.current_photo = None
+        self.current_item_photos = []
+        self.selected_photo_index = None
         self.detection_result = None
         
         # Create menu bar
@@ -362,19 +364,61 @@ Total Unique Dates: {total_unique_dates}
         left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
         
         # Image section
-        image_frame = ttk.LabelFrame(left_panel, text="Coin Image", padding="10")
+        image_frame = ttk.LabelFrame(left_panel, text="Photos", padding="10")
         image_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
         # Image display
-        self.image_label = ttk.Label(image_frame, text="No image loaded", anchor=tk.CENTER)
+        self.image_label = ttk.Label(image_frame, text="No photos selected", anchor=tk.CENTER)
         self.image_label.pack(fill=tk.BOTH, expand=True)
         
         # Image buttons
         button_frame = ttk.Frame(image_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
         
-        ttk.Button(button_frame, text="Upload Image", command=self.upload_image).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Clear", command=self.clear_image).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text="Add Photos", command=self.upload_image).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Remove", command=self.remove_selected_photo).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Set Primary", command=self.set_selected_photo_primary).pack(side=tk.LEFT)
+
+        order_frame = ttk.Frame(image_frame)
+        order_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Button(order_frame, text="Move Up", command=self.move_selected_photo_up).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(order_frame, text="Move Down", command=self.move_selected_photo_down).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(order_frame, text="Clear", command=self.clear_image).pack(side=tk.LEFT)
+
+        self.photo_tree = ttk.Treeview(
+            image_frame,
+            columns=("primary", "role", "file"),
+            show="headings",
+            height=5,
+        )
+        self.photo_tree.heading("primary", text="Primary")
+        self.photo_tree.heading("role", text="Role")
+        self.photo_tree.heading("file", text="File")
+        self.photo_tree.column("primary", width=55, anchor=tk.CENTER)
+        self.photo_tree.column("role", width=105, anchor=tk.W)
+        self.photo_tree.column("file", width=175, anchor=tk.W)
+        self.photo_tree.pack(fill=tk.X, pady=(10, 0))
+        self.photo_tree.bind("<<TreeviewSelect>>", self.on_photo_selected)
+
+        photo_edit_frame = ttk.Frame(image_frame)
+        photo_edit_frame.pack(fill=tk.X, pady=(8, 0))
+        ttk.Label(photo_edit_frame, text="Role:").grid(row=0, column=0, sticky=tk.W)
+        self.photo_role_var = tk.StringVar(value=PhotoRole.OTHER.value)
+        self.photo_role_combo = ttk.Combobox(
+            photo_edit_frame,
+            textvariable=self.photo_role_var,
+            values=self.get_photo_role_values(),
+        )
+        self.photo_role_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 0))
+        self.photo_role_combo.bind("<<ComboboxSelected>>", self.update_selected_photo_role)
+        self.photo_role_combo.bind("<FocusOut>", self.update_selected_photo_role)
+        ttk.Label(photo_edit_frame, text="Notes:").grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+        self.photo_notes_var = tk.StringVar()
+        self.photo_notes_entry = ttk.Entry(photo_edit_frame, textvariable=self.photo_notes_var)
+        self.photo_notes_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(5, 0), pady=(5, 0))
+        self.photo_notes_entry.bind("<FocusOut>", self.update_selected_photo_notes)
+        self.photo_notes_entry.bind("<Return>", self.update_selected_photo_notes)
+        photo_edit_frame.columnconfigure(1, weight=1)
         
         # Detection section
         detection_frame = ttk.LabelFrame(left_panel, text="Experimental Detection (Suggestion Only)", padding="10")
@@ -984,23 +1028,244 @@ Total Unique Dates: {total_unique_dates}
         else:
             messagebox.showerror("Restore Error", "\n".join(result.errors))
     
+    @staticmethod
+    def get_photo_role_values():
+        """Return editable role suggestions for attached photos."""
+        return [role.value for role in PhotoRole]
+
+    @staticmethod
+    def role_display_label(role):
+        """Return collector-facing role text while preserving backend roles."""
+        labels = {
+            PhotoRole.FRONT: "Front / Obverse",
+            PhotoRole.BACK: "Back / Reverse",
+            PhotoRole.HOLDER_FRONT: "Holder Front",
+            PhotoRole.HOLDER_BACK: "Holder Back",
+            PhotoRole.EDGE: "Edge",
+            PhotoRole.DETAIL: "Detail",
+            PhotoRole.CERT_LABEL: "Certification Label",
+            PhotoRole.OTHER: "Other",
+        }
+        return labels.get(PhotoRole.normalize(role), PhotoRole.OTHER.value)
+
+    @staticmethod
+    def default_photo_role(index):
+        """Choose conservative first-pass roles for newly attached photos."""
+        if index == 0:
+            return PhotoRole.FRONT
+        if index == 1:
+            return PhotoRole.BACK
+        return PhotoRole.OTHER
+
+    @staticmethod
+    def clone_photos(photos):
+        """Copy photo metadata so edit dialogs can be cancelled safely."""
+        return [
+            ItemPhoto(
+                path=photo.path,
+                role=photo.role,
+                is_primary=photo.is_primary,
+                notes=photo.notes,
+                display_order=photo.display_order,
+            )
+            for photo in CoinItem._coerce_photos(photos)
+        ]
+
+    @classmethod
+    def normalized_photo_state(cls, photos):
+        """Normalize GUI photo state without touching image files."""
+        normalized = cls.clone_photos(photos)
+        normalized = [photo for photo in normalized if photo.path]
+        if not normalized:
+            return []
+        for index, photo in enumerate(normalized):
+            photo.display_order = index
+            photo.role = PhotoRole.normalize(photo.role)
+        primary_index = next((index for index, photo in enumerate(normalized) if photo.is_primary), 0)
+        for index, photo in enumerate(normalized):
+            photo.is_primary = index == primary_index
+        return normalized
+
+    @classmethod
+    def photos_from_item(cls, item):
+        """Load normalized item photos, including legacy image_path-only records."""
+        if not item:
+            return []
+        return cls.normalized_photo_state(item.normalized_photos())
+
+    @classmethod
+    def add_photo_paths_to_list(cls, photos, paths):
+        """Add unique file paths to photo metadata and report skipped duplicates."""
+        updated = cls.normalized_photo_state(photos)
+        seen = {os.path.normcase(os.path.abspath(photo.path)) for photo in updated if photo.path}
+        skipped = []
+        for path in paths or []:
+            clean_path = str(path or "").strip()
+            if not clean_path:
+                continue
+            key = os.path.normcase(os.path.abspath(clean_path))
+            if key in seen:
+                skipped.append(clean_path)
+                continue
+            role = cls.default_photo_role(len(updated))
+            updated.append(ItemPhoto(clean_path, role=role, is_primary=not updated, display_order=len(updated)))
+            seen.add(key)
+        return cls.normalized_photo_state(updated), skipped
+
+    @classmethod
+    def remove_photo_at_index(cls, photos, index):
+        """Remove a photo reference only; source files are never deleted."""
+        updated = cls.normalized_photo_state(photos)
+        if index is None or index < 0 or index >= len(updated):
+            return updated
+        del updated[index]
+        return cls.normalized_photo_state(updated)
+
+    @classmethod
+    def set_primary_photo_at_index(cls, photos, index):
+        """Mark exactly one photo as primary."""
+        updated = cls.normalized_photo_state(photos)
+        if index is None or index < 0 or index >= len(updated):
+            return updated
+        for photo_index, photo in enumerate(updated):
+            photo.is_primary = photo_index == index
+        return cls.normalized_photo_state(updated)
+
+    @classmethod
+    def move_photo_at_index(cls, photos, index, offset):
+        """Move a photo up or down while preserving the selected primary."""
+        updated = cls.normalized_photo_state(photos)
+        if index is None or index < 0 or index >= len(updated):
+            return updated, index
+        new_index = index + offset
+        if new_index < 0 or new_index >= len(updated):
+            return updated, index
+        updated[index], updated[new_index] = updated[new_index], updated[index]
+        return cls.normalized_photo_state(updated), new_index
+
+    @classmethod
+    def update_photo_role_at_index(cls, photos, index, role):
+        """Update a selected photo role, normalizing unknown values to OTHER."""
+        updated = cls.normalized_photo_state(photos)
+        if index is not None and 0 <= index < len(updated):
+            updated[index].role = PhotoRole.normalize(role)
+        return cls.normalized_photo_state(updated)
+
+    @classmethod
+    def update_photo_notes_at_index(cls, photos, index, notes):
+        """Update selected photo notes."""
+        updated = cls.normalized_photo_state(photos)
+        if index is not None and 0 <= index < len(updated):
+            updated[index].notes = str(notes or "").strip()
+        return cls.normalized_photo_state(updated)
+
+    @staticmethod
+    def photo_preview_status(photo):
+        """Return display status for previewing a photo path."""
+        if not photo or not photo.path:
+            return "No photos selected"
+        if not os.path.exists(photo.path):
+            return "Image file not found"
+        return ""
+
+    @classmethod
+    def photo_detail_rows(cls, photos):
+        """Build stable detail rows for photo lists and tests."""
+        return [
+            {
+                "primary": "*" if photo.is_primary else "",
+                "role": photo.role.value,
+                "label": cls.role_display_label(photo.role),
+                "file": os.path.basename(photo.path),
+                "path": photo.path,
+                "notes": photo.notes,
+                "status": cls.photo_preview_status(photo),
+            }
+            for photo in cls.normalized_photo_state(photos)
+        ]
+
+    @classmethod
+    def item_details_text(cls, item):
+        """Build details text shared by the gallery window and tests."""
+        details = [
+            f"ID: {item.id}",
+            f"Image: {item.primary_image_path}",
+            f"Country: {item.country}",
+            f"Denomination: {item.denomination}",
+            f"Year: {item.year}",
+            f"Grade: {item.grade}",
+            f"Notes: {item.notes}",
+            f"Date Added: {item.date_added}",
+        ]
+        if item.from_numista:
+            details.extend([
+                "",
+                "--- Numista Details ---",
+                f"Title: {item.title}",
+                f"Numista N#: {item.numista_n}",
+                f"Reference: {item.reference}",
+                f"Issuer: {item.issuer}",
+                f"Currency: {item.currency}",
+                f"Face Value: {item.face_value}",
+                f"Quantity: {item.quantity}",
+                f"Estimate (CAD): ${item.estimate_cad:.2f}",
+                f"Comments: {item.comments}",
+            ])
+        details.extend([
+            "",
+            "--- Detection Info ---",
+            f"Auto Detected: {item.auto_detected}",
+            f"Detection Confidence: {item.detection_confidence}",
+        ])
+        rows = cls.photo_detail_rows(item.normalized_photos())
+        details.extend(["", "--- Photos ---"])
+        if rows:
+            for row in rows:
+                marker = "Primary" if row["primary"] else "Photo"
+                status = f" ({row['status']})" if row["status"] else ""
+                details.append(f"{marker}: {row['role']} - {row['path']}{status}")
+                if row["notes"]:
+                    details.append(f"Photo Notes: {row['notes']}")
+        else:
+            details.append("No photos attached")
+        return "\n".join(details)
+
+    def sync_current_image_path_from_photos(self):
+        """Keep legacy single-image consumers pointed at the primary photo."""
+        photos = self.normalized_photo_state(self.current_item_photos)
+        self.current_item_photos = photos
+        primary = next((photo for photo in photos if photo.is_primary), None)
+        self.app.current_image_path = primary.path if primary else None
+
     def upload_image(self):
-        """Upload coin image."""
-        file_path = filedialog.askopenfilename(
-            title="Select Coin Image",
-            filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")]
+        """Attach one or more coin photos."""
+        file_paths = filedialog.askopenfilenames(
+            title="Select Coin Photos",
+            filetypes=[
+                ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                ("All files", "*.*"),
+            ],
         )
-        
-        if file_path:
-            if self.app.upload_image(file_path):
-                self.display_image(file_path)
-                messagebox.showinfo("Success", "Image uploaded successfully")
-            else:
-                messagebox.showerror("Error", "Failed to upload image")
+        if not file_paths:
+            return
+        self.current_item_photos, skipped = self.add_photo_paths_to_list(self.current_item_photos, file_paths)
+        self.selected_photo_index = len(self.current_item_photos) - 1 if self.current_item_photos else None
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+        self.display_selected_photo()
+        if skipped:
+            messagebox.showwarning("Duplicate Photos", f"Skipped {len(skipped)} duplicate photo reference(s).")
+        elif self.current_item_photos:
+            messagebox.showinfo("Success", "Photos attached successfully")
     
     def display_image(self, image_path):
         """Display image in GUI."""
         try:
+            if not image_path or not os.path.exists(image_path):
+                self.current_image = image_path
+                self.current_photo = None
+                self.image_label.config(image="", text="Image file not found")
+                return
             # Load and resize image
             img = Image.open(image_path)
             img.thumbnail((400, 400))
@@ -1009,16 +1274,136 @@ Total Unique Dates: {total_unique_dates}
             
             self.image_label.config(image=self.current_photo, text="")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to display image: {str(e)}")
+            self.current_photo = None
+            self.image_label.config(image="", text=f"Preview unavailable: {str(e)}")
+
+    def refresh_photo_list(self):
+        """Refresh attached-photo rows."""
+        if not hasattr(self, "photo_tree"):
+            return
+        for row_id in self.photo_tree.get_children():
+            self.photo_tree.delete(row_id)
+        rows = self.photo_detail_rows(self.current_item_photos)
+        for index, row in enumerate(rows):
+            label = row["label"]
+            if row["status"]:
+                label = f"{label} ({row['status']})"
+            self.photo_tree.insert("", tk.END, iid=str(index), values=(row["primary"], row["role"], row["file"] or row["path"]))
+        if rows and self.selected_photo_index is not None and 0 <= self.selected_photo_index < len(rows):
+            self.photo_tree.selection_set(str(self.selected_photo_index))
+            self.photo_tree.focus(str(self.selected_photo_index))
+        self.sync_selected_photo_edit_fields()
+
+    def sync_selected_photo_edit_fields(self):
+        """Reflect selected photo metadata in the role and notes controls."""
+        if not hasattr(self, "photo_role_var"):
+            return
+        photos = self.normalized_photo_state(self.current_item_photos)
+        if self.selected_photo_index is not None and 0 <= self.selected_photo_index < len(photos):
+            photo = photos[self.selected_photo_index]
+            self.photo_role_var.set(photo.role.value)
+            self.photo_notes_var.set(photo.notes)
+        else:
+            self.photo_role_var.set(PhotoRole.OTHER.value)
+            self.photo_notes_var.set("")
+
+    def on_photo_selected(self, event=None):
+        """Handle attached-photo selection."""
+        if not hasattr(self, "photo_tree"):
+            return
+        selection = self.photo_tree.selection()
+        if not selection:
+            return
+        self.selected_photo_index = int(selection[0])
+        self.sync_selected_photo_edit_fields()
+        self.display_selected_photo()
+
+    def display_selected_photo(self):
+        """Display the currently selected photo, or the primary photo by default."""
+        photos = self.normalized_photo_state(self.current_item_photos)
+        if not photos:
+            self.current_image = None
+            self.current_photo = None
+            self.image_label.config(image="", text="No photos selected")
+            return
+        if self.selected_photo_index is None or self.selected_photo_index >= len(photos):
+            self.selected_photo_index = next((index for index, photo in enumerate(photos) if photo.is_primary), 0)
+        self.display_image(photos[self.selected_photo_index].path)
+
+    def remove_selected_photo(self):
+        """Remove the selected photo reference from the form state."""
+        self.current_item_photos = self.remove_photo_at_index(self.current_item_photos, self.selected_photo_index)
+        if self.current_item_photos:
+            self.selected_photo_index = min(self.selected_photo_index or 0, len(self.current_item_photos) - 1)
+        else:
+            self.selected_photo_index = None
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+        self.display_selected_photo()
+
+    def set_selected_photo_primary(self):
+        """Mark the selected photo as primary."""
+        self.current_item_photos = self.set_primary_photo_at_index(self.current_item_photos, self.selected_photo_index)
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+
+    def move_selected_photo_up(self):
+        """Move selected photo up."""
+        self.current_item_photos, self.selected_photo_index = self.move_photo_at_index(
+            self.current_item_photos,
+            self.selected_photo_index,
+            -1,
+        )
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+        self.display_selected_photo()
+
+    def move_selected_photo_down(self):
+        """Move selected photo down."""
+        self.current_item_photos, self.selected_photo_index = self.move_photo_at_index(
+            self.current_item_photos,
+            self.selected_photo_index,
+            1,
+        )
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+        self.display_selected_photo()
+
+    def update_selected_photo_role(self, event=None):
+        """Update selected photo role from the role combobox."""
+        role = self.photo_role_var.get() if hasattr(self, "photo_role_var") else PhotoRole.OTHER.value
+        self.current_item_photos = self.update_photo_role_at_index(
+            self.current_item_photos,
+            self.selected_photo_index,
+            role,
+        )
+        self.refresh_photo_list()
+
+    def update_selected_photo_notes(self, event=None):
+        """Update selected photo notes from the notes entry."""
+        notes = self.photo_notes_var.get() if hasattr(self, "photo_notes_var") else ""
+        self.current_item_photos = self.update_photo_notes_at_index(
+            self.current_item_photos,
+            self.selected_photo_index,
+            notes,
+        )
+        self.refresh_photo_list()
     
     def clear_image(self):
-        """Clear current image."""
+        """Clear current image and attached photo state."""
         self.current_image = None
         self.current_photo = None
-        self.image_label.config(image="", text="No image loaded")
+        self.current_item_photos = []
+        self.selected_photo_index = None
+        if hasattr(self, "image_label"):
+            self.image_label.config(image="", text="No photos selected")
         self.app.current_image_path = None
         self.detection_result = None
-        self.detection_label.config(text="No detection results")
+        if hasattr(self, "detection_label"):
+            self.detection_label.config(text="No detection results")
+        if hasattr(self, "confidence_label"):
+            self.confidence_label.config(text="")
+        self.refresh_photo_list()
     
     def run_detection(self):
         """Run denomination detector."""
@@ -1149,6 +1534,7 @@ Total Unique Dates: {total_unique_dates}
     
     def save_to_collection(self):
         """Save current coin to collection."""
+        self.sync_current_image_path_from_photos()
         if not self.app.current_image_path:
             messagebox.showwarning("Warning", "Please upload an image first")
             return
@@ -1166,7 +1552,8 @@ Total Unique Dates: {total_unique_dates}
         # Never auto-save detector results as truth - manual fields are source of truth
         use_detection = False  # Always false - manual fields are source of truth
         
-        if self.app.add_to_collection(country, denomination, year, grade, notes, use_detection):
+        photos = self.normalized_photo_state(self.current_item_photos)
+        if self.app.add_to_collection(country, denomination, year, grade, notes, use_detection, photos=photos):
             # Log the corrected values if detection was used
             if self.detection_result and self.detection_result['success']:
                 self.log_correction(country, denomination, year)
@@ -1223,6 +1610,7 @@ Total Unique Dates: {total_unique_dates}
         self.year_var.set("")
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
+        self.clear_image()
         self.refresh_entry_suggestions()
     
     def refresh_collection_list(self):
@@ -2298,35 +2686,93 @@ Total Unique Dates: {total_unique_dates}
         item = self.app.collection.get_item(item_id)
         
         if item:
-            details = f"ID: {item.id}\n"
-            details += f"Image: {item.image_path}\n"
-            details += f"Country: {item.country}\n"
-            details += f"Denomination: {item.denomination}\n"
-            details += f"Year: {item.year}\n"
-            details += f"Grade: {item.grade}\n"
-            details += f"Notes: {item.notes}\n"
-            details += f"Date Added: {item.date_added}\n"
-            
-            # Numista fields
-            if item.from_numista:
-                details += "\n--- Numista Details ---\n"
-                details += f"Title: {item.title}\n"
-                details += f"Numista N#: {item.numista_n}\n"
-                details += f"Reference: {item.reference}\n"
-                details += f"Issuer: {item.issuer}\n"
-                details += f"Currency: {item.currency}\n"
-                details += f"Face Value: {item.face_value}\n"
-                details += f"Quantity: {item.quantity}\n"
-                details += f"Estimate (CAD): ${item.estimate_cad:.2f}\n"
-                details += f"Comments: {item.comments}\n"
-            
-            details += f"\n--- Detection Info ---\n"
-            details += f"Auto Detected: {item.auto_detected}\n"
-            details += f"Detection Confidence: {item.detection_confidence}"
-            
-            messagebox.showinfo("Item Details", details)
+            self.open_item_details_window(item)
         else:
             messagebox.showerror("Error", "Item not found")
+
+    def open_item_details_window(self, item):
+        """Open a read-only item details window with a photo gallery."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Item Details")
+        dialog.geometry("760x560")
+        dialog.transient(self.root)
+
+        content = ttk.Frame(dialog, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+        content.columnconfigure(1, weight=1)
+        content.rowconfigure(0, weight=1)
+
+        details_text = tk.Text(content, width=42, wrap=tk.WORD)
+        details_text.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W), padx=(0, 10))
+        details_text.insert(tk.END, self.item_details_text(item))
+        details_text.config(state=tk.DISABLED)
+
+        gallery = ttk.LabelFrame(content, text="Photos", padding="10")
+        gallery.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.E, tk.W))
+        gallery.columnconfigure(0, weight=1)
+        gallery.rowconfigure(1, weight=1)
+
+        preview_label = ttk.Label(gallery, text="No photos attached", anchor=tk.CENTER)
+        preview_label.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        rows = self.photo_detail_rows(item.normalized_photos())
+        photo_tree = ttk.Treeview(
+            gallery,
+            columns=("primary", "role", "file"),
+            show="headings",
+            height=8,
+        )
+        photo_tree.heading("primary", text="Primary")
+        photo_tree.heading("role", text="Role")
+        photo_tree.heading("file", text="File")
+        photo_tree.column("primary", width=65, anchor=tk.CENTER)
+        photo_tree.column("role", width=120, anchor=tk.W)
+        photo_tree.column("file", width=220, anchor=tk.W)
+        photo_tree.grid(row=1, column=0, sticky=(tk.N, tk.S, tk.E, tk.W))
+
+        path_var = tk.StringVar(value="")
+        notes_var = tk.StringVar(value="")
+        ttk.Label(gallery, textvariable=path_var, wraplength=360).grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+        ttk.Label(gallery, textvariable=notes_var, wraplength=360).grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+
+        detail_photo_ref = {"image": None}
+
+        def show_detail_photo(index):
+            if not rows or index < 0 or index >= len(rows):
+                preview_label.config(image="", text="No photos attached")
+                path_var.set("")
+                notes_var.set("")
+                return
+            row = rows[index]
+            path_var.set(f"Path: {row['path']}")
+            notes_var.set(f"Notes: {row['notes']}" if row["notes"] else "Notes:")
+            if row["status"]:
+                detail_photo_ref["image"] = None
+                preview_label.config(image="", text=row["status"])
+                return
+            try:
+                img = Image.open(row["path"])
+                img.thumbnail((320, 260))
+                detail_photo_ref["image"] = ImageTk.PhotoImage(img)
+                preview_label.config(image=detail_photo_ref["image"], text="")
+            except Exception as exc:
+                detail_photo_ref["image"] = None
+                preview_label.config(image="", text=f"Preview unavailable: {exc}")
+
+        for index, row in enumerate(rows):
+            photo_tree.insert("", tk.END, iid=str(index), values=(row["primary"], row["role"], row["file"] or row["path"]))
+
+        def on_detail_select(event=None):
+            selection = photo_tree.selection()
+            if selection:
+                show_detail_photo(int(selection[0]))
+
+        photo_tree.bind("<<TreeviewSelect>>", on_detail_select)
+        if rows:
+            photo_tree.selection_set("0")
+            show_detail_photo(0)
+
+        ttk.Button(content, text="Close", command=dialog.destroy).grid(row=1, column=1, sticky=tk.E, pady=(10, 0))
     
     def edit_item(self):
         """Edit selected item."""
@@ -2339,29 +2785,180 @@ Total Unique Dates: {total_unique_dates}
         item = self.app.collection.get_item(item_id)
         
         if item:
-            # Simple edit dialog
-            new_country = simpledialog.askstring("Edit Country", "Enter country:", initialvalue=item.country)
-            if new_country:
-                new_denomination = simpledialog.askstring("Edit Denomination", "Enter denomination:", initialvalue=item.denomination)
-                if new_denomination:
-                    new_year = simpledialog.askstring("Edit Year", "Enter year:", initialvalue=item.year)
-                    if new_year is not None:
-                        new_grade = simpledialog.askstring("Edit Grade", "Enter grade:", initialvalue=item.grade)
-                        if new_grade is not None:
-                            new_notes = simpledialog.askstring("Edit Notes", "Enter notes:", initialvalue=item.notes)
-                            if new_notes is not None:
-                                # Update item
-                                self.app.collection.update_item(item_id, {
-                                    'country': new_country,
-                                    'denomination': new_denomination,
-                                    'year': new_year,
-                                    'grade': new_grade,
-                                    'notes': new_notes
-                                })
-                                self.refresh_collection_list()
-                                messagebox.showinfo("Success", "Item updated")
+            self.open_edit_item_window(item)
         else:
             messagebox.showerror("Error", "Item not found")
+
+    def open_edit_item_window(self, item):
+        """Open a scoped edit dialog that includes item-owned photo metadata."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Item")
+        dialog.geometry("720x600")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        edit_photos = {"photos": self.photos_from_item(item), "selected": 0}
+
+        form = ttk.Frame(dialog, padding="10")
+        form.pack(fill=tk.BOTH, expand=True)
+        form.columnconfigure(1, weight=1)
+        form.rowconfigure(6, weight=1)
+
+        country_var = tk.StringVar(value=item.country)
+        denomination_var = tk.StringVar(value=item.denomination)
+        year_var = tk.StringVar(value=item.year)
+        grade_var = tk.StringVar(value=item.grade)
+        role_var = tk.StringVar(value=PhotoRole.OTHER.value)
+        note_var = tk.StringVar()
+
+        fields = [
+            ("Country:", country_var, self.get_entry_suggestions("country")),
+            ("Denomination:", denomination_var, self.get_entry_suggestions("denomination")),
+            ("Year:", year_var, self.get_entry_suggestions("year")),
+            ("Grade:", grade_var, GRADE_SUGGESTIONS),
+        ]
+        for row_index, (label, variable, values) in enumerate(fields):
+            ttk.Label(form, text=label).grid(row=row_index, column=0, sticky=tk.W, pady=4)
+            ttk.Combobox(form, textvariable=variable, values=values).grid(
+                row=row_index,
+                column=1,
+                sticky=(tk.W, tk.E),
+                pady=4,
+                padx=(5, 0),
+            )
+
+        ttk.Label(form, text="Notes:").grid(row=4, column=0, sticky=tk.NW, pady=4)
+        notes_text = tk.Text(form, height=4)
+        notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
+        notes_text.insert(tk.END, item.notes)
+
+        photo_frame = ttk.LabelFrame(form, text="Photos", padding="10")
+        photo_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        photo_frame.columnconfigure(0, weight=1)
+
+        edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
+        edit_tree.heading("primary", text="Primary")
+        edit_tree.heading("role", text="Role")
+        edit_tree.heading("file", text="File")
+        edit_tree.column("primary", width=65, anchor=tk.CENTER)
+        edit_tree.column("role", width=120, anchor=tk.W)
+        edit_tree.column("file", width=360, anchor=tk.W)
+        edit_tree.grid(row=0, column=0, columnspan=6, sticky=(tk.W, tk.E))
+
+        def refresh_edit_tree():
+            edit_photos["photos"] = self.normalized_photo_state(edit_photos["photos"])
+            for row_id in edit_tree.get_children():
+                edit_tree.delete(row_id)
+            for index, row in enumerate(self.photo_detail_rows(edit_photos["photos"])):
+                edit_tree.insert("", tk.END, iid=str(index), values=(row["primary"], row["role"], row["file"] or row["path"]))
+            if edit_photos["photos"]:
+                edit_photos["selected"] = min(edit_photos["selected"], len(edit_photos["photos"]) - 1)
+                edit_tree.selection_set(str(edit_photos["selected"]))
+                selected_photo = edit_photos["photos"][edit_photos["selected"]]
+                role_var.set(selected_photo.role.value)
+                note_var.set(selected_photo.notes)
+            else:
+                edit_photos["selected"] = None
+                role_var.set(PhotoRole.OTHER.value)
+                note_var.set("")
+
+        def edit_selection_changed(event=None):
+            selection = edit_tree.selection()
+            if selection:
+                edit_photos["selected"] = int(selection[0])
+                selected_photo = edit_photos["photos"][edit_photos["selected"]]
+                role_var.set(selected_photo.role.value)
+                note_var.set(selected_photo.notes)
+
+        def add_edit_photos():
+            paths = filedialog.askopenfilenames(
+                title="Select Coin Photos",
+                filetypes=[
+                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if not paths:
+                return
+            edit_photos["photos"], skipped = self.add_photo_paths_to_list(edit_photos["photos"], paths)
+            edit_photos["selected"] = len(edit_photos["photos"]) - 1 if edit_photos["photos"] else None
+            refresh_edit_tree()
+            if skipped:
+                messagebox.showwarning("Duplicate Photos", f"Skipped {len(skipped)} duplicate photo reference(s).")
+
+        def remove_edit_photo():
+            edit_photos["photos"] = self.remove_photo_at_index(edit_photos["photos"], edit_photos["selected"])
+            refresh_edit_tree()
+
+        def set_edit_primary():
+            edit_photos["photos"] = self.set_primary_photo_at_index(edit_photos["photos"], edit_photos["selected"])
+            refresh_edit_tree()
+
+        def move_edit_photo(offset):
+            edit_photos["photos"], edit_photos["selected"] = self.move_photo_at_index(
+                edit_photos["photos"],
+                edit_photos["selected"],
+                offset,
+            )
+            refresh_edit_tree()
+
+        def update_edit_role(event=None):
+            edit_photos["photos"] = self.update_photo_role_at_index(
+                edit_photos["photos"],
+                edit_photos["selected"],
+                role_var.get(),
+            )
+            refresh_edit_tree()
+
+        def update_edit_notes(event=None):
+            edit_photos["photos"] = self.update_photo_notes_at_index(
+                edit_photos["photos"],
+                edit_photos["selected"],
+                note_var.get(),
+            )
+            refresh_edit_tree()
+
+        edit_tree.bind("<<TreeviewSelect>>", edit_selection_changed)
+        ttk.Button(photo_frame, text="Add Photos", command=add_edit_photos).grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
+        ttk.Button(photo_frame, text="Remove", command=remove_edit_photo).grid(row=1, column=1, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+        ttk.Button(photo_frame, text="Set Primary", command=set_edit_primary).grid(row=1, column=2, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+        ttk.Button(photo_frame, text="Move Up", command=lambda: move_edit_photo(-1)).grid(row=1, column=3, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+        ttk.Button(photo_frame, text="Move Down", command=lambda: move_edit_photo(1)).grid(row=1, column=4, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+
+        ttk.Label(photo_frame, text="Role:").grid(row=2, column=0, sticky=tk.W, pady=(8, 0))
+        role_combo = ttk.Combobox(photo_frame, textvariable=role_var, values=self.get_photo_role_values())
+        role_combo.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=(8, 0), padx=(5, 0))
+        role_combo.bind("<<ComboboxSelected>>", update_edit_role)
+        role_combo.bind("<FocusOut>", update_edit_role)
+        ttk.Label(photo_frame, text="Notes:").grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+        note_entry = ttk.Entry(photo_frame, textvariable=note_var)
+        note_entry.grid(row=3, column=1, columnspan=4, sticky=(tk.W, tk.E), pady=(5, 0), padx=(5, 0))
+        note_entry.bind("<FocusOut>", update_edit_notes)
+        note_entry.bind("<Return>", update_edit_notes)
+
+        button_frame = ttk.Frame(form)
+        button_frame.grid(row=7, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+
+        def save_edit():
+            photos = self.normalized_photo_state(edit_photos["photos"])
+            primary = next((photo for photo in photos if photo.is_primary), None)
+            self.app.collection.update_item(item.id, {
+                "country": country_var.get().strip(),
+                "denomination": denomination_var.get().strip(),
+                "year": year_var.get().strip(),
+                "grade": grade_var.get().strip(),
+                "notes": notes_text.get("1.0", tk.END).strip(),
+                "photos": photos,
+                "image_path": primary.path if primary else "",
+            })
+            self.refresh_collection_list()
+            dialog.destroy()
+            messagebox.showinfo("Success", "Item updated")
+
+        ttk.Button(button_frame, text="Save", command=save_edit).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
+
+        refresh_edit_tree()
     
     def delete_item(self):
         """Delete selected item."""
