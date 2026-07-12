@@ -96,6 +96,7 @@ from photo_capture_workflow import (
     PhotoCaptureWorkflow,
 )
 from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
+from photo_inbox import PhotoInboxManager
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
@@ -231,6 +232,7 @@ class CoinCollectionGUI:
         home_menu.add_command(label="Collector Home Dashboard", command=self.open_collector_home_dashboard)
         home_menu.add_command(label="Collector Workspace", command=self.open_collector_workspace)
         home_menu.add_command(label="Collector Home", command=self.open_collector_home)
+        home_menu.add_command(label="Photo Inbox...", command=self.open_photo_inbox)
         home_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
         home_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
 
@@ -2024,6 +2026,189 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    @staticmethod
+    def photo_inbox_set_rows(manager):
+        """Build stable rows for pending Photo Inbox sets."""
+        rows = []
+        for photo_set in manager.get_pending_sets():
+            photos = manager.get_photo_set_photos(photo_set.id)
+            rows.append({
+                "id": photo_set.id,
+                "state": photo_set.state.value,
+                "photo_count": len(photos),
+                "suggested_label": photo_set.suggested_label,
+                "created_at": photo_set.created_at,
+                "updated_at": photo_set.updated_at,
+            })
+        return rows
+
+    @staticmethod
+    def photo_inbox_photo_rows(manager, photo_set_id):
+        """Build stable rows for photos in a selected Photo Inbox set."""
+        rows = []
+        for photo in manager.get_photo_set_photos(photo_set_id):
+            rows.append({
+                "filename": photo.filename,
+                "state": photo.state.value,
+                "path": photo.path,
+                "first_seen_at": photo.first_seen_at,
+                "error": photo.error,
+            })
+        return rows
+
+    @staticmethod
+    def photo_inbox_scan_summary(scan_result, pending_count):
+        """Summarize a manual Photo Inbox refresh."""
+        return (
+            f"Pending sets: {pending_count} | "
+            f"Discovered: {scan_result.discovered} | "
+            f"Ready: {scan_result.ready} | "
+            f"Stabilizing: {scan_result.stabilizing} | "
+            f"Unsupported: {scan_result.unsupported} | "
+            f"Duplicates: {scan_result.duplicates} | "
+            f"Missing: {scan_result.missing}"
+        )
+
+    def open_photo_inbox(self):
+        """Open a manual Photo Inbox review window."""
+        manager = PhotoInboxManager()
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Photo Inbox")
+        dialog.geometry("920x640")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.rowconfigure(2, weight=1)
+
+        folder_var = tk.StringVar(value=f"Inbox Folder: {manager.config.inbox_folder}")
+        status_var = tk.StringVar(value="Manual refresh only. Files are referenced in place.")
+        selected_set_id = tk.StringVar(value="")
+
+        ttk.Label(main_frame, textvariable=folder_var).grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        ttk.Label(main_frame, textvariable=status_var).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(4, 8))
+
+        set_frame = ttk.LabelFrame(main_frame, text="Pending Photo Sets", padding="8")
+        set_frame.grid(row=2, column=0, sticky=(tk.N, tk.S, tk.E, tk.W), padx=(0, 8))
+        set_frame.columnconfigure(0, weight=1)
+        set_frame.rowconfigure(0, weight=1)
+
+        set_tree = ttk.Treeview(
+            set_frame,
+            columns=("state", "photos", "label", "updated"),
+            show="headings",
+            height=12,
+        )
+        set_tree.heading("state", text="State")
+        set_tree.heading("photos", text="Photos")
+        set_tree.heading("label", text="Suggested Label")
+        set_tree.heading("updated", text="Updated")
+        set_tree.column("state", width=90, anchor=tk.W)
+        set_tree.column("photos", width=70, anchor=tk.CENTER)
+        set_tree.column("label", width=210, anchor=tk.W)
+        set_tree.column("updated", width=150, anchor=tk.W)
+        set_tree.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.E, tk.W))
+
+        photo_frame = ttk.LabelFrame(main_frame, text="Selected Set Photos", padding="8")
+        photo_frame.grid(row=2, column=1, sticky=(tk.N, tk.S, tk.E, tk.W))
+        photo_frame.columnconfigure(0, weight=1)
+        photo_frame.rowconfigure(0, weight=1)
+
+        photo_tree = ttk.Treeview(
+            photo_frame,
+            columns=("state", "file", "path"),
+            show="headings",
+            height=12,
+        )
+        photo_tree.heading("state", text="State")
+        photo_tree.heading("file", text="File")
+        photo_tree.heading("path", text="Path")
+        photo_tree.column("state", width=90, anchor=tk.W)
+        photo_tree.column("file", width=150, anchor=tk.W)
+        photo_tree.column("path", width=300, anchor=tk.W)
+        photo_tree.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.E, tk.W))
+
+        def populate_sets(scan_result=None):
+            for row_id in set_tree.get_children():
+                set_tree.delete(row_id)
+            rows = self.photo_inbox_set_rows(manager)
+            for row in rows:
+                set_tree.insert(
+                    "",
+                    tk.END,
+                    iid=row["id"],
+                    values=(row["state"], row["photo_count"], row["suggested_label"], row["updated_at"]),
+                )
+            if rows:
+                selected = selected_set_id.get()
+                if selected not in {row["id"] for row in rows}:
+                    selected = rows[0]["id"]
+                    selected_set_id.set(selected)
+                set_tree.selection_set(selected)
+                set_tree.focus(selected)
+                populate_photos(selected)
+            else:
+                selected_set_id.set("")
+                populate_photos("")
+            if scan_result:
+                status_var.set(self.photo_inbox_scan_summary(scan_result, len(rows)))
+            else:
+                status_var.set(f"Pending sets: {len(rows)} | Manual refresh only. Files are referenced in place.")
+
+        def populate_photos(photo_set_id):
+            for row_id in photo_tree.get_children():
+                photo_tree.delete(row_id)
+            for index, row in enumerate(self.photo_inbox_photo_rows(manager, photo_set_id)):
+                status = row["state"]
+                if row["error"]:
+                    status = f"{status}: {row['error']}"
+                photo_tree.insert("", tk.END, iid=str(index), values=(status, row["filename"], row["path"]))
+
+        def refresh_inbox():
+            try:
+                scan_result = manager.refresh()
+                populate_sets(scan_result)
+                if scan_result.errors:
+                    messagebox.showwarning("Photo Inbox", "\n".join(scan_result.errors))
+            except Exception as exc:
+                messagebox.showerror("Photo Inbox Error", f"Refresh failed: {exc}")
+
+        def on_set_selected(event=None):
+            selection = set_tree.selection()
+            if not selection:
+                return
+            selected_set_id.set(selection[0])
+            populate_photos(selection[0])
+
+        def mark_selected(action):
+            photo_set_id = selected_set_id.get()
+            if not photo_set_id:
+                messagebox.showwarning("Photo Inbox", "Select a Photo Set first.")
+                return
+            if action == "ignore":
+                ok = manager.mark_ignored(photo_set_id)
+            else:
+                ok = manager.mark_deferred(photo_set_id)
+            if not ok:
+                messagebox.showerror("Photo Inbox", "Could not update the selected Photo Set.")
+                return
+            populate_sets()
+
+        set_tree.bind("<<TreeviewSelect>>", on_set_selected)
+
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+        ttk.Button(button_frame, text="Refresh Inbox", command=refresh_inbox).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Create New", state=tk.DISABLED).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Attach to Existing", state=tk.DISABLED).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Defer", command=lambda: mark_selected("defer")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Ignore", command=lambda: mark_selected("ignore")).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+        refresh_inbox()
 
     def open_collection_health_report(self):
         """Open consolidated Collection Health Report dialog."""
