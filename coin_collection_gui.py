@@ -205,6 +205,10 @@ class CoinCollectionGUI:
         self.current_photo = None
         self.current_item_photos = []
         self.selected_photo_index = None
+        self.pending_inbox_manager = None
+        self.pending_inbox_photo_set_id = ""
+        self.pending_inbox_refresh_callback = None
+        self.pending_inbox_completion_done = False
         self.detection_result = None
         
         # Create menu bar
@@ -1556,6 +1560,12 @@ Total Unique Dates: {total_unique_dates}
         
         photos = self.normalized_photo_state(self.current_item_photos)
         if self.app.add_to_collection(country, denomination, year, grade, notes, use_detection, photos=photos):
+            if self.pending_inbox_manager and self.pending_inbox_photo_set_id:
+                if not self.complete_pending_inbox_create(getattr(self.app, "last_added_item_id", "")):
+                    messagebox.showwarning(
+                        "Photo Inbox",
+                        "Coin was saved, but the Photo Inbox set could not be marked attached.",
+                    )
             # Log the corrected values if detection was used
             if self.detection_result and self.detection_result['success']:
                 self.log_correction(country, denomination, year)
@@ -1613,6 +1623,7 @@ Total Unique Dates: {total_unique_dates}
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
         self.clear_image()
+        self.clear_pending_inbox_create()
         self.refresh_entry_suggestions()
     
     def refresh_collection_list(self):
@@ -2070,6 +2081,69 @@ Total Unique Dates: {total_unique_dates}
             f"Missing: {scan_result.missing}"
         )
 
+    @staticmethod
+    def can_create_new_from_inbox(rows, selected_set_id):
+        """Return whether Create New should be available for the inbox selection."""
+        return bool(rows and selected_set_id)
+
+    def item_photos_from_inbox_photo_set(self, manager, photo_set_id):
+        """Convert a pending Photo Inbox set into entry-form photo metadata."""
+        paths = [photo.path for photo in manager.get_photo_set_photos(photo_set_id)]
+        return self.add_photo_paths_to_list([], paths)
+
+    def load_photo_set_into_entry_form(self, manager, photo_set_id, refresh_callback=None):
+        """Preload a Photo Inbox set into the existing collection-entry form."""
+        photos, skipped = self.item_photos_from_inbox_photo_set(manager, photo_set_id)
+        if not photos:
+            return False, skipped
+        self.current_item_photos = photos
+        self.selected_photo_index = 0
+        self.pending_inbox_manager = manager
+        self.pending_inbox_photo_set_id = str(photo_set_id)
+        self.pending_inbox_refresh_callback = refresh_callback
+        self.pending_inbox_completion_done = False
+        self.sync_current_image_path_from_photos()
+        self.refresh_photo_list()
+        self.display_selected_photo()
+        return True, skipped
+
+    def complete_pending_inbox_create(self, item_id):
+        """Mark the pending inbox set attached after a successful collection save."""
+        if self.pending_inbox_completion_done:
+            return False
+        manager = self.pending_inbox_manager
+        photo_set_id = self.pending_inbox_photo_set_id
+        if not manager or not photo_set_id:
+            return False
+        if not manager.mark_attached(photo_set_id, item_id=str(item_id or "")):
+            return False
+        self.pending_inbox_completion_done = True
+        self.pending_inbox_manager = None
+        self.pending_inbox_photo_set_id = ""
+        callback = self.pending_inbox_refresh_callback
+        self.pending_inbox_refresh_callback = None
+        if callback:
+            callback()
+        return True
+
+    def clear_pending_inbox_create(self):
+        """Forget pending inbox context without changing inbox state."""
+        self.pending_inbox_manager = None
+        self.pending_inbox_photo_set_id = ""
+        self.pending_inbox_refresh_callback = None
+        self.pending_inbox_completion_done = False
+
+    def entry_form_has_content(self):
+        """Return whether the main entry form has unsaved collector input."""
+        text_values = [
+            self.country_var.get(),
+            self.denomination_var.get(),
+            self.year_var.get(),
+            self.grade_var.get(),
+        ]
+        notes = self.notes_text.get("1.0", tk.END).strip() if hasattr(self, "notes_text") else ""
+        return any(str(value or "").strip() for value in text_values) or bool(notes) or bool(self.current_item_photos)
+
     def open_photo_inbox(self):
         """Open a manual Photo Inbox review window."""
         manager = PhotoInboxManager()
@@ -2153,6 +2227,9 @@ Total Unique Dates: {total_unique_dates}
             else:
                 selected_set_id.set("")
                 populate_photos("")
+            create_button.config(
+                state=tk.NORMAL if self.can_create_new_from_inbox(rows, selected_set_id.get()) else tk.DISABLED
+            )
             if scan_result:
                 status_var.set(self.photo_inbox_scan_summary(scan_result, len(rows)))
             else:
@@ -2182,6 +2259,29 @@ Total Unique Dates: {total_unique_dates}
                 return
             selected_set_id.set(selection[0])
             populate_photos(selection[0])
+            create_button.config(state=tk.NORMAL)
+
+        def create_new_from_selected():
+            photo_set_id = selected_set_id.get()
+            if not photo_set_id:
+                messagebox.showwarning("Photo Inbox", "Select a Photo Set first.")
+                return
+            if self.entry_form_has_content():
+                if not messagebox.askyesno(
+                    "Create From Photo Set",
+                    "Replace the current unsaved entry form with this Photo Set?",
+                ):
+                    return
+                self.clear_form()
+            loaded, skipped = self.load_photo_set_into_entry_form(manager, photo_set_id, refresh_callback=populate_sets)
+            if not loaded:
+                messagebox.showerror("Photo Inbox", "Could not load photos from the selected Photo Set.")
+                return
+            detail = "Photo Set loaded into the collection-entry form."
+            if skipped:
+                detail += f"\nSkipped {len(skipped)} duplicate photo reference(s)."
+            status_var.set(detail)
+            messagebox.showinfo("Photo Inbox", detail)
 
         def mark_selected(action):
             photo_set_id = selected_set_id.get()
@@ -2202,7 +2302,8 @@ Total Unique Dates: {total_unique_dates}
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=3, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
         ttk.Button(button_frame, text="Refresh Inbox", command=refresh_inbox).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(button_frame, text="Create New", state=tk.DISABLED).pack(side=tk.LEFT, padx=(0, 6))
+        create_button = ttk.Button(button_frame, text="Create New", state=tk.DISABLED, command=create_new_from_selected)
+        create_button.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Attach to Existing", state=tk.DISABLED).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Defer", command=lambda: mark_selected("defer")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Ignore", command=lambda: mark_selected("ignore")).pack(side=tk.LEFT, padx=(0, 6))

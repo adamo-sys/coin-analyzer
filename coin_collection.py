@@ -711,6 +711,7 @@ class CoinCollectionApp:
         self.collection = CoinCollection()
         self.current_image_path = None
         self.current_detection_result = None
+        self.last_added_item_id = ""
     
     def upload_image(self, image_path: str) -> bool:
         """Upload and validate coin image."""
@@ -823,6 +824,7 @@ class CoinCollectionApp:
         )
         
         self.collection.add_item(item)
+        self.last_added_item_id = item_id
         print(f"Added item {item_id} to collection")
         return True
     
