@@ -9662,6 +9662,7 @@ Total Unique Dates: {total_unique_dates}
         tabs["ai_queue"] = self._create_ai_queue_tab(notebook, workspace)
         tabs["batch_queue"] = self._create_batch_queue_tab(notebook, workspace)
         tabs["photo_vault"] = self._create_photo_vault_tab(notebook, workspace)
+        tabs["image_readiness"] = self._create_image_readiness_tab(notebook, workspace)
         tabs["workflow"] = self._create_workflow_tab(notebook, workspace)
         tabs["data_safety"] = self._create_data_safety_tab(notebook, workspace)
         tabs["connected_data"] = self._create_connected_data_tab(notebook, workspace)
@@ -9776,6 +9777,67 @@ Total Unique Dates: {total_unique_dates}
         button_frame.pack(fill=tk.X, pady=(6, 0))
         ttk.Button(button_frame, text="Open in Photo Vault Audit", command=self.open_photo_vault_audit).pack(side=tk.LEFT, padx=(0, 6))
         return {"frame": frame, "text": text}
+
+    def _create_image_readiness_tab(self, notebook, workspace):
+        """Create read-only Image Readiness workspace tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Image Readiness")
+
+        item_options = self._image_readiness_item_options()
+        item_var = tk.StringVar(value=item_options[0][0] if item_options else "")
+        certified_var = tk.BooleanVar(value=False)
+
+        controls = ttk.Frame(frame)
+        controls.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(controls, text="Item:").pack(side=tk.LEFT, padx=(0, 4))
+        item_combo = ttk.Combobox(
+            controls,
+            textvariable=item_var,
+            values=[label for label, _item_id in item_options],
+            state="readonly",
+            width=48,
+        )
+        item_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
+        ttk.Checkbutton(controls, text="Certified item", variable=certified_var).pack(side=tk.LEFT, padx=(0, 6))
+
+        body = ttk.Frame(frame)
+        body.pack(fill=tk.BOTH, expand=True)
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=2)
+        body.rowconfigure(1, weight=1)
+
+        ttk.Label(body, text="Overall").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(body, text="Assessment Details").grid(row=0, column=1, sticky=tk.W, padx=(8, 0))
+
+        text = tk.Text(body, wrap=tk.WORD, padx=10, pady=10, height=22)
+        text.grid(row=1, column=0, sticky=tk.NSEW, pady=(2, 0))
+        details_text = tk.Text(body, wrap=tk.WORD, padx=10, pady=10, height=22)
+        details_text.grid(row=1, column=1, sticky=tk.NSEW, padx=(8, 0), pady=(2, 0))
+
+        ttk.Label(body, text="Photo List").grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        photo_listbox = tk.Listbox(body, height=5, exportselection=False)
+        photo_listbox.grid(row=3, column=0, columnspan=2, sticky=tk.EW, pady=(2, 0))
+
+        tab = {
+            "frame": frame,
+            "text": text,
+            "details_text": details_text,
+            "photo_listbox": photo_listbox,
+            "item_var": item_var,
+            "certified_var": certified_var,
+            "item_options": item_options,
+            "current_report": None,
+        }
+
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(8, 0))
+        ttk.Button(button_frame, text="Assess", command=lambda: self._assess_image_readiness_tab(tab, workspace)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Refresh Assessment", command=lambda: self._refresh_image_readiness_tab(tab, workspace)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: self._export_image_readiness_markdown(tab)).pack(side=tk.LEFT, padx=(0, 6))
+
+        photo_listbox.bind("<<ListboxSelect>>", lambda _event: self._update_image_readiness_photo_detail(tab))
+        self._assess_image_readiness_tab(tab, workspace)
+        return tab
 
     def _create_workflow_tab(self, notebook, workspace):
         """Create Workflow tab."""
@@ -9931,11 +9993,127 @@ Total Unique Dates: {total_unique_dates}
                     report,
                     lambda tab=tabs[key]: self._refresh_workflow_tab(tab, workspace),
                 )
+        if "image_readiness" in tabs:
+            self._assess_image_readiness_tab(tabs["image_readiness"], workspace)
         # Reports tab is rebuilt from scratch
         old_reports = tabs["reports"]["frame"]
         parent = old_reports.master
         old_reports.destroy()
         tabs["reports"] = self._create_reports_tab(parent, workspace)
+
+    def _image_readiness_item_options(self):
+        """Return collector-facing item labels for items with attached photos."""
+        options = []
+        for item in self._collection_items():
+            if self._item_has_image_readiness_photos(item):
+                options.append((self._image_readiness_item_label(item), str(getattr(item, "id", "") or "")))
+        return options
+
+    @staticmethod
+    def _item_has_image_readiness_photos(item):
+        photos = getattr(item, "photos", []) or []
+        if photos:
+            return True
+        return bool(str(getattr(item, "image_path", "") or "").strip())
+
+    @staticmethod
+    def _image_readiness_item_label(item):
+        parts = [
+            str(getattr(item, "year", "") or "").strip(),
+            str(getattr(item, "country", "") or "").strip(),
+            str(getattr(item, "denomination", "") or "").strip(),
+            str(getattr(item, "grade", "") or "").strip(),
+        ]
+        label = " ".join(part for part in parts if part)
+        item_id = str(getattr(item, "id", "") or "").strip()
+        if not label:
+            label = item_id or "Untitled item"
+        return f"{label} [{item_id}]" if item_id else label
+
+    @staticmethod
+    def _image_readiness_selected_item_id(tab):
+        selected = tab.get("item_var").get() if tab.get("item_var") else ""
+        for label, item_id in tab.get("item_options", []):
+            if label == selected:
+                return item_id
+        return ""
+
+    def _assess_image_readiness_tab(self, tab, workspace, refresh=False):
+        """Assess the selected item and render the read-only Image Readiness tab."""
+        item_id = self._image_readiness_selected_item_id(tab)
+        if not item_id:
+            report = workspace.get_image_assessment()
+        else:
+            report = workspace.get_image_assessment(
+                item_id=item_id,
+                certified_expected=bool(tab.get("certified_var").get()),
+                refresh=bool(refresh),
+            )
+        tab["current_report"] = report
+        self._set_text_widget(tab["text"], self._format_image_readiness(report))
+        self._populate_image_readiness_photo_list(tab, report)
+        self._update_image_readiness_photo_detail(tab)
+
+    def _refresh_image_readiness_tab(self, tab, workspace):
+        """Refresh Image Readiness through the workspace lifecycle."""
+        workspace.refresh()
+        self._assess_image_readiness_tab(tab, workspace, refresh=True)
+
+    def _export_image_readiness_markdown(self, tab):
+        """Export the current Image Readiness report using the report markdown exporter."""
+        report = tab.get("current_report")
+        if report is None:
+            messagebox.showwarning("Image Readiness", "No image readiness report is available to export.")
+            return
+        path = filedialog.asksaveasfilename(
+            title="Export Image Readiness",
+            defaultextension=".md",
+            filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            ok = report.export_markdown(path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Saved to {path}")
+            else:
+                messagebox.showerror("Export Failed", "Export returned False")
+        except Exception as e:
+            messagebox.showerror("Export Failed", str(e))
+
+    @staticmethod
+    def _set_text_widget(widget, content):
+        widget.config(state=tk.NORMAL)
+        widget.delete("1.0", tk.END)
+        widget.insert(tk.END, content)
+        widget.config(state=tk.DISABLED)
+
+    def _populate_image_readiness_photo_list(self, tab, report):
+        listbox = tab.get("photo_listbox")
+        if listbox is None:
+            return
+        listbox.delete(0, tk.END)
+        for index, assessment in enumerate(self._image_readiness_photo_assessments(report), start=1):
+            path = getattr(assessment, "path", "") or ""
+            label = os.path.basename(path) or path or "Photo"
+            role = getattr(assessment, "role", "OTHER") or "OTHER"
+            decision = self._enum_value(getattr(assessment, "decision", ""))
+            score = getattr(assessment, "readiness_score", 0)
+            listbox.insert(tk.END, f"{index}. {role} | {decision or 'N/A'} | {score} | {label}")
+        if listbox.size():
+            listbox.selection_set(0)
+
+    def _update_image_readiness_photo_detail(self, tab):
+        details = tab.get("details_text")
+        if details is None:
+            return
+        report = tab.get("current_report")
+        assessments = self._image_readiness_photo_assessments(report)
+        listbox = tab.get("photo_listbox")
+        selection = listbox.curselection() if listbox is not None else ()
+        index = selection[0] if selection else 0
+        assessment = assessments[index] if assessments and index < len(assessments) else None
+        self._set_text_widget(details, self._format_image_readiness_photo_detail(assessment))
 
     def _refresh_workflow_tab(self, tab, workspace):
         """Refresh only the unified workflow tab from CollectorWorkspace."""
@@ -10012,6 +10190,138 @@ Total Unique Dates: {total_unique_dates}
         return str(value or "").strip().upper()
 
     # -- Formatting helpers (pure formatting, no business logic) -----------
+
+    @staticmethod
+    def _enum_value(value):
+        return str(getattr(value, "value", value) or "")
+
+    @staticmethod
+    def _image_readiness_report_payload(report):
+        return report.to_dict() if hasattr(report, "to_dict") else dict(report or {})
+
+    @staticmethod
+    def _image_readiness_readiness(report):
+        return getattr(report, "readiness_report", None)
+
+    @staticmethod
+    def _image_readiness_photo_assessments(report):
+        readiness = CoinCollectionGUI._image_readiness_readiness(report)
+        return list(getattr(readiness, "photo_assessments", []) or [])
+
+    def _format_image_readiness(self, report):
+        """Format Image Readiness report for the workspace tab."""
+        payload = self._image_readiness_report_payload(report)
+        readiness = payload.get("readiness_report") or {}
+        summary = payload.get("summary") or {}
+        permissions = readiness.get("downstream_permissions") or {}
+        missing_roles = readiness.get("missing_roles") or []
+        evidence = readiness.get("evidence") or []
+        blocking = readiness.get("blocking_issues") or []
+        actions = readiness.get("recommended_actions") or []
+        assessments = readiness.get("photo_assessments") or []
+        issues = []
+        strengths = []
+        for assessment in assessments:
+            strengths.extend(assessment.get("strengths") or [])
+            issues.extend(assessment.get("issues") or [])
+
+        lines = ["Image Readiness", "=" * 40, ""]
+        lines.append(f"Selection:          {payload.get('selection_type') or 'none'}")
+        lines.append(f"Selection ID:       {payload.get('selection_id') or 'N/A'}")
+        lines.append(f"Photos:             {payload.get('photo_count', 0)}")
+        lines.append(f"Readiness Score:    {summary.get('overall_readiness_score', readiness.get('overall_readiness_score', 0))}")
+        lines.append(f"Decision:           {summary.get('decision') or readiness.get('decision') or 'N/A'}")
+        lines.append(f"Confidence:         {summary.get('confidence') or readiness.get('confidence') or 'N/A'}")
+
+        if missing_roles:
+            lines.append(f"Missing Roles:      {', '.join(str(role) for role in missing_roles)}")
+
+        lines.extend(["", "Downstream Permissions", "-" * 40])
+        if permissions:
+            for key, label in self._image_readiness_permission_labels():
+                lines.append(f"{label}: {permissions.get(key, 'N/A')}")
+        else:
+            lines.append("No downstream permission data available.")
+
+        lines.extend(["", "Strengths", "-" * 40])
+        lines.extend(self._format_image_readiness_list(strengths, "No strengths reported."))
+
+        lines.extend(["", "Issues", "-" * 40])
+        lines.extend(self._format_image_readiness_list(issues, "No non-blocking issues reported."))
+
+        lines.extend(["", "Blocking Issues", "-" * 40])
+        lines.extend(self._format_image_readiness_list(blocking, "No blocking issues reported."))
+
+        lines.extend(["", "Recommended Actions", "-" * 40])
+        lines.extend(self._format_image_readiness_list(actions, "No corrective actions recommended."))
+
+        lines.extend(["", "Photo Summary", "-" * 40])
+        if assessments:
+            for assessment in assessments:
+                label = os.path.basename(assessment.get("path") or "") or assessment.get("path") or "Photo"
+                lines.append(
+                    f"- {assessment.get('role', 'OTHER')}: "
+                    f"{assessment.get('decision', 'N/A')} "
+                    f"({assessment.get('readiness_score', 0)}) - {label}"
+                )
+        else:
+            lines.append("No photo assessments available.")
+
+        lines.append(self._format_engine_errors(payload.get("engine_errors") or []))
+        return "\n".join(lines).rstrip() + "\n"
+
+    @staticmethod
+    def _image_readiness_permission_labels():
+        return [
+            ("BROAD_IDENTIFICATION", "Broad Identification"),
+            ("OCR", "OCR"),
+            ("VARIETY_ATTRIBUTION", "Variety Attribution"),
+            ("GRADE_ESTIMATION", "Grade Estimation"),
+            ("SUBMISSION_READINESS", "Submission Readiness"),
+        ]
+
+    @staticmethod
+    def _format_image_readiness_list(values, empty_text):
+        seen = set()
+        lines = []
+        for value in values or []:
+            text = str(value or "").strip()
+            key = text.lower()
+            if text and key not in seen:
+                seen.add(key)
+                lines.append(f"- {text}")
+        return lines or [empty_text]
+
+    def _format_image_readiness_photo_detail(self, assessment):
+        """Format one selected photo assessment."""
+        if assessment is None:
+            return "Select a photo to view detailed assessment.\n"
+        decision = self._enum_value(getattr(assessment, "decision", ""))
+        confidence = self._enum_value(getattr(assessment, "confidence", ""))
+        path = getattr(assessment, "path", "") or ""
+        lines = [
+            "Photo Assessment",
+            "=" * 40,
+            "",
+            f"File:        {os.path.basename(path) or path or 'N/A'}",
+            f"Role:        {getattr(assessment, 'role', 'OTHER') or 'OTHER'}",
+            f"Readiness:   {decision or 'N/A'}",
+            f"Confidence:  {confidence or 'N/A'}",
+            f"Score:       {getattr(assessment, 'readiness_score', 0)}",
+            "",
+            "Strengths",
+            "-" * 40,
+        ]
+        lines.extend(self._format_image_readiness_list(getattr(assessment, "strengths", []), "No strengths reported."))
+        lines.extend(["", "Issues", "-" * 40])
+        lines.extend(self._format_image_readiness_list(getattr(assessment, "issues", []), "No non-blocking issues reported."))
+        lines.extend(["", "Blocking Issues", "-" * 40])
+        lines.extend(self._format_image_readiness_list(getattr(assessment, "blocking_issues", []), "No blocking issues reported."))
+        lines.extend(["", "Recommended Actions", "-" * 40])
+        lines.extend(self._format_image_readiness_list(getattr(assessment, "recommended_actions", []), "No corrective actions recommended."))
+        lines.extend(["", "Engine Warnings", "-" * 40])
+        lines.extend(self._format_image_readiness_list(getattr(assessment, "engine_errors", []), "No engine warnings reported."))
+        return "\n".join(lines).rstrip() + "\n"
 
     def _format_engine_errors(self, errors):
         """Format engine errors as warning text."""
