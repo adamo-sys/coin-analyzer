@@ -136,6 +136,15 @@ GRADE_SUGGESTIONS = (
     "MS-70",
 )
 
+PHOTO_INBOX_SETTING_SCAN_ON_STARTUP = "scan_photo_inbox_on_startup"
+PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION = "show_photo_inbox_startup_notification"
+PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN = "auto_refresh_photo_inbox_when_opened"
+PHOTO_INBOX_SETTINGS_DEFAULTS = {
+    PHOTO_INBOX_SETTING_SCAN_ON_STARTUP: True,
+    PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION: True,
+    PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN: True,
+}
+
 
 class CoinCollectionGUI:
     """GUI for coin collection management."""
@@ -195,6 +204,12 @@ class CoinCollectionGUI:
         self.watchlists = [WatchlistEngine.adam_presets()]
         self.app_preferences = {}
         self.session_status_var = tk.StringVar(value=self.session_context.format_status_line())
+        self.photo_inbox_pending_count = 0
+        self.photo_inbox_last_error = ""
+        self.photo_inbox_active_notification_signature = ""
+        self.photo_inbox_dismissed_notification_signature = ""
+        self.photo_inbox_indicator_var = tk.StringVar(value=self.photo_inbox_indicator_text(0))
+        self.photo_inbox_notification_var = tk.StringVar(value="")
         
         # Initialize optional identifier
         self.identifier = None
@@ -217,6 +232,7 @@ class CoinCollectionGUI:
         # Create GUI
         self.create_widgets()
         self.refresh_collection_list()
+        self.schedule_startup_photo_inbox_scan()
     
     def create_menu_bar(self):
         """Create the menu bar."""
@@ -577,13 +593,28 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(collection_buttons, text="Gap Report", command=self.open_collection_gap_report).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT)
 
+        status_frame = ttk.Frame(main_frame)
+        status_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        status_frame.columnconfigure(0, weight=1)
+
         ttk.Label(
-            main_frame,
+            status_frame,
             textvariable=self.session_status_var,
             anchor=tk.W,
             relief=tk.SUNKEN,
             padding=(6, 3),
-        ).grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        ).grid(row=0, column=0, sticky=(tk.W, tk.E))
+        ttk.Label(
+            status_frame,
+            textvariable=self.photo_inbox_notification_var,
+            anchor=tk.E,
+            padding=(6, 3),
+        ).grid(row=0, column=1, sticky=tk.E, padx=(8, 4))
+        ttk.Button(
+            status_frame,
+            textvariable=self.photo_inbox_indicator_var,
+            command=self.open_photo_inbox_from_indicator,
+        ).grid(row=0, column=2, sticky=tk.E)
 
     def _collection_items(self):
         return self.app.collection.get_all_items()
@@ -593,6 +624,146 @@ Total Unique Dates: {total_unique_dates}
 
     def refresh_session_status(self):
         self.session_status_var.set(self.session_context.format_status_line())
+
+    @staticmethod
+    def photo_inbox_indicator_text(pending_count=0, error=""):
+        """Return compact Photo Inbox indicator text."""
+        if error:
+            return "Photo Inbox (!)"
+        try:
+            count = int(pending_count or 0)
+        except (TypeError, ValueError):
+            count = 0
+        return f"Photo Inbox ({count})" if count > 0 else "Photo Inbox"
+
+    @staticmethod
+    def photo_inbox_notification_text(pending_count):
+        """Return passive startup notification text."""
+        try:
+            count = int(pending_count or 0)
+        except (TypeError, ValueError):
+            count = 0
+        if count <= 0:
+            return ""
+        noun = "Photo Set" if count == 1 else "Photo Sets"
+        return f"{count} pending {noun} ready to review."
+
+    def get_photo_inbox_setting(self, key):
+        """Read a Photo Inbox preference using Phase 2C defaults."""
+        default = PHOTO_INBOX_SETTINGS_DEFAULTS.get(key, False)
+        value = self.app_preferences.get(key, default)
+        if isinstance(value, str):
+            return value.strip().lower() not in {"0", "false", "no", "off"}
+        return bool(value)
+
+    def set_photo_inbox_setting(self, key, value):
+        """Store a Photo Inbox preference in the existing app preference bag."""
+        if key in PHOTO_INBOX_SETTINGS_DEFAULTS:
+            self.app_preferences[key] = bool(value)
+        return self.get_photo_inbox_setting(key)
+
+    def photo_inbox_settings_snapshot(self):
+        """Return current Photo Inbox notification settings."""
+        return {
+            key: self.get_photo_inbox_setting(key)
+            for key in PHOTO_INBOX_SETTINGS_DEFAULTS
+        }
+
+    def update_photo_inbox_indicator(self, pending_count=0, error=""):
+        """Update passive Photo Inbox awareness state."""
+        try:
+            count = int(pending_count or 0)
+        except (TypeError, ValueError):
+            count = 0
+        self.photo_inbox_pending_count = max(0, count)
+        self.photo_inbox_last_error = str(error or "")
+        if hasattr(self, "photo_inbox_indicator_var"):
+            self.photo_inbox_indicator_var.set(
+                self.photo_inbox_indicator_text(self.photo_inbox_pending_count, self.photo_inbox_last_error)
+            )
+        if self.photo_inbox_last_error and hasattr(self, "photo_inbox_notification_var"):
+            self.photo_inbox_notification_var.set("Photo Inbox unavailable.")
+
+    @staticmethod
+    def photo_inbox_pending_signature(rows):
+        """Build a session-only signature for pending notification dismissal."""
+        ids = sorted(str(row.get("id", "")) for row in rows or [] if row.get("id"))
+        return "|".join(ids)
+
+    def should_show_photo_inbox_startup_notification(self, rows):
+        """Return whether a passive startup notification should be shown."""
+        if not rows:
+            return False
+        if not self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION):
+            return False
+        signature = self.photo_inbox_pending_signature(rows)
+        return bool(signature and signature != self.photo_inbox_dismissed_notification_signature)
+
+    def show_photo_inbox_startup_notification(self, rows):
+        """Show a passive notification without opening windows or importing photos."""
+        if not self.should_show_photo_inbox_startup_notification(rows):
+            if hasattr(self, "photo_inbox_notification_var"):
+                self.photo_inbox_notification_var.set("")
+            return False
+        signature = self.photo_inbox_pending_signature(rows)
+        self.photo_inbox_active_notification_signature = signature
+        if hasattr(self, "photo_inbox_notification_var"):
+            self.photo_inbox_notification_var.set(self.photo_inbox_notification_text(len(rows)))
+        return True
+
+    def dismiss_photo_inbox_notification(self, signature=None):
+        """Dismiss the current passive Photo Inbox notification for this session."""
+        dismissed = signature or self.photo_inbox_active_notification_signature
+        if dismissed:
+            self.photo_inbox_dismissed_notification_signature = dismissed
+        self.photo_inbox_active_notification_signature = ""
+        if hasattr(self, "photo_inbox_notification_var"):
+            self.photo_inbox_notification_var.set("")
+
+    def refresh_photo_inbox_awareness(self, manager=None, scan=False, startup=False):
+        """Refresh Photo Inbox count and optional startup notification."""
+        manager = manager or PhotoInboxManager()
+        try:
+            if scan:
+                manager.refresh()
+            rows = self.photo_inbox_set_rows(manager)
+            self.update_photo_inbox_indicator(len(rows))
+            if startup:
+                self.show_photo_inbox_startup_notification(rows)
+            elif not rows and hasattr(self, "photo_inbox_notification_var"):
+                self.photo_inbox_notification_var.set("")
+            return {
+                "success": True,
+                "pending_count": len(rows),
+                "error": "",
+            }
+        except Exception as exc:
+            self.update_photo_inbox_indicator(0, error=str(exc))
+            return {
+                "success": False,
+                "pending_count": 0,
+                "error": str(exc),
+            }
+
+    def schedule_startup_photo_inbox_scan(self):
+        """Schedule one startup scan after the main window has initialized."""
+        if not self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_SCAN_ON_STARTUP):
+            self.refresh_photo_inbox_awareness(scan=False, startup=False)
+            return False
+        if hasattr(self.root, "after"):
+            self.root.after(250, self.run_startup_photo_inbox_scan)
+            return True
+        self.run_startup_photo_inbox_scan()
+        return True
+
+    def run_startup_photo_inbox_scan(self):
+        """Run the Phase 2C one-time startup Photo Inbox scan."""
+        return self.refresh_photo_inbox_awareness(scan=True, startup=True)
+
+    def open_photo_inbox_from_indicator(self):
+        """Open Photo Inbox from the passive indicator and dismiss the notice."""
+        self.dismiss_photo_inbox_notification()
+        self.open_photo_inbox()
 
     def load_collection_context(self):
         """Load shared workbook and WANT_LIST context for this app session."""
@@ -2399,6 +2570,15 @@ Total Unique Dates: {total_unique_dates}
         folder_var = tk.StringVar(value=f"Inbox Folder: {manager.config.inbox_folder}")
         status_var = tk.StringVar(value="Manual refresh only. Files are referenced in place.")
         selected_set_id = tk.StringVar(value="")
+        scan_startup_var = tk.BooleanVar(
+            value=self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_SCAN_ON_STARTUP)
+        )
+        startup_notification_var = tk.BooleanVar(
+            value=self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION)
+        )
+        auto_refresh_var = tk.BooleanVar(
+            value=self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN)
+        )
 
         ttk.Label(main_frame, textvariable=folder_var).grid(row=0, column=0, columnspan=2, sticky=tk.W)
         ttk.Label(main_frame, textvariable=status_var).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(4, 8))
@@ -2465,6 +2645,7 @@ Total Unique Dates: {total_unique_dates}
             else:
                 selected_set_id.set("")
                 populate_photos("")
+            self.update_photo_inbox_indicator(len(rows))
             create_button.config(
                 state=tk.NORMAL if self.can_create_new_from_inbox(rows, selected_set_id.get()) else tk.DISABLED
             )
@@ -2546,10 +2727,39 @@ Total Unique Dates: {total_unique_dates}
                 return
             populate_sets()
 
+        def update_inbox_setting(key, variable):
+            self.set_photo_inbox_setting(key, variable.get())
+            if key == PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION and not variable.get():
+                self.dismiss_photo_inbox_notification()
+
         set_tree.bind("<<TreeviewSelect>>", on_set_selected)
 
+        settings_frame = ttk.LabelFrame(main_frame, text="Photo Inbox Settings", padding="8")
+        settings_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        ttk.Checkbutton(
+            settings_frame,
+            text="Scan Photo Inbox on startup",
+            variable=scan_startup_var,
+            command=lambda: update_inbox_setting(PHOTO_INBOX_SETTING_SCAN_ON_STARTUP, scan_startup_var),
+        ).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Checkbutton(
+            settings_frame,
+            text="Show startup Photo Inbox notification",
+            variable=startup_notification_var,
+            command=lambda: update_inbox_setting(
+                PHOTO_INBOX_SETTING_STARTUP_NOTIFICATION,
+                startup_notification_var,
+            ),
+        ).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Checkbutton(
+            settings_frame,
+            text="Auto-refresh inbox when opened",
+            variable=auto_refresh_var,
+            command=lambda: update_inbox_setting(PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN, auto_refresh_var),
+        ).pack(side=tk.LEFT)
+
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+        button_frame.grid(row=4, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
         ttk.Button(button_frame, text="Refresh Inbox", command=refresh_inbox).pack(side=tk.LEFT, padx=(0, 6))
         create_button = ttk.Button(button_frame, text="Create New", state=tk.DISABLED, command=create_new_from_selected)
         create_button.pack(side=tk.LEFT, padx=(0, 6))
@@ -2564,7 +2774,10 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Ignore", command=lambda: mark_selected("ignore")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
-        refresh_inbox()
+        if self.get_photo_inbox_setting(PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN):
+            refresh_inbox()
+        else:
+            populate_sets()
 
     def open_collection_health_report(self):
         """Open consolidated Collection Health Report dialog."""
