@@ -515,6 +515,160 @@ class ReferenceSearchResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferenceClaim:
+    """A single attributable source assertion used for aggregation only."""
+
+    provider_id: str
+    source: ReferenceSource
+    source_record_id: str
+    issue_id: str
+    field_name: str
+    raw_value: str
+    normalized_value: str
+    source_ref: Optional[SourceRef] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "provider_id", _clean(self.provider_id))
+        if not isinstance(self.source, ReferenceSource):
+            object.__setattr__(self, "source", ReferenceSource(**dict(self.source)))
+        object.__setattr__(self, "source_record_id", _clean(self.source_record_id))
+        object.__setattr__(self, "issue_id", _clean(self.issue_id))
+        object.__setattr__(self, "field_name", _clean(self.field_name))
+        object.__setattr__(self, "raw_value", str(self.raw_value or "").strip())
+        object.__setattr__(self, "normalized_value", str(self.normalized_value or "").strip())
+        if self.source_ref is not None and not isinstance(self.source_ref, SourceRef):
+            object.__setattr__(self, "source_ref", SourceRef(**dict(self.source_ref)))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provider_id": self.provider_id,
+            "source": self.source.to_dict(),
+            "source_record_id": self.source_record_id,
+            "issue_id": self.issue_id,
+            "field_name": self.field_name,
+            "raw_value": self.raw_value,
+            "normalized_value": self.normalized_value,
+            "source_ref": self.source_ref.to_dict() if self.source_ref else None,
+        }
+
+
+@dataclass(frozen=True)
+class ReferenceConflict:
+    issue_key: str
+    field_name: str
+    conflict_type: ReferenceConflictType
+    claims: Tuple[ReferenceClaim, ...] = field(default_factory=tuple)
+    notes: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "issue_key", normalize_text(self.issue_key))
+        object.__setattr__(self, "field_name", _clean(self.field_name))
+        object.__setattr__(self, "conflict_type", _enum_member(
+            ReferenceConflictType,
+            self.conflict_type,
+            ReferenceConflictType.OTHER,
+        ))
+        object.__setattr__(self, "claims", tuple(
+            claim if isinstance(claim, ReferenceClaim) else ReferenceClaim(**dict(claim))
+            for claim in self.claims or []
+        ))
+        object.__setattr__(self, "notes", _clean(self.notes))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "issue_key": self.issue_key,
+            "field_name": self.field_name,
+            "conflict_type": self.conflict_type.value,
+            "claims": [claim.to_dict() for claim in self.claims],
+            "notes": self.notes,
+        }
+
+
+@dataclass(frozen=True)
+class ReferenceIssueGroup:
+    issue_key: str
+    records: Tuple[ReferenceRecord, ...] = field(default_factory=tuple)
+    claims: Tuple[ReferenceClaim, ...] = field(default_factory=tuple)
+    conflicts: Tuple[ReferenceConflict, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "issue_key", _clean(self.issue_key))
+        object.__setattr__(self, "records", tuple(
+            record if isinstance(record, ReferenceRecord) else ReferenceRecord(**dict(record))
+            for record in self.records or []
+        ))
+        object.__setattr__(self, "claims", tuple(
+            claim if isinstance(claim, ReferenceClaim) else ReferenceClaim(**dict(claim))
+            for claim in self.claims or []
+        ))
+        object.__setattr__(self, "conflicts", tuple(
+            conflict if isinstance(conflict, ReferenceConflict) else ReferenceConflict(**dict(conflict))
+            for conflict in self.conflicts or []
+        ))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "issue_key": self.issue_key,
+            "records": [record.to_dict() for record in self.records],
+            "claims": [claim.to_dict() for claim in self.claims],
+            "conflicts": [conflict.to_dict() for conflict in self.conflicts],
+        }
+
+
+@dataclass(frozen=True)
+class AggregatedReferenceResult:
+    groups: Tuple[ReferenceIssueGroup, ...] = field(default_factory=tuple)
+    provider_errors: Tuple[ReferenceProviderError, ...] = field(default_factory=tuple)
+    warnings: Tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "groups", tuple(
+            group if isinstance(group, ReferenceIssueGroup) else ReferenceIssueGroup(**dict(group))
+            for group in self.groups or []
+        ))
+        object.__setattr__(self, "provider_errors", tuple(
+            error if isinstance(error, ReferenceProviderError) else ReferenceProviderError(**dict(error))
+            for error in self.provider_errors or []
+        ))
+        object.__setattr__(self, "warnings", _string_tuple(self.warnings))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "groups": [group.to_dict() for group in self.groups],
+            "provider_errors": [error.to_dict() for error in self.provider_errors],
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
+class AggregateValidationReport:
+    provider_reports: Tuple[ReferenceValidationReport, ...] = field(default_factory=tuple)
+    provider_errors: Tuple[ReferenceProviderError, ...] = field(default_factory=tuple)
+    findings: Tuple[ReferenceValidationFinding, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "provider_reports", tuple(
+            report if isinstance(report, ReferenceValidationReport) else ReferenceValidationReport(**dict(report))
+            for report in self.provider_reports or []
+        ))
+        object.__setattr__(self, "provider_errors", tuple(
+            error if isinstance(error, ReferenceProviderError) else ReferenceProviderError(**dict(error))
+            for error in self.provider_errors or []
+        ))
+        object.__setattr__(self, "findings", tuple(
+            finding if isinstance(finding, ReferenceValidationFinding) else ReferenceValidationFinding(**dict(finding))
+            for finding in self.findings or []
+        ))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provider_reports": [report.to_dict() for report in self.provider_reports],
+            "provider_errors": [error.to_dict() for error in self.provider_errors],
+            "findings": [finding.to_dict() for finding in self.findings],
+        }
+
+
 @runtime_checkable
 class ReferenceProvider(Protocol):
     def provider_id(self) -> str:
@@ -814,6 +968,145 @@ class ManualReferenceProvider:
         return True
 
 
+class ReferenceProviderAggregator:
+    """Read multiple providers without merging, mutating, or prioritizing claims."""
+
+    def __init__(self, providers: Iterable[ReferenceProvider] = ()) -> None:
+        self._providers: List[Tuple[str, ReferenceProvider]] = []
+        for provider in providers or ():
+            self.register(provider)
+
+    def register(self, provider: ReferenceProvider) -> None:
+        if not isinstance(provider, ReferenceProvider):
+            raise TypeError("provider must conform to ReferenceProvider")
+        provider_id = _provider_identity(provider)
+        if provider_id in self.provider_ids():
+            raise ValueError(f"Provider is already registered: {provider_id}.")
+        self._providers.append((provider_id, provider))
+
+    def providers(self) -> Tuple[ReferenceProvider, ...]:
+        return tuple(provider for _, provider in self._providers)
+
+    def provider_ids(self) -> Tuple[str, ...]:
+        return tuple(provider_id for provider_id, _ in self._providers)
+
+    def get_issue(self, issue_id: str) -> AggregatedReferenceResult:
+        records: List[Tuple[int, str, ReferenceRecord]] = []
+        errors: List[Tuple[int, ReferenceProviderError]] = []
+        for index, (provider_id, provider) in enumerate(self._providers):
+            try:
+                record = provider.get_issue(issue_id)
+            except Exception:
+                errors.append((index, _aggregation_error(provider_id, "AGGREGATE_PROVIDER_LOOKUP_FAILED", "get_issue")))
+                continue
+            if record is None:
+                continue
+            if not isinstance(record, ReferenceRecord):
+                errors.append((index, _aggregation_error(provider_id, "AGGREGATE_PROVIDER_RESULT_INVALID", "get_issue")))
+                continue
+            records.append((index, provider_id, record))
+        return self._aggregate(records, errors, ())
+
+    def search(self, query: ReferenceQuery) -> AggregatedReferenceResult:
+        return self._aggregate_provider_results("search", query)
+
+    def list_issues(self, filters: Optional[ReferenceFilters] = None) -> AggregatedReferenceResult:
+        return self._aggregate_provider_results("list_issues", filters)
+
+    def validate(self) -> AggregateValidationReport:
+        provider_reports: List[ReferenceValidationReport] = []
+        provider_errors: List[Tuple[int, ReferenceProviderError]] = []
+        findings: List[Tuple[int, ReferenceValidationFinding]] = []
+
+        for index, (provider_id, provider) in enumerate(self._providers):
+            try:
+                report = provider.validate()
+            except Exception:
+                error = _aggregation_error(provider_id, "AGGREGATE_PROVIDER_VALIDATE_FAILED", "validate")
+                provider_errors.append((index, error))
+                findings.append((index, _aggregation_finding(error)))
+                continue
+            if not isinstance(report, ReferenceValidationReport):
+                error = _aggregation_error(provider_id, "AGGREGATE_PROVIDER_RESULT_INVALID", "validate")
+                provider_errors.append((index, error))
+                findings.append((index, _aggregation_finding(error)))
+                continue
+            provider_reports.append(report)
+            findings.extend((index, finding) for finding in report.findings)
+
+        ordered_errors = _sort_aggregation_errors(provider_errors)
+        ordered_findings = tuple(finding for _, finding in sorted(
+            findings,
+            key=lambda entry: (
+                entry[0], entry[1].severity.value, entry[1].code,
+                entry[1].issue_id, entry[1].source_id,
+            ),
+        ))
+        return AggregateValidationReport(tuple(provider_reports), ordered_errors, ordered_findings)
+
+    def _aggregate_provider_results(self, operation: str, argument: Any) -> AggregatedReferenceResult:
+        records: List[Tuple[int, str, ReferenceRecord]] = []
+        errors: List[Tuple[int, ReferenceProviderError]] = []
+        warnings: List[Tuple[int, str]] = []
+        failure_code = "AGGREGATE_PROVIDER_SEARCH_FAILED" if operation == "search" else "AGGREGATE_PROVIDER_LIST_FAILED"
+
+        for index, (provider_id, provider) in enumerate(self._providers):
+            try:
+                result = provider.search(argument) if operation == "search" else provider.list_issues(argument)
+            except Exception:
+                errors.append((index, _aggregation_error(provider_id, failure_code, operation)))
+                continue
+            if not isinstance(result, ReferenceSearchResult):
+                errors.append((index, _aggregation_error(provider_id, "AGGREGATE_PROVIDER_RESULT_INVALID", operation)))
+                continue
+
+            for error in result.provider_errors:
+                errors.append((index, error))
+            warnings.extend((index, f"{provider_id}: {warning}") for warning in result.warnings)
+            if not all(isinstance(record, ReferenceRecord) for record in result.records):
+                errors.append((index, _aggregation_error(provider_id, "AGGREGATE_PROVIDER_RESULT_INVALID", operation)))
+                continue
+            records.extend((index, provider_id, record) for record in result.records)
+
+        return self._aggregate(records, errors, warnings)
+
+    def _aggregate(
+        self,
+        records: Iterable[Tuple[int, str, ReferenceRecord]],
+        errors: Iterable[Tuple[int, ReferenceProviderError]],
+        warnings: Iterable[Tuple[int, str]],
+    ) -> AggregatedReferenceResult:
+        grouped_records: Dict[str, List[Tuple[int, str, ReferenceRecord]]] = {}
+        for ordinal, (index, provider_id, record) in enumerate(records):
+            group_key = _aggregate_issue_key(index, provider_id, record, ordinal)
+            grouped_records.setdefault(group_key, []).append((index, provider_id, record))
+
+        groups: List[ReferenceIssueGroup] = []
+        for group_key, entries in grouped_records.items():
+            ordered_entries = sorted(entries, key=_aggregate_record_sort_key)
+            claim_entries: List[Tuple[int, str, ReferenceClaim]] = []
+            for index, provider_id, record in ordered_entries:
+                claim_entries.extend((index, provider_id, claim) for claim in _claims_for_record(provider_id, record))
+            ordered_claim_entries = sorted(claim_entries, key=_aggregate_claim_sort_key)
+            ordered_claims = tuple(claim for _, _, claim in ordered_claim_entries)
+            groups.append(ReferenceIssueGroup(
+                issue_key=group_key,
+                records=tuple(record for _, _, record in ordered_entries),
+                claims=ordered_claims,
+                conflicts=_conflicts_for_claims(group_key, ordered_claim_entries),
+            ))
+
+        ordered_groups = tuple(sorted(groups, key=_aggregate_group_sort_key))
+        ordered_warnings = tuple(
+            warning for _, warning in sorted(warnings, key=lambda entry: (entry[0], entry[1]))
+        )
+        return AggregatedReferenceResult(
+            groups=ordered_groups,
+            provider_errors=_sort_aggregation_errors(errors),
+            warnings=ordered_warnings,
+        )
+
+
 def reference_sort_key(record: ReferenceRecord) -> Tuple[str, str, str, str, str]:
     issue = record.issue
     return (
@@ -827,6 +1120,181 @@ def reference_sort_key(record: ReferenceRecord) -> Tuple[str, str, str, str, str
 
 def sort_reference_records(records: Iterable[ReferenceRecord]) -> List[ReferenceRecord]:
     return sorted(list(records or []), key=reference_sort_key)
+
+
+_AGGREGATE_FIELDS = (
+    ("date_text", ReferenceConflictType.DATE_TEXT, normalize_date_text),
+    ("mintage", ReferenceConflictType.OTHER, normalize_text),
+    ("weight", ReferenceConflictType.WEIGHT, normalize_text),
+    ("diameter", ReferenceConflictType.DIAMETER, normalize_text),
+    ("composition", ReferenceConflictType.COMPOSITION, normalize_composition),
+    ("variety", ReferenceConflictType.VARIETY, normalize_variety),
+)
+
+
+def _provider_identity(provider: ReferenceProvider) -> str:
+    provider_id = _clean(provider.provider_id())
+    if not provider_id:
+        raise ValueError("ReferenceProvider.provider_id() must return a non-empty value")
+    return provider_id
+
+
+def _aggregation_error(provider_id: str, code: str, operation: str) -> ReferenceProviderError:
+    return ReferenceProviderError(
+        provider_id=provider_id,
+        code=code,
+        message=f"Provider '{provider_id}' failed during {operation}.",
+    )
+
+
+def _aggregation_finding(error: ReferenceProviderError) -> ReferenceValidationFinding:
+    return ReferenceValidationFinding(
+        severity=error.severity,
+        code=error.code,
+        message=error.message,
+        provider_id=error.provider_id,
+    )
+
+
+def _sort_aggregation_errors(
+    errors: Iterable[Tuple[int, ReferenceProviderError]],
+) -> Tuple[ReferenceProviderError, ...]:
+    return tuple(error for _, error in sorted(
+        errors or [],
+        key=lambda entry: (entry[0], entry[1].code, entry[1].message, entry[1].provider_id),
+    ))
+
+
+def _aggregate_issue_key(index: int, provider_id: str, record: ReferenceRecord, ordinal: int = 0) -> str:
+    issue_key = normalize_text(record.issue.issue_id)
+    if issue_key:
+        return issue_key
+    return "unmatched:{0}:{1}:{2}:{3}".format(
+        index,
+        normalize_text(provider_id),
+        normalize_text(record.source.source_id),
+        _clean(record.source_record_id) or str(ordinal),
+    )
+
+
+def _aggregate_group_sort_key(group: ReferenceIssueGroup) -> Tuple[int, str]:
+    return (1 if group.issue_key.startswith("unmatched:") else 0, group.issue_key)
+
+
+def _aggregate_record_sort_key(entry: Tuple[int, str, ReferenceRecord]) -> Tuple[Any, ...]:
+    index, provider_id, record = entry
+    return (
+        index,
+        normalize_text(provider_id),
+        normalize_text(record.source.source_id),
+        reference_sort_key(record),
+        normalize_text(record.source_record_id),
+    )
+
+
+def _aggregate_claim_sort_key(entry: Tuple[int, str, ReferenceClaim]) -> Tuple[Any, ...]:
+    index, provider_id, claim = entry
+    return (
+        index,
+        normalize_text(provider_id),
+        normalize_text(claim.source.source_id),
+        normalize_text(claim.source_record_id),
+        normalize_text(claim.field_name),
+        normalize_text(claim.normalized_value),
+        normalize_text(claim.raw_value),
+    )
+
+
+def _claims_for_record(provider_id: str, record: ReferenceRecord) -> Tuple[ReferenceClaim, ...]:
+    issue = record.issue
+    claims: List[ReferenceClaim] = []
+    for field_name, _, normalizer in _AGGREGATE_FIELDS:
+        raw_value = str(getattr(issue, field_name) or "")
+        claims.extend(_claims_for_field(provider_id, record, field_name, raw_value, normalizer))
+    for namespace, value in sorted(issue.catalogue_numbers.items()):
+        field_name = f"catalogue_numbers.{namespace}"
+        claims.extend(_claims_for_field(provider_id, record, field_name, str(value or ""), normalize_catalogue_id))
+    return tuple(claims)
+
+
+def _claims_for_field(
+    provider_id: str,
+    record: ReferenceRecord,
+    field_name: str,
+    raw_value: str,
+    normalizer: Any,
+) -> Tuple[ReferenceClaim, ...]:
+    matching_refs = sorted(
+        (
+            source_ref for source_ref in record.issue.source_refs
+            if normalize_text(source_ref.field_name) == normalize_text(field_name)
+            and normalize_text(source_ref.source_id) == normalize_text(record.source.source_id)
+            and (not source_ref.source_record_id or source_ref.source_record_id == record.source_record_id)
+        ),
+        key=lambda source_ref: (
+            normalize_text(source_ref.source_id),
+            normalize_text(source_ref.source_record_id),
+            normalize_text(source_ref.field_name),
+            normalize_text(source_ref.normalized_value),
+            normalize_text(source_ref.raw_value),
+            normalize_text(source_ref.notes),
+        ),
+    )
+    if matching_refs:
+        return tuple(ReferenceClaim(
+            provider_id=provider_id,
+            source=record.source,
+            source_record_id=source_ref.source_record_id or record.source_record_id,
+            issue_id=record.issue.issue_id,
+            field_name=field_name,
+            raw_value=source_ref.raw_value or raw_value,
+            normalized_value=source_ref.normalized_value or normalizer(source_ref.raw_value or raw_value),
+            source_ref=source_ref,
+        ) for source_ref in matching_refs)
+    return (ReferenceClaim(
+        provider_id=provider_id,
+        source=record.source,
+        source_record_id=record.source_record_id,
+        issue_id=record.issue.issue_id,
+        field_name=field_name,
+        raw_value=raw_value,
+        normalized_value=normalizer(raw_value),
+    ),)
+
+
+def _conflicts_for_claims(
+    issue_key: str,
+    claim_entries: Iterable[Tuple[int, str, ReferenceClaim]],
+) -> Tuple[ReferenceConflict, ...]:
+    claims_by_field: Dict[str, List[Tuple[int, str, ReferenceClaim]]] = {}
+    for entry in claim_entries:
+        claims_by_field.setdefault(entry[2].field_name, []).append(entry)
+
+    conflicts: List[ReferenceConflict] = []
+    for field_name, entries in claims_by_field.items():
+        non_empty = [entry for entry in entries if entry[2].normalized_value]
+        if len({entry[2].normalized_value for entry in non_empty}) < 2:
+            continue
+        ordered_claims = tuple(entry[2] for entry in sorted(non_empty, key=_aggregate_claim_sort_key))
+        conflicts.append(ReferenceConflict(
+            issue_key=issue_key,
+            field_name=field_name,
+            conflict_type=_conflict_type_for_field(field_name),
+            claims=ordered_claims,
+        ))
+    return tuple(sorted(
+        conflicts,
+        key=lambda conflict: (conflict.issue_key, conflict.field_name, conflict.conflict_type.value),
+    ))
+
+
+def _conflict_type_for_field(field_name: str) -> ReferenceConflictType:
+    if field_name.startswith("catalogue_numbers."):
+        return ReferenceConflictType.CATALOGUE_NUMBER
+    for candidate, conflict_type, _ in _AGGREGATE_FIELDS:
+        if field_name == candidate:
+            return conflict_type
+    return ReferenceConflictType.OTHER
 
 
 def _fallback_source(provider_id: str, source_type: ReferenceSourceType) -> ReferenceSource:
