@@ -5,6 +5,7 @@ v8.3 Phase 1: Core aggregation engine. Zero business logic.
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -181,6 +182,110 @@ class ConnectedDataReport(WorkspaceReport):
                 for c in self.top_connections
             ],
         }
+
+
+@dataclass
+class ImageAssessmentReport(WorkspaceReport):
+    """Workspace wrapper for deterministic image readiness assessment."""
+
+    selection_type: str = ""
+    selection_id: str = ""
+    item_id: str = ""
+    candidate_id: str = ""
+    photo_count: int = 0
+    blocking_issue_count: int = 0
+    warning_count: int = 0
+    readiness_report: Any = None
+    summary: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        generated_at = self.generated_at.isoformat() if self.generated_at else None
+        return {
+            "generated_at": generated_at,
+            "engine_errors": list(self.engine_errors),
+            "selection_type": self.selection_type,
+            "selection_id": self.selection_id,
+            "item_id": self.item_id,
+            "candidate_id": self.candidate_id,
+            "photo_count": self.photo_count,
+            "blocking_issue_count": self.blocking_issue_count,
+            "warning_count": self.warning_count,
+            "summary": dict(self.summary),
+            "readiness_report": (
+                self.readiness_report.to_dict()
+                if self.readiness_report and hasattr(self.readiness_report, "to_dict")
+                else self.readiness_report
+            ),
+        }
+
+    def to_markdown(self) -> str:
+        data = self.to_dict()
+        readiness = data.get("readiness_report") or {}
+        permissions = readiness.get("downstream_permissions") or {}
+        assessments = readiness.get("photo_assessments") or []
+
+        lines = [
+            "# Image Assessment Readiness",
+            "",
+            f"Selection: {self.selection_type or 'none'}",
+            f"Selection ID: {self.selection_id or 'N/A'}",
+            f"Photos: {self.photo_count}",
+            f"Decision: {readiness.get('decision', 'N/A')}",
+            f"Confidence: {readiness.get('confidence', 'N/A')}",
+            f"Overall Score: {readiness.get('overall_readiness_score', 0)}",
+            "",
+            "## Downstream Readiness",
+        ]
+        if permissions:
+            for use_name in sorted(permissions):
+                lines.append(f"- {use_name}: {permissions[use_name]}")
+        else:
+            lines.append("- No downstream readiness available.")
+
+        lines.extend(["", "## Evidence"])
+        evidence = readiness.get("evidence") or []
+        if evidence:
+            lines.extend(f"- {item}" for item in evidence)
+        else:
+            lines.append("- No positive evidence available.")
+
+        lines.extend(["", "## Blocking Issues"])
+        blocking = readiness.get("blocking_issues") or []
+        if blocking:
+            lines.extend(f"- {item}" for item in blocking)
+        else:
+            lines.append("- No blocking issues reported.")
+
+        lines.extend(["", "## Recommended Actions"])
+        actions = readiness.get("recommended_actions") or []
+        if actions:
+            lines.extend(f"- {item}" for item in actions)
+        else:
+            lines.append("- No corrective actions recommended.")
+
+        lines.extend(["", "## Photo Assessments"])
+        if assessments:
+            for assessment in assessments:
+                lines.extend([
+                    f"- {assessment.get('path', 'N/A')}",
+                    f"  - Role: {assessment.get('role', 'N/A')}",
+                    f"  - Decision: {assessment.get('decision', 'N/A')}",
+                    f"  - Score: {assessment.get('readiness_score', 0)}",
+                ])
+        else:
+            lines.append("- No individual photo assessments available.")
+
+        if self.engine_errors:
+            lines.extend(["", "## Workspace Warnings"])
+            lines.extend(f"- {error}" for error in self.engine_errors)
+
+        return "\n".join(lines).rstrip() + "\n"
+
+    def export_markdown(self, path: str) -> bool:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(self.to_markdown())
+        return True
+
 
 @dataclass
 class DataSafetyReport(WorkspaceReport):
@@ -466,6 +571,11 @@ class CollectorWorkspace:
             from connected_data import ConnectedDataEngine
 
             return ConnectedDataEngine(self._build_connected_context())
+
+        elif name == "image_assessment":
+            from image_assessment import ImageAssessmentEngine
+
+            return ImageAssessmentEngine()
 
         else:
             raise ValueError(f"Unknown engine: {name}")
@@ -979,6 +1089,61 @@ class CollectorWorkspace:
         self._cache["connected_data"] = report
         return report
 
+    def get_image_assessment(
+        self,
+        *,
+        item_id: str = "",
+        candidate_id: str = "",
+        photos: Optional[List[Any]] = None,
+        certified_expected: bool = False,
+        refresh: bool = False,
+    ) -> ImageAssessmentReport:
+        """Return a read-only Image Assessment report for an explicit photo set or selection."""
+        selection_type, selection_id, photo_inputs, errors = self._resolve_image_assessment_selection(
+            item_id=item_id,
+            candidate_id=candidate_id,
+            photos=photos,
+        )
+        cache_key = self._image_assessment_cache_key(
+            selection_type,
+            selection_id,
+            photo_inputs,
+            bool(certified_expected),
+        )
+        if refresh:
+            self._cache.pop(cache_key, None)
+        elif cache_key in self._cache:
+            return self._cache[cache_key]
+
+        try:
+            engine = self._get_engine("image_assessment")
+            readiness = engine.assess_photos(
+                photo_inputs,
+                item_id=str(item_id or "") if selection_type == "item" else "",
+                candidate_id=str(candidate_id or "") if selection_type == "candidate" else "",
+                certified_expected=bool(certified_expected),
+            )
+            report = self._image_assessment_report_from_readiness(
+                readiness,
+                selection_type=selection_type,
+                selection_id=selection_id,
+                item_id=str(item_id or "") if selection_type == "item" else "",
+                candidate_id=str(candidate_id or "") if selection_type == "candidate" else "",
+                engine_errors=errors,
+            )
+        except Exception as e:
+            report = self._degraded_image_assessment_report(
+                selection_type=selection_type,
+                selection_id=selection_id,
+                item_id=str(item_id or "") if selection_type == "item" else "",
+                candidate_id=str(candidate_id or "") if selection_type == "candidate" else "",
+                photo_count=len(photo_inputs),
+                errors=errors + [f"Image Assessment: {e}"],
+            )
+
+        self._cache[cache_key] = report
+        return report
+
     def get_advisor(self) -> Any:
         """Generate advisory recommendations from all workspace panels.
 
@@ -1162,9 +1327,243 @@ class CollectorWorkspace:
                 cross_reference=cross_ref,
                 summary=summary,
             )
+        elif descriptor.engine_name == "image_assessment":
+            return self.get_image_assessment()
         else:
             method = getattr(engine, descriptor.method_name)
             return method()
+
+    def _resolve_image_assessment_selection(
+        self,
+        *,
+        item_id: str,
+        candidate_id: str,
+        photos: Optional[List[Any]],
+    ) -> Any:
+        """Resolve a workspace image-assessment selection without mutating sources."""
+        errors: List[str] = []
+        if photos is not None:
+            return "explicit_photos", "", self._copy_image_assessment_photos(photos), errors
+
+        item_key = str(item_id or "").strip()
+        if item_key:
+            item = self._find_collection_item(item_key)
+            if item is None:
+                errors.append(f"Collection item not found: {item_key}")
+                return "item", item_key, [], errors
+            return "item", item_key, self._photos_from_collection_item(item), errors
+
+        candidate_key = str(candidate_id or "").strip()
+        if candidate_key:
+            candidate = self._find_photo_candidate(candidate_key)
+            if candidate is None:
+                errors.append(f"Photo candidate not found: {candidate_key}")
+                return "candidate", candidate_key, [], errors
+            candidate_photos = self._photos_from_candidate(candidate)
+            if not candidate_photos:
+                errors.append(f"Photo candidate has no assessable photo references: {candidate_key}")
+            return "candidate", candidate_key, candidate_photos, errors
+
+        errors.append("No image assessment selection was provided.")
+        return "none", "", [], errors
+
+    def _find_collection_item(self, item_id: str) -> Any:
+        for item in self._collection_items or []:
+            if str(getattr(item, "id", "") or "").strip() == item_id:
+                return item
+        return None
+
+    def _find_photo_candidate(self, candidate_id: str) -> Any:
+        for candidate in self._photo_candidates or []:
+            values = [
+                getattr(candidate, "candidate_id", ""),
+                getattr(candidate, "id", ""),
+                getattr(candidate, "item_id", ""),
+            ]
+            if any(str(value or "").strip() == candidate_id for value in values):
+                return candidate
+        return None
+
+    def _photos_from_collection_item(self, item: Any) -> List[Any]:
+        raw_photos = list(getattr(item, "photos", []) or [])
+        if not raw_photos:
+            image_path = str(getattr(item, "image_path", "") or "").strip()
+            raw_photos = [{"path": image_path, "role": "OTHER", "is_primary": True, "display_order": 0}] if image_path else []
+        return self._copy_image_assessment_photos(raw_photos)
+
+    def _photos_from_candidate(self, candidate: Any) -> List[Any]:
+        for method_name in ("photo_references", "photos"):
+            method = getattr(candidate, method_name, None)
+            if callable(method):
+                try:
+                    photos = method()
+                except TypeError:
+                    photos = None
+                if photos:
+                    return self._copy_image_assessment_photos(photos)
+
+        for attr in ("photos", "photo_paths", "image_paths", "images"):
+            value = getattr(candidate, attr, None)
+            if value:
+                return self._copy_image_assessment_photos(value)
+
+        photos = []
+        role_paths = [
+            ("front_path", "FRONT"),
+            ("obverse_path", "FRONT"),
+            ("back_path", "BACK"),
+            ("reverse_path", "BACK"),
+            ("label_path", "CERT_LABEL"),
+            ("cert_label_path", "CERT_LABEL"),
+            ("image_path", "OTHER"),
+            ("path", "OTHER"),
+            ("file_path", "OTHER"),
+        ]
+        for attr, role in role_paths:
+            path = str(getattr(candidate, attr, "") or "").strip()
+            if path:
+                photos.append({"path": path, "role": role, "display_order": len(photos)})
+        return self._copy_image_assessment_photos(photos)
+
+    def _copy_image_assessment_photos(self, photos: Any) -> List[Dict[str, Any]]:
+        if not photos:
+            return []
+        if not isinstance(photos, list):
+            photos = list(photos) if not isinstance(photos, (str, dict)) else [photos]
+
+        copied = []
+        for index, photo in enumerate(photos):
+            copied.append(self._copy_image_assessment_photo(photo, index))
+        copied.sort(key=lambda row: row.get("display_order", 0))
+        return copied
+
+    def _copy_image_assessment_photo(self, photo: Any, index: int) -> Dict[str, Any]:
+        if isinstance(photo, str):
+            return {"path": photo, "role": "", "display_order": index}
+        if isinstance(photo, dict):
+            row = dict(photo)
+        elif hasattr(photo, "to_dict"):
+            row = dict(photo.to_dict())
+        else:
+            row = {
+                "path": getattr(photo, "path", "") or getattr(photo, "file_path", "") or getattr(photo, "image_path", ""),
+                "role": getattr(photo, "role", "") or getattr(photo, "photo_role", ""),
+                "is_primary": getattr(photo, "is_primary", False),
+                "notes": getattr(photo, "notes", ""),
+                "display_order": getattr(photo, "display_order", index),
+            }
+            photo_id = getattr(photo, "photo_id", "") or getattr(photo, "id", "")
+            if photo_id:
+                row["photo_id"] = photo_id
+
+        row["path"] = str(row.get("path") or row.get("file_path") or "").strip()
+        row["role"] = str(getattr(row.get("role"), "value", row.get("role") or row.get("photo_role") or "")).strip()
+        try:
+            row["display_order"] = int(row.get("display_order", index))
+        except (TypeError, ValueError):
+            row["display_order"] = index
+        return row
+
+    def _image_assessment_cache_key(
+        self,
+        selection_type: str,
+        selection_id: str,
+        photos: List[Dict[str, Any]],
+        certified_expected: bool,
+    ) -> str:
+        payload = {
+            "selection_type": selection_type,
+            "selection_id": selection_id,
+            "certified_expected": bool(certified_expected),
+            "photos": [
+                {
+                    "path": os.path.normcase(os.path.abspath(str(photo.get("path", "") or "").strip())),
+                    "role": str(photo.get("role", "")),
+                    "display_order": photo.get("display_order", index),
+                    "is_primary": bool(photo.get("is_primary", False)),
+                }
+                for index, photo in enumerate(photos or [])
+            ],
+        }
+        encoded = json.dumps(payload, sort_keys=True, default=str)
+        digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+        return f"image_assessment:{digest}"
+
+    def _image_assessment_report_from_readiness(
+        self,
+        readiness: Any,
+        *,
+        selection_type: str,
+        selection_id: str,
+        item_id: str,
+        candidate_id: str,
+        engine_errors: List[str],
+    ) -> ImageAssessmentReport:
+        photo_assessments = getattr(readiness, "photo_assessments", []) or []
+        blocking_issues = getattr(readiness, "blocking_issues", []) or []
+        assessment_warnings = [
+            issue
+            for assessment in photo_assessments
+            for issue in getattr(assessment, "issues", []) or []
+        ]
+        readiness_errors = list(getattr(readiness, "engine_errors", []) or [])
+        generated_at = self._image_assessment_generated_at(readiness)
+        return ImageAssessmentReport(
+            generated_at=generated_at,
+            engine_errors=list(engine_errors or []) + readiness_errors,
+            selection_type=selection_type,
+            selection_id=selection_id,
+            item_id=item_id,
+            candidate_id=candidate_id,
+            photo_count=len(photo_assessments),
+            blocking_issue_count=len(blocking_issues),
+            warning_count=len(assessment_warnings),
+            readiness_report=readiness,
+            summary={
+                "decision": getattr(getattr(readiness, "decision", None), "value", str(getattr(readiness, "decision", ""))),
+                "confidence": getattr(getattr(readiness, "confidence", None), "value", str(getattr(readiness, "confidence", ""))),
+                "overall_readiness_score": getattr(readiness, "overall_readiness_score", 0),
+                "blocking_issue_count": len(blocking_issues),
+                "warning_count": len(assessment_warnings),
+            },
+        )
+
+    def _degraded_image_assessment_report(
+        self,
+        *,
+        selection_type: str,
+        selection_id: str,
+        item_id: str,
+        candidate_id: str,
+        photo_count: int,
+        errors: List[str],
+    ) -> ImageAssessmentReport:
+        return ImageAssessmentReport(
+            generated_at=datetime(1970, 1, 1),
+            engine_errors=list(errors or []),
+            selection_type=selection_type,
+            selection_id=selection_id,
+            item_id=item_id,
+            candidate_id=candidate_id,
+            photo_count=photo_count,
+            summary={
+                "decision": "NOT_READY",
+                "confidence": "LOW",
+                "overall_readiness_score": 0,
+                "blocking_issue_count": 0,
+                "warning_count": 0,
+            },
+        )
+
+    @staticmethod
+    def _image_assessment_generated_at(readiness: Any) -> datetime:
+        raw = str(getattr(readiness, "generated_at", "") or "").strip()
+        if raw:
+            try:
+                return datetime.fromisoformat(raw)
+            except ValueError:
+                pass
+        return datetime(1970, 1, 1)
 
     def _report_registry(self) -> List[ReportDescriptor]:
         """Registry of all available report types. No engine calls."""
@@ -1322,6 +1721,17 @@ class CollectorWorkspace:
                 has_markdown_export=True,
                 has_csv_export=True,
                 available=bool(self._photo_records),
+            ),
+            ReportDescriptor(
+                name="image_assessment",
+                title="Image Assessment Readiness",
+                category="Photo",
+                description="Deterministic photo-quality and downstream-readiness assessment",
+                engine_name="image_assessment",
+                method_name="assess_photos",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=True,
             ),
             ReportDescriptor(
                 name="workflow_summary",

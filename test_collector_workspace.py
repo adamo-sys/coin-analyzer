@@ -12,6 +12,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import cv2
+import numpy as np
+
 from collector_workspace import (
     CollectorWorkspace,
     DashboardReport,
@@ -26,6 +29,7 @@ from collector_workspace import (
     WorkflowStatusReport,
     DataSafetyReport,
     ConnectedDataReport,
+    ImageAssessmentReport,
     ReportDescriptor,
     ReportsMenu,
     LifecycleInfo,
@@ -58,6 +62,15 @@ def _make_mock_items(count: int = 3) -> List[MagicMock]:
         item.grade = "XF"
         items.append(item)
     return items
+
+
+def _write_workspace_test_image(path: str, size: int = 1000) -> str:
+    """Write a deterministic image suitable for ImageAssessmentEngine tests."""
+    tile = np.array([[80, 180], [180, 80]], dtype=np.uint8)
+    gray = np.tile(tile, (size // 2, size // 2))
+    image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    cv2.imwrite(path, image)
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -1586,6 +1599,207 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
         self.assertIn("reports", ws._cache)
         ws.refresh()
         self.assertNotIn("reports", ws._cache)
+
+
+class TestCollectorWorkspaceImageAssessment(unittest.TestCase):
+    """Unit tests for v8.8 Phase 2 Image Assessment workspace integration."""
+
+    def _item_with_photos(self, photos: List[Any]) -> Any:
+        from coin_collection import CoinItem
+
+        return CoinItem(
+            id="item-1",
+            image_path="",
+            country="Canada",
+            denomination="Cent",
+            year="1920",
+            grade="VF-20",
+            notes="",
+            date_added="2026-07-13",
+            photos=photos,
+        )
+
+    def test_image_assessment_lazy_engine_creation_and_reuse(self) -> None:
+        ws = CollectorWorkspace([])
+        self.assertNotIn("image_assessment", ws._engines)
+
+        first = ws.get_image_assessment(photos=[])
+        engine = ws._engines["image_assessment"]
+        second = ws.get_image_assessment(photos=[])
+
+        self.assertIsInstance(first, ImageAssessmentReport)
+        self.assertIs(first, second)
+        self.assertIs(ws._engines["image_assessment"], engine)
+
+    def test_image_assessment_explicit_photo_set(self) -> None:
+        from coin_collection import ItemPhoto, PhotoRole
+
+        with tempfile.TemporaryDirectory() as tmp:
+            front = _write_workspace_test_image(os.path.join(tmp, "front.jpg"))
+            back = _write_workspace_test_image(os.path.join(tmp, "back.jpg"))
+            ws = CollectorWorkspace([])
+
+            report = ws.get_image_assessment(
+                photos=[
+                    ItemPhoto(front, role=PhotoRole.FRONT, display_order=0),
+                    ItemPhoto(back, role=PhotoRole.BACK, display_order=1),
+                ]
+            )
+
+        self.assertEqual(report.selection_type, "explicit_photos")
+        self.assertEqual(report.photo_count, 2)
+        self.assertEqual(report.engine_errors, [])
+        self.assertIn("BROAD_IDENTIFICATION", report.readiness_report.downstream_permissions)
+
+    def test_image_assessment_explicit_photos_take_precedence_over_item(self) -> None:
+        from coin_collection import ItemPhoto, PhotoRole
+
+        with tempfile.TemporaryDirectory() as tmp:
+            explicit = _write_workspace_test_image(os.path.join(tmp, "explicit.jpg"))
+            item_photo = _write_workspace_test_image(os.path.join(tmp, "item.jpg"))
+            item = self._item_with_photos([ItemPhoto(item_photo, role=PhotoRole.FRONT)])
+            ws = CollectorWorkspace([item])
+
+            report = ws.get_image_assessment(
+                item_id="item-1",
+                photos=[ItemPhoto(explicit, role=PhotoRole.FRONT)],
+            )
+
+        self.assertEqual(report.selection_type, "explicit_photos")
+        self.assertEqual(report.item_id, "")
+        self.assertEqual(report.readiness_report.photo_assessments[0].path, explicit)
+
+    def test_image_assessment_item_based_selection_does_not_mutate_item(self) -> None:
+        from coin_collection import ItemPhoto, PhotoRole
+
+        with tempfile.TemporaryDirectory() as tmp:
+            front = _write_workspace_test_image(os.path.join(tmp, "front.jpg"))
+            back = _write_workspace_test_image(os.path.join(tmp, "back.jpg"))
+            item = self._item_with_photos([
+                ItemPhoto(back, role=PhotoRole.BACK, display_order=4),
+                ItemPhoto(front, role=PhotoRole.FRONT, display_order=2),
+            ])
+            before = [photo.to_dict() for photo in item.photos]
+            ws = CollectorWorkspace([item])
+
+            report = ws.get_image_assessment(item_id="item-1")
+
+        self.assertEqual(report.selection_type, "item")
+        self.assertEqual(report.item_id, "item-1")
+        self.assertEqual([photo.to_dict() for photo in item.photos], before)
+
+    def test_image_assessment_candidate_based_selection(self) -> None:
+        @dataclass
+        class Candidate:
+            candidate_id: str
+            photo_paths: List[str]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            front = _write_workspace_test_image(os.path.join(tmp, "front.jpg"))
+            candidate = Candidate("candidate-1", [front])
+            ws = CollectorWorkspace([], photo_candidates=[candidate])
+
+            report = ws.get_image_assessment(candidate_id="candidate-1")
+
+        self.assertEqual(report.selection_type, "candidate")
+        self.assertEqual(report.candidate_id, "candidate-1")
+        self.assertEqual(report.photo_count, 1)
+
+    def test_image_assessment_empty_and_invalid_input_degrades(self) -> None:
+        ws = CollectorWorkspace([])
+
+        no_selection = ws.get_image_assessment()
+        missing_item = ws.get_image_assessment(item_id="missing")
+
+        self.assertEqual(no_selection.selection_type, "none")
+        self.assertIn("No image assessment selection", no_selection.engine_errors[0])
+        self.assertEqual(missing_item.selection_type, "item")
+        self.assertIn("Collection item not found", missing_item.engine_errors[0])
+
+    def test_image_assessment_missing_file_returns_valid_report(self) -> None:
+        ws = CollectorWorkspace([])
+        report = ws.get_image_assessment(photos=[{"path": "missing.jpg", "role": "FRONT"}])
+
+        self.assertIsInstance(report, ImageAssessmentReport)
+        self.assertEqual(report.photo_count, 1)
+        self.assertIn("Image file is missing.", report.readiness_report.blocking_issues)
+
+    def test_image_assessment_engine_failure_degrades(self) -> None:
+        ws = CollectorWorkspace([])
+        engine = MagicMock()
+        engine.assess_photos.side_effect = RuntimeError("engine down")
+        ws._engines["image_assessment"] = engine
+
+        report = ws.get_image_assessment(photos=[{"path": "missing.jpg", "role": "FRONT"}])
+
+        self.assertIsInstance(report, ImageAssessmentReport)
+        self.assertIn("Image Assessment: engine down", report.engine_errors)
+
+    def test_image_assessment_cache_and_refresh_behavior(self) -> None:
+        ws = CollectorWorkspace([])
+        engine = MagicMock()
+        engine.assess_photos.side_effect = lambda *args, **kwargs: MagicMock(
+            photo_assessments=[],
+            blocking_issues=[],
+            engine_errors=[],
+            generated_at="1970-01-01T00:00:00",
+            decision="NOT_READY",
+            confidence="LOW",
+            overall_readiness_score=0,
+        )
+        ws._engines["image_assessment"] = engine
+
+        first = ws.get_image_assessment(photos=[])
+        second = ws.get_image_assessment(photos=[])
+        self.assertIs(first, second)
+        self.assertEqual(engine.assess_photos.call_count, 1)
+
+        refreshed = ws.get_image_assessment(photos=[], refresh=True)
+        self.assertIsNot(refreshed, first)
+        self.assertEqual(engine.assess_photos.call_count, 2)
+
+        engine_ref = ws._engines["image_assessment"]
+        ws.refresh()
+        self.assertEqual(ws._cache, {})
+        self.assertIs(ws._engines["image_assessment"], engine_ref)
+
+    def test_image_assessment_report_is_deterministic_and_serializable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            front = _write_workspace_test_image(os.path.join(tmp, "front.jpg"))
+            photos = [{"path": front, "role": "FRONT", "display_order": 0}]
+            first = CollectorWorkspace([]).get_image_assessment(photos=photos).to_dict()
+            second = CollectorWorkspace([]).get_image_assessment(photos=photos).to_dict()
+
+        self.assertEqual(first, second)
+        self.assertIn("readiness_report", first)
+        self.assertEqual(first["generated_at"], "1970-01-01T00:00:00")
+
+    def test_image_assessment_report_descriptor_registration(self) -> None:
+        ws = CollectorWorkspace([])
+        descriptor = ws.get_reports().by_name("image_assessment")
+
+        self.assertIsNotNone(descriptor)
+        self.assertEqual(descriptor.category, "Photo")
+        self.assertTrue(descriptor.has_markdown_export)
+        self.assertFalse(descriptor.has_csv_export)
+        self.assertTrue(descriptor.available)
+
+    def test_generate_and_export_image_assessment_report(self) -> None:
+        ws = CollectorWorkspace([])
+        generated = ws.generate_report("image_assessment")
+
+        self.assertEqual(generated["selection_type"], "none")
+        self.assertIn("No image assessment selection", generated["engine_errors"][0])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "image_assessment.md")
+            result = ws.export_report("image_assessment", "markdown", path)
+            with open(path, "r", encoding="utf-8") as handle:
+                content = handle.read()
+
+        self.assertTrue(result)
+        self.assertIn("Image Assessment Readiness", content)
+        self.assertIn("Downstream Readiness", content)
 
 
 # ---------------------------------------------------------------------------
