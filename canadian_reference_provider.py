@@ -8,10 +8,15 @@ price coins, or integrate with the GUI/workspace.
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, runtime_checkable
+
+
+REFERENCE_JSON_SCHEMA_VERSION = 1
 
 
 class ReferenceSourceType(str, Enum):
@@ -534,6 +539,281 @@ class ReferenceProvider(Protocol):
         ...
 
 
+class LocalJsonReferenceProvider:
+    """Read a versioned reference file without changing it or its records."""
+
+    def __init__(self, path: str, provider_id: str = "") -> None:
+        self._path = os.fspath(path)
+        self._configured_provider_id = _clean(provider_id)
+        self._records: Tuple[ReferenceRecord, ...] = ()
+        self._source: Optional[ReferenceSource] = None
+        self._validation_report: Optional[ReferenceValidationReport] = None
+        self._provider_errors: Tuple[ReferenceProviderError, ...] = ()
+        self._load_attempted = False
+        self._loaded = False
+
+    def provider_id(self) -> str:
+        if self._configured_provider_id:
+            return self._configured_provider_id
+        if self._source and self._source.source_id:
+            return self._source.source_id
+        return "local-json-reference"
+
+    def capabilities(self) -> ReferenceProviderCapabilities:
+        return ReferenceProviderCapabilities(
+            provider_id=self.provider_id(),
+            source_type=ReferenceSourceType.LOCAL_JSON,
+            capabilities=(
+                ReferenceProviderCapability.ISSUE_LOOKUP,
+                ReferenceProviderCapability.SEARCH,
+                ReferenceProviderCapability.FILTERS,
+                ReferenceProviderCapability.FIELD_PROVENANCE,
+                ReferenceProviderCapability.VALIDATION,
+            ),
+            supports_field_provenance=True,
+            supports_filters=True,
+            network_required=False,
+        )
+
+    def get_source_metadata(self) -> ReferenceSource:
+        self._ensure_loaded()
+        return self._source or _fallback_source(self.provider_id(), ReferenceSourceType.LOCAL_JSON)
+
+    def loaded(self) -> bool:
+        return self._loaded
+
+    def load(self) -> ReferenceValidationReport:
+        self._load_attempted = True
+        self._loaded = False
+        self._records = ()
+        self._source = None
+        self._provider_errors = ()
+        findings: List[ReferenceValidationFinding] = []
+
+        try:
+            with open(self._path, "r", encoding="utf-8") as reference_file:
+                payload = json.load(reference_file)
+        except FileNotFoundError:
+            return self._load_failed(
+                "LOCAL_REFERENCE_FILE_MISSING",
+                "Local reference file was not found.",
+                findings,
+            )
+        except (OSError, UnicodeDecodeError) as exc:
+            return self._load_failed(
+                "LOCAL_REFERENCE_LOAD_FAILED",
+                f"Local reference file could not be read: {exc}.",
+                findings,
+            )
+        except json.JSONDecodeError as exc:
+            return self._load_failed(
+                "LOCAL_REFERENCE_JSON_MALFORMED",
+                f"Local reference JSON is malformed: {exc.msg}.",
+                findings,
+            )
+
+        if not isinstance(payload, dict):
+            return self._load_failed(
+                "LOCAL_REFERENCE_LOAD_FAILED",
+                "Local reference JSON must contain an object at its root.",
+                findings,
+            )
+
+        if "schema_version" not in payload:
+            return self._load_failed(
+                "LOCAL_REFERENCE_SCHEMA_MISSING",
+                "Local reference JSON is missing schema_version.",
+                findings,
+            )
+        if payload.get("schema_version") != REFERENCE_JSON_SCHEMA_VERSION:
+            return self._load_failed(
+                "LOCAL_REFERENCE_SCHEMA_UNSUPPORTED",
+                "Local reference JSON uses an unsupported schema version.",
+                findings,
+            )
+        if not isinstance(payload.get("source"), dict):
+            return self._load_failed(
+                "LOCAL_REFERENCE_SOURCE_MISSING",
+                "Local reference JSON is missing source metadata.",
+                findings,
+            )
+        if not isinstance(payload.get("issues"), list):
+            return self._load_failed(
+                "LOCAL_REFERENCE_ISSUES_MISSING",
+                "Local reference JSON is missing its issues list.",
+                findings,
+            )
+
+        try:
+            self._source = _source_from_payload(payload["source"])
+        except (TypeError, ValueError) as exc:
+            return self._load_failed(
+                "LOCAL_REFERENCE_SOURCE_MISSING",
+                f"Local reference source metadata is invalid: {exc}.",
+                findings,
+            )
+
+        if not self._configured_provider_id:
+            self._configured_provider_id = _clean(payload.get("provider_id"))
+
+        records: List[ReferenceRecord] = []
+        for index, issue_payload in enumerate(payload["issues"]):
+            try:
+                records.append(_record_from_payload(issue_payload, self._source))
+            except (TypeError, ValueError, KeyError) as exc:
+                findings.append(ReferenceValidationFinding(
+                    ReferenceSeverity.ERROR,
+                    "LOCAL_REFERENCE_RECORD_INVALID",
+                    f"Issue record {index + 1} is invalid: {exc}.",
+                    provider_id=self.provider_id(),
+                    source_id=self._source.source_id,
+                ))
+
+        self._records = tuple(sort_reference_records(records))
+        self._validation_report = _validation_report(self.provider_id(), self._records, findings)
+        self._loaded = True
+        return self._validation_report
+
+    def validate(self) -> ReferenceValidationReport:
+        self._ensure_loaded()
+        return self._validation_report or _validation_report(self.provider_id(), (), ())
+
+    def get_issue(self, issue_id: str) -> Optional[ReferenceRecord]:
+        if not self._ensure_loaded():
+            return None
+        wanted = _clean(issue_id)
+        return next((record for record in self._records if record.issue.issue_id == wanted), None)
+
+    def search(self, query: ReferenceQuery) -> ReferenceSearchResult:
+        if not self._ensure_loaded():
+            return _error_result(self.provider_id(), self._provider_errors)
+        return ReferenceSearchResult(
+            self.provider_id(),
+            tuple(record for record in self._records if _record_matches_query(record, query)),
+        )
+
+    def list_issues(self, filters: Optional[ReferenceFilters] = None) -> ReferenceSearchResult:
+        if not self._ensure_loaded():
+            return _error_result(self.provider_id(), self._provider_errors)
+        effective_filters = filters or ReferenceFilters()
+        return ReferenceSearchResult(
+            self.provider_id(),
+            tuple(record for record in self._records if _record_matches_filters(record, effective_filters)),
+        )
+
+    def _ensure_loaded(self) -> bool:
+        if not self._load_attempted:
+            self.load()
+        return self._loaded
+
+    def _load_failed(
+        self,
+        code: str,
+        message: str,
+        findings: Iterable[ReferenceValidationFinding],
+    ) -> ReferenceValidationReport:
+        error = ReferenceProviderError(self.provider_id(), code, message)
+        self._provider_errors = (error,)
+        finding = ReferenceValidationFinding(
+            ReferenceSeverity.ERROR,
+            code,
+            message,
+            provider_id=self.provider_id(),
+        )
+        self._validation_report = _validation_report(self.provider_id(), (), tuple(findings) + (finding,))
+        return self._validation_report
+
+
+class ManualReferenceProvider:
+    """Own user-entered reference records in memory until explicitly exported."""
+
+    def __init__(
+        self,
+        records: Optional[Iterable[ReferenceRecord]] = None,
+        source: Optional[ReferenceSource] = None,
+        provider_id: str = "manual-reference",
+    ) -> None:
+        self._provider_id = _clean(provider_id) or "manual-reference"
+        self._source = source or _fallback_source(self._provider_id, ReferenceSourceType.MANUAL)
+        self._records: Tuple[ReferenceRecord, ...] = ()
+        self._validation_report = _validation_report(self._provider_id, (), ())
+        self.replace_records(records or ())
+
+    def provider_id(self) -> str:
+        return self._provider_id
+
+    def capabilities(self) -> ReferenceProviderCapabilities:
+        return ReferenceProviderCapabilities(
+            provider_id=self.provider_id(),
+            source_type=ReferenceSourceType.MANUAL,
+            capabilities=(
+                ReferenceProviderCapability.ISSUE_LOOKUP,
+                ReferenceProviderCapability.SEARCH,
+                ReferenceProviderCapability.FILTERS,
+                ReferenceProviderCapability.FIELD_PROVENANCE,
+                ReferenceProviderCapability.EXPORT,
+                ReferenceProviderCapability.VALIDATION,
+            ),
+            supports_field_provenance=True,
+            supports_filters=True,
+            mutable=True,
+            network_required=False,
+        )
+
+    def get_source_metadata(self) -> ReferenceSource:
+        return self._source
+
+    def validate(self) -> ReferenceValidationReport:
+        return self._validation_report
+
+    def get_issue(self, issue_id: str) -> Optional[ReferenceRecord]:
+        wanted = _clean(issue_id)
+        return next((record for record in self._records if record.issue.issue_id == wanted), None)
+
+    def search(self, query: ReferenceQuery) -> ReferenceSearchResult:
+        return ReferenceSearchResult(
+            self.provider_id(),
+            tuple(record for record in self._records if _record_matches_query(record, query)),
+        )
+
+    def list_issues(self, filters: Optional[ReferenceFilters] = None) -> ReferenceSearchResult:
+        effective_filters = filters or ReferenceFilters()
+        return ReferenceSearchResult(
+            self.provider_id(),
+            tuple(record for record in self._records if _record_matches_filters(record, effective_filters)),
+        )
+
+    def add_record(self, record: ReferenceRecord) -> ReferenceValidationReport:
+        if not isinstance(record, ReferenceRecord):
+            raise TypeError("record must be a ReferenceRecord")
+        self._records = tuple(sort_reference_records(self._records + (record,)))
+        self._validation_report = validate_records(self.provider_id(), self._records)
+        return self._validation_report
+
+    def replace_records(self, records: Iterable[ReferenceRecord]) -> ReferenceValidationReport:
+        normalized_records = tuple(records or ())
+        if not all(isinstance(record, ReferenceRecord) for record in normalized_records):
+            raise TypeError("records must contain only ReferenceRecord values")
+        self._records = tuple(sort_reference_records(normalized_records))
+        self._validation_report = validate_records(self.provider_id(), self._records)
+        return self._validation_report
+
+    def export_json(self, path: str) -> bool:
+        payload = {
+            "schema_version": REFERENCE_JSON_SCHEMA_VERSION,
+            "provider_id": self.provider_id(),
+            "source": self._source.to_dict(),
+            "issues": [_record_to_payload(record, self._source) for record in self._records],
+        }
+        try:
+            with open(os.fspath(path), "w", encoding="utf-8", newline="\n") as reference_file:
+                json.dump(payload, reference_file, indent=2, sort_keys=True)
+                reference_file.write("\n")
+        except (OSError, TypeError, ValueError):
+            return False
+        return True
+
+
 def reference_sort_key(record: ReferenceRecord) -> Tuple[str, str, str, str, str]:
     issue = record.issue
     return (
@@ -547,6 +827,135 @@ def reference_sort_key(record: ReferenceRecord) -> Tuple[str, str, str, str, str
 
 def sort_reference_records(records: Iterable[ReferenceRecord]) -> List[ReferenceRecord]:
     return sorted(list(records or []), key=reference_sort_key)
+
+
+def _fallback_source(provider_id: str, source_type: ReferenceSourceType) -> ReferenceSource:
+    return ReferenceSource(
+        source_id=_clean(provider_id) or "reference-provider",
+        source_name="Local Reference" if source_type == ReferenceSourceType.LOCAL_JSON else "Manual Reference",
+        source_type=source_type,
+    )
+
+
+def _source_from_payload(payload: Dict[str, Any]) -> ReferenceSource:
+    if not isinstance(payload, dict):
+        raise TypeError("source must be an object")
+    return ReferenceSource(**payload)
+
+
+def _record_from_payload(payload: Dict[str, Any], default_source: ReferenceSource) -> ReferenceRecord:
+    if not isinstance(payload, dict):
+        raise TypeError("issue record must be an object")
+    issue_data = dict(payload)
+    source_record_id = issue_data.pop("source_record_id", "")
+    confidence = issue_data.pop("confidence", 1.0)
+    fields_supplied = issue_data.pop("fields_supplied", ())
+    warnings = issue_data.pop("warnings", ())
+    record_source_payload = issue_data.pop("record_source", None)
+    record_source = _source_from_payload(record_source_payload) if record_source_payload is not None else default_source
+    issue = CanadianIssue(**issue_data)
+    return ReferenceRecord(
+        issue=issue,
+        source=record_source,
+        source_record_id=source_record_id,
+        confidence=confidence,
+        fields_supplied=fields_supplied,
+        warnings=warnings,
+    )
+
+
+def _record_to_payload(record: ReferenceRecord, default_source: ReferenceSource) -> Dict[str, Any]:
+    payload = record.issue.to_dict()
+    payload.update({
+        "source_record_id": record.source_record_id,
+        "confidence": record.confidence,
+        "fields_supplied": list(record.fields_supplied),
+        "warnings": list(record.warnings),
+    })
+    if record.source != default_source:
+        payload["record_source"] = record.source.to_dict()
+    return payload
+
+
+def _validation_report(
+    provider_id: str,
+    records: Iterable[ReferenceRecord],
+    extra_findings: Iterable[ReferenceValidationFinding],
+) -> ReferenceValidationReport:
+    normalized_records = tuple(records or ())
+    record_report = validate_records(provider_id, normalized_records)
+    findings = tuple(extra_findings or ()) + record_report.findings
+    return ReferenceValidationReport(
+        provider_id=provider_id,
+        total_records=record_report.total_records,
+        valid_records=record_report.valid_records,
+        findings=tuple(sorted(
+            findings,
+            key=lambda finding: (finding.severity.value, finding.code, finding.issue_id, finding.source_id),
+        )),
+    )
+
+
+def _error_result(
+    provider_id: str,
+    provider_errors: Iterable[ReferenceProviderError],
+) -> ReferenceSearchResult:
+    return ReferenceSearchResult(provider_id, provider_errors=tuple(provider_errors or ()))
+
+
+def _record_matches_query(record: ReferenceRecord, query: ReferenceQuery) -> bool:
+    if not isinstance(query, ReferenceQuery):
+        return False
+    issue = record.issue
+    field_matches = (
+        (query.country, issue.normalized_country, normalize_country),
+        (query.denomination, issue.normalized_denomination, normalize_denomination),
+        (query.year, issue.normalized_year, normalize_year),
+        (query.authority, normalize_authority(issue.authority), normalize_authority),
+        (query.mintmark, normalize_mintmark(issue.mintmark), normalize_mintmark),
+        (query.variety, issue.normalized_variety, normalize_variety),
+    )
+    if any(value and normalizer(value) != candidate for value, candidate, normalizer in field_matches):
+        return False
+    tokens = tuple(token for token in normalize_text(query.text).split() if token)
+    searchable = _record_search_text(record)
+    return all(token in searchable for token in tokens)
+
+
+def _record_matches_filters(record: ReferenceRecord, filters: ReferenceFilters) -> bool:
+    if not isinstance(filters, ReferenceFilters):
+        return False
+    issue = record.issue
+    field_matches = (
+        (filters.country, issue.normalized_country, normalize_country),
+        (filters.denomination, issue.normalized_denomination, normalize_denomination),
+        (filters.year, issue.normalized_year, normalize_year),
+        (filters.authority, normalize_authority(issue.authority), normalize_authority),
+        (filters.monarch, normalize_text(issue.monarch), normalize_text),
+        (filters.series, normalize_text(issue.series), normalize_text),
+    )
+    return not any(value and normalizer(value) != candidate for value, candidate, normalizer in field_matches)
+
+
+def _record_search_text(record: ReferenceRecord) -> str:
+    issue = record.issue
+    values = (
+        issue.issue_id,
+        issue.country,
+        issue.authority,
+        issue.denomination,
+        issue.year,
+        issue.date_text,
+        issue.monarch,
+        issue.series,
+        issue.mint,
+        issue.mintmark,
+        issue.variety,
+        issue.composition,
+        *issue.catalogue_numbers.values(),
+        *issue.design_markers,
+    )
+    return normalize_text(" ".join(str(value) for value in values if value))
 
 
 def validate_record(record: ReferenceRecord, provider_id: str = "") -> List[ReferenceValidationFinding]:
