@@ -288,6 +288,146 @@ class ImageAssessmentReport(WorkspaceReport):
 
 
 @dataclass
+class CanadianReferenceReport(WorkspaceReport):
+    """Read-only workspace wrapper for Phase 4 Canadian reference results."""
+
+    selection_type: str = ""
+    issue_id: str = ""
+    query: Dict[str, str] = field(default_factory=dict)
+    filters: Dict[str, str] = field(default_factory=dict)
+    provider_ids: List[str] = field(default_factory=list)
+    group_count: int = 0
+    record_count: int = 0
+    claim_count: int = 0
+    conflict_count: int = 0
+    provider_error_count: int = 0
+    validation_error_count: int = 0
+    aggregate_result: Any = None
+    validation_report: Any = None
+    summary: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "generated_at": self.generated_at.isoformat() if self.generated_at else None,
+            "engine_errors": list(self.engine_errors),
+            "selection_type": self.selection_type,
+            "issue_id": self.issue_id,
+            "query": dict(self.query),
+            "filters": dict(self.filters),
+            "provider_ids": list(self.provider_ids),
+            "group_count": self.group_count,
+            "record_count": self.record_count,
+            "claim_count": self.claim_count,
+            "conflict_count": self.conflict_count,
+            "provider_error_count": self.provider_error_count,
+            "validation_error_count": self.validation_error_count,
+            "summary": dict(self.summary),
+            "aggregate_result": (
+                self.aggregate_result.to_dict()
+                if self.aggregate_result and hasattr(self.aggregate_result, "to_dict")
+                else self.aggregate_result
+            ),
+            "validation_report": (
+                self.validation_report.to_dict()
+                if self.validation_report and hasattr(self.validation_report, "to_dict")
+                else self.validation_report
+            ),
+        }
+
+    def to_markdown(self) -> str:
+        data = self.to_dict()
+        result = data.get("aggregate_result") or {}
+        validation = data.get("validation_report") or {}
+        lines = [
+            "# Canadian Reference Claims",
+            "",
+            f"Request: {self.selection_type or 'none'}",
+            f"Issue ID: {self.issue_id or 'N/A'}",
+            f"Providers: {', '.join(self.provider_ids) if self.provider_ids else 'None configured'}",
+            f"Groups: {self.group_count}",
+            f"Records: {self.record_count}",
+            f"Claims: {self.claim_count}",
+            f"Conflicts: {self.conflict_count}",
+        ]
+        if self.query:
+            lines.extend(["", "## Search Query"])
+            lines.extend(f"- {key}: {value}" for key, value in sorted(self.query.items()) if value)
+        if self.filters:
+            lines.extend(["", "## Filters"])
+            lines.extend(f"- {key}: {value}" for key, value in sorted(self.filters.items()) if value)
+
+        lines.extend(["", "## Reference Groups"])
+        groups = result.get("groups") or []
+        if groups:
+            for group in groups:
+                lines.append(f"### {group.get('issue_key', 'Unspecified issue')}")
+                for record in group.get("records") or []:
+                    issue = record.get("issue") or {}
+                    source = record.get("source") or {}
+                    lines.append(
+                        "- {0} | Source: {1} | Record: {2}".format(
+                            issue.get("issue_id", "N/A"),
+                            source.get("source_name") or source.get("source_id") or "N/A",
+                            record.get("source_record_id") or "N/A",
+                        )
+                    )
+                for claim in group.get("claims") or []:
+                    source = claim.get("source") or {}
+                    lines.append(
+                        "  - Claim {0}: {1} (normalized: {2}; source: {3})".format(
+                            claim.get("field_name", "N/A"),
+                            claim.get("raw_value", ""),
+                            claim.get("normalized_value", ""),
+                            source.get("source_name") or source.get("source_id") or "N/A",
+                        )
+                    )
+                for conflict in group.get("conflicts") or []:
+                    lines.append(f"  - Conflict: {conflict.get('field_name', 'N/A')}")
+                    for claim in conflict.get("claims") or []:
+                        source = claim.get("source") or {}
+                        lines.append(
+                            "    - {0}: {1} (source: {2})".format(
+                                claim.get("field_name", "N/A"),
+                                claim.get("raw_value", ""),
+                                source.get("source_name") or source.get("source_id") or "N/A",
+                            )
+                        )
+        else:
+            lines.append("- No reference groups available.")
+
+        lines.extend(["", "## Provider Errors"])
+        provider_errors = result.get("provider_errors") or []
+        if provider_errors:
+            lines.extend(
+                "- {0}: {1}".format(error.get("provider_id", "Provider"), error.get("message", "Unknown error"))
+                for error in provider_errors
+            )
+        else:
+            lines.append("- No provider errors reported.")
+
+        lines.extend(["", "## Validation Findings"])
+        findings = validation.get("findings") or []
+        if findings:
+            lines.extend(
+                "- {0}: {1}".format(finding.get("code", "FINDING"), finding.get("message", ""))
+                for finding in findings
+            )
+        else:
+            lines.append("- No validation findings reported.")
+
+        if self.engine_errors:
+            lines.extend(["", "## Workspace Warnings"])
+            lines.extend(f"- {error}" for error in self.engine_errors)
+
+        return "\n".join(lines).rstrip() + "\n"
+
+    def export_markdown(self, path: str) -> bool:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(self.to_markdown())
+        return True
+
+
+@dataclass
 class DataSafetyReport(WorkspaceReport):
     """Backup readiness, integrity warnings, persistence status."""
 
@@ -366,6 +506,8 @@ class CollectorWorkspace:
         ocr_reports: Optional[List[Any]] = None,
         workflow_statuses: Optional[List[Dict[str, Any]]] = None,
         acknowledged_action_ids: Optional[List[str]] = None,
+        reference_providers: Optional[List[Any]] = None,
+        reference_provider_aggregator: Optional[Any] = None,
     ):
         """Initialize with collection items and optional context. No collection copy. No engine instantiation yet.
 
@@ -380,7 +522,11 @@ class CollectorWorkspace:
             ocr_reports: Optional OCR reports for workflow panel.
             workflow_statuses: Optional workflow statuses for dashboard panel.
             acknowledged_action_ids: Optional acknowledged action IDs for home dashboard.
+            reference_providers: Explicit Canadian reference providers for lazy aggregation.
+            reference_provider_aggregator: Existing Canadian reference aggregator to reuse.
         """
+        if reference_providers is not None and reference_provider_aggregator is not None:
+            raise ValueError("Provide reference_providers or reference_provider_aggregator, not both.")
         self._collection_items = collection_items
         self._want_list_intents = want_list_intents
         self._photo_records = photo_records
@@ -391,6 +537,8 @@ class CollectorWorkspace:
         self._ocr_reports = ocr_reports
         self._workflow_statuses = workflow_statuses
         self._acknowledged_action_ids = acknowledged_action_ids
+        self._reference_providers = reference_providers
+        self._reference_provider_aggregator = reference_provider_aggregator
         self._engines: Dict[str, Any] = {}
         self._cache: Dict[str, WorkspaceReport] = {}
 
@@ -576,6 +724,13 @@ class CollectorWorkspace:
             from image_assessment import ImageAssessmentEngine
 
             return ImageAssessmentEngine()
+
+        elif name == "canadian_references":
+            from canadian_reference_provider import ReferenceProviderAggregator
+
+            if self._reference_provider_aggregator is not None:
+                return self._reference_provider_aggregator
+            return ReferenceProviderAggregator(self._reference_providers or ())
 
         else:
             raise ValueError(f"Unknown engine: {name}")
@@ -1144,6 +1299,97 @@ class CollectorWorkspace:
         self._cache[cache_key] = report
         return report
 
+    def get_canadian_references(
+        self,
+        *,
+        issue_id: str = "",
+        query: Optional[Any] = None,
+        filters: Optional[Any] = None,
+        refresh: bool = False,
+    ) -> CanadianReferenceReport:
+        """Return read-only Phase 4 reference claims for one explicit request mode."""
+        selection_type, clean_issue_id, query_data, filter_data, request_errors = (
+            self._resolve_canadian_reference_request(
+                issue_id=issue_id,
+                query=query,
+                filters=filters,
+            )
+        )
+        if request_errors:
+            return self._degraded_canadian_reference_report(
+                selection_type=selection_type,
+                issue_id=clean_issue_id,
+                query=query_data,
+                filters=filter_data,
+                errors=request_errors,
+            )
+
+        try:
+            aggregator = self._get_engine("canadian_references")
+            provider_ids = list(aggregator.provider_ids())
+        except Exception as exc:
+            return self._degraded_canadian_reference_report(
+                selection_type=selection_type,
+                issue_id=clean_issue_id,
+                query=query_data,
+                filters=filter_data,
+                errors=[f"Canadian References: {exc}"],
+            )
+
+        if not provider_ids:
+            return self._degraded_canadian_reference_report(
+                selection_type=selection_type,
+                issue_id=clean_issue_id,
+                query=query_data,
+                filters=filter_data,
+                provider_ids=provider_ids,
+                errors=["No Canadian reference providers configured."],
+            )
+
+        cache_key = self._canadian_reference_cache_key(
+            selection_type=selection_type,
+            issue_id=clean_issue_id,
+            query=query_data,
+            filters=filter_data,
+            provider_ids=provider_ids,
+        )
+        if refresh:
+            self._cache.pop(cache_key, None)
+        elif cache_key in self._cache:
+            return self._cache[cache_key]
+
+        try:
+            if selection_type == "issue_id":
+                from canadian_reference_provider import normalize_text
+
+                aggregate_result = aggregator.get_issue(normalize_text(clean_issue_id))
+            elif selection_type == "query":
+                aggregate_result = aggregator.search(query)
+            else:
+                aggregate_result = aggregator.list_issues(filters)
+            validation_report = aggregator.validate()
+            report = self._canadian_reference_report_from_result(
+                selection_type=selection_type,
+                issue_id=clean_issue_id,
+                query=query_data,
+                filters=filter_data,
+                provider_ids=provider_ids,
+                aggregate_result=aggregate_result,
+                validation_report=validation_report,
+            )
+        except Exception as exc:
+            report = self._degraded_canadian_reference_report(
+                selection_type=selection_type,
+                issue_id=clean_issue_id,
+                query=query_data,
+                filters=filter_data,
+                provider_ids=provider_ids,
+                errors=[f"Canadian References: {exc}"],
+            )
+
+        self._cache[cache_key] = report
+        return report
+
     def get_advisor(self) -> Any:
         """Generate advisory recommendations from all workspace panels.
 
@@ -1292,6 +1538,8 @@ class CollectorWorkspace:
         """Invoke the engine method for a report descriptor."""
         if descriptor.name == "workflow_review":
             return self.get_workflows()
+        if descriptor.engine_name == "canadian_references":
+            return self.get_canadian_references()
 
         engine = self._get_engine(descriptor.engine_name)
         if descriptor.engine_name == "collector_operating_system":
@@ -1565,6 +1813,154 @@ class CollectorWorkspace:
                 pass
         return datetime(1970, 1, 1)
 
+    def _resolve_canadian_reference_request(
+        self,
+        *,
+        issue_id: str,
+        query: Optional[Any],
+        filters: Optional[Any],
+    ) -> Any:
+        """Validate explicit reference request modes without deriving collection context."""
+        from canadian_reference_provider import ReferenceFilters, ReferenceQuery
+
+        clean_issue_id = str(issue_id or "").strip()
+        provided_count = int(bool(clean_issue_id)) + int(query is not None) + int(filters is not None)
+        if provided_count == 0:
+            return "none", "", {}, {}, ["No Canadian reference selection provided."]
+        if provided_count > 1:
+            return "invalid", clean_issue_id, {}, {}, [
+                "Canadian reference request modes are mutually exclusive."
+            ]
+        if clean_issue_id:
+            return "issue_id", clean_issue_id, {}, {}, []
+        if query is not None:
+            if not isinstance(query, ReferenceQuery):
+                return "invalid", "", {}, {}, ["Canadian reference query must be a ReferenceQuery."]
+            query_data = query.to_dict()
+            if not any(query_data.values()):
+                return "invalid", "", query_data, {}, [
+                    "Canadian reference query must include text or a structured field."
+                ]
+            return "query", "", query_data, {}, []
+        if not isinstance(filters, ReferenceFilters):
+            return "invalid", "", {}, {}, ["Canadian reference filters must be a ReferenceFilters."]
+        filter_data = filters.to_dict()
+        if not any(filter_data.values()):
+            return "invalid", "", {}, filter_data, [
+                "Canadian reference filters must include at least one field."
+            ]
+        return "filters", "", {}, filter_data, []
+
+    def _canadian_reference_cache_key(
+        self,
+        *,
+        selection_type: str,
+        issue_id: str,
+        query: Dict[str, str],
+        filters: Dict[str, str],
+        provider_ids: List[str],
+    ) -> str:
+        from canadian_reference_provider import normalize_text
+
+        payload = {
+            "selection_type": selection_type,
+            "issue_id": normalize_text(issue_id),
+            "query": dict(query),
+            "filters": dict(filters),
+            "provider_ids": list(provider_ids),
+        }
+        encoded = json.dumps(payload, sort_keys=True, default=str)
+        digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+        return f"canadian_references:{digest}"
+
+    def _canadian_reference_report_from_result(
+        self,
+        *,
+        selection_type: str,
+        issue_id: str,
+        query: Dict[str, str],
+        filters: Dict[str, str],
+        provider_ids: List[str],
+        aggregate_result: Any,
+        validation_report: Any,
+    ) -> CanadianReferenceReport:
+        groups = list(getattr(aggregate_result, "groups", ()) or ())
+        record_count = sum(len(getattr(group, "records", ()) or ()) for group in groups)
+        claim_count = sum(len(getattr(group, "claims", ()) or ()) for group in groups)
+        conflict_count = sum(len(getattr(group, "conflicts", ()) or ()) for group in groups)
+        result_errors = list(getattr(aggregate_result, "provider_errors", ()) or ())
+        validation_errors = list(getattr(validation_report, "provider_errors", ()) or ())
+        validation_findings = list(getattr(validation_report, "findings", ()) or ())
+        validation_error_count = sum(
+            1
+            for finding in validation_findings
+            if getattr(getattr(finding, "severity", ""), "value", getattr(finding, "severity", "")) == "ERROR"
+        )
+        validation_warning_count = sum(
+            1
+            for finding in validation_findings
+            if getattr(getattr(finding, "severity", ""), "value", getattr(finding, "severity", "")) == "WARNING"
+        )
+        return CanadianReferenceReport(
+            generated_at=datetime(1970, 1, 1),
+            selection_type=selection_type,
+            issue_id=issue_id,
+            query=dict(query),
+            filters=dict(filters),
+            provider_ids=list(provider_ids),
+            group_count=len(groups),
+            record_count=record_count,
+            claim_count=claim_count,
+            conflict_count=conflict_count,
+            provider_error_count=len(result_errors) + len(validation_errors),
+            validation_error_count=validation_error_count,
+            aggregate_result=aggregate_result,
+            validation_report=validation_report,
+            summary={
+                "provider_count": len(provider_ids),
+                "group_count": len(groups),
+                "record_count": record_count,
+                "claim_count": claim_count,
+                "conflict_count": conflict_count,
+                "provider_error_count": len(result_errors) + len(validation_errors),
+                "validation_error_count": validation_error_count,
+                "validation_warning_count": validation_warning_count,
+            },
+        )
+
+    def _degraded_canadian_reference_report(
+        self,
+        *,
+        selection_type: str,
+        issue_id: str,
+        query: Dict[str, str],
+        filters: Dict[str, str],
+        errors: List[str],
+        provider_ids: Optional[List[str]] = None,
+    ) -> CanadianReferenceReport:
+        return CanadianReferenceReport(
+            generated_at=datetime(1970, 1, 1),
+            engine_errors=list(errors or []),
+            selection_type=selection_type,
+            issue_id=issue_id,
+            query=dict(query),
+            filters=dict(filters),
+            provider_ids=list(provider_ids or []),
+            summary={
+                "provider_count": len(provider_ids or []),
+                "group_count": 0,
+                "record_count": 0,
+                "claim_count": 0,
+                "conflict_count": 0,
+                "provider_error_count": 0,
+                "validation_error_count": 0,
+                "validation_warning_count": 0,
+            },
+        )
+
+    def _has_canadian_reference_configuration(self) -> bool:
+        return self._reference_provider_aggregator is not None or bool(self._reference_providers)
+
     def _report_registry(self) -> List[ReportDescriptor]:
         """Registry of all available report types. No engine calls."""
         return [
@@ -1732,6 +2128,17 @@ class CollectorWorkspace:
                 has_markdown_export=True,
                 has_csv_export=False,
                 available=True,
+            ),
+            ReportDescriptor(
+                name="canadian_references",
+                title="Canadian Reference Claims",
+                category="Reference",
+                description="Configured Canadian reference claims, provenance, and conflicts",
+                engine_name="canadian_references",
+                method_name="get_canadian_references",
+                has_markdown_export=True,
+                has_csv_export=False,
+                available=self._has_canadian_reference_configuration(),
             ),
             ReportDescriptor(
                 name="workflow_summary",

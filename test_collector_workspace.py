@@ -30,6 +30,7 @@ from collector_workspace import (
     DataSafetyReport,
     ConnectedDataReport,
     ImageAssessmentReport,
+    CanadianReferenceReport,
     ReportDescriptor,
     ReportsMenu,
     LifecycleInfo,
@@ -43,6 +44,20 @@ from collector_workflows import (
     WorkflowSeverity,
     WorkflowState,
     WorkflowType,
+)
+from canadian_reference_provider import (
+    CanadianIssue,
+    ManualReferenceProvider,
+    ReferenceFilters,
+    ReferenceProviderCapabilities,
+    ReferenceProviderCapability,
+    ReferenceProviderAggregator,
+    ReferenceQuery,
+    ReferenceRecord,
+    ReferenceSource,
+    ReferenceSourceType,
+    SourceRef,
+    validate_records,
 )
 
 
@@ -1184,14 +1199,15 @@ class TestCollectorWorkspacePhase3Unit(unittest.TestCase):
 
         self.assertGreaterEqual(menu.total_reports, 16)
         self.assertGreater(len(menu.categories), 0)
-        # 3 reports are unavailable by default (photo_vault, photo_audit, watchlist_scan need context)
-        self.assertEqual(menu.available_reports, menu.total_reports - 3)
+        # Photo/context reports and Canadian References require explicit context/configuration.
+        self.assertEqual(menu.available_reports, menu.total_reports - 4)
 
     def test_get_reports_all_available_with_full_context(self) -> None:
         """With all context provided, all reports should be available."""
         ws = CollectorWorkspace([], photo_records=[MagicMock()], watchlists=[MagicMock()])
         menu = ws.get_reports()
-        self.assertEqual(menu.available_reports, menu.total_reports)
+        # Canadian References remains unavailable until explicit providers are configured.
+        self.assertEqual(menu.available_reports, menu.total_reports - 1)
 
     def test_get_reports_marks_unavailable_without_context(self) -> None:
         """Reports requiring missing context should be marked unavailable."""
@@ -1800,6 +1816,250 @@ class TestCollectorWorkspaceImageAssessment(unittest.TestCase):
         self.assertTrue(result)
         self.assertIn("Image Assessment Readiness", content)
         self.assertIn("Downstream Readiness", content)
+
+
+class TestCollectorWorkspaceCanadianReferences(unittest.TestCase):
+    """Unit tests for v8.8 Phase 5 read-only Canadian reference integration."""
+
+    def _source(self, source_id: str) -> ReferenceSource:
+        return ReferenceSource(
+            source_id=source_id,
+            source_name=f"Synthetic {source_id}",
+            source_type=ReferenceSourceType.SYNTHETIC_TEST,
+            attribution="Synthetic fixture only",
+        )
+
+    def _record(
+        self,
+        issue_id: str = "ca-synthetic-1920",
+        source_id: str = "source-a",
+        **overrides: Any,
+    ) -> ReferenceRecord:
+        composition = overrides.pop("composition", "Bronze")
+        values = {
+            "issue_id": issue_id,
+            "country": "Canada",
+            "authority": "Dominion of Canada",
+            "denomination": "1 Cent",
+            "year": "1920",
+            "date_text": "1920",
+            "series": "Synthetic Small Cent",
+            "composition": composition,
+            "weight": "3.24 g",
+            "diameter": "19.05 mm",
+            "mintage": "Synthetic mintage",
+            "variety": "Synthetic variety",
+            "catalogue_numbers": {"synthetic": "SYN-1920"},
+            "source_refs": (
+                SourceRef(
+                    source_id=source_id,
+                    source_record_id=f"{source_id}-row",
+                    field_name="composition",
+                    raw_value=composition,
+                    normalized_value=composition.lower(),
+                ),
+            ),
+        }
+        values.update(overrides)
+        return ReferenceRecord(
+            issue=CanadianIssue(**values),
+            source=self._source(source_id),
+            source_record_id=f"{source_id}-row",
+            fields_supplied=("country", "denomination", "year"),
+        )
+
+    def _manual_provider(self, provider_id: str, record: ReferenceRecord) -> ManualReferenceProvider:
+        return ManualReferenceProvider([record], source=record.source, provider_id=provider_id)
+
+    def test_constructor_reference_injection_rules(self) -> None:
+        provider = self._manual_provider("provider-a", self._record())
+        aggregator = ReferenceProviderAggregator([provider])
+
+        with self.assertRaises(ValueError):
+            CollectorWorkspace([], reference_providers=[provider], reference_provider_aggregator=aggregator)
+
+        injected = CollectorWorkspace([], reference_provider_aggregator=aggregator)
+        from_providers = CollectorWorkspace([], reference_providers=[provider])
+        self.assertNotIn("canadian_references", injected._engines)
+        self.assertNotIn("canadian_references", from_providers._engines)
+
+    def test_exact_issue_lookup_and_aggregator_injection(self) -> None:
+        record = self._record()
+        aggregator = ReferenceProviderAggregator([self._manual_provider("provider-a", record)])
+        aggregator.get_issue = MagicMock(wraps=aggregator.get_issue)
+        workspace = CollectorWorkspace([], reference_provider_aggregator=aggregator)
+
+        report = workspace.get_canadian_references(issue_id="CA-SYNTHETIC-1920")
+
+        self.assertIsInstance(report, CanadianReferenceReport)
+        self.assertEqual(report.selection_type, "issue_id")
+        self.assertEqual(report.group_count, 1)
+        self.assertEqual(report.record_count, 1)
+        self.assertEqual(report.aggregate_result.groups[0].records[0], record)
+        aggregator.get_issue.assert_called_once_with("ca-synthetic-1920")
+        self.assertIs(workspace._engines["canadian_references"], aggregator)
+
+    def test_search_and_filter_modes_delegate_without_collection_matching(self) -> None:
+        record = self._record()
+        aggregator = ReferenceProviderAggregator([self._manual_provider("provider-a", record)])
+        aggregator.search = MagicMock(wraps=aggregator.search)
+        aggregator.list_issues = MagicMock(wraps=aggregator.list_issues)
+        collection_item = MagicMock(country="Other", denomination="50 Cents", year="1901")
+        workspace = CollectorWorkspace([collection_item], reference_provider_aggregator=aggregator)
+
+        search_report = workspace.get_canadian_references(query=ReferenceQuery(text="cent"))
+        filter_report = workspace.get_canadian_references(filters=ReferenceFilters(year="1920"))
+
+        self.assertEqual(search_report.selection_type, "query")
+        self.assertEqual(filter_report.selection_type, "filters")
+        aggregator.search.assert_called_once()
+        aggregator.list_issues.assert_called_once()
+        self.assertEqual(collection_item.country, "Other")
+
+    def test_empty_or_ambiguous_requests_degrade_without_creating_aggregator(self) -> None:
+        provider = self._manual_provider("provider-a", self._record())
+        workspace = CollectorWorkspace([], reference_providers=[provider])
+
+        no_selection = workspace.get_canadian_references()
+        empty_query = workspace.get_canadian_references(query=ReferenceQuery())
+        ambiguous = workspace.get_canadian_references(
+            issue_id="ca-synthetic-1920",
+            query=ReferenceQuery(text="cent"),
+        )
+
+        self.assertEqual(no_selection.selection_type, "none")
+        self.assertEqual(empty_query.selection_type, "invalid")
+        self.assertEqual(ambiguous.selection_type, "invalid")
+        self.assertNotIn("canadian_references", workspace._engines)
+
+    def test_provider_injection_is_lazy_and_reused(self) -> None:
+        provider = self._manual_provider("provider-a", self._record())
+        workspace = CollectorWorkspace([], reference_providers=[provider])
+        self.assertNotIn("canadian_references", workspace._engines)
+
+        first = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+        engine = workspace._engines["canadian_references"]
+        second = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+
+        self.assertIsInstance(engine, ReferenceProviderAggregator)
+        self.assertIs(first, second)
+        self.assertIs(workspace._engines["canadian_references"], engine)
+
+    def test_reference_cache_refresh_and_provider_reuse(self) -> None:
+        aggregator = ReferenceProviderAggregator([
+            self._manual_provider("provider-a", self._record()),
+        ])
+        aggregator.get_issue = MagicMock(wraps=aggregator.get_issue)
+        workspace = CollectorWorkspace([], reference_provider_aggregator=aggregator)
+
+        first = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+        second = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+        refreshed = workspace.get_canadian_references(issue_id="ca-synthetic-1920", refresh=True)
+        engine = workspace._engines["canadian_references"]
+        workspace.refresh()
+        after_workspace_refresh = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+
+        self.assertIs(first, second)
+        self.assertIsNot(refreshed, first)
+        self.assertIsNot(after_workspace_refresh, refreshed)
+        self.assertEqual(aggregator.get_issue.call_count, 3)
+        self.assertIs(workspace._engines["canadian_references"], engine)
+
+    def test_provenance_conflicts_and_manual_claims_pass_through_unchanged(self) -> None:
+        first = self._record(source_id="local-source", composition="Bronze")
+        second = self._record(source_id="manual-source", composition="Copper")
+        local = self._manual_provider("local", first)
+        manual = self._manual_provider("manual", second)
+        before = [first.to_dict(), second.to_dict()]
+        workspace = CollectorWorkspace([], reference_providers=[local, manual])
+
+        report = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+
+        group = report.aggregate_result.groups[0]
+        composition_conflict = next(conflict for conflict in group.conflicts if conflict.field_name == "composition")
+        self.assertEqual([claim.provider_id for claim in composition_conflict.claims], ["local", "manual"])
+        self.assertEqual(group.claims[0].source.source_id, "local-source")
+        self.assertFalse(hasattr(composition_conflict, "selected_value"))
+        self.assertEqual([first.to_dict(), second.to_dict()], before)
+
+    def test_provider_failure_and_validation_are_preserved(self) -> None:
+        class FailingProvider:
+            def provider_id(self):
+                return "failed"
+
+            def capabilities(self):
+                return ReferenceProviderCapabilities(
+                    provider_id="failed",
+                    source_type=ReferenceSourceType.SYNTHETIC_TEST,
+                    capabilities=(ReferenceProviderCapability.SEARCH,),
+                )
+
+            def get_source_metadata(self):
+                return ReferenceSource("failed-source", "Failed", ReferenceSourceType.SYNTHETIC_TEST)
+
+            def validate(self):
+                raise RuntimeError("synthetic validation failure")
+
+            def get_issue(self, issue_id):
+                raise RuntimeError("synthetic lookup failure")
+
+            def search(self, query):
+                raise RuntimeError("synthetic search failure")
+
+            def list_issues(self, filters=None):
+                raise RuntimeError("synthetic list failure")
+
+        healthy = self._manual_provider("healthy", self._record(source_id="healthy-source"))
+        workspace = CollectorWorkspace([], reference_providers=[FailingProvider(), healthy])
+
+        report = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+
+        self.assertEqual(report.group_count, 1)
+        self.assertEqual(report.aggregate_result.provider_errors[0].provider_id, "failed")
+        self.assertEqual(report.validation_report.provider_errors[0].provider_id, "failed")
+        self.assertEqual(report.engine_errors, [])
+
+    def test_empty_provider_set_degrades_safely(self) -> None:
+        workspace = CollectorWorkspace([], reference_providers=[])
+
+        report = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+
+        self.assertEqual(report.group_count, 0)
+        self.assertIn("No Canadian reference providers configured.", report.engine_errors)
+        self.assertIn("canadian_references", workspace._engines)
+
+    def test_reference_report_descriptor_serialization_and_markdown_export(self) -> None:
+        first = self._record(source_id="source-a", composition="Bronze")
+        second = self._record(source_id="source-b", composition="Copper")
+        workspace = CollectorWorkspace([], reference_providers=[
+            self._manual_provider("provider-a", first),
+            self._manual_provider("provider-b", second),
+        ])
+
+        descriptor = workspace.get_reports().by_name("canadian_references")
+        first_report = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+        second_report = workspace.get_canadian_references(issue_id="ca-synthetic-1920")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "canadian_references.md")
+            self.assertTrue(first_report.export_markdown(path))
+            with open(path, "r", encoding="utf-8") as handle:
+                markdown = handle.read()
+
+        self.assertTrue(descriptor.available)
+        self.assertTrue(descriptor.has_markdown_export)
+        self.assertFalse(descriptor.has_csv_export)
+        self.assertEqual(first_report.to_dict(), second_report.to_dict())
+        self.assertIn("Canadian Reference Claims", markdown)
+        self.assertIn("Conflict: composition", markdown)
+        self.assertIn("Synthetic source-a", markdown)
+
+    def test_unconfigured_reference_descriptor_is_unavailable(self) -> None:
+        workspace = CollectorWorkspace([])
+
+        descriptor = workspace.get_reports().by_name("canadian_references")
+
+        self.assertIsNotNone(descriptor)
+        self.assertFalse(descriptor.available)
 
 
 # ---------------------------------------------------------------------------
