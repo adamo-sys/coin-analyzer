@@ -14,6 +14,10 @@ Everything exists to reduce friction. Not more capability, but less drag.
 
 Every release should make collecting feel smoother and remove at least one meaningful collector action.
 
+The software exists to help collectors make better decisions, not simply maintain better records.
+
+> Coin Analyzer doesn't organize your collection. It helps you curate it.
+
 ### Principle 2 - Collection Awareness
 
 > The software should know the collection, even when it does not yet know the collectible.

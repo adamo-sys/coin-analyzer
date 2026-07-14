@@ -2,25 +2,60 @@
 
 ## Current Version
 
-* Current release version: `v8.6`
-- Next planned release: post-v8.6 collector usage and v8.7 planning
-- Active development target: v8.6 release complete; use the application before opening the next feature cycle
+* Current release version: `v8.8.0`
+* Development stage: v8.9 Discovery
+* Current focus: Know My Collection
+* Coding status: No new features until sufficient evidence is collected.
+* Next gate: 20+ observations in `REAL_WORLD_NOTES.md`
 * Current Git branch: `main`
-* Last updated date: 2026-07-03
+* Last updated date: 2026-07-13
+
+## Current Stop Point
+
+No new feature implementation is authorized.
+
+The current objective is to gather evidence through `REAL_WORLD_NOTES.md` until the discovery gate is met.
+
+## Active Documents
+
+* `PRODUCT_PRINCIPLES.md` - Permanent product philosophy.
+* `PROJECT_STATE.md` - Current development snapshot.
+* `REAL_WORLD_NOTES.md` - Live collector diary.
+* `ROADMAP.md` - Approved roadmap.
+* `COLLECTOR_INTELLIGENCE_VISION.md` - v9 intelligence constitution.
+
+## Project Maturity
+
+* Current release: `v8.8.0`
+* Repository status: Stable
+* Architecture: Established
+* Public APIs: Stable
+* Testing: 1,500+ automated tests
+* Development mode: Evidence-driven discovery
+* Next milestone: v8.9 - Know My Collection
 
 ## Last Release Tag
 
-* Most recent Git tag: `v8.6`
-* Summary of what was included: Unified Workflow - workflow engine, CollectorWorkspace integration, explainability/navigation metadata, existing Workflow tab GUI integration, and polished markdown workflow reporting/export. Deterministic, local, review-only workflow assistance with no persistence expansion, no collection mutation, no ML/CV, no scraping, and no external APIs. 1296-test regression pass.
+* Most recent Git tag: `v8.8.0`
+* Last stable release: `v8.8.0`
+* Summary of what was included: Collector Platform - Photo Inbox, multi-photo workflow, deterministic Image Readiness, Canadian reference provider contracts and local/manual providers, aggregation with provenance and conflict reporting, CollectorWorkspace integration, and a read-only Canadian References GUI. Full regression: 1,506 tests passing.
+
+## Current Philosophy
+
+* Collector First
+* Collection Awareness
+* Evidence Before Inference
+* Humility
+* Explainability
 
 ## Coin Analyzer Statistics
 
-Last updated: 2026-07-03 after v8.6 release.
+Last updated: 2026-07-13 after v8.8.0 release and v8.9 discovery transition.
 
 * Python modules: 93 non-test modules, 169 Python files total.
 * Test modules: 76.
-* Current full regression: 1296 tests OK.
-* Release line: `v0.2` -> `v8.6` released; 71 local release tags through `v8.6`.
+* Current full regression: 1506 tests OK.
+* Release line: `v0.2` -> `v8.8.0` released; 72 local release tags through `v8.8.0`.
 * Architecture and governance docs: 8+ core docs (`VISION.md`, `ARCHITECTURE.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `ROADMAP.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`, `project_docs/release_prompts/RELEASE_GOVERNANCE.md`).
 * Workspace GUI tabs: 12.
 * Workspace report descriptors: 18.

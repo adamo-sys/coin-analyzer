@@ -397,6 +397,29 @@ v9.0 Phase 0 does not authorize:
 
 Each phase requires design review, explicit scope approval, deterministic tests, and a release gate. No phase may skip directly from photos or OCR text to an asserted identification, grade, valuation, or submission decision.
 
+## Collector Decision Support (Long-Term Vision)
+
+The ultimate purpose of Collector Intelligence is not merely to identify a collectible. Its purpose is to help the collector make better collecting decisions.
+
+Potential recommendation categories include:
+
+- Keep
+- Upgrade
+- Research Further
+- Slab Candidate
+- Trade Candidate
+- Sell Candidate
+- Wishlist Priority
+- Watch Market
+
+These are recommendations only. Every recommendation must be evidence-based, explain its reasoning, identify its supporting evidence, acknowledge uncertainty, and preserve collector control.
+
+Coin Analyzer must never automatically dispose of, trade, purchase, or otherwise make decisions on behalf of the collector.
+
+Recommendations become available only after sufficient evidence has been gathered through image assessment, reference intelligence, collection context, and any future advisor systems.
+
+The collector always remains the final decision-maker.
+
 ## Approval Gate
 
 No v9.0 production code may begin until this document is reviewed and approved.
