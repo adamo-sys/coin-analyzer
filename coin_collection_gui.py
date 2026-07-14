@@ -73,6 +73,7 @@ from collection_dashboard import CollectionDashboard
 from collector_companion_readiness import CollectorCompanionReadinessAuditor
 from collector_home_dashboard import CollectorHomeDashboard
 from collector_workspace import CollectorWorkspace
+from canadian_reference_provider import ReferenceFilters, ReferenceQuery
 from collection_integrity import CollectionIntegrityAudit
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
@@ -9625,6 +9626,7 @@ Total Unique Dates: {total_unique_dates}
             ocr_reports=getattr(self, "ocr_reports", None),
             workflow_statuses=getattr(self, "workflow_statuses", None),
             acknowledged_action_ids=getattr(self, "acknowledged_action_ids", None),
+            **self._workspace_reference_configuration(),
         )
 
         dialog = tk.Toplevel(self.root)
@@ -9663,6 +9665,7 @@ Total Unique Dates: {total_unique_dates}
         tabs["batch_queue"] = self._create_batch_queue_tab(notebook, workspace)
         tabs["photo_vault"] = self._create_photo_vault_tab(notebook, workspace)
         tabs["image_readiness"] = self._create_image_readiness_tab(notebook, workspace)
+        tabs["canadian_references"] = self._create_canadian_references_tab(notebook, workspace)
         tabs["workflow"] = self._create_workflow_tab(notebook, workspace)
         tabs["data_safety"] = self._create_data_safety_tab(notebook, workspace)
         tabs["connected_data"] = self._create_connected_data_tab(notebook, workspace)
@@ -9839,6 +9842,490 @@ Total Unique Dates: {total_unique_dates}
         self._assess_image_readiness_tab(tab, workspace)
         return tab
 
+    def _create_canadian_references_tab(self, notebook, workspace):
+        """Create the read-only Canadian reference research tab."""
+        frame = ttk.Frame(notebook, padding="10")
+        notebook.add(frame, text="Canadian References")
+
+        mode_var = tk.StringVar(value="issue_id")
+        issue_id_var = tk.StringVar()
+        query_vars = {
+            key: tk.StringVar()
+            for key in ("text", "country", "denomination", "year", "authority", "mintmark", "variety")
+        }
+        filter_vars = {
+            key: tk.StringVar()
+            for key in ("country", "denomination", "year", "authority", "monarch", "series")
+        }
+
+        mode_frame = ttk.Frame(frame)
+        mode_frame.pack(fill=tk.X, pady=(0, 6))
+        ttk.Label(mode_frame, text="Research mode:").pack(side=tk.LEFT, padx=(0, 6))
+
+        forms = ttk.Frame(frame)
+        forms.pack(fill=tk.X, pady=(0, 8))
+        issue_form = ttk.Frame(forms)
+        search_form = ttk.Frame(forms)
+        filter_form = ttk.Frame(forms)
+
+        ttk.Label(issue_form, text="Issue ID:").pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Entry(issue_form, textvariable=issue_id_var, width=42).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self._add_canadian_reference_fields(search_form, query_vars)
+        self._add_canadian_reference_fields(filter_form, filter_vars)
+
+        tab = {
+            "frame": frame,
+            "mode_var": mode_var,
+            "issue_id_var": issue_id_var,
+            "query_vars": query_vars,
+            "filter_vars": filter_vars,
+            "forms": {
+                "issue_id": issue_form,
+                "query": search_form,
+                "filters": filter_form,
+            },
+            "current_report": None,
+            "current_request": None,
+            "tree_groups": {},
+        }
+
+        def switch_mode():
+            self._show_canadian_reference_mode(tab)
+
+        for value, label in (
+            ("issue_id", "Exact Issue ID"),
+            ("query", "Search"),
+            ("filters", "Filter / List"),
+        ):
+            ttk.Radiobutton(
+                mode_frame,
+                text=label,
+                value=value,
+                variable=mode_var,
+                command=switch_mode,
+            ).pack(side=tk.LEFT, padx=(0, 6))
+
+        summary_var = tk.StringVar()
+        ttk.Label(frame, textvariable=summary_var).pack(fill=tk.X, pady=(0, 6))
+        tab["summary_var"] = summary_var
+
+        body = ttk.PanedWindow(frame, orient=tk.HORIZONTAL)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        results_frame = ttk.Frame(body)
+        details_frame = ttk.Frame(body)
+        body.add(results_frame, weight=1)
+        body.add(details_frame, weight=2)
+
+        ttk.Label(results_frame, text="Issue Groups and Records").pack(anchor=tk.W)
+        result_tree = ttk.Treeview(results_frame, show="tree", selectmode="browse")
+        result_tree.pack(fill=tk.BOTH, expand=True, pady=(2, 0))
+        tab["result_tree"] = result_tree
+
+        ttk.Label(details_frame, text="Reference Details").pack(anchor=tk.W)
+        detail_notebook = ttk.Notebook(details_frame)
+        detail_notebook.pack(fill=tk.BOTH, expand=True, pady=(2, 0))
+        for key, label in (
+            ("records_text", "Records"),
+            ("claims_text", "Claims"),
+            ("conflicts_text", "Conflicts"),
+            ("diagnostics_text", "Diagnostics"),
+        ):
+            detail_tab = ttk.Frame(detail_notebook)
+            detail_notebook.add(detail_tab, text=label)
+            text = tk.Text(detail_tab, wrap=tk.WORD, padx=10, pady=10)
+            text.pack(fill=tk.BOTH, expand=True)
+            text.config(state=tk.DISABLED)
+            tab[key] = text
+
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(8, 0))
+        ttk.Button(button_frame, text="Run", command=lambda: self._run_canadian_references_tab(tab, workspace)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Refresh", command=lambda: self._refresh_canadian_references_tab(tab, workspace)).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_frame, text="Export Markdown", command=lambda: self._export_canadian_references_markdown(tab)).pack(side=tk.LEFT, padx=(0, 6))
+
+        result_tree.bind("<<TreeviewSelect>>", lambda _event: self._update_canadian_reference_detail(tab))
+        self._show_canadian_reference_mode(tab)
+        self._render_canadian_reference_prompt(tab)
+        return tab
+
+    @staticmethod
+    def _add_canadian_reference_fields(parent, variables):
+        """Add compact, explicit reference request fields to a form row."""
+        for key, variable in variables.items():
+            label = key.replace("_", " ").title()
+            ttk.Label(parent, text=f"{label}:").pack(side=tk.LEFT, padx=(0, 3))
+            ttk.Entry(parent, textvariable=variable, width=12).pack(side=tk.LEFT, padx=(0, 6))
+
+    @staticmethod
+    def _workspace_reference_configuration_for(aggregator, providers):
+        """Return one explicit workspace reference dependency, if application-owned."""
+        if aggregator is not None and providers is not None:
+            raise ValueError("Provide reference_provider_aggregator or reference_providers, not both.")
+        if aggregator is not None:
+            return {"reference_provider_aggregator": aggregator}
+        if providers is not None:
+            return {"reference_providers": providers}
+        return {}
+
+    def _workspace_reference_configuration(self):
+        """Expose only already-owned reference dependencies to the workspace."""
+        return self._workspace_reference_configuration_for(
+            getattr(self, "reference_provider_aggregator", None),
+            getattr(self, "reference_providers", None),
+        )
+
+    def _show_canadian_reference_mode(self, tab):
+        """Show only the explicit request controls for the active research mode."""
+        active_mode = tab["mode_var"].get()
+        for mode, form in tab.get("forms", {}).items():
+            if mode == active_mode:
+                form.pack(fill=tk.X)
+            else:
+                form.pack_forget()
+
+    @staticmethod
+    def _canadian_reference_request(tab):
+        """Build one approved request mode without collection-derived input."""
+        mode = tab["mode_var"].get()
+        if mode == "issue_id":
+            return {"issue_id": tab["issue_id_var"].get().strip()}
+        if mode == "query":
+            return {
+                "query": ReferenceQuery(
+                    **{key: variable.get().strip() for key, variable in tab["query_vars"].items()}
+                )
+            }
+        return {
+            "filters": ReferenceFilters(
+                **{key: variable.get().strip() for key, variable in tab["filter_vars"].items()}
+            )
+        }
+
+    def _run_canadian_references_tab(self, tab, workspace, refresh=False):
+        """Run one explicit, read-only reference request through the workspace."""
+        request = self._canadian_reference_request(tab)
+        tab["current_request"] = dict(request)
+        self._execute_canadian_reference_request(tab, workspace, request, refresh=refresh)
+
+    def _execute_canadian_reference_request(self, tab, workspace, request, refresh=False):
+        """Execute one already-explicit request through the workspace only."""
+        request = dict(request)
+        if refresh:
+            request = {**request, "refresh": True}
+        try:
+            report = workspace.get_canadian_references(**request)
+        except Exception as exc:
+            self._render_canadian_reference_failure(tab, f"Canadian References: {exc}")
+            return
+        tab["current_report"] = report
+        self._render_canadian_reference_report(tab, report)
+
+    def _refresh_canadian_references_tab(self, tab, workspace):
+        """Refresh the workspace then repeat the current explicit request only."""
+        workspace.refresh()
+        if tab.get("current_request") is None:
+            self._render_canadian_reference_prompt(tab)
+            return
+        self._execute_canadian_reference_request(
+            tab,
+            workspace,
+            tab["current_request"],
+            refresh=True,
+        )
+
+    def _rerun_canadian_references_tab(self, tab, workspace):
+        """Re-render an active request after a workspace-wide refresh."""
+        if tab.get("current_request") is None:
+            self._render_canadian_reference_prompt(tab)
+            return
+        self._execute_canadian_reference_request(
+            tab,
+            workspace,
+            tab["current_request"],
+            refresh=True,
+        )
+
+    def _export_canadian_references_markdown(self, tab):
+        """Export only the currently displayed report using its existing exporter."""
+        report = tab.get("current_report")
+        if report is None:
+            messagebox.showwarning("Canadian References", "Run a reference request before exporting.")
+            return
+        path = filedialog.asksaveasfilename(
+            title="Export Canadian Reference Claims",
+            defaultextension=".md",
+            filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            ok = report.export_markdown(path)
+            if ok:
+                messagebox.showinfo("Export Complete", f"Saved to {path}")
+            else:
+                messagebox.showerror("Export Failed", "Export returned False")
+        except Exception as exc:
+            messagebox.showerror("Export Failed", str(exc))
+
+    def _render_canadian_reference_prompt(self, tab):
+        """Render the quiet initial state without performing a provider request."""
+        tab["current_report"] = None
+        self._clear_canadian_reference_tree(tab)
+        summary_var = tab.get("summary_var")
+        if summary_var is not None:
+            summary_var.set("Enter an exact issue ID, search terms, or filters to research configured reference data.")
+        self._set_canadian_reference_detail_texts(
+            tab,
+            "No request has been run.",
+            "No source claims available.",
+            "No source disagreements available.",
+            "No diagnostics available.",
+        )
+
+    def _render_canadian_reference_failure(self, tab, message):
+        """Keep unexpected GUI-facing failures concise and non-destructive."""
+        self._clear_canadian_reference_tree(tab)
+        summary_var = tab.get("summary_var")
+        if summary_var is not None:
+            summary_var.set("Canadian References could not complete this request.")
+        self._set_canadian_reference_detail_texts(
+            tab,
+            "No records available.",
+            "No source claims available.",
+            "No source disagreements available.",
+            message,
+        )
+
+    def _render_canadian_reference_report(self, tab, report):
+        """Render Phase 5 report DTOs without interpreting their claims."""
+        payload = self._canadian_reference_report_payload(report)
+        summary = payload.get("summary") or {}
+        groups = ((payload.get("aggregate_result") or {}).get("groups") or [])
+        summary_var = tab.get("summary_var")
+        if summary_var is not None:
+            summary_var.set(
+                "Request: {0} | Providers: {1} | Groups: {2} | Claims: {3} | Conflicts: {4}".format(
+                    payload.get("selection_type") or "none",
+                    summary.get("provider_count", len(payload.get("provider_ids") or [])),
+                    summary.get("group_count", len(groups)),
+                    summary.get("claim_count", 0),
+                    summary.get("conflict_count", 0),
+                )
+            )
+        self._populate_canadian_reference_tree(tab, groups)
+        if groups:
+            self._select_first_canadian_reference_group(tab)
+        else:
+            self._set_canadian_reference_detail_texts(
+                tab,
+                "No source records were returned for this request.",
+                "No source claims were returned for this request.",
+                "No source disagreements reported for this request.",
+                self._format_canadian_reference_diagnostics(payload),
+            )
+
+    @staticmethod
+    def _canadian_reference_report_payload(report):
+        return report.to_dict() if hasattr(report, "to_dict") else dict(report or {})
+
+    def _clear_canadian_reference_tree(self, tab):
+        tree = tab.get("result_tree")
+        if tree is not None:
+            children = tree.get_children()
+            if children:
+                tree.delete(*children)
+        tab["tree_groups"] = {}
+
+    def _populate_canadian_reference_tree(self, tab, groups):
+        self._clear_canadian_reference_tree(tab)
+        tree = tab.get("result_tree")
+        if tree is None:
+            return
+        for group_index, group in enumerate(groups):
+            records = group.get("records") or []
+            claims = group.get("claims") or []
+            conflicts = group.get("conflicts") or []
+            issue_key = group.get("issue_key") or "Unspecified issue"
+            group_id = tree.insert(
+                "",
+                tk.END,
+                text=f"{issue_key} ({len(records)} records, {len(claims)} claims, {len(conflicts)} conflicts)",
+            )
+            tab["tree_groups"][group_id] = group_index
+            for record in records:
+                issue = record.get("issue") or {}
+                source = record.get("source") or {}
+                label = source.get("source_name") or source.get("source_id") or "Source"
+                record_id = record.get("source_record_id") or "N/A"
+                child_id = tree.insert(
+                    group_id,
+                    tk.END,
+                    text=f"{label} | {record_id} | {issue.get('issue_id') or issue_key}",
+                )
+                tab["tree_groups"][child_id] = group_index
+
+    def _select_first_canadian_reference_group(self, tab):
+        tree = tab.get("result_tree")
+        if tree is None:
+            return
+        groups = tree.get_children()
+        if groups:
+            tree.selection_set(groups[0])
+            tree.focus(groups[0])
+        self._update_canadian_reference_detail(tab)
+
+    def _update_canadian_reference_detail(self, tab):
+        report = tab.get("current_report")
+        if report is None:
+            return
+        payload = self._canadian_reference_report_payload(report)
+        groups = ((payload.get("aggregate_result") or {}).get("groups") or [])
+        tree = tab.get("result_tree")
+        selection = tree.selection() if tree is not None else ()
+        selected_id = selection[0] if selection else ""
+        group_index = tab.get("tree_groups", {}).get(selected_id, 0)
+        group = groups[group_index] if groups and group_index < len(groups) else None
+        self._set_canadian_reference_detail_texts(
+            tab,
+            self._format_canadian_reference_records(group),
+            self._format_canadian_reference_claims(group),
+            self._format_canadian_reference_conflicts(group),
+            self._format_canadian_reference_diagnostics(payload),
+        )
+
+    def _set_canadian_reference_detail_texts(self, tab, records, claims, conflicts, diagnostics):
+        for key, content in (
+            ("records_text", records),
+            ("claims_text", claims),
+            ("conflicts_text", conflicts),
+            ("diagnostics_text", diagnostics),
+        ):
+            widget = tab.get(key)
+            if widget is not None:
+                self._set_text_widget(widget, content)
+
+    @staticmethod
+    def _format_canadian_reference_records(group):
+        if not group:
+            return "Select an issue group to view source records.\n"
+        lines = ["Source Records", "=" * 40]
+        records = group.get("records") or []
+        if not records:
+            return "\n".join(lines + ["", "No source records available."]) + "\n"
+        for record in records:
+            issue = record.get("issue") or {}
+            source = record.get("source") or {}
+            lines.extend([
+                "",
+                f"Issue ID: {issue.get('issue_id') or 'N/A'}",
+                f"Source: {source.get('source_name') or source.get('source_id') or 'N/A'}",
+                f"Source record: {record.get('source_record_id') or 'N/A'}",
+                f"Country: {issue.get('country') or 'N/A'}",
+                f"Denomination: {issue.get('denomination') or 'N/A'}",
+                f"Year / Date: {issue.get('year') or issue.get('date_text') or 'N/A'}",
+                f"Authority: {issue.get('authority') or 'N/A'}",
+                f"Mintmark: {issue.get('mintmark') or 'N/A'}",
+                f"Variety: {issue.get('variety') or 'N/A'}",
+                f"Composition: {issue.get('composition') or 'N/A'}",
+                f"Weight: {issue.get('weight') or 'N/A'}",
+                f"Diameter: {issue.get('diameter') or 'N/A'}",
+                f"Catalogue IDs: {issue.get('catalogue_numbers') or 'N/A'}",
+                f"Source type: {source.get('source_type') or 'N/A'}",
+                f"Attribution: {source.get('attribution') or 'N/A'}",
+                f"Licence: {source.get('licence') or 'N/A'}",
+                f"Source URL: {source.get('url') or 'N/A'}",
+            ])
+            for warning in record.get("warnings") or []:
+                lines.append(f"Warning: {warning}")
+        return "\n".join(lines).rstrip() + "\n"
+
+    @staticmethod
+    def _format_canadian_reference_claims(group):
+        if not group:
+            return "Select an issue group to view source claims.\n"
+        lines = ["Source Claims", "=" * 40]
+        claims = group.get("claims") or []
+        if not claims:
+            return "\n".join(lines + ["", "No source claims available."]) + "\n"
+        for claim in claims:
+            source = claim.get("source") or {}
+            source_ref = claim.get("source_ref") or {}
+            lines.extend([
+                "",
+                f"Field: {claim.get('field_name') or 'N/A'}",
+                f"Raw value: {claim.get('raw_value') or 'N/A'}",
+                f"Normalized value: {claim.get('normalized_value') or 'N/A'}",
+                f"Provider: {claim.get('provider_id') or 'N/A'}",
+                f"Source: {source.get('source_name') or source.get('source_id') or 'N/A'}",
+                f"Source record: {claim.get('source_record_id') or 'N/A'}",
+            ])
+            if source_ref:
+                lines.extend([
+                    f"Field reference: {source_ref.get('field_name') or 'N/A'}",
+                    f"Reference notes: {source_ref.get('notes') or 'N/A'}",
+                ])
+        return "\n".join(lines).rstrip() + "\n"
+
+    @staticmethod
+    def _format_canadian_reference_conflicts(group):
+        if not group:
+            return "Select an issue group to view source disagreements.\n"
+        lines = ["Source Disagreements", "=" * 40]
+        conflicts = group.get("conflicts") or []
+        if not conflicts:
+            return "\n".join(lines + ["", "No source disagreements reported for this request."]) + "\n"
+        for conflict in conflicts:
+            lines.extend([
+                "",
+                f"Issue key: {conflict.get('issue_key') or 'N/A'}",
+                f"Field: {conflict.get('field_name') or 'N/A'}",
+                f"Type: {conflict.get('conflict_type') or 'N/A'}",
+            ])
+            if conflict.get("notes"):
+                lines.append(f"Notes: {conflict['notes']}")
+            for claim in conflict.get("claims") or []:
+                source = claim.get("source") or {}
+                lines.append(
+                    "- {0}: raw={1}; normalized={2}; provider={3}; source={4}; record={5}".format(
+                        claim.get("field_name") or "N/A",
+                        claim.get("raw_value") or "N/A",
+                        claim.get("normalized_value") or "N/A",
+                        claim.get("provider_id") or "N/A",
+                        source.get("source_name") or source.get("source_id") or "N/A",
+                        claim.get("source_record_id") or "N/A",
+                    )
+                )
+        return "\n".join(lines).rstrip() + "\n"
+
+    @staticmethod
+    def _format_canadian_reference_diagnostics(payload):
+        lines = ["Diagnostics", "=" * 40]
+        result = payload.get("aggregate_result") or {}
+        validation = payload.get("validation_report") or {}
+        provider_errors = list(result.get("provider_errors") or []) + list(validation.get("provider_errors") or [])
+        warnings = list(result.get("warnings") or [])
+        findings = validation.get("findings") or []
+        engine_errors = payload.get("engine_errors") or []
+        if not (provider_errors or warnings or findings or engine_errors):
+            return "\n".join(lines + ["", "No diagnostics reported."]) + "\n"
+        for error in provider_errors:
+            lines.append(f"Provider error [{error.get('provider_id') or 'Provider'}]: {error.get('message') or 'Unknown error'}")
+        for warning in warnings:
+            lines.append(f"Warning: {warning}")
+        for finding in findings:
+            lines.append(
+                "Validation [{0}] {1}: {2}".format(
+                    finding.get("severity") or "INFO",
+                    finding.get("code") or "FINDING",
+                    finding.get("message") or "",
+                )
+            )
+        for error in engine_errors:
+            lines.append(f"Workspace: {error}")
+        return "\n".join(lines).rstrip() + "\n"
+
     def _create_workflow_tab(self, notebook, workspace):
         """Create Workflow tab."""
         frame = ttk.Frame(notebook, padding="10")
@@ -9995,6 +10482,8 @@ Total Unique Dates: {total_unique_dates}
                 )
         if "image_readiness" in tabs:
             self._assess_image_readiness_tab(tabs["image_readiness"], workspace)
+        if "canadian_references" in tabs:
+            self._rerun_canadian_references_tab(tabs["canadian_references"], workspace)
         # Reports tab is rebuilt from scratch
         old_reports = tabs["reports"]["frame"]
         parent = old_reports.master
