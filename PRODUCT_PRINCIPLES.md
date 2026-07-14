@@ -2,15 +2,58 @@
 
 This document is the product compass for Coin Analyzer. It should be short, stable, and rarely changed.
 
-## Mission
+Coin Analyzer helps collectors understand their collections today, and understand their coins tomorrow.
 
-Maximize time spent collecting and minimize time spent managing a collection.
+## Product Philosophy
 
-## Guiding Principle
+### Principle 1 - Collector First
 
-Not more capability, but less drag.
+> Maximize time spent collecting and minimize time spent managing a collection.
 
-Every release should make collecting feel smoother.
+Everything exists to reduce friction. Not more capability, but less drag.
+
+Every release should make collecting feel smoother and remove at least one meaningful collector action.
+
+### Principle 2 - Collection Awareness
+
+> The software should know the collection, even when it does not yet know the collectible.
+
+Coin Analyzer should understand what the collector owns, what is missing, what needs attention, what is duplicated, what was recently acquired, and what has changed. It must do this without pretending to identify anything.
+
+### Principle 3 - Evidence Before Inference
+
+> Every conclusion must be supported by observable evidence.
+
+Evidence always precedes reasoning:
+
+```text
+Photos
+-> Image Readiness
+-> Reference Facts
+-> Candidate Generation
+-> Reasoning
+-> Advice
+```
+
+Do not skip layers or turn an observation into a conclusion without the evidence required for that conclusion.
+
+### Principle 4 - Humility
+
+> When evidence is insufficient, ask for more.
+
+Coin Analyzer is an evidence engine, not an authority. It explains, recommends, and requests additional evidence. It never manufactures certainty.
+
+Coin Analyzer advises. The collector decides.
+
+### Principle 5 - Explainability
+
+Every recommendation must answer:
+
+- Why?
+- Why now?
+- What next?
+
+Every confidence score must be explainable. Every candidate must expose the evidence that produced it. No black boxes.
 
 ## Collector Journey Audit
 
@@ -59,20 +102,6 @@ Do not ask:
 Ask:
 
 > What step disappears?
-
-## Explainability
-
-Every recommendation answers:
-
-- Why?
-- Why now?
-- What next?
-
-## Human Control
-
-Coin Analyzer advises.
-
-The collector decides.
 
 ## v8.7 Guardrails
 
