@@ -54,11 +54,13 @@ class NumistaImporter:
             
             # Add imported items to collection
             for item in self.imported_items:
-                self.collection.add_item(item)
+                if not self.collection.add_item(item):
+                    raise OSError(f"Could not save imported item {item.id}: {self.collection.last_save_error}")
             
             # Restore manual entries
             for item in manual_items:
-                self.collection.add_item(item)
+                if not self.collection.add_item(item):
+                    raise OSError(f"Could not restore manual item {item.id}: {self.collection.last_save_error}")
             
             return len(self.imported_items), len(self.duplicates)
             

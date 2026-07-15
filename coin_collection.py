@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
+from atomic_json import write_json_atomically
+
 
 class PhotoRole(str, Enum):
     """Structured role for photos attached to a collection item."""
@@ -283,6 +285,7 @@ class CoinCollection:
     def __init__(self, storage_path: str = "data/collection.json"):
         self.storage_path = storage_path
         self.items: List[CoinItem] = []
+        self.last_save_error = ""
         self.ensure_storage_directory()
         self.load_collection()
     
@@ -307,37 +310,55 @@ class CoinCollection:
             self.items = []
             print("No existing collection found, starting fresh")
     
-    def save_collection(self):
+    def save_collection(self) -> bool:
         """Save collection to JSON storage."""
         try:
-            with open(self.storage_path, 'w', encoding='utf-8') as f:
-                json.dump([item.to_dict() for item in self.items], f, indent=2, ensure_ascii=False)
+            write_json_atomically(
+                self.storage_path,
+                [item.to_dict() for item in self.items],
+                indent=2,
+                ensure_ascii=False,
+            )
+            self.last_save_error = ""
             print(f"Saved {len(self.items)} items to collection")
+            return True
         except Exception as e:
-            print(f"Error saving collection: {str(e)}")
+            self.last_save_error = str(e)
+            print(f"Error saving collection: {self.last_save_error}")
+            return False
     
     def add_item(self, item: CoinItem) -> bool:
         """Add item to collection."""
+        original_items = list(self.items)
         self.items.append(item)
-        self.save_collection()
-        return True
+        if self.save_collection():
+            return True
+        self.items = original_items
+        return False
     
     def update_item(self, item_id: str, updates: Dict) -> bool:
         """Update item in collection."""
         for item in self.items:
             if item.id == item_id:
+                original_values = {key: getattr(item, key) for key in updates if hasattr(item, key)}
                 for key, value in updates.items():
                     if hasattr(item, key):
                         setattr(item, key, value)
-                self.save_collection()
-                return True
+                if self.save_collection():
+                    return True
+                for key, value in original_values.items():
+                    setattr(item, key, value)
+                return False
         return False
     
     def delete_item(self, item_id: str) -> bool:
         """Delete item from collection."""
-        self.items = [item for item in self.items if item.id != item_id]
-        self.save_collection()
-        return True
+        original_items = list(self.items)
+        self.items = [item for item in original_items if item.id != item_id]
+        if self.save_collection():
+            return True
+        self.items = original_items
+        return False
 
     def preview_photo_migration(self) -> PhotoMigrationResult:
         """Preview legacy image_path-to-photos normalization without writing."""
@@ -345,9 +366,16 @@ class CoinCollection:
 
     def apply_photo_migration(self) -> PhotoMigrationResult:
         """Explicitly normalize item-owned photos and save when changes occur."""
+        original_photo_state = [
+            (item, item.image_path, [ItemPhoto.from_dict(photo.to_dict()) for photo in item.photos])
+            for item in self.items
+        ]
         result = self._build_photo_migration_result(apply=True)
-        if result.migrated_items:
-            self.save_collection()
+        if result.migrated_items and not self.save_collection():
+            for item, image_path, photos in original_photo_state:
+                item.image_path = image_path
+                item.photos = [photo for photo in photos if photo is not None]
+            result.warnings.append(f"Photo migration was not saved: {self.last_save_error}")
         return result
 
     def _build_photo_migration_result(self, apply: bool) -> PhotoMigrationResult:
@@ -532,6 +560,7 @@ class CoinCollection:
             Tuple of (imported_count, total_coins, total_countries, total_unique_dates)
         """
         imported_count = 0
+        original_items = list(self.items)
         
         try:
             with open(csv_path, 'r', encoding='utf-8') as f:
@@ -583,7 +612,9 @@ class CoinCollection:
                         imported_count += 1
             
             # Save collection
-            self.save_collection()
+            if not self.save_collection():
+                self.items = original_items
+                return 0, 0, 0, 0
             
             # Calculate statistics
             total_coins = len(self.items)
@@ -823,7 +854,9 @@ class CoinCollectionApp:
             photos=structured_photos,
         )
         
-        self.collection.add_item(item)
+        if not self.collection.add_item(item):
+            print(f"Could not save item {item_id}: {self.collection.last_save_error}")
+            return False
         self.last_added_item_id = item_id
         print(f"Added item {item_id} to collection")
         return True

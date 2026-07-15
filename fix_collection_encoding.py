@@ -6,6 +6,8 @@ Re-saves the collection with proper UTF-8 encoding.
 import json
 import os
 
+from atomic_json import write_json_atomically
+
 def fix_collection_encoding():
     """Fix collection JSON encoding."""
     input_file = "data/collection.json"
@@ -41,8 +43,7 @@ def fix_collection_encoding():
     
     # Re-save with proper UTF-8 encoding
     try:
-        with open(input_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        write_json_atomically(input_file, data, indent=2, ensure_ascii=False)
         print(f"Successfully re-saved collection with UTF-8 encoding")
         return True
     except Exception as e:

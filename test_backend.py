@@ -11,8 +11,9 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 
-from coin_collection import CoinCollection, CoinItem, ItemPhoto, PhotoRole
+from coin_collection import CoinCollection, CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
 
 
 def make_coin_item(item_id="test_001", **overrides):
@@ -121,6 +122,82 @@ class TestCoinCollectionBackend(unittest.TestCase):
 
         self.assertEqual(reloaded.items[0].notes, special_notes)
         self.assertEqual(rows[0]["notes"], special_notes)
+
+    def test_atomic_save_replaces_existing_collection(self):
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            handle.write('[{"id": "old"}]')
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item("replacement", notes="Montreal - \u00e9dition")]
+
+        self.assertTrue(collection.save_collection())
+
+        with open(self.collection_path, "r", encoding="utf-8") as handle:
+            saved = json.load(handle)
+        self.assertEqual("replacement", saved[0]["id"])
+        self.assertEqual("Montreal - \u00e9dition", saved[0]["notes"])
+        self.assertEqual([], [name for name in os.listdir(self.temp_dir.name) if name.endswith(".tmp")])
+
+    def test_serialization_failure_preserves_existing_collection(self):
+        original = b'[{"id":"original"}]'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item("bad", notes=object())]
+
+        self.assertFalse(collection.save_collection())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+        self.assertEqual([], [name for name in os.listdir(self.temp_dir.name) if name.endswith(".tmp")])
+
+    @patch("atomic_json.json.dump", side_effect=OSError("simulated disk write failure"))
+    def test_write_failure_preserves_existing_collection_and_cleans_temp_file(self, _dump):
+        original = b'[{"id":"original"}]'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item("replacement")]
+
+        self.assertFalse(collection.save_collection())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+        self.assertEqual([], [name for name in os.listdir(self.temp_dir.name) if name.endswith(".tmp")])
+
+    @patch("atomic_json.os.replace", side_effect=OSError("simulated replacement failure"))
+    def test_replace_failure_preserves_existing_collection_and_cleans_temp_file(self, _replace):
+        original = b'[{"id":"original"}]'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item("replacement")]
+
+        self.assertFalse(collection.save_collection())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+        self.assertEqual([], [name for name in os.listdir(self.temp_dir.name) if name.endswith(".tmp")])
+
+    def test_failed_mutations_restore_in_memory_collection(self):
+        collection = CoinCollection(self.collection_path)
+        original = make_coin_item("original", country="Canada")
+        self.assertTrue(collection.add_item(original))
+
+        with patch("atomic_json.os.replace", side_effect=OSError("simulated replacement failure")):
+            self.assertFalse(collection.add_item(make_coin_item("new")))
+            self.assertFalse(collection.update_item("original", {"country": "United States"}))
+            self.assertFalse(collection.delete_item("original"))
+
+        self.assertEqual(["original"], [item.id for item in collection.items])
+        self.assertEqual("Canada", collection.get_item("original").country)
+
+    def test_injected_collection_path_remains_isolated(self):
+        collection = CoinCollection(self.collection_path)
+        app = CoinCollectionApp(collection=collection)
+        app.current_image_path = "temporary-front.jpg"
+
+        self.assertTrue(app.add_to_collection("Canada", "Cent", "1920", "VF-20", "isolated"))
+        self.assertTrue(os.path.exists(self.collection_path))
 
     def test_legacy_image_path_only_record_loads_and_synthesizes_photo(self):
         image_path = "coin_photos/collection/Canada/1920_front.jpg"

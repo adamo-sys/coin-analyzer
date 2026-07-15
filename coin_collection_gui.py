@@ -3697,7 +3697,7 @@ Total Unique Dates: {total_unique_dates}
         def save_edit():
             photos = self.normalized_photo_state(edit_photos["photos"])
             primary = next((photo for photo in photos if photo.is_primary), None)
-            self.app.collection.update_item(item.id, {
+            if not self.app.collection.update_item(item.id, {
                 "country": country_var.get().strip(),
                 "denomination": denomination_var.get().strip(),
                 "year": year_var.get().strip(),
@@ -3705,7 +3705,12 @@ Total Unique Dates: {total_unique_dates}
                 "notes": notes_text.get("1.0", tk.END).strip(),
                 "photos": photos,
                 "image_path": primary.path if primary else "",
-            })
+            }):
+                messagebox.showerror(
+                    "Save Failed",
+                    f"The item was not updated: {self.app.collection.last_save_error or 'collection save failed'}",
+                )
+                return
             self.refresh_collection_list()
             dialog.destroy()
             messagebox.showinfo("Success", "Item updated")

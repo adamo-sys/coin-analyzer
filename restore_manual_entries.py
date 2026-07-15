@@ -32,7 +32,9 @@ def restore_manual_entries():
         if not existing:
             from coin_collection import CoinItem
             item = CoinItem.from_dict(item_data)
-            current_collection.add_item(item)
+            if not current_collection.add_item(item):
+                print(f"Could not restore {item.id}: {current_collection.last_save_error}")
+                return False
             print(f"Restored: {item.country} {item.denomination} {item.year}")
     
     print(f"Total coins after restore: {len(current_collection.items)}")
