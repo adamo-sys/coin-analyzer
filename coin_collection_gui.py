@@ -106,6 +106,8 @@ from watchlist_engine import AlertEngine, Watchlist, WatchlistEngine, WatchlistI
 from platform_core import Platform
 from platform_integration import PlatformIntegration
 from batch_processing import BatchProcessingEngine, BatchReport
+from application_metadata import APPLICATION_VERSION
+from confirmed_observations import ConfirmedObservationRecord, ConfirmedObservationStore
 
 
 GRADE_SUGGESTIONS = (
@@ -160,6 +162,7 @@ class CoinCollectionGUI:
         self.session_context = SessionContext()
         self.persistence_manager = PersistenceManager()
         self.backup_manager = BackupManager(persistence_manager=self.persistence_manager)
+        self.confirmed_observation_store = ConfirmedObservationStore()
         self.snapshot_manager = CollectionSnapshotManager()
         self.market_awareness_engine = MarketAwarenessEngine()
         self.photo_records = []
@@ -1740,6 +1743,7 @@ Total Unique Dates: {total_unique_dates}
                     )
             # Log the corrected values if detection was used
             if self.detection_result and self.detection_result['success']:
+                self.record_detection_observation_after_save(country, denomination, year, photos)
                 self.log_correction(country, denomination, year)
             
             messagebox.showinfo("Success", "Coin added to collection")
@@ -1747,6 +1751,30 @@ Total Unique Dates: {total_unique_dates}
             self.refresh_collection_list()
         else:
             messagebox.showerror("Error", "Failed to add coin to collection")
+
+    def record_detection_observation_after_save(self, country, denomination, year, photos):
+        """Persist a confirmed detection outcome after collection persistence succeeds."""
+        if not self.detection_result or not self.detection_result.get("success"):
+            return None
+        observation = ConfirmedObservationRecord.for_detection_save(
+            self.detection_result,
+            {
+                "country": country,
+                "denomination": denomination,
+                "year": year,
+            },
+            collection_item_id=getattr(self.app, "last_added_item_id", ""),
+            application_version=APPLICATION_VERSION,
+            photos=photos,
+        )
+        result = self.confirmed_observation_store.append(observation)
+        if not result.success:
+            messagebox.showwarning(
+                "Collector Feedback",
+                "Coin was saved, but its confirmed observation could not be recorded. "
+                + "; ".join(result.errors or result.warnings or [result.status]),
+            )
+        return result
     
     def log_correction(self, corrected_country, corrected_denomination, corrected_year):
         """Log correction to debug feedback CSV."""

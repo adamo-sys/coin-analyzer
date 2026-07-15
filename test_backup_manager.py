@@ -8,6 +8,7 @@ import zipfile
 
 from backup_manager import BackupManager, BackupManifest, CollectionRecoveryReport, DataSafetyValidator
 from coin_collection import CoinItem
+from confirmed_observations import ConfirmedObservationRecord, ConfirmedObservationStore, FeedbackCategory, ObservationOutcome
 from market_awareness import MarketAwarenessEngine, ObservedPriceRecord
 from persistence_manager import AppState, PersistenceManager
 from photo_assisted_entry import PhotoCandidate
@@ -263,6 +264,39 @@ class TestBackupManager(unittest.TestCase):
             self.assertEqual(result.manifest.collection_json_backed_up, "YES")
             with zipfile.ZipFile(result.package_path, "r") as archive:
                 self.assertIn("data/collection.json", archive.namelist())
+
+    def test_confirmed_observations_are_included_and_verified(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            persistence, backup, collection_json = make_managers(temp_dir)
+            write_collection_json(collection_json)
+            persistence.save_state(AppState())
+            store = ConfirmedObservationStore(os.path.join(
+                persistence.state_dir,
+                "confirmed_observations.json",
+            ))
+            observation = ConfirmedObservationRecord(
+                observation_id="backup-observation",
+                created_at="2026-07-15T12:00:00Z",
+                outcome=ObservationOutcome.ACCEPTED,
+                category=FeedbackCategory.OTHER,
+                suggested_values={"year": "1907"},
+                confirmed_values={"year": "1907"},
+                engine_name="coin_recognition",
+                engine_version="unknown",
+                recognition_method="coin_recognition",
+                application_version="v8.8.0",
+                source_workflow="test",
+            )
+            self.assertTrue(store.append(observation).success)
+
+            package = backup.create_backup_package()
+            verified = backup.verify_backup_package(package.package_path)
+
+            self.assertTrue(verified.success)
+            self.assertTrue(any(
+                record.archive_path == "collection_data/app_state/confirmed_observations.json"
+                for record in package.manifest.included_files
+            ))
 
     def test_missing_collection_json_reports_fail(self):
         with tempfile.TemporaryDirectory() as temp_dir:

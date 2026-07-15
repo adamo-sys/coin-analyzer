@@ -18,6 +18,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from collection_dashboard import CollectionDashboard
 from collector_operating_system import CollectionHealthReportEngine
+from confirmed_observations import CONFIRMED_OBSERVATIONS_FILENAME
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import AppState, PersistenceManager
 from photo_vault import PhotoRecord, PhotoVault, PhotoVaultIntegrityAudit
@@ -443,10 +444,15 @@ class BackupManager:
         backup_dir: str = os.path.join("backups", "packages"),
         persistence_manager: Optional[PersistenceManager] = None,
         collection_json_path: str = DEFAULT_COLLECTION_JSON_PATH,
+        confirmed_observations_path: Optional[str] = None,
     ):
         self.backup_dir = backup_dir
         self.persistence_manager = persistence_manager or PersistenceManager()
         self.collection_json_path = collection_json_path
+        self.confirmed_observations_path = confirmed_observations_path or os.path.join(
+            self.persistence_manager.state_dir,
+            CONFIRMED_OBSERVATIONS_FILENAME,
+        )
 
     def create_backup_package(
         self,
@@ -485,6 +491,11 @@ class BackupManager:
         ]
         if os.path.exists(snapshot_path):
             candidates.append((snapshot_path, "collection_data/app_state/collection_snapshots.json"))
+        if os.path.exists(self.confirmed_observations_path):
+            candidates.append((
+                self.confirmed_observations_path,
+                f"collection_data/app_state/{CONFIRMED_OBSERVATIONS_FILENAME}",
+            ))
         release_dir = os.path.join("docs", "releases")
         if os.path.isdir(release_dir):
             for name in sorted(os.listdir(release_dir)):
