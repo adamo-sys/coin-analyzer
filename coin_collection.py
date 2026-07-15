@@ -707,8 +707,8 @@ class CoinCollection:
 class CoinCollectionApp:
     """Main application for coin collection management."""
     
-    def __init__(self):
-        self.collection = CoinCollection()
+    def __init__(self, collection: Optional[CoinCollection] = None):
+        self.collection = collection if collection is not None else CoinCollection()
         self.current_image_path = None
         self.current_detection_result = None
         self.last_added_item_id = ""

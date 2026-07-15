@@ -112,8 +112,8 @@ class Phase1CMultiPhotoGuiTests(unittest.TestCase):
 
     def test_save_round_trip_preserves_photos_and_primary_alias(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            app = CoinCollectionApp()
-            app.collection = CoinCollection(os.path.join(tmpdir, "collection.json"))
+            collection = CoinCollection(os.path.join(tmpdir, "collection.json"))
+            app = CoinCollectionApp(collection=collection)
             app.current_image_path = "front.jpg"
             photos = [
                 ItemPhoto("front.jpg", role=PhotoRole.FRONT),
