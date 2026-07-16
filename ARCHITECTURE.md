@@ -1,374 +1,343 @@
 # Coin Analyzer Architecture
 
-> **Version:** post-v8.5 / v8.6 roadmap lock
-> **Status:** living document  
-> **Scope:** architectural map of the collector application after the Collector Advisor release and at the start of v8.6 Collector Intelligence & Workflow.
+> **Baseline:** current implemented repository, reconciled 2026-07-16
+> **Status:** living description of the system as it exists
+> **Scope:** supported desktop collection manager, its local data stores, reusable engines, selected workspace integrations, and clearly isolated experiments
 
----
+This document describes implemented structure. Desired rules for future changes are
+listed separately under [Dependency Direction and Guardrails](#dependency-direction-and-guardrails);
+they must not be mistaken for coupling that has already been removed.
 
-## 1. System Overview
+## System Context
 
-Coin Analyzer is a desktop collector application for coin and banknote collections. It provides deterministic, explainable intelligence — grading guidance, acquisition recommendations, collection gap analysis, and portfolio tracking — without machine learning, computer vision, or live market data scraping.
+Coin Analyzer is a local-first desktop application for coin and banknote collectors.
+It manages a user-owned collection, photos and evidence; runs deterministic,
+explainable analysis; and supports deliberate import, export, backup, and review
+workflows. Core collection work remains usable without an account, cloud service,
+or live provider.
 
-The application is built as a **layered system of reusable engines** coordinated by thin orchestration and presentation layers. All business logic lives in engines. All GUI code is display-only. All workspace code is aggregation-only.
+The supported GUI entry point is:
 
----
-
-## 2. Layered Architecture
-
-```
-┌─────────────────────────────────────────┐
-│  GUI Layer (coin_collection_gui.py)     │  ← Tkinter, read-only display,
-│  ── menus, dialogs, notebooks, forms   │    "Open in Tool..." delegation
-├─────────────────────────────────────────┤
-│  ViewModel / Workspace Layer            │  ← CollectorWorkspace (v8.3)
-│  ── aggregation, caching, lifecycle      │    Zero business logic
-├─────────────────────────────────────────┤
-│  Workflow / Orchestration Engines         │  ← BatchProcessing, Workflows,
-│  ── coordinate existing engines          │    SmartPhoneCataloguer, CollectionAssistant
-├─────────────────────────────────────────┤
-│  Intelligence Engines                     │  ← CollectionIntelligence, DealHunter,
-│  ── deterministic analysis & scoring     │    AIGradingAssistant, MarketIntelligence,
-│                                          │    OpportunityEngine, Quality, Integrity, ...
-├─────────────────────────────────────────┤
-│  Data / Model Layer                      │  ← CoinItem, CoinCollection, PhotoRecord,
-│  ── entities, persistence, JSON storage  │    MarketRecord, AppState, Snapshots
-├─────────────────────────────────────────┤
-│  Release & Governance Docs                │  ← PROJECT_STATE, AI_HANDOFF, TASK_QUEUE,
-│  ── source-of-truth status & process     │    RELEASE_HISTORY, RELEASE_GOVERNANCE
-└─────────────────────────────────────────┘
+```text
+coin_collection_gui.py -> CoinCollectionGUI -> Tk main loop
 ```
 
----
+`main.py` launches `gui.py`, an older folder-analysis prototype. That path remains
+in the repository as legacy/experimental code and is not the supported collection
+manager described by the user guide.
 
-## 3. Major Modules and Ownership Boundaries
+## Current Implemented Structure
 
-### Data / Model Layer
-| Module | Responsibility | Key Types |
-|--------|---------------|-----------|
-| `coin_collection.py` | Collection CRUD, JSON persistence | `CoinItem`, `CoinCollection` |
-| `photo_vault.py` | Photo metadata, linking, coverage | `PhotoRecord`, `PhotoVault` |
-| `market_awareness.py` | Observed prices, purchases, sales | `MarketRecord`, `MarketAwarenessEngine` |
-| `persistence_manager.py` | App state JSON save/load/backup | `PersistenceManager`, `AppState` |
-| `session_context.py` | Shared workbook/WANT_LIST context | `SessionContext` |
+```text
+CoinCollectionGUI
+  |-- directly owns collection entry, editing, import/export, and many tool dialogs
+  |-- directly invokes some workflow and intelligence engines
+  `-- uses CollectorWorkspace for selected unified panels and workflows
+          |
+          `-- lazily composes existing engines and returns report DTOs
 
-### Intelligence Engines
-| Module | Responsibility | Key Types |
-|--------|---------------|-----------|
-| `collection_intelligence.py` | Gaps, duplicates, upgrades, priorities | `CollectionIntelligenceEngine`, `AcquisitionTarget` |
-| `collection_quality.py` | Quality scoring, strengths, weaknesses | `CollectionQualityEngine` |
-| `collection_integrity.py` | Data integrity audit | `CollectionIntegrityAudit` |
-| `ai_grading_assistant.py` | Deterministic grading guidance | `AIGradingAssistant`, `GradingAssessment` |
-| `deal_hunter.py` | Offline listing evaluation | `DealHunter`, `DealHunterResult` |
-| `opportunity_engine.py` | Budget-aware opportunity ranking | `OpportunityEngine` |
-| `market_intelligence.py` | Fair-value bands from local data | `MarketIntelligenceEngine` |
-| `acquisition_workflow.py` | BUY/PASS/WATCH/NEGOTIATE/REVIEW | `AcquisitionWorkflow` |
-| `upgrade_advisor.py` | Upgrade potential analysis | `UpgradeAdvisor` |
-| `portfolio_performance.py` | Growth, health, series progress | `PortfolioPerformanceEngine` |
+Workflow/orchestration modules
+  `-- coordinate deterministic intelligence engines and domain models
 
-### Workflow / Orchestration Engines
-| Module | Responsibility | Key Types |
-|--------|---------------|-----------|
-| `batch_processing.py` | Folder → batch candidates → review | `BatchProcessingEngine`, `BatchCandidate` |
-| `smart_phone_cataloguer.py` | Photo → OCR → candidate → entry | `SmartPhoneCataloguer`, `CatalogueResult` |
-| `collection_assistant.py` | Guided cataloguing workflow | `CollectionAssistantEngine` |
-| `collector_advisor.py` | Unified acquisition guidance (v8.5) | `CollectorAdvisor`, `AdvisorRecommendation`, `AdvisorReport` |
-| `collector_workflows.py` | Unified workflow review target (v8.6) | `CollectorWorkflowEngine`, `WorkflowSummary` |
-| `collector_workflow_integration.py` | End-to-end workflow sessions | `CollectorWorkflowIntegrationEngine` |
-| `mobile_collection_entry.py` | Field entry candidates | `MobileCollectionEntryEngine` |
-| `live_deal_hunter.py` | User-triggered RSS/XML ingestion | `LiveDealHunter`, `RSSListingConnector` |
-
-### ViewModel / Workspace Layer
-| Module | Responsibility | Key Types |
-|--------|---------------|-----------|
-| `collector_workspace.py` | Panel aggregation, lazy engines, cache | `CollectorWorkspace`, `DashboardReport`, `ReportsMenu` |
-| `collector_home_dashboard.py` | Daily collector dashboard | `CollectorHomeDashboard` |
-| `collector_operating_system.py` | Home + health consolidation | `CollectorHome`, `CollectionHealthReportEngine` |
-| `collection_dashboard.py` | Snapshot, priorities, gaps | `CollectionDashboard` |
-
-### GUI Layer
-| Module | Responsibility |
-|--------|---------------|
-| `coin_collection_gui.py` | Tkinter app, menus, dialogs, all tool entry points |
-
-### Supporting / Platform
-| Module | Responsibility |
-|--------|---------------|
-| `backup_manager.py` | Backup packages, manifests, restore |
-| `sync_backup_engine.py` | Sync simulation, conflict reporting |
-| `collector_cloud.py` | Offline cloud architecture, snapshots |
-| `multi_device_workspace.py` | Desktop/phone/tablet modeling |
-| `platform_analytics.py` | Platform health metrics |
-| `series_tracker.py` | Supported series completion |
-| `photo_capture_workflow.py` | Phone photo capture metadata |
-| `ocr_experiment.py` / `ocr_validation.py` / `ocr_assisted_identification.py` | OCR pipeline |
-| `watchlist_engine.py` | Alert generation, presets |
-| `listing_connectors.py` | CSV import normalization |
-| `numista_intelligence.py` / `numista_importer.py` | Numista data integration |
-
----
-
-## 4. Data Flow
-
-### Collection Items
-```
-CoinItem (dataclass)
-    ↓
-CoinCollection (JSON persistence in data/collection.json)
-    ↓
-CollectionIntelligenceEngine → gaps, duplicates, upgrades
-    ↓
-CollectorWorkspace.get_collection_summary() → display
+Domain and local state
+  |-- CoinItem / ItemPhoto / CoinCollection
+  |-- app-state and workflow stores
+  `-- repository-relative fixtures and optional experimental outputs
 ```
 
-### Photos
-```
-PhotoCaptureWorkflow → CapturedPhoto metadata
-    ↓
-PhotoVault → PhotoRecord (linking, search, coverage)
-    ↓
-CollectorWorkspace.get_photo_vault() → coverage metrics
-```
+The GUI is therefore a legacy-integrated presentation/controller layer, not a
+display-only shell. `CollectorWorkspace` is a useful unified service layer for
+selected panels, but it is not the exclusive dependency of the GUI. New work
+should reduce unnecessary coupling when doing so serves an approved user-facing
+change; this document does not claim that separation is already complete.
 
-### OCR
-```
-CapturedPhoto / pasted text
-    ↓
-OCRExperiment → raw text, suggestions
-    ↓
-OCRValidation → trust levels, findings
-    ↓
-OCRAssistedIdentification → candidates with evidence
-    ↓
-SmartPhoneCataloguer / BatchProcessing → proposed entries
-```
+## Major Modules and Ownership
 
-### Grading
-```
-GradingCandidate (country, denomination, year, claimed_grade, photo refs, OCR evidence)
-    ↓
-AIGradingAssistant → pattern analysis, evidence, confidence
-    ↓
-GradingAssessment (grade range, most likely, review flag, collection context)
-    ↓
-GUI display or batch export
-```
+### Domain and persistence
 
-### Batch Processing
-```
-Folder of photos
-    ↓
-BatchProcessingEngine → auto-pair, discover, create BatchCandidates
-    ↓
-SmartPhoneCataloguer per candidate → OCR, match, proposed entry
-    ↓
-CollectionIntelligence → gap/duplicate/upgrade analysis
-    ↓
-Review workflow → approve / reject / needs-review
-    ↓
-BatchReport with review counts, export
-```
+| Module | Implemented responsibility |
+|---|---|
+| `coin_collection.py` | `CoinItem`, item-owned `ItemPhoto` metadata, collection CRUD, backward-compatible JSON loading, CSV import/export, and collection analysis entry points |
+| `atomic_json.py` | Atomic whole-document JSON replacement used by the primary collection and confirmed-observation store |
+| `persistence_manager.py` | Broader application/session state, validation, import/export, and backup integration |
+| `photo_inbox.py` | Incoming-photo grouping workflow and its local state |
+| `confirmed_observations.py` | Durable collector-confirmed outcomes for later offline evaluation; it does not automatically retrain or alter recognition engines |
+| `photo_vault.py` | Metadata-only photo records, links, coverage, and integrity reporting |
+| `session_context.py` | Loaded workbook and WANT_LIST context shared by selected workflows |
 
-### Reports
-```
-Existing engines (quality, integrity, snapshot, ...)
-    ↓
-CollectorWorkspace.get_reports() → 16 lazy descriptors
-    ↓
-CollectorWorkspace.generate_report(name) → dict
-    ↓
-CollectorWorkspace.export_report(name, format, path) → file
-```
+### Intelligence and advisory engines
 
-### Workspace
-```
-CollectorWorkspace(collection_items, optional context...)
-    ↓
-_lazy engine initialization on first _get_engine(name)_
-    ↓
-Panel getter → engine query → report DTO → cache
-    ↓
-refresh() → cache.clear() (engines preserved)
-    ↓
-GUI renders DTOs read-only
-```
+Representative modules include:
 
----
+- `collection_intelligence.py`, `collection_quality.py`, and
+  `collection_integrity.py` for collection analysis;
+- `acquisition_workflow.py`, `deal_hunter.py`, `opportunity_engine.py`, and
+  `market_intelligence.py` for local, explainable acquisition guidance;
+- `ai_grading_assistant.py` for deterministic advisory grading guidance;
+- `image_assessment.py` for deterministic photo-quality and downstream-readiness
+  assessment;
+- `canadian_reference_provider.py` for provider contracts, local/manual
+  providers, validation, aggregation, provenance, and conflict reporting; and
+- `connected_data.py` for deterministic cross-references among existing local
+  records and workflow context.
 
-## 5. Public APIs / Main Entry Points
+These engines advise. Collection state changes only through an explicit workflow
+or collection-management action.
 
-### Application Entry Point
-```python
-coin_collection_gui.py  →  CoinCollectionGUI (Tkinter main loop)
-```
+### Workflow and orchestration
 
-### Workspace Public API
-```python
-class CollectorWorkspace:
-    def __init__(self, collection_items, *, ...): ...  # keyword-only options
-    def refresh(self) -> None: ...                    # clear cache, keep engines
-    def get_dashboard(self) -> DashboardReport: ...
-    def get_inbox(self) -> InboxReport: ...
-    def get_collection_summary(self) -> CollectionSummaryReport: ...
-    def get_want_list(self) -> WantListReport: ...
-    def get_opportunities(self) -> OpportunitiesReport: ...
-    def get_ai_queue(self) -> AIQueueReport: ...
-    def get_batch_queue(self) -> BatchQueueReport: ...
-    def get_photo_vault(self) -> PhotoVaultReport: ...
-    def get_workflow_status(self) -> WorkflowStatusReport: ...
-    def get_data_safety(self) -> DataSafetyReport: ...
-    def get_reports(self) -> ReportsMenu: ...
-    def generate_report(self, name: str) -> Dict[str, Any]: ...
-    def export_report(self, name: str, format: str, path: str) -> bool: ...
-    def get_lifecycle(self) -> LifecycleInfo: ...
-```
+Representative modules include `batch_processing.py`,
+`smart_phone_cataloguer.py`, `collection_assistant.py`,
+`collector_workflows.py`, `collector_workflow_integration.py`,
+`mobile_collection_entry.py`, and `photo_capture_workflow.py`. They coordinate
+existing models and engines, prepare reviewable results, and should not silently
+create authoritative collection facts.
 
-### Key Engine Public APIs (representative)
-```python
-CollectionIntelligenceEngine(collection_items).analyze_by_country()
-CollectionIntelligenceEngine(collection_items).detect_duplicates()
-CollectionIntelligenceEngine(collection_items).detect_upgrade_candidates()
+### Workspace and presentation
 
-AIGradingAssistant(collection_items).assess_candidate(candidate)
-AIGradingAssistant(collection_items).assess_batch(candidates)
+| Module | Implemented responsibility |
+|---|---|
+| `collector_workspace.py` | Lazy composition, caching, lifecycle, and report DTOs for selected dashboard, workflow, data-safety, Connected Data, Image Assessment, and Canadian-reference surfaces |
+| `coin_collection_gui.py` | Supported Tkinter collection manager and controller for collection mutation, dialogs, reports, workspace panels, and tool entry points |
+| `gui.py` / `main.py` | Older experimental folder-analysis GUI and launcher |
 
-BatchProcessingEngine(cataloguer).process_folder(source)
-BatchProcessingEngine(cataloguer).review_candidate(candidate_id, decision)
+### Platform, fixtures, and experiments
+
+- `backup_manager.py` and `sync_backup_engine.py` provide local backup,
+  validation, and simulated synchronization workflows.
+- `test_coins/` contains stable source fixtures used by recognition and
+  experiment tests.
+- `extract_date_regions.py`, `year_ocr_experiment.py`,
+  `template_matching_year.py`, and `label_years.py` are research utilities, not
+  supported application workflows.
+- `debug_outputs/` contains generated, ignored diagnostics. Output ordering,
+  locations, filenames, and artifact counts can be predictable without promising
+  byte-identical images across OpenCV versions.
+- `pytesseract` and the Tesseract executable remain optional experiment
+  dependencies and are not required by normal application startup.
+
+## Subsystem Characteristics
+
+| Subsystem | Advisory | Persistent | Workspace-integrated | Experimental |
+|---|:---:|:---:|:---:|:---:|
+| Primary collection management | No | Yes | Collection items are consumed | No |
+| Connected Data | Yes | No new store | Yes | No |
+| Image Assessment | Yes | Reports may be included in app state | Yes | No |
+| Photo Inbox | Review-driven | Yes | No; the GUI owns this workflow directly | No |
+| Canadian reference providers and aggregation | Yes | Providers may read local reference data; aggregation is not a collection store | Yes | No |
+| Confirmed observations | Evidence only | Yes | No; currently written by the collection GUI | No; it is a future evaluation foundation, not a learning pipeline |
+| OCR and template-matching experiment scripts | Yes | Generated outputs only | No | Yes |
+
+“Persistent” means the subsystem owns or participates in local saved state; it
+does not imply that its output becomes an authoritative `CoinItem` field.
+
+## Collection Model and Persistence Flow
+
+```text
+GUI or import boundary
+  -> backend normalization and validation
+  -> CoinItem
+       |-- legacy scalar fields
+       |-- ItemPhoto list plus legacy image_path compatibility
+       `-- optional acquisition fields
+             |-- Decimal component values
+             `-- read-only derived total_cost
+  -> CoinCollection
+  -> atomic_json.write_json_atomically(...)
+  -> local data/collection.json
 ```
 
----
+`CoinItem.from_dict()` accepts legacy records with absent optional fields.
+`ItemPhoto` provides structured photo roles, primary selection, notes, and stable
+display order while preserving compatibility with legacy `image_path` records.
 
-## 6. Dependency Rules
+Acquisition money uses `Decimal`; `total_cost` is derived from purchase price,
+shipping, buyer's premium, and tax. If all four components are absent, the total
+is `None`; otherwise absent components count as zero. Acquisition fields remain
+optional and blank values are omitted where supported by collection
+serialization. See:
 
-These are **hard constraints**. Violations are architectural regressions.
+- [ADR-002: JSON over SQLite](docs/adr/ADR-002-json-over-sqlite.md)
+- [ADR-003: Decimal money](docs/adr/ADR-003-decimal-money.md)
+- [ADR-004: Derived acquisition totals](docs/adr/ADR-004-derived-acquisition-totals.md)
 
-| Rule | Rationale |
-|------|-----------|
-| **GUI calls workspace/tools only** | The GUI is a thin presentation layer. It never calls engines directly. |
-| **Workspace aggregates only** | `CollectorWorkspace` contains zero business logic. It requests, caches, and presents results from existing engines. |
-| **Engines own business logic** | Every analysis, score, recommendation, and report comes from an existing engine. The workspace never recomputes anything. |
-| **No circular dependencies** | Engines should not import each other. Orchestration layers may import engines. |
-| **No duplicated intelligence** | If an engine already computes it, reuse it. Do not reimplement. |
-| **No duplicated collection storage** | The workspace holds a reference to collection items, not a copy. |
-| **Keyword-only constructor for optional context** | `CollectorWorkspace(..., *, want_list_intents=None, ...)` — required args are positional, all optional context is keyword-only. |
-| **Refresh clears cache, preserves engines** | `refresh()` calls `self._cache.clear()` but never recreates `self._engines`. |
+The primary collection file is local runtime data, excluded from Git, created on
+the first successful save, and backed up independently by the collector.
 
----
+### Local store ownership
 
-## 7. Extension Points
+| Data | Default owner/path | Notes |
+|---|---|---|
+| Primary collection | `CoinCollection` / `data/collection.json` | Authoritative local collection document; missing file means an empty collection |
+| Application/session state | `PersistenceManager` / `collection_data/app_state/app_state.json` | Workflow context and selected report/application state |
+| Photo Inbox state | `PhotoInboxManager` / `data/photo_inbox_state.json` | Local runtime queue/grouping state; excluded from Git |
+| Confirmed observations | `ConfirmedObservationStore` / `collection_data/app_state/confirmed_observations.json` | Collector-confirmed evidence, atomically written and separate from collection records |
 
-### New Workspace Panels
-1. Add a new `*Report` dataclass in `collector_workspace.py` (extend `WorkspaceReport`).
-2. Add `get_*()` method that queries existing engines and returns the DTO.
-3. Add a cache key in `_get_cache_key()`.
-4. Add GUI rendering method in `coin_collection_gui.py`.
-5. Add GUI smoke test in `test_collector_workspace.py`.
+All stores are local-first. Personal records and absolute local paths must not be
+added to repository fixtures or documentation. A new persistence mechanism needs
+explicit design approval and, when it establishes a lasting architectural
+decision, an ADR. See [ADR-001: Local-first architecture](docs/adr/ADR-001-local-first.md).
 
-### New Reports
-1. Add report descriptor to `ReportsMenu` in `collector_workspace.py`.
-2. Wire `generate_report()` to existing engine method.
-3. Add export support if the engine supports it.
+## Representative Data Flows
 
-### New Grading Evidence
-1. Extend `GradingCandidate` in `ai_grading_assistant.py` with new optional fields.
-2. Add factory method if integrating with another engine (e.g., `from_ocr_candidate`).
-3. Update `AIGradingAssistant.assess_candidate()` to consider new evidence.
-4. Update `GradingAssessment` to include new outputs.
+### Collection mutation
 
-### New Import/Export Paths
-1. Extend existing import engines (`listing_connectors.py`, `legacy_portfolio_importer.py`) with new format support.
-2. Reuse `CollectionItem` data model. Do not create parallel item types.
-3. Add GUI workflow in `coin_collection_gui.py` using existing dialog patterns.
-
----
-
-## 8. Non-Goals / Guardrails
-
-These are **intentional boundaries**. Cross them only after explicit design review.
-
-| Boundary | Rule |
-|----------|------|
-| **No ML** | No machine learning, neural networks, or AI models. The `AIGradingAssistant` is deterministic pattern analysis only. |
-| **No Computer Vision** | No automated image recognition, grading from pixels, or OCR that claims authoritative results. OCR is advisory-only. |
-| **No Collection Mutation Outside Workflows** | The workspace, dashboard, and reports are read-only. Only existing tool workflows (Collection Assistant, Batch Processing, manual entry) may modify collection data. |
-| **No New Storage Layer Without Approval** | No new databases, no new JSON formats, no new persistence mechanisms. Use `PersistenceManager` and `collection.json` patterns. |
-| **No Live Pricing** | Market Awareness is local recordkeeping only. No scraping, APIs, or live market data. |
-| **No Background Jobs** | No polling, scheduled tasks, or background sync. All work is user-triggered. |
-| **No Cloud Sync** | Cloud, sync, and multi-device features are offline architecture only. No real network calls. |
-| **Read-Only Workspace** | The Collector Workspace never modifies collection data. All mutation flows through "Open in Tool..." buttons that launch existing dialogs. |
-
----
-
-## 9. Testing Expectations
-
-| Layer | Test Approach | Example |
-|-------|-------------|---------|
-| **Data/Model** | Unit tests for CRUD, serialization, edge cases | `test_backend.py` |
-| **Intelligence Engines** | Unit tests with mock collection data, deterministic outputs | `test_collection_intelligence.py`, `test_ai_grading_assistant.py` |
-| **Workflow Engines** | Integration tests with real engines, verify orchestration | `test_batch_processing.py`, `test_collector_workflow_integration.py` |
-| **Workspace** | Mock-based unit tests + real-engine integration tests | `test_collector_workspace.py` (77 tests) |
-| **GUI** | Smoke tests: import checks, method existence, no crashes | `test_collector_workspace.py` GUI smoke tests |
-| **Full Suite** | `py -m unittest discover` or `run_tests.bat` | 1124 tests at v8.3 |
-
-### Key Test Rules
-- Tests must not mutate `data/collection.json`. Use temp directories and fixture copies.
-- GUI tests are import/method-existence smoke tests. No Tkinter automation.
-- Every engine must have error-handling tests: failures should return structured errors, not crash.
-- `refresh()` must preserve engine instances (identity check: `is`).
-- Cache isolation: two workspace instances must have independent caches.
-
----
-
-## 10. Release Process
-
-Releases follow a **6-phase lifecycle** defined in:
-
-```
-project_docs/release_prompts/RELEASE_GOVERNANCE.md
+```text
+User action in CoinCollectionGUI
+  -> backend validation
+  -> CoinCollection add/update/delete
+  -> atomic save
+  -> GUI refresh
 ```
 
-Standard phases:
+Validation must complete before an existing record is mutated. Reports,
+dashboards, and advisory engines do not independently write collection records.
 
-```
-Phase 0 — Roadmap Lock (docs, metadata, approval)
-    ↓
-Phase 1 — Core Engine (public API, dataclasses, unit tests)
-    ↓
-Phase 2 — Integration (engine wiring, panel expansion)
-    ↓
-Phase 3 — Integration (reports, export, advanced features)
-    ↓
-Phase 4 — Workflow / Lifecycle (refresh, error handling, diagnostics)
-    ↓
-Phase 5 — GUI (notebook tabs, read-only display, "Open in Tool...")
-    ↓
-Phase 6 — Release (final regression, metadata updates, tag, push, verify)
+### Photos, assessment, and OCR
+
+```text
+ItemPhoto / Photo Inbox / Photo Vault metadata
+  -> deterministic Image Assessment
+  -> advisory readiness and issues
+  -> optional review or OCR/recognition workflow
+  -> collector confirmation before authoritative collection mutation
 ```
 
-**Release checklist (every version):**
-- [ ] All phases committed and pushed
-- [ ] Full regression pass (count recorded in `PROJECT_STATE.md`)
-- [ ] Metadata files updated (`PROJECT_STATE.md`, `AI_HANDOFF.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`)
-- [ ] Release notes created (`docs/releases/vX.Y.md`)
-- [ ] Release prompt archived (`project_docs/release_prompts/vX.Y.txt`)
-- [ ] Annotated tag created: `git tag -a vX.Y -m "vX.Y Description"`
-- [ ] Tag pushed: `git push origin vX.Y`
-- [ ] Remote verified: `git ls-remote origin refs/tags/vX.Y` and `refs/tags/vX.Y^{}`
+OCR and recognition experiments exist, and the application performs deterministic
+image-quality assessment. Pixel-derived identification, grade, and attribution
+are not authoritative collection facts without collector review. Experimental
+scripts remain isolated from core startup and core dependency requirements.
 
----
+### Canadian references
 
-## Appendix: Module Count by Layer (v8.3)
+```text
+ReferenceQuery / ReferenceFilters
+  -> local or manual ReferenceProvider implementations
+  -> ReferenceProviderAggregator
+  -> normalized claims, provenance, validation, and conflicts
+  -> CollectorWorkspace report
+  -> read-only Canadian References GUI
+```
 
-| Layer | Module Count | Representative Files |
-|-------|-------------|---------------------|
-| Data/Model | ~8 | `coin_collection.py`, `photo_vault.py`, `market_awareness.py`, `persistence_manager.py` |
-| Intelligence Engines | ~18 | `collection_intelligence.py`, `ai_grading_assistant.py`, `deal_hunter.py`, `market_intelligence.py` |
-| Workflow/Orchestration | ~8 | `batch_processing.py`, `smart_phone_cataloguer.py`, `collection_assistant.py`, `collector_workflows.py` |
-| ViewModel/Workspace | ~5 | `collector_workspace.py`, `collector_home_dashboard.py`, `collection_dashboard.py` |
-| GUI | 1 | `coin_collection_gui.py` |
-| Platform/Support | ~15 | `backup_manager.py`, `sync_backup_engine.py`, `collector_cloud.py`, `platform_analytics.py` |
-| **Total** | **~55 modules** | **~1124 tests** |
+External providers may be added later through explicit adapters, but the local
+core must continue to degrade safely when external services are unavailable.
 
----
+### Connected Data and workspace
 
-*This document is a living reference. Update it when major architectural changes occur (new layers, new dependency rules, new extension patterns). Do not let it drift more than one release behind.*
+```text
+Existing collection and workflow context
+  -> CollectorWorkspace lazy engine creation
+  -> selected engine or ConnectedDataEngine query
+  -> report DTO cached in that workspace instance
+  -> GUI rendering
+```
+
+`CollectorWorkspace.refresh()` clears report caches while preserving initialized
+engine instances. It keeps a reference to collection items rather than creating a
+second collection store.
+
+## Representative Public Surfaces
+
+The supported application surface is `CoinCollectionGUI`. Representative
+`CollectorWorkspace` methods include:
+
+- dashboard, inbox, collection-summary, workflow, and data-safety reports;
+- Connected Data, Image Assessment, and Canadian-reference reports;
+- advisor and workflow access;
+- lazy report generation and export; and
+- lifecycle inspection and cache refresh.
+
+This list intentionally describes capabilities rather than duplicating every
+method signature. Source and focused tests remain authoritative for exact APIs.
+
+## Dependency Direction and Guardrails
+
+The following are rules for new changes, not claims that all legacy coupling has
+already been removed:
+
+- Keep validation and business rules in backend models or engines. GUI helpers
+  should collect input, delegate validation, and present results.
+- Reuse existing models and engines before adding parallel concepts.
+- Keep workflow modules focused on orchestration; do not duplicate engine logic.
+- Avoid circular imports. A workflow may compose engines; lower-level models
+  should not depend on GUI modules.
+- Keep `CollectorWorkspace` focused on composition, caching, and report DTOs.
+  Do not add unrelated business rules merely to route a GUI feature through it.
+- Do not create a second authoritative collection representation or silently copy
+  collection state into a new store.
+- Preserve backward compatibility for optional persisted fields and imports unless
+  an approved migration explicitly changes the contract.
+- Do not introduce a persistence mechanism, network dependency, background job,
+  or cloud authority without explicit design review and appropriate failure,
+  privacy, ownership, and migration policies.
+- Deterministic analysis may advise; uncertain or pixel-derived results require
+  review before collection mutation.
+
+## Extension Points
+
+### Workspace-integrated capability
+
+1. Confirm that an existing model or engine cannot provide the capability.
+2. Define a stable report DTO or provider contract at the appropriate boundary.
+3. Add lazy workspace composition only when a unified panel or workflow needs it.
+4. Add focused engine/workspace tests and headless GUI integration coverage.
+5. Perform manual Tk acceptance testing for interactive behavior that automation
+   cannot reliably validate.
+
+### Reference provider
+
+Implement the `ReferenceProvider` contract, declare capabilities and source
+identity, return normalized records with provenance, and verify aggregation,
+validation, conflict handling, and unavailable-provider behavior. A provider must
+not become a hidden requirement for local core operation.
+
+### Import, export, or persistence change
+
+Reuse `CoinItem` and existing normalization boundaries. Preserve older files and
+blank optional values. New authoritative storage or a costly-to-reverse format
+decision requires approval, compatibility tests, and normally an ADR.
+
+### Experimental image work
+
+Use stable fixtures from `test_coins/`, write generated diagnostics only beneath
+ignored `debug_outputs/`, keep optional dependencies lazy, and do not change
+supported recognition behavior as a side effect of experiment maintenance.
+
+## Testing Strategy
+
+- **Backend unit tests** cover normalization, validation, calculations,
+  serialization, persistence failure modes, and backward compatibility.
+- **Engine and integration tests** cover deterministic analysis, provider
+  aggregation, orchestration, and cross-module contracts.
+- **Focused workflow tests** exercise import/export, collection mutation,
+  acquisition, photo, reference, and observation paths with temporary data.
+- **Headless GUI/helper/layout tests** cover presentation helpers, delegated
+  validation, layout contracts, and selected GUI/workspace integration without
+  requiring routine interactive windows.
+- **Manual interactive Tk acceptance tests** remain necessary for discoverability,
+  resizing, disclosure behavior, keyboard/focus behavior, and platform-specific
+  rendering.
+
+Tests must use temporary directories or sanitized fixtures and must never read or
+mutate live `data/collection.json`. The durable commands and fixture conventions
+are in [TESTING.md](TESTING.md).
+
+## Engineering and Release Governance
+
+[The Engineering Playbook](docs/ENGINEERING_PLAYBOOK.md) is the normal authority
+for inspection, approval gates, implementation, verification, documentation, and
+commit scope. Lasting architectural decisions are recorded as individual files in
+`docs/adr/`, following the ADR process defined by the playbook.
+
+The detailed [release checklist](RELEASE_CHECKLIST.md) and historical
+[release-governance process](project_docs/release_prompts/RELEASE_GOVERNANCE.md)
+remain relevant when preparing an official tagged release. Their historical phase
+structure does not replace the playbook for ordinary contributions. Pushes, tags,
+and publication always require explicit authorization.
+
+## Maintenance Rule
+
+Update this document when a change alters a durable ownership boundary, supported
+entry point, authoritative data flow, persistence mechanism, or extension
+contract. Prefer stable responsibilities and links to ADRs over release-specific
+method inventories, module counts, or test totals.

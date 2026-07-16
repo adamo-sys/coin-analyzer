@@ -8,16 +8,13 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 - Collector discovery and confirmed-observation foundations
 - Collection toolbar usability improvement
 - Local runtime-data hygiene for `data/collection.json`
+- Debug-output cleanup and OCR experiment hardening
 
 ## Next
 
-1. Debug-output reproducibility cleanup
-   - Replace obsolete absolute paths.
-   - Decide which labeled image crops are stable fixtures.
-   - Remove or regenerate derived artifacts without dangling metadata.
-2. Documentation reconciliation
-   - Bring enduring design documents in line with implemented architecture.
-3. Portfolio Analytics discovery
+1. Architecture reconciliation
+   - Refresh the architecture description to match implemented ownership, persistence, and integration boundaries.
+2. Portfolio Analytics discovery
    - Inspect existing portfolio, collection-intelligence, valuation, and acquisition capabilities before defining scope.
 
 ## Later Candidates
