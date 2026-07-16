@@ -1,6 +1,8 @@
+import json
 import os
 import tempfile
 import unittest
+from decimal import Decimal
 
 from coin_collection import CoinItem
 from collection_snapshot import CollectionSnapshot, CollectionSnapshotManager
@@ -22,6 +24,7 @@ def item(
     estimate=0,
     notes="",
     title="",
+    **kwargs,
 ):
     return CoinItem(
         item_id,
@@ -34,6 +37,7 @@ def item(
         "2026-06-21",
         estimate_cad=estimate,
         title=title,
+        **kwargs,
     )
 
 
@@ -150,6 +154,201 @@ class TestPortfolioPerformance(unittest.TestCase):
         self.assertTrue(os.path.exists(md_path))
         with open(md_path, "r", encoding="utf-8") as handle:
             self.assertIn("Portfolio Performance Report", handle.read())
+
+    def test_financial_summary_uses_exact_record_level_costs_and_quantity_for_estimates_only(self):
+        items = [
+            item(
+                "cad",
+                "Canada",
+                "1 cent",
+                "1967",
+                estimate=20.125,
+                quantity=3,
+                purchase_price="10.125",
+                shipping_cost="0.200",
+                purchase_currency="CAD",
+                acquisition_date="2025-04-03",
+                purchase_source="Dealer",
+            ),
+            item(
+                "usd",
+                "United States",
+                "1 cent",
+                "1909",
+                estimate=30,
+                purchase_price="5.50",
+                purchase_currency="USD",
+                purchase_source="Auction",
+            ),
+            item(
+                "unspecified",
+                "Canada",
+                "5 cents",
+                "1922",
+                estimate=40,
+                purchase_price="2.25",
+                purchase_currency=None,
+            ),
+        ]
+        summary = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+
+        self.assertEqual(3, summary.collection_record_count)
+        self.assertEqual(5, summary.total_quantity_count)
+        self.assertEqual(Decimal("10.325"), summary.recorded_costs_by_currency["CAD"])
+        self.assertEqual(Decimal("5.50"), summary.recorded_costs_by_currency["USD"])
+        self.assertEqual(Decimal("2.25"), summary.recorded_costs_by_currency["Unspecified"])
+        self.assertEqual(Decimal("10.325"), summary.comparable_cad_cost)
+        self.assertEqual(Decimal("60.375"), summary.comparable_approximate_estimated_cad_value)
+        self.assertEqual(Decimal("50.050"), summary.estimated_gain_loss)
+        self.assertEqual(Decimal("484.75"), summary.estimated_roi_percent)
+
+    def test_financial_summary_accepts_legacy_record_without_acquisition_fields(self):
+        legacy = CoinItem.from_dict({
+            "id": "legacy",
+            "country": "Canada",
+            "denomination": "1 cent",
+            "year": "1967",
+            "grade": "VF-20",
+            "date_added": "2026-06-01",
+            "estimate_cad": 12.5,
+        })
+        summary = PortfolioPerformanceEngine([legacy], snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+
+        self.assertIsNone(legacy.purchase_currency)
+        self.assertIsNone(legacy.total_cost)
+        self.assertEqual(0, summary.acquisition_cost_record_count)
+        self.assertEqual(1, summary.usable_valuation_record_count)
+        self.assertEqual(1, summary.comparison_exclusions["no_recorded_acquisition_cost"])
+
+    def test_none_and_explicit_zero_have_distinct_acquisition_coverage(self):
+        items = [
+            item("missing", "Canada", "1 cent", "1966", estimate=10, purchase_currency=None),
+            item("zero", "Canada", "1 cent", "1967", estimate=10, purchase_price="0", purchase_currency="CAD"),
+        ]
+        summary = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+
+        self.assertEqual(1, summary.acquisition_cost_record_count)
+        self.assertEqual(Decimal("50.0"), summary.acquisition_cost_coverage_percent)
+        self.assertEqual(Decimal("0"), summary.recorded_costs_by_currency["CAD"])
+        self.assertEqual(1, summary.comparable_cad_record_count)
+        self.assertEqual(Decimal("10"), summary.estimated_gain_loss)
+        self.assertIsNone(summary.estimated_roi_percent)
+
+    def test_legacy_valuation_boundary_rejects_zero_negative_boolean_and_non_finite_values(self):
+        items = [
+            item("zero", "Canada", "1 cent", "1960", estimate=0),
+            item("negative", "Canada", "1 cent", "1961", estimate=-1),
+            item("boolean", "Canada", "1 cent", "1962", estimate=True),
+            item("nan", "Canada", "1 cent", "1963", estimate=float("nan")),
+            item("infinity", "Canada", "1 cent", "1964", estimate=float("inf")),
+            item("usable", "Canada", "1 cent", "1965", estimate="12.340"),
+        ]
+        summary = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+
+        self.assertEqual(1, summary.usable_valuation_record_count)
+        self.assertEqual(Decimal("12.340"), summary.approximate_estimated_cad_value)
+
+    def test_comparable_cad_exclusions_are_mutually_exclusive(self):
+        items = [
+            item("no-cost", "Canada", "1 cent", "1960", estimate=10, purchase_currency=None),
+            item("unspecified", "Canada", "1 cent", "1961", estimate=10, purchase_price="1", purchase_currency=None),
+            item("usd", "Canada", "1 cent", "1962", estimate=10, purchase_price="1", purchase_currency="USD"),
+            item("no-value", "Canada", "1 cent", "1963", estimate=0, purchase_price="1", purchase_currency="CAD"),
+            item("eligible", "Canada", "1 cent", "1964", estimate=10, purchase_price="1", purchase_currency="CAD"),
+        ]
+        summary = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+
+        self.assertEqual(1, summary.comparable_cad_record_count)
+        self.assertEqual(4, summary.comparable_excluded_record_count)
+        self.assertEqual(4, sum(summary.comparison_exclusions.values()))
+        self.assertEqual(1, summary.comparison_exclusions["no_recorded_acquisition_cost"])
+        self.assertEqual(1, summary.comparison_exclusions["unspecified_currency"])
+        self.assertEqual(1, summary.comparison_exclusions["non_cad_currency"])
+        self.assertEqual(1, summary.comparison_exclusions["no_usable_valuation_estimate"])
+
+    def test_source_and_year_breakdowns_include_missing_buckets_and_isolate_currency(self):
+        items = [
+            item(
+                "dated",
+                "Canada",
+                "1 cent",
+                "1967",
+                purchase_price="2.50",
+                purchase_currency="CAD",
+                purchase_source="Dealer",
+                acquisition_date="2024-05-01",
+            ),
+            item(
+                "missing",
+                "Canada",
+                "1 cent",
+                "1968",
+                purchase_price="3.75",
+                purchase_currency="USD",
+            ),
+        ]
+        summary = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).portfolio_financial_summary()
+        sources = {row.label: row for row in summary.source_breakdown}
+        years = {row.label: row for row in summary.acquisition_year_breakdown}
+
+        self.assertEqual(Decimal("2.50"), sources["Dealer"].recorded_costs_by_currency["CAD"])
+        self.assertEqual(Decimal("3.75"), sources["Unspecified source"].recorded_costs_by_currency["USD"])
+        self.assertEqual(Decimal("2.50"), years["2024"].recorded_costs_by_currency["CAD"])
+        self.assertEqual(Decimal("3.75"), years["No acquisition date"].recorded_costs_by_currency["USD"])
+
+    def test_financial_reporting_is_read_only_and_json_safe(self):
+        items = [
+            item(
+                "stable",
+                "Canada",
+                "1 cent",
+                "1967",
+                estimate=5.5,
+                purchase_price="1.250",
+                purchase_currency="CAD",
+            )
+        ]
+        before = [row.to_dict() for row in items]
+        report = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).generate_report()
+        after = [row.to_dict() for row in items]
+
+        self.assertEqual(before, after)
+        json.dumps(report.to_dict())
+        self.assertEqual("1.250", report.financial_summary.to_dict()["comparable_cad_cost"])
+
+    def test_financial_exports_are_deterministic_and_label_legacy_estimates(self):
+        items = [
+            item(
+                "export",
+                "Canada",
+                "1 cent",
+                "1967",
+                estimate=10,
+                purchase_price="4",
+                purchase_currency="CAD",
+            )
+        ]
+        report = PortfolioPerformanceEngine(items, snapshot_manager=self.snapshot_manager).generate_report()
+        first_csv = os.path.join(self.tempdir.name, "first.csv")
+        second_csv = os.path.join(self.tempdir.name, "second.csv")
+        first_md = os.path.join(self.tempdir.name, "first.md")
+        second_md = os.path.join(self.tempdir.name, "second.md")
+        report.export_csv(first_csv)
+        report.export_csv(second_csv)
+        report.export_markdown(first_md)
+        report.export_markdown(second_md)
+
+        with open(first_csv, "r", encoding="utf-8") as handle:
+            csv_text = handle.read()
+        with open(second_csv, "r", encoding="utf-8") as handle:
+            self.assertEqual(csv_text, handle.read())
+        with open(first_md, "r", encoding="utf-8") as handle:
+            markdown = handle.read()
+        with open(second_md, "r", encoding="utf-8") as handle:
+            self.assertEqual(markdown, handle.read())
+        self.assertIn("approximate_estimated_cad_value", csv_text)
+        self.assertIn("Approximate legacy estimated CAD value", markdown)
+        self.assertIn("Estimated ROI", markdown)
 
 
 if __name__ == "__main__":

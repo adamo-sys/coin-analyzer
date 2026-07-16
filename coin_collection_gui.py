@@ -340,7 +340,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Field Test & Tuning", command=self.open_field_test_and_tuning)
         tools_menu.add_command(label="Mobile Collector Companion", command=self.open_mobile_collector_companion)
         tools_menu.add_command(label="Phone Photo Capture", command=self.open_phone_photo_capture)
-        tools_menu.add_command(label="Portfolio Performance", command=self.open_portfolio_performance)
+        tools_menu.add_command(label="Portfolio Analytics", command=self.open_portfolio_performance)
         tools_menu.add_command(label="Numista Intelligence", command=self.open_numista_intelligence)
         tools_menu.add_command(label="Smart Phone Cataloguer", command=self.open_smart_phone_cataloguer)
         tools_menu.add_command(label="Batch Processing", command=self.open_batch_processing)
@@ -399,6 +399,49 @@ Total Unique Dates: {total_unique_dates}
         total = sum((value for value in components if value is not None), Decimal("0"))
         currency = parsed["purchase_currency"] or ""
         return " ".join(part for part in (currency, serialize_money(total)) if part)
+
+    @staticmethod
+    def portfolio_financial_summary_text(summary):
+        """Format exact-cost and approximate-valuation metrics for the GUI."""
+        roi = (
+            f"{format(summary.estimated_roi_percent, 'f')}%"
+            if summary.estimated_roi_percent is not None
+            else "Unavailable"
+        )
+        exclusions = summary.comparison_exclusions
+        return "\n".join([
+            f"Records: {summary.collection_record_count}   Quantity: {summary.total_quantity_count}",
+            (
+                f"Acquisition-cost coverage: {summary.acquisition_cost_coverage_percent}% "
+                f"({summary.acquisition_cost_record_count}/{summary.collection_record_count})   "
+                f"Usable legacy-estimate coverage: {summary.usable_valuation_coverage_percent}% "
+                f"({summary.usable_valuation_record_count}/{summary.collection_record_count})"
+            ),
+            (
+                f"Acquisition-date coverage: {summary.acquisition_date_coverage_percent}% "
+                f"({summary.acquisition_date_record_count}/{summary.collection_record_count})   "
+                f"Acquisition-source coverage: {summary.acquisition_source_coverage_percent}% "
+                f"({summary.acquisition_source_record_count}/{summary.collection_record_count})"
+            ),
+            f"Recorded acquisition costs by currency (no conversion): {summary.currency_totals_text()}",
+            (
+                f"Comparable CAD records: {summary.comparable_cad_record_count}/{summary.collection_record_count}   "
+                f"Cost: CAD {format(summary.comparable_cad_cost, 'f')}   "
+                "Approximate legacy estimated value: "
+                f"CAD {format(summary.comparable_approximate_estimated_cad_value, 'f')}"
+            ),
+            (
+                f"Estimated gain/loss: CAD {format(summary.estimated_gain_loss, 'f')}   "
+                f"Estimated ROI: {roi}"
+            ),
+            (
+                "Primary comparison exclusions: "
+                f"no recorded cost {exclusions.get('no_recorded_acquisition_cost', 0)}; "
+                f"non-CAD {exclusions.get('non_cad_currency', 0)}; "
+                f"unspecified currency {exclusions.get('unspecified_currency', 0)}; "
+                f"no usable estimate {exclusions.get('no_usable_valuation_estimate', 0)}."
+            ),
+        ])
 
     def create_acquisition_fields(self, parent, initial=None):
         """Create reusable acquisition controls and a read-only live total."""
@@ -8013,9 +8056,9 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_portfolio_performance(self):
-        """Open deterministic portfolio-level performance report."""
+        """Open deterministic, read-only Portfolio Analytics."""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Portfolio Performance")
+        dialog.title("Portfolio Analytics")
         dialog.geometry("960x800")
 
         engine = PortfolioPerformanceEngine(
@@ -8031,22 +8074,23 @@ Total Unique Dates: {total_unique_dates}
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        summary_frame = ttk.LabelFrame(main_frame, text="Portfolio Summary", padding="10")
+        summary_frame = ttk.LabelFrame(main_frame, text="Portfolio Analytics Summary", padding="10")
         summary_frame.pack(fill=tk.X, pady=(0, 10))
         report = current_report["report"]
+        summary_var = tk.StringVar(
+            value=self.portfolio_financial_summary_text(report.financial_summary)
+        )
         ttk.Label(
             summary_frame,
-            text=(
-                f"Items: {report.growth_report.collection_size}   "
-                f"Health: {report.health_score.score}/100   "
-                f"Estimated local value: ${report.growth_report.estimated_collection_value:.2f}"
-            ),
+            textvariable=summary_var,
+            justify=tk.LEFT,
+            wraplength=900,
         ).pack(anchor=tk.W)
 
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(0, 10))
 
-        result_frame = ttk.LabelFrame(main_frame, text="Portfolio Performance Report", padding="10")
+        result_frame = ttk.LabelFrame(main_frame, text="Portfolio Analytics Report", padding="10")
         result_frame.pack(fill=tk.BOTH, expand=True)
         result_text = tk.Text(result_frame, wrap=tk.WORD)
         result_text.pack(fill=tk.BOTH, expand=True)
@@ -8054,30 +8098,33 @@ Total Unique Dates: {total_unique_dates}
 
         def refresh():
             current_report["report"] = engine.generate_report()
+            summary_var.set(
+                self.portfolio_financial_summary_text(current_report["report"].financial_summary)
+            )
             result_text.delete("1.0", tk.END)
             result_text.insert(tk.END, current_report["report"].format_markdown())
 
         def export_csv():
             file_path = filedialog.asksaveasfilename(
-                title="Export Portfolio Performance CSV",
+                title="Export Portfolio Analytics CSV",
                 defaultextension=".csv",
                 filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
             )
             if not file_path:
                 return
             current_report["report"].export_csv(file_path)
-            messagebox.showinfo("Export Complete", f"Portfolio Performance CSV exported to {file_path}")
+            messagebox.showinfo("Export Complete", f"Portfolio Analytics CSV exported to {file_path}")
 
         def export_markdown():
             file_path = filedialog.asksaveasfilename(
-                title="Export Portfolio Performance Markdown",
+                title="Export Portfolio Analytics Markdown",
                 defaultextension=".md",
                 filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
             )
             if not file_path:
                 return
             current_report["report"].export_markdown(file_path)
-            messagebox.showinfo("Export Complete", f"Portfolio Performance Markdown exported to {file_path}")
+            messagebox.showinfo("Export Complete", f"Portfolio Analytics Markdown exported to {file_path}")
 
         ttk.Button(button_frame, text="Refresh", command=refresh).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 6))

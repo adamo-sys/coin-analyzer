@@ -160,6 +160,7 @@ serialization. See:
 - [ADR-002: JSON over SQLite](docs/adr/ADR-002-json-over-sqlite.md)
 - [ADR-003: Decimal money](docs/adr/ADR-003-decimal-money.md)
 - [ADR-004: Derived acquisition totals](docs/adr/ADR-004-derived-acquisition-totals.md)
+- [ADR-005: Portfolio financial comparability](docs/adr/ADR-005-portfolio-financial-comparability.md)
 
 The primary collection file is local runtime data, excluded from Git, created on
 the first successful save, and backed up independently by the collector.

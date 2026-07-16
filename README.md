@@ -58,7 +58,7 @@ The app is especially tuned for Adam-specific priorities:
 - Sync & Backup: offline disaster-recovery and sync-planning layer with backup archives, restore plans, backup history, sync simulations, conflict reports, rollback plans, Tools -> Sync & Backup, and CSV/Markdown export without internet sync, cloud providers, automatic restore, or automatic conflict resolution.
 - Multi-Device Collector Workspace: offline workspace architecture for desktop, laptop, phone, and tablet use with device profiles, workspace snapshots, capability reports, activity summaries, health reports, scenario simulations, Tools -> Multi-Device Workspace, and CSV/Markdown export without real sync, accounts, cloud providers, or automatic conflict resolution.
 - Device Linking & Conflict Resolution: offline review layer for linked devices, relationship mapping, capability overlap, workspace link maps, conflict cases, LOW/MEDIUM/HIGH classification, MERGE/KEEP_PRIMARY/KEEP_SECONDARY/REVIEW_REQUIRED/REJECT recommendations, readiness reports, Tools -> Device Linking & Conflict Resolution, and CSV/Markdown export without automatic resolution.
-- Portfolio Performance: explain collection growth, local estimated value, series progress, acquisition performance, budget allocation, health score, strengths, weaknesses, risks, and focus areas using deterministic local data.
+- Portfolio Analytics: explain collection growth, exact acquisition costs by currency, acquisition and legacy-estimate coverage, a clearly bounded comparable-CAD subset, series progress, health, risks, and focus areas using deterministic local data.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
@@ -752,13 +752,17 @@ Market Intelligence adds:
 
 Market Intelligence reuses Deal Hunter, Opportunity Engine, Deal Hunter Ranking context, Collection Intelligence, WANT_LIST context, and local Market Awareness records. It does not scrape, use browser automation, call APIs, fetch listings, claim live market-pricing accuracy, purchase automatically, recognize images, or mutate collection data.
 
-## Portfolio Performance
+## Portfolio Analytics
 
-Use Tools -> Portfolio Performance when you want a portfolio-level view of how the collection is developing over time.
+Use Tools -> Portfolio Analytics when you want a read-only portfolio-level view of how the collection is developing and how complete its financial records are.
 
-Portfolio Performance adds:
+Portfolio Analytics builds on the existing Portfolio Performance engine and adds:
 
 - `PortfolioPerformanceEngine` for local portfolio-level reporting.
+- Exact record-level acquisition-cost totals grouped by currency, without exchange-rate conversion.
+- Acquisition cost, date, source, and usable legacy-estimate coverage.
+- Source and acquisition-year breakdowns with record counts and currency-isolated costs.
+- A comparable CAD subset with approximate estimated value, estimated gain/loss, ROI when available, and explicit exclusion counts.
 - `CollectionGrowthReport` for collection size, local estimated value, silver holdings, slab count, banknote count, Newfoundland count, category counts, and snapshot comparison.
 - `AcquisitionPerformanceReport` for best acquisitions, biggest upgrades, highest collection impact, strongest opportunity captures, and highest-confidence purchases from local records.
 - `SeriesProgressReport` for completion percentages, nearest completions, neglected series, strongest-performing series, and snapshot deltas.
@@ -766,7 +770,9 @@ Portfolio Performance adds:
 - `CollectionHealthScore` for backup readiness, integrity, photo coverage, documentation/certification coverage, duplicate control, WANT_LIST alignment, snapshot coverage, and series progress.
 - `PortfolioPerformanceReport` executive dashboard with strengths, weaknesses, opportunities, risks, recommended focus areas, and CSV/Markdown export.
 
-Portfolio Performance reuses the Collection Snapshot System, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Collection Quality, Collection Integrity, Market Awareness, and local collection records. It does not scrape, call APIs, forecast markets, provide investment advice, purchase automatically, or mutate collection data.
+Acquisition `total_cost` is treated as the complete cost of its collection record or lot and is not multiplied by quantity. Legacy `estimate_cad` values remain approximate: only finite positive values count as usable, and comparison is limited to records with CAD acquisition cost and usable estimates. Market Awareness purchase records remain separate from item-owned acquisition data.
+
+Portfolio Analytics reuses the Collection Snapshot System, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Collection Quality, Collection Integrity, Market Awareness, and local collection records. It does not convert currencies, scrape, call APIs, forecast markets, provide investment advice, purchase automatically, persist financial snapshots, or mutate collection data.
 
 ## Watchlists & Alerts
 

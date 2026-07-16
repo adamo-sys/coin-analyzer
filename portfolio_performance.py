@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Optional
 
 from collection_integrity import CollectionIntegrityAudit
@@ -43,6 +44,41 @@ def _money(value: Any) -> float:
         return round(float(cleaned), 2) if cleaned else 0.0
     except ValueError:
         return 0.0
+
+
+def _decimal_text(value: Decimal) -> str:
+    """Serialize a finite Decimal without exponent notation or forced rounding."""
+    return format(value, "f")
+
+
+def _legacy_estimate_decimal(value: Any) -> Optional[Decimal]:
+    """Return a usable positive legacy CAD estimate at the analytics boundary."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        estimate = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if not estimate.is_finite() or estimate <= 0:
+        return None
+    return estimate
+
+
+def _acquisition_cost_decimal(value: Any) -> Optional[Decimal]:
+    """Normalize an already validated acquisition total without losing zero."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        cost = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return cost if cost.is_finite() and cost >= 0 else None
+
+
+def _coverage_percent(recorded: int, total: int) -> Decimal:
+    if total <= 0:
+        return Decimal("0.0")
+    return (Decimal(recorded) * Decimal("100") / Decimal(total)).quantize(Decimal("0.1"))
 
 
 def _quantity(item: Any) -> int:
@@ -149,6 +185,172 @@ class CollectionHealthScore:
 
 
 @dataclass
+class PortfolioBreakdownRow:
+    """Record counts and currency-isolated acquisition costs for one label."""
+    label: str
+    record_count: int = 0
+    recorded_costs_by_currency: Dict[str, Decimal] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "label": self.label,
+            "record_count": self.record_count,
+            "recorded_costs_by_currency": {
+                currency: _decimal_text(value)
+                for currency, value in sorted(self.recorded_costs_by_currency.items())
+            },
+        }
+
+    def cost_detail(self) -> str:
+        if not self.recorded_costs_by_currency:
+            return "No recorded acquisition cost"
+        return "; ".join(
+            f"{currency} {_decimal_text(value)}"
+            for currency, value in sorted(self.recorded_costs_by_currency.items())
+        )
+
+
+@dataclass
+class PortfolioFinancialSummary:
+    """Exact, read-only portfolio metrics derived from CoinItem records."""
+    collection_record_count: int = 0
+    total_quantity_count: int = 0
+    acquisition_cost_record_count: int = 0
+    acquisition_date_record_count: int = 0
+    acquisition_source_record_count: int = 0
+    usable_valuation_record_count: int = 0
+    approximate_estimated_cad_value: Decimal = Decimal("0")
+    recorded_costs_by_currency: Dict[str, Decimal] = field(default_factory=dict)
+    source_breakdown: List[PortfolioBreakdownRow] = field(default_factory=list)
+    acquisition_year_breakdown: List[PortfolioBreakdownRow] = field(default_factory=list)
+    comparable_cad_record_count: int = 0
+    comparable_cad_cost: Decimal = Decimal("0")
+    comparable_approximate_estimated_cad_value: Decimal = Decimal("0")
+    estimated_gain_loss: Decimal = Decimal("0")
+    estimated_roi_percent: Optional[Decimal] = None
+    comparison_exclusions: Dict[str, int] = field(default_factory=dict)
+
+    @property
+    def acquisition_cost_coverage_percent(self) -> Decimal:
+        return _coverage_percent(self.acquisition_cost_record_count, self.collection_record_count)
+
+    @property
+    def acquisition_date_coverage_percent(self) -> Decimal:
+        return _coverage_percent(self.acquisition_date_record_count, self.collection_record_count)
+
+    @property
+    def acquisition_source_coverage_percent(self) -> Decimal:
+        return _coverage_percent(self.acquisition_source_record_count, self.collection_record_count)
+
+    @property
+    def usable_valuation_coverage_percent(self) -> Decimal:
+        return _coverage_percent(self.usable_valuation_record_count, self.collection_record_count)
+
+    @property
+    def comparable_excluded_record_count(self) -> int:
+        return self.collection_record_count - self.comparable_cad_record_count
+
+    def currency_totals_text(self) -> str:
+        if not self.recorded_costs_by_currency:
+            return "None recorded"
+        return " | ".join(
+            f"{currency} {_decimal_text(value)}"
+            for currency, value in sorted(self.recorded_costs_by_currency.items())
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "collection_record_count": self.collection_record_count,
+            "total_quantity_count": self.total_quantity_count,
+            "acquisition_cost_record_count": self.acquisition_cost_record_count,
+            "acquisition_cost_coverage_percent": _decimal_text(self.acquisition_cost_coverage_percent),
+            "acquisition_date_record_count": self.acquisition_date_record_count,
+            "acquisition_date_coverage_percent": _decimal_text(self.acquisition_date_coverage_percent),
+            "acquisition_source_record_count": self.acquisition_source_record_count,
+            "acquisition_source_coverage_percent": _decimal_text(self.acquisition_source_coverage_percent),
+            "usable_valuation_record_count": self.usable_valuation_record_count,
+            "usable_valuation_coverage_percent": _decimal_text(self.usable_valuation_coverage_percent),
+            "approximate_estimated_cad_value": _decimal_text(self.approximate_estimated_cad_value),
+            "recorded_costs_by_currency": {
+                currency: _decimal_text(value)
+                for currency, value in sorted(self.recorded_costs_by_currency.items())
+            },
+            "source_breakdown": [row.to_dict() for row in self.source_breakdown],
+            "acquisition_year_breakdown": [row.to_dict() for row in self.acquisition_year_breakdown],
+            "comparable_cad_record_count": self.comparable_cad_record_count,
+            "comparable_excluded_record_count": self.comparable_excluded_record_count,
+            "comparable_cad_cost": _decimal_text(self.comparable_cad_cost),
+            "comparable_approximate_estimated_cad_value": _decimal_text(
+                self.comparable_approximate_estimated_cad_value
+            ),
+            "estimated_gain_loss": _decimal_text(self.estimated_gain_loss),
+            "estimated_roi_percent": (
+                _decimal_text(self.estimated_roi_percent)
+                if self.estimated_roi_percent is not None
+                else None
+            ),
+            "comparison_exclusions": dict(self.comparison_exclusions),
+        }
+
+    def format_markdown(self) -> List[str]:
+        roi = (
+            f"{_decimal_text(self.estimated_roi_percent)}%"
+            if self.estimated_roi_percent is not None
+            else "Unavailable"
+        )
+        exclusions = self.comparison_exclusions
+        lines = [
+            "",
+            "## Portfolio Financial Analytics",
+            "",
+            "All metrics are runtime-derived and read-only. Acquisition costs remain isolated by currency; no conversion is performed.",
+            "",
+            f"- Collection records: {self.collection_record_count}",
+            f"- Total quantity: {self.total_quantity_count}",
+            f"- Acquisition-cost coverage: {self.acquisition_cost_coverage_percent}% "
+            f"({self.acquisition_cost_record_count}/{self.collection_record_count})",
+            f"- Acquisition-date coverage: {self.acquisition_date_coverage_percent}% "
+            f"({self.acquisition_date_record_count}/{self.collection_record_count})",
+            f"- Acquisition-source coverage: {self.acquisition_source_coverage_percent}% "
+            f"({self.acquisition_source_record_count}/{self.collection_record_count})",
+            f"- Usable legacy-estimate coverage: {self.usable_valuation_coverage_percent}% "
+            f"({self.usable_valuation_record_count}/{self.collection_record_count})",
+            f"- Approximate legacy estimated CAD value: CAD {_decimal_text(self.approximate_estimated_cad_value)}",
+            f"- Recorded acquisition costs by currency: {self.currency_totals_text()}",
+            "",
+            "### Comparable CAD Subset",
+            "",
+            f"- Eligible records: {self.comparable_cad_record_count}/{self.collection_record_count}",
+            f"- Excluded records: {self.comparable_excluded_record_count}",
+            f"- Comparable CAD cost: CAD {_decimal_text(self.comparable_cad_cost)}",
+            "- Comparable approximate legacy estimated CAD value: "
+            f"CAD {_decimal_text(self.comparable_approximate_estimated_cad_value)}",
+            f"- Estimated gain/loss: CAD {_decimal_text(self.estimated_gain_loss)}",
+            f"- Estimated ROI: {roi}",
+            "- Primary exclusion categories are mutually exclusive: "
+            f"no recorded cost {exclusions.get('no_recorded_acquisition_cost', 0)}; "
+            f"non-CAD currency {exclusions.get('non_cad_currency', 0)}; "
+            f"unspecified currency {exclusions.get('unspecified_currency', 0)}; "
+            f"no usable valuation estimate {exclusions.get('no_usable_valuation_estimate', 0)}.",
+            "",
+            "Legacy estimate note: only finite positive estimate_cad values are usable; the legacy 0.0 default cannot distinguish blank from explicit zero.",
+            "",
+            "### Acquisition Breakdown by Source",
+            "",
+        ]
+        lines.extend(
+            f"- {row.label}: {row.record_count} record(s); {row.cost_detail()}"
+            for row in self.source_breakdown
+        )
+        lines.extend(["", "### Acquisition Breakdown by Year", ""])
+        lines.extend(
+            f"- {row.label}: {row.record_count} record(s); {row.cost_detail()}"
+            for row in self.acquisition_year_breakdown
+        )
+        return lines
+
+
+@dataclass
 class PortfolioPerformanceReport:
     generated_at: str
     growth_report: CollectionGrowthReport
@@ -156,6 +358,7 @@ class PortfolioPerformanceReport:
     series_report: SeriesProgressReport
     budget_report: BudgetAllocationReport
     health_score: CollectionHealthScore
+    financial_summary: Optional[PortfolioFinancialSummary] = None
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
     opportunities: List[str] = field(default_factory=list)
@@ -170,6 +373,7 @@ class PortfolioPerformanceReport:
             "series_report": self.series_report.to_dict(),
             "budget_report": self.budget_report.to_dict(),
             "health_score": self.health_score.to_dict(),
+            "financial_summary": self.financial_summary.to_dict() if self.financial_summary else None,
             "strengths": list(self.strengths),
             "weaknesses": list(self.weaknesses),
             "opportunities": list(self.opportunities),
@@ -207,6 +411,8 @@ class PortfolioPerformanceReport:
             lines.append(f"- Photo coverage delta: {growth.snapshot_comparison.photo_coverage_delta:+.1f}%")
         else:
             lines.append("- No snapshot comparison available.")
+        if self.financial_summary:
+            lines.extend(self.financial_summary.format_markdown())
         lines.extend(self._section("Strengths", self.strengths))
         lines.extend(self._section("Weaknesses", self.weaknesses))
         lines.extend(self._section("Opportunities", self.opportunities))
@@ -238,6 +444,40 @@ class PortfolioPerformanceReport:
             writer.writerow(["section", "metric", "value", "detail"])
             writer.writerow(["growth", "collection_size", self.growth_report.collection_size, ""])
             writer.writerow(["growth", "estimated_collection_value", f"{self.growth_report.estimated_collection_value:.2f}", ""])
+            if self.financial_summary:
+                financial = self.financial_summary
+                for metric, value in [
+                    ("collection_record_count", financial.collection_record_count),
+                    ("total_quantity_count", financial.total_quantity_count),
+                    ("acquisition_cost_coverage_percent", _decimal_text(financial.acquisition_cost_coverage_percent)),
+                    ("acquisition_date_coverage_percent", _decimal_text(financial.acquisition_date_coverage_percent)),
+                    ("acquisition_source_coverage_percent", _decimal_text(financial.acquisition_source_coverage_percent)),
+                    ("usable_valuation_coverage_percent", _decimal_text(financial.usable_valuation_coverage_percent)),
+                    ("approximate_estimated_cad_value", _decimal_text(financial.approximate_estimated_cad_value)),
+                    ("comparable_cad_record_count", financial.comparable_cad_record_count),
+                    ("comparable_excluded_record_count", financial.comparable_excluded_record_count),
+                    ("comparable_cad_cost", _decimal_text(financial.comparable_cad_cost)),
+                    (
+                        "comparable_approximate_estimated_cad_value",
+                        _decimal_text(financial.comparable_approximate_estimated_cad_value),
+                    ),
+                    ("estimated_gain_loss", _decimal_text(financial.estimated_gain_loss)),
+                    (
+                        "estimated_roi_percent",
+                        _decimal_text(financial.estimated_roi_percent)
+                        if financial.estimated_roi_percent is not None
+                        else "Unavailable",
+                    ),
+                ]:
+                    writer.writerow(["portfolio_financial", metric, value, ""])
+                for currency, value in sorted(financial.recorded_costs_by_currency.items()):
+                    writer.writerow(["recorded_cost_by_currency", currency, _decimal_text(value), "No conversion"])
+                for reason, count in sorted(financial.comparison_exclusions.items()):
+                    writer.writerow(["comparison_exclusion", reason, count, "Mutually exclusive primary reason"])
+                for row in financial.source_breakdown:
+                    writer.writerow(["acquisition_source", row.label, row.record_count, row.cost_detail()])
+                for row in financial.acquisition_year_breakdown:
+                    writer.writerow(["acquisition_year", row.label, row.record_count, row.cost_detail()])
             writer.writerow(["health", "health_score", self.health_score.score, "; ".join(self.health_score.explanation)])
             for category, score in self.health_score.category_scores.items():
                 writer.writerow(["health_category", category, score, ""])
@@ -294,6 +534,7 @@ class PortfolioPerformanceEngine:
     def generate_report(self) -> PortfolioPerformanceReport:
         growth = self.collection_growth_report()
         acquisition = self.acquisition_performance_report()
+        financial = self.portfolio_financial_summary()
         series = self.series_progress_report(growth.snapshot_comparison)
         budget = self.budget_allocation_report()
         health = self.collection_health_score(growth, series, budget)
@@ -309,11 +550,103 @@ class PortfolioPerformanceEngine:
             series_report=series,
             budget_report=budget,
             health_score=health,
+            financial_summary=financial,
             strengths=strengths,
             weaknesses=weaknesses,
             opportunities=opportunities,
             risks=risks,
             recommended_focus_areas=focus,
+        )
+
+    def portfolio_financial_summary(self) -> PortfolioFinancialSummary:
+        """Build exact acquisition and approximate legacy-valuation metrics."""
+        currency_totals: Dict[str, Decimal] = {}
+        source_rows: Dict[str, PortfolioBreakdownRow] = {}
+        year_rows: Dict[str, PortfolioBreakdownRow] = {}
+        exclusions = {
+            "no_recorded_acquisition_cost": 0,
+            "non_cad_currency": 0,
+            "unspecified_currency": 0,
+            "no_usable_valuation_estimate": 0,
+        }
+        cost_count = date_count = source_count = valuation_count = comparable_count = 0
+        total_quantity = 0
+        approximate_value = Decimal("0")
+        comparable_cost = Decimal("0")
+        comparable_value = Decimal("0")
+
+        for item in self.items:
+            quantity = _quantity(item)
+            total_quantity += quantity
+            source_text = _text(getattr(item, "purchase_source", ""))
+            source_label = source_text or "Unspecified source"
+            acquisition_date = _text(getattr(item, "acquisition_date", ""))
+            if acquisition_date:
+                year_label = acquisition_date[:4] if acquisition_date[:4].isdigit() else "Unknown acquisition year"
+                date_count += 1
+            else:
+                year_label = "No acquisition date"
+            if source_text:
+                source_count += 1
+
+            source_row = source_rows.setdefault(source_label, PortfolioBreakdownRow(source_label))
+            source_row.record_count += 1
+            year_row = year_rows.setdefault(year_label, PortfolioBreakdownRow(year_label))
+            year_row.record_count += 1
+
+            estimate = _legacy_estimate_decimal(getattr(item, "estimate_cad", None))
+            if estimate is not None:
+                valuation_count += 1
+                approximate_value += estimate * quantity
+
+            cost = _acquisition_cost_decimal(getattr(item, "total_cost", None))
+            currency_text = _text(getattr(item, "purchase_currency", "")).upper()
+            currency = currency_text or "Unspecified"
+            if cost is not None:
+                cost_count += 1
+                currency_totals[currency] = currency_totals.get(currency, Decimal("0")) + cost
+                source_row.recorded_costs_by_currency[currency] = (
+                    source_row.recorded_costs_by_currency.get(currency, Decimal("0")) + cost
+                )
+                year_row.recorded_costs_by_currency[currency] = (
+                    year_row.recorded_costs_by_currency.get(currency, Decimal("0")) + cost
+                )
+
+            if cost is None:
+                exclusions["no_recorded_acquisition_cost"] += 1
+            elif currency == "Unspecified":
+                exclusions["unspecified_currency"] += 1
+            elif currency != "CAD":
+                exclusions["non_cad_currency"] += 1
+            elif estimate is None:
+                exclusions["no_usable_valuation_estimate"] += 1
+            else:
+                comparable_count += 1
+                comparable_cost += cost
+                comparable_value += estimate * quantity
+
+        gain_loss = comparable_value - comparable_cost
+        roi = None
+        if comparable_cost > 0:
+            roi = (gain_loss * Decimal("100") / comparable_cost).quantize(Decimal("0.01"))
+
+        return PortfolioFinancialSummary(
+            collection_record_count=len(self.items),
+            total_quantity_count=total_quantity,
+            acquisition_cost_record_count=cost_count,
+            acquisition_date_record_count=date_count,
+            acquisition_source_record_count=source_count,
+            usable_valuation_record_count=valuation_count,
+            approximate_estimated_cad_value=approximate_value,
+            recorded_costs_by_currency=currency_totals,
+            source_breakdown=sorted(source_rows.values(), key=lambda row: row.label.casefold()),
+            acquisition_year_breakdown=sorted(year_rows.values(), key=lambda row: row.label.casefold()),
+            comparable_cad_record_count=comparable_count,
+            comparable_cad_cost=comparable_cost,
+            comparable_approximate_estimated_cad_value=comparable_value,
+            estimated_gain_loss=gain_loss,
+            estimated_roi_percent=roi,
+            comparison_exclusions=exclusions,
         )
 
     def collection_growth_report(self) -> CollectionGrowthReport:
