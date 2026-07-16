@@ -6,7 +6,9 @@ MVP app for managing coin collection with manual editing and optional automatic 
 import json
 import csv
 import os
-from datetime import datetime
+import re
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 from dataclasses import dataclass, field
@@ -14,6 +16,84 @@ import cv2
 import numpy as np
 
 from atomic_json import write_json_atomically
+
+
+ACQUISITION_MONEY_FIELDS = (
+    "purchase_price",
+    "shipping_cost",
+    "buyers_premium",
+    "tax",
+)
+ACQUISITION_FIELDS = (
+    "acquisition_date",
+    "purchase_price",
+    "purchase_currency",
+    "purchase_source",
+    "shipping_cost",
+    "buyers_premium",
+    "tax",
+)
+
+
+def parse_optional_money(value: Any, field_name: str = "monetary value") -> Optional[Decimal]:
+    """Parse an optional, finite, non-negative decimal without using binary arithmetic."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a decimal value")
+    try:
+        parsed = value if isinstance(value, Decimal) else Decimal(str(value).strip())
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError(f"{field_name} must be a valid decimal value") from None
+    if not parsed.is_finite():
+        raise ValueError(f"{field_name} must be finite")
+    if parsed < 0:
+        raise ValueError(f"{field_name} cannot be negative")
+    return parsed
+
+
+def serialize_money(value: Optional[Decimal]) -> Optional[str]:
+    """Return a deterministic, non-exponent decimal string while preserving precision."""
+    return None if value is None else format(value, "f")
+
+
+def normalize_acquisition_date(value: Any) -> Optional[str]:
+    """Validate an optional acquisition date in strict ISO YYYY-MM-DD form."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    text = str(value).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        raise ValueError("acquisition_date must use YYYY-MM-DD format")
+    try:
+        parsed = date.fromisoformat(text)
+    except ValueError:
+        raise ValueError("acquisition_date must be a real calendar date in YYYY-MM-DD format") from None
+    return parsed.isoformat()
+
+
+def normalize_purchase_currency(value: Any) -> Optional[str]:
+    """Normalize an optional three-letter alphabetic purchase currency code."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    if isinstance(value, bool):
+        raise ValueError("purchase_currency must be a three-letter alphabetic code")
+    text = str(value).strip().upper()
+    if not re.fullmatch(r"[A-Z]{3}", text):
+        raise ValueError("purchase_currency must be exactly three alphabetic characters")
+    return text
+
+
+def normalize_acquisition_values(values: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply the single backend validation policy for acquisition data."""
+    return {
+        "acquisition_date": normalize_acquisition_date(values.get("acquisition_date")),
+        "purchase_price": parse_optional_money(values.get("purchase_price"), "purchase_price"),
+        "purchase_currency": normalize_purchase_currency(values.get("purchase_currency")),
+        "purchase_source": str(values.get("purchase_source") or "").strip() or None,
+        "shipping_cost": parse_optional_money(values.get("shipping_cost"), "shipping_cost"),
+        "buyers_premium": parse_optional_money(values.get("buyers_premium"), "buyers_premium"),
+        "tax": parse_optional_money(values.get("tax"), "tax"),
+    }
 
 
 class PhotoRole(str, Enum):
@@ -123,15 +203,48 @@ class CoinItem:
     comments: str = ""
     from_numista: bool = False
     photos: List[ItemPhoto] = field(default_factory=list)
+    acquisition_date: Optional[str] = None
+    purchase_price: Optional[Decimal] = None
+    purchase_currency: Optional[str] = "CAD"
+    purchase_source: Optional[str] = None
+    shipping_cost: Optional[Decimal] = None
+    buyers_premium: Optional[Decimal] = None
+    tax: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         self.image_path = str(self.image_path or "").strip()
         self.photos = self._coerce_photos(self.photos)
+        self.normalize_acquisition_fields()
+
+    def normalize_acquisition_fields(self) -> None:
+        """Normalize and validate all optional acquisition fields in place."""
+        normalized = normalize_acquisition_values({
+            field_name: getattr(self, field_name)
+            for field_name in ACQUISITION_FIELDS
+        })
+        for field_name, value in normalized.items():
+            setattr(self, field_name, value)
+
+    @property
+    def total_cost(self) -> Optional[Decimal]:
+        """Return exact derived acquisition cost, or None when no component was recorded."""
+        components = [getattr(self, field_name) for field_name in ACQUISITION_MONEY_FIELDS]
+        if all(value is None for value in components):
+            return None
+        return sum((value or Decimal("0") for value in components), Decimal("0"))
+
+    def has_acquisition_details(self) -> bool:
+        """Return whether meaningful acquisition data exists beyond a currency default."""
+        return bool(
+            self.acquisition_date
+            or self.purchase_source
+            or any(getattr(self, field_name) is not None for field_name in ACQUISITION_MONEY_FIELDS)
+        )
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         self.sync_image_path_from_primary()
-        return {
+        data = {
             "id": self.id,
             "image_path": self.image_path,
             "country": self.country,
@@ -154,6 +267,17 @@ class CoinItem:
             "from_numista": self.from_numista,
             "photos": [photo.to_dict() for photo in self.normalized_photos()],
         }
+        optional_acquisition = {
+            "acquisition_date": self.acquisition_date,
+            "purchase_price": serialize_money(self.purchase_price),
+            "purchase_currency": self.purchase_currency,
+            "purchase_source": self.purchase_source,
+            "shipping_cost": serialize_money(self.shipping_cost),
+            "buyers_premium": serialize_money(self.buyers_premium),
+            "tax": serialize_money(self.tax),
+        }
+        data.update({key: value for key, value in optional_acquisition.items() if value is not None})
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'CoinItem':
@@ -182,6 +306,13 @@ class CoinItem:
             "comments": str(data.get("comments") or ""),
             "from_numista": bool(data.get("from_numista", False)),
             "photos": cls._coerce_photos(data.get("photos", [])),
+            "acquisition_date": data.get("acquisition_date"),
+            "purchase_price": data.get("purchase_price"),
+            "purchase_currency": data.get("purchase_currency") if "purchase_currency" in data else None,
+            "purchase_source": data.get("purchase_source"),
+            "shipping_cost": data.get("shipping_cost"),
+            "buyers_premium": data.get("buyers_premium"),
+            "tax": data.get("tax"),
         }
         return cls(**known)
 
@@ -340,8 +471,26 @@ class CoinCollection:
         """Update item in collection."""
         for item in self.items:
             if item.id == item_id:
-                original_values = {key: getattr(item, key) for key in updates if hasattr(item, key)}
-                for key, value in updates.items():
+                normalized_updates = dict(updates)
+                if any(key in updates for key in ACQUISITION_FIELDS):
+                    prospective = {
+                        field_name: updates.get(field_name, getattr(item, field_name))
+                        for field_name in ACQUISITION_FIELDS
+                    }
+                    try:
+                        normalized_acquisition = normalize_acquisition_values(prospective)
+                    except ValueError as error:
+                        self.last_save_error = str(error)
+                        return False
+                    for field_name in ACQUISITION_FIELDS:
+                        if field_name in updates:
+                            normalized_updates[field_name] = normalized_acquisition[field_name]
+                original_values = {
+                    key: getattr(item, key)
+                    for key in normalized_updates
+                    if hasattr(item, key)
+                }
+                for key, value in normalized_updates.items():
                     if hasattr(item, key):
                         setattr(item, key, value)
                 if self.save_collection():
@@ -577,6 +726,12 @@ class CoinCollection:
                     grade = row_lower.get('grade', '').strip()
                     quantity = row_lower.get('quantity', '1').strip()
                     notes = row_lower.get('notes', '').strip()
+
+                    try:
+                        acquisition = normalize_acquisition_values(row_lower)
+                    except ValueError as error:
+                        print(f"Skipping row with invalid acquisition data ({error}): {row}")
+                        continue
                     
                     # Validate required fields
                     if not country or not denomination or not year:
@@ -605,7 +760,8 @@ class CoinCollection:
                             notes=notes,
                             date_added=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             auto_detected=False,
-                            quantity=1  # Each item has quantity 1, we create multiple items
+                            quantity=1,  # Each item has quantity 1, we create multiple items
+                            **acquisition,
                         )
                         
                         self.items.append(item)
@@ -625,6 +781,7 @@ class CoinCollection:
             
         except Exception as e:
             print(f"Error importing CSV: {str(e)}")
+            self.items = original_items
             return 0, 0, 0, 0
     
     def analyze_collection_gaps(self) -> Dict:
@@ -688,11 +845,15 @@ class CoinCollection:
                 fieldnames = ['id', 'image_path', 'country', 'denomination', 'year', 
                             'grade', 'notes', 'date_added', 'auto_detected', 'detection_confidence',
                             'issuer', 'currency', 'face_value', 'reference', 'numista_n', 
-                            'title', 'quantity', 'estimate_cad', 'comments', 'from_numista']
+                            'title', 'quantity', 'estimate_cad', 'comments', 'from_numista',
+                            'acquisition_date', 'purchase_price', 'purchase_currency',
+                            'purchase_source', 'shipping_cost', 'buyers_premium', 'tax',
+                            'total_cost']
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for item in self.items:
                     row = item.to_dict()
+                    row['total_cost'] = serialize_money(item.total_cost) or ""
                     writer.writerow({field: row.get(field, "") for field in fieldnames})
             print(f"Exported {len(self.items)} items to {output_path}")
             return True
@@ -807,7 +968,14 @@ class CoinCollectionApp:
     
     def add_to_collection(self, country: str, denomination: str, year: str,
                          grade: str, notes: str, use_detection: bool = False,
-                         photos: Optional[List[ItemPhoto]] = None) -> bool:
+                         photos: Optional[List[ItemPhoto]] = None,
+                         acquisition_date: Optional[str] = None,
+                         purchase_price: Optional[Decimal] = None,
+                         purchase_currency: Optional[str] = "CAD",
+                         purchase_source: Optional[str] = None,
+                         shipping_cost: Optional[Decimal] = None,
+                         buyers_premium: Optional[Decimal] = None,
+                         tax: Optional[Decimal] = None) -> bool:
         """Add current coin to collection."""
         if not self.current_image_path:
             print("No image uploaded")
@@ -852,6 +1020,13 @@ class CoinCollectionApp:
             auto_detected=auto_detected,
             detection_confidence=confidence,
             photos=structured_photos,
+            acquisition_date=acquisition_date,
+            purchase_price=purchase_price,
+            purchase_currency=purchase_currency,
+            purchase_source=purchase_source,
+            shipping_cost=shipping_cost,
+            buyers_premium=buyers_premium,
+            tax=tax,
         )
         
         if not self.collection.add_item(item):

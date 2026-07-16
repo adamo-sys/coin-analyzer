@@ -5,12 +5,20 @@ MVP app for managing coin collection with manual editing and optional automatic 
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
+from decimal import Decimal
 from PIL import Image, ImageTk
 import os
 import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
-from coin_collection import CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
+from coin_collection import (
+    CoinCollectionApp,
+    CoinItem,
+    ItemPhoto,
+    PhotoRole,
+    normalize_acquisition_values,
+    serialize_money,
+)
 from numista_intelligence import NumistaIntelligenceEngine
 from smart_phone_cataloguer import SmartPhoneCataloguer
 from collection_intelligence import CollectionIntelligenceEngine
@@ -372,6 +380,88 @@ Total Unique Dates: {total_unique_dates}
         
         # Refresh collection list
         self.refresh_collection_list()
+
+    @staticmethod
+    def acquisition_values_from_text(values):
+        """Validate acquisition-entry strings and return normalized model values."""
+        return normalize_acquisition_values(values)
+
+    @classmethod
+    def acquisition_total_text(cls, values):
+        """Return live total text without allowing a calculated value to become input."""
+        try:
+            parsed = cls.acquisition_values_from_text(values)
+        except ValueError:
+            return "Invalid"
+        components = [parsed[name] for name in ("purchase_price", "shipping_cost", "buyers_premium", "tax")]
+        if all(value is None for value in components):
+            return "Not recorded"
+        total = sum((value for value in components if value is not None), Decimal("0"))
+        currency = parsed["purchase_currency"] or ""
+        return " ".join(part for part in (currency, serialize_money(total)) if part)
+
+    def create_acquisition_fields(self, parent, initial=None):
+        """Create reusable acquisition controls and a read-only live total."""
+        initial = initial or {}
+        variables = {
+            "acquisition_date": tk.StringVar(value=initial.get("acquisition_date") or ""),
+            "purchase_price": tk.StringVar(value=serialize_money(initial.get("purchase_price")) or ""),
+            "purchase_currency": tk.StringVar(value=initial.get("purchase_currency") or ""),
+            "purchase_source": tk.StringVar(value=initial.get("purchase_source") or ""),
+            "shipping_cost": tk.StringVar(value=serialize_money(initial.get("shipping_cost")) or ""),
+            "buyers_premium": tk.StringVar(value=serialize_money(initial.get("buyers_premium")) or ""),
+            "tax": tk.StringVar(value=serialize_money(initial.get("tax")) or ""),
+        }
+        rows = (
+            ("Date (YYYY-MM-DD):", "acquisition_date"),
+            ("Price:", "purchase_price"),
+            ("Currency:", "purchase_currency"),
+            ("Source:", "purchase_source"),
+            ("Shipping:", "shipping_cost"),
+            ("Buyer's Premium:", "buyers_premium"),
+            ("Tax:", "tax"),
+        )
+        for field_index, (label, field_name) in enumerate(rows):
+            field_row = field_index // 4
+            column_index = field_index % 4
+            label_row = field_row * 2
+            ttk.Label(parent, text=label).grid(
+                row=label_row,
+                column=column_index,
+                sticky=tk.W,
+                padx=(0, 5),
+            )
+            ttk.Entry(parent, textvariable=variables[field_name], width=10).grid(
+                row=label_row + 1,
+                column=column_index,
+                sticky=tk.W,
+                padx=(0, 5),
+                pady=(0, 2),
+            )
+        total_var = tk.StringVar(value="Not recorded")
+        ttk.Label(parent, text="Total Cost:").grid(row=2, column=3, sticky=tk.W)
+        ttk.Label(parent, textvariable=total_var).grid(
+            row=3,
+            column=3,
+            sticky=tk.W,
+            pady=(0, 2),
+        )
+
+        def current_text_values():
+            return {name: variable.get() for name, variable in variables.items()}
+
+        def refresh_total(*_args):
+            total_var.set(self.acquisition_total_text(current_text_values()))
+
+        for variable in variables.values():
+            variable.trace_add("write", refresh_total)
+        refresh_total()
+        return {
+            "variables": variables,
+            "total_var": total_var,
+            "values": current_text_values,
+            "refresh_total": refresh_total,
+        }
     
     def create_widgets(self):
         """Create all GUI widgets."""
@@ -530,10 +620,35 @@ Total Unique Dates: {total_unique_dates}
         ttk.Label(edit_frame, text="Notes:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.notes_text = tk.Text(edit_frame, height=3, wrap=tk.WORD)
         self.notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+
+        acquisition_expanded = tk.BooleanVar(value=False)
+        acquisition_button = ttk.Button(edit_frame, text="Acquisition Details ▸")
+        acquisition_button.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
+        acquisition_frame = ttk.LabelFrame(edit_frame, text="Acquisition Details", padding="4")
+        acquisition_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.acquisition_button = acquisition_button
+        self.acquisition_frame = acquisition_frame
+        self.acquisition_controls = self.create_acquisition_fields(
+            acquisition_frame,
+            {"purchase_currency": "CAD"},
+        )
+        acquisition_frame.grid_remove()
+
+        def toggle_acquisition_details():
+            expanded = not acquisition_expanded.get()
+            acquisition_expanded.set(expanded)
+            if expanded:
+                acquisition_frame.grid()
+                acquisition_button.config(text="Acquisition Details ▾")
+            else:
+                acquisition_frame.grid_remove()
+                acquisition_button.config(text="Acquisition Details ▸")
+
+        acquisition_button.config(command=toggle_acquisition_details)
         
         # Action buttons
         action_frame = ttk.Frame(edit_frame)
-        action_frame.grid(row=5, column=0, columnspan=2, pady=(10, 0))
+        action_frame.grid(row=7, column=0, columnspan=2, pady=(10, 0))
         
         ttk.Button(action_frame, text="Use Detection Results", command=self.use_detection_results).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Save to Collection", command=self.save_to_collection).pack(side=tk.LEFT, padx=(0, 5))
@@ -555,7 +670,7 @@ Total Unique Dates: {total_unique_dates}
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         search_entry.bind('<KeyRelease>', self.on_search)
         ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT)
-        
+
         # Collection list with scrollbar
         list_frame = ttk.Frame(collection_frame)
         list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -1392,6 +1507,25 @@ Total Unique Dates: {total_unique_dates}
                 f"Estimate (CAD): ${item.estimate_cad:.2f}",
                 f"Comments: {item.comments}",
             ])
+        if item.has_acquisition_details():
+            details.extend(["", "--- Acquisition Details ---"])
+            if item.acquisition_date:
+                details.append(f"Acquisition Date: {item.acquisition_date}")
+            if item.purchase_price is not None:
+                details.append(f"Purchase Price: {serialize_money(item.purchase_price)}")
+            if item.purchase_currency:
+                details.append(f"Purchase Currency: {item.purchase_currency}")
+            if item.purchase_source:
+                details.append(f"Purchase Source: {item.purchase_source}")
+            if item.shipping_cost is not None:
+                details.append(f"Shipping Cost: {serialize_money(item.shipping_cost)}")
+            if item.buyers_premium is not None:
+                details.append(f"Buyer's Premium: {serialize_money(item.buyers_premium)}")
+            if item.tax is not None:
+                details.append(f"Tax: {serialize_money(item.tax)}")
+            if item.total_cost is not None:
+                total = serialize_money(item.total_cost)
+                details.append(f"Total Cost: {' '.join(part for part in (item.purchase_currency, total) if part)}")
         details.extend([
             "",
             "--- Detection Info ---",
@@ -1729,12 +1863,34 @@ Total Unique Dates: {total_unique_dates}
         if not country or not denomination:
             messagebox.showwarning("Warning", "Country and denomination are required")
             return
+
+        try:
+            acquisition_text = (
+                self.acquisition_controls["values"]()
+                if hasattr(self, "acquisition_controls")
+                else {"purchase_currency": "CAD"}
+            )
+            acquisition = self.acquisition_values_from_text(acquisition_text)
+        except ValueError as error:
+            messagebox.showwarning("Invalid Acquisition Details", str(error))
+            return
         
         # Never auto-save detector results as truth - manual fields are source of truth
         use_detection = False  # Always false - manual fields are source of truth
         
         photos = self.normalized_photo_state(self.current_item_photos)
-        if self.app.add_to_collection(country, denomination, year, grade, notes, use_detection, photos=photos):
+        add_kwargs = {"photos": photos}
+        if hasattr(self, "acquisition_controls"):
+            add_kwargs.update(acquisition)
+        if self.app.add_to_collection(
+            country,
+            denomination,
+            year,
+            grade,
+            notes,
+            use_detection,
+            **add_kwargs,
+        ):
             if self.pending_inbox_manager and self.pending_inbox_photo_set_id:
                 if not self.complete_pending_inbox_create(getattr(self.app, "last_added_item_id", "")):
                     messagebox.showwarning(
@@ -1822,6 +1978,9 @@ Total Unique Dates: {total_unique_dates}
         self.year_var.set("")
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
+        if hasattr(self, "acquisition_controls"):
+            for name, variable in self.acquisition_controls["variables"].items():
+                variable.set("CAD" if name == "purchase_currency" else "")
         self.clear_image()
         self.clear_pending_inbox_create()
         self.refresh_entry_suggestions()
@@ -3576,7 +3735,7 @@ Total Unique Dates: {total_unique_dates}
         """Open a scoped edit dialog that includes item-owned photo metadata."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Edit Item")
-        dialog.geometry("720x600")
+        dialog.geometry("720x650")
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -3585,7 +3744,7 @@ Total Unique Dates: {total_unique_dates}
         form = ttk.Frame(dialog, padding="10")
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
-        form.rowconfigure(6, weight=1)
+        form.rowconfigure(8, weight=1)
 
         country_var = tk.StringVar(value=item.country)
         denomination_var = tk.StringVar(value=item.denomination)
@@ -3615,8 +3774,41 @@ Total Unique Dates: {total_unique_dates}
         notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
         notes_text.insert(tk.END, item.notes)
 
+        acquisition_expanded = tk.BooleanVar(value=item.has_acquisition_details())
+        acquisition_button = ttk.Button(form)
+        acquisition_button.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        acquisition_frame = ttk.LabelFrame(form, text="Acquisition Details", padding="4")
+        acquisition_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        acquisition_controls = self.create_acquisition_fields(
+            acquisition_frame,
+            {
+                "acquisition_date": item.acquisition_date,
+                "purchase_price": item.purchase_price,
+                "purchase_currency": item.purchase_currency,
+                "purchase_source": item.purchase_source,
+                "shipping_cost": item.shipping_cost,
+                "buyers_premium": item.buyers_premium,
+                "tax": item.tax,
+            },
+        )
+
+        def set_edit_acquisition_visibility():
+            if acquisition_expanded.get():
+                acquisition_frame.grid()
+                acquisition_button.config(text="Acquisition Details ▾")
+            else:
+                acquisition_frame.grid_remove()
+                acquisition_button.config(text="Acquisition Details ▸")
+
+        def toggle_edit_acquisition():
+            acquisition_expanded.set(not acquisition_expanded.get())
+            set_edit_acquisition_visibility()
+
+        acquisition_button.config(command=toggle_edit_acquisition)
+        set_edit_acquisition_visibility()
+
         photo_frame = ttk.LabelFrame(form, text="Photos", padding="10")
-        photo_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        photo_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         photo_frame.columnconfigure(0, weight=1)
 
         edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
@@ -3720,12 +3912,17 @@ Total Unique Dates: {total_unique_dates}
         note_entry.bind("<Return>", update_edit_notes)
 
         button_frame = ttk.Frame(form)
-        button_frame.grid(row=7, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+        button_frame.grid(row=9, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
 
         def save_edit():
+            try:
+                acquisition = self.acquisition_values_from_text(acquisition_controls["values"]())
+            except ValueError as error:
+                messagebox.showwarning("Invalid Acquisition Details", str(error), parent=dialog)
+                return
             photos = self.normalized_photo_state(edit_photos["photos"])
             primary = next((photo for photo in photos if photo.is_primary), None)
-            if not self.app.collection.update_item(item.id, {
+            updates = {
                 "country": country_var.get().strip(),
                 "denomination": denomination_var.get().strip(),
                 "year": year_var.get().strip(),
@@ -3733,7 +3930,9 @@ Total Unique Dates: {total_unique_dates}
                 "notes": notes_text.get("1.0", tk.END).strip(),
                 "photos": photos,
                 "image_path": primary.path if primary else "",
-            }):
+            }
+            updates.update(acquisition)
+            if not self.app.collection.update_item(item.id, updates):
                 messagebox.showerror(
                     "Save Failed",
                     f"The item was not updated: {self.app.collection.last_save_error or 'collection save failed'}",
