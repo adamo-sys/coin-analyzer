@@ -12,6 +12,19 @@ from PIL import Image, ImageTk
 import numpy as np
 import sys
 
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_LABELS_CSV = os.path.join(PROJECT_ROOT, "debug_outputs", "year_labels.csv")
+
+
+def resolve_label_image_path(csv_path: str, label_entry: dict) -> str:
+    """Resolve a crop or source-image reference without depending on the current directory."""
+    reference = str(label_entry.get('crop_path') or label_entry.get('image_path') or '').strip()
+    if not reference or os.path.isabs(reference):
+        return reference
+    return os.path.normpath(os.path.join(PROJECT_ROOT, reference))
+
+
 class YearLabeler:
     """Manual year labeling tool."""
     
@@ -33,6 +46,8 @@ class YearLabeler:
     
     def save_labels(self):
         """Save labels back to CSV file."""
+        directory = os.path.dirname(os.path.abspath(self.csv_path))
+        os.makedirs(directory, exist_ok=True)
         with open(self.csv_path, 'w', newline='') as f:
             fieldnames = ['image_path', 'crop_path', 'year', 'denomination', 'country']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -42,11 +57,7 @@ class YearLabeler:
     
     def show_image_and_get_label(self, label_entry: dict) -> str:
         """Show image with zoom capability and get year label from user."""
-        crop_path = label_entry['crop_path']
-        
-        # Convert relative path to absolute
-        if not os.path.isabs(crop_path):
-            crop_path = os.path.join(os.path.dirname(self.csv_path), '..', crop_path)
+        crop_path = resolve_label_image_path(self.csv_path, label_entry)
         
         print(f"  Loading image: {crop_path}")
         
@@ -238,10 +249,12 @@ class YearLabeler:
 
 def main():
     """Run the year labeling tool."""
-    csv_path = r"C:\Users\<username>\CascadeProjects\coin-analyzer\data\year_labels.csv"
+    mode = sys.argv[1].lower() if len(sys.argv) > 1 else ""
+    csv_path = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LABELS_CSV
     
     if not os.path.exists(csv_path):
         print(f"CSV file not found: {csv_path}")
+        print("Provide a generated label manifest as the second argument.")
         return
     
     labeler = YearLabeler(csv_path)
@@ -252,8 +265,7 @@ def main():
     labeler.validate_labels()
     
     # Check for command-line arguments
-    if len(sys.argv) > 1:
-        mode = sys.argv[1].lower()
+    if mode:
         if mode == 'label':
             print("\nStarting automatic labeling...")
             labeler.label_all()
@@ -268,7 +280,7 @@ def main():
             print("All labels cleared.")
         else:
             print(f"Unknown mode: {mode}")
-            print("Usage: python label_years.py [label|validate|clear]")
+            print("Usage: python label_years.py [label|validate|clear] [csv_path]")
     else:
         # Interactive mode
         print("\nOptions:")

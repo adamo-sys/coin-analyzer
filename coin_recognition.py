@@ -13,6 +13,10 @@ import platform
 from datetime import datetime
 
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEBUG_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "debug_outputs")
+
+
 class CoinRecognizer:
     """Identifies Canadian coins using computer vision techniques."""
     
@@ -535,7 +539,8 @@ class CoinRecognizer:
             
             # Save the cropped date image to debug folder
             filename = os.path.basename(image_path)
-            debug_path = os.path.join('debug_outputs', 'date_crops', f'crop_{filename}')
+            debug_path = os.path.join(DEBUG_OUTPUT_ROOT, 'date_crops', f'crop_{filename}')
+            os.makedirs(os.path.dirname(debug_path), exist_ok=True)
             cv2.imwrite(debug_path, best_crop)
             
             return best_crop

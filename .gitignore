@@ -24,3 +24,6 @@ Thumbs.db
 /data/collection.json
 /data/debug_feedback.csv
 /data/photo_inbox_state.json
+
+# Generated OCR and image-recognition diagnostics
+/debug_outputs/

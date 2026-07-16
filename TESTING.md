@@ -24,6 +24,9 @@ Current fixtures:
 
 - `test_data/sample_collection.json`
 - `test_data/sample_import.csv`
+- `test_coins/IMG_3460.jpeg` through `test_coins/IMG_3469.jpeg`
+
+The ten `test_coins` images are stable source fixtures for recognition experiments. Crops, contour overlays, OCR diagnostics, and other files under `debug_outputs/` are generated artifacts: they are ignored by Git and must be regenerated from the source fixtures when needed.
 
 Temporary files are created with Python's `tempfile` module and removed after each test.
 
@@ -46,3 +49,4 @@ When adding tests:
 3. Put reusable fixture files in `test_data/`.
 4. Copy fixture files into a temporary directory before mutating them.
 5. Do not modify production files under `data/`.
+6. Do not commit generated files from `debug_outputs/`.

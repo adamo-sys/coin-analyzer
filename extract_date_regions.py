@@ -8,6 +8,12 @@ import numpy as np
 import os
 from typing import Dict, List, Optional
 
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_INPUT_FOLDER = os.path.join(PROJECT_ROOT, "test_coins")
+DEFAULT_OUTPUT_FOLDER = os.path.join(PROJECT_ROOT, "debug_outputs", "date_regions_sample")
+
+
 class DateRegionExtractor:
     """Extract date regions from coin images."""
     
@@ -142,10 +148,10 @@ class DateRegionExtractor:
         
         # Get all image files
         image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
-        image_files = [
+        image_files = sorted([
             f for f in os.listdir(input_folder)
             if any(f.lower().endswith(ext) for ext in image_extensions)
-        ]
+        ], key=str.casefold)
         
         # Limit to max_images
         image_files = image_files[:max_images]
@@ -169,14 +175,8 @@ def main():
     """Extract date regions from test images."""
     extractor = DateRegionExtractor()
     
-    # Input folder
-    input_folder = r"C:\Users\<username>\CascadeProjects\coin-analyzer\test_coins"
-    
-    # Output folder for debug crops
-    output_folder = r"C:\Users\<username>\CascadeProjects\coin-analyzer\debug_outputs\date_regions_sample"
-    
     # Process all images (will be limited to 10 since that's all we have)
-    extractor.process_folder(input_folder, output_folder, max_images=100)
+    extractor.process_folder(DEFAULT_INPUT_FOLDER, DEFAULT_OUTPUT_FOLDER, max_images=100)
     
     print("\nDate region extraction complete.")
     print("Please visually inspect the extracted regions in the debug folder to verify:")

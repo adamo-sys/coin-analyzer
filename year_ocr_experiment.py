@@ -8,9 +8,26 @@ import cv2
 import numpy as np
 import re
 import os
-import pytesseract
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
+
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_TEST_FOLDER = os.path.join(PROJECT_ROOT, "test_coins")
+DEFAULT_DEBUG_FOLDER = os.path.join(PROJECT_ROOT, "debug_outputs", "year_ocr_crops")
+
+
+def load_pytesseract():
+    """Load the optional OCR dependency with an actionable error when unavailable."""
+    try:
+        import pytesseract
+    except ImportError as error:
+        raise RuntimeError(
+            "Year OCR experiments require the optional 'pytesseract' package and a "
+            "separately installed Tesseract executable."
+        ) from error
+    return pytesseract
+
 
 class YearOCRExperiment:
     """Controlled experiment for year OCR detection."""
@@ -150,6 +167,7 @@ class YearOCRExperiment:
     def run_ocr(self, image: np.ndarray, psm_mode: str, use_whitelist: bool = True) -> Tuple[str, str]:
         """Run OCR with digit-only configuration."""
         try:
+            pytesseract = load_pytesseract()
             if use_whitelist:
                 config = f'--psm {psm_mode} --oem 3 -c tessedit_char_whitelist=0123456789'
             else:
@@ -176,7 +194,7 @@ class YearOCRExperiment:
             return results
         
         # Save debug crops for visual inspection
-        debug_folder = "debug_outputs/year_ocr_crops"
+        debug_folder = DEFAULT_DEBUG_FOLDER
         os.makedirs(debug_folder, exist_ok=True)
         
         filename = os.path.basename(image_path)
@@ -292,7 +310,7 @@ def main():
     experiment = YearOCRExperiment()
     
     # Test folder
-    test_folder = r"C:\Users\<username>\CascadeProjects\coin-analyzer\test_coins"
+    test_folder = DEFAULT_TEST_FOLDER
     
     # Expected years for test images (you'll need to fill these in manually)
     expected_years = {

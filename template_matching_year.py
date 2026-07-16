@@ -10,14 +10,19 @@ import re
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_TEST_FOLDER = os.path.join(PROJECT_ROOT, "test_coins")
+DEFAULT_DEBUG_FOLDER = os.path.join(PROJECT_ROOT, "debug_outputs", "template_matching")
+
+
 class TemplateMatchingYearDetector:
     """Template matching based year detection (experimental)."""
     
-    def __init__(self):
+    def __init__(self, debug_folder: str = None):
         self.current_year = datetime.now().year
         self.year_pattern = r'\b(18[5-9][0-9]|19[0-9]{2}|20[0-9]{2})\b'
-        self.debug_folder = "debug_outputs/template_matching"
-        os.makedirs(self.debug_folder, exist_ok=True)
+        self.debug_folder = os.path.abspath(debug_folder or DEFAULT_DEBUG_FOLDER)
         
         # Manual date regions for full_coin images (relative coordinates 0-1)
         # Format: (x_center, y_center, width, height) as fractions of image dimensions
@@ -242,6 +247,7 @@ class TemplateMatchingYearDetector:
                          date_region: np.ndarray, digit_candidates: List[Dict], 
                          result: Dict):
         """Save debug images for analysis."""
+        os.makedirs(self.debug_folder, exist_ok=True)
         filename = os.path.basename(image_path)
         name_without_ext = os.path.splitext(filename)[0]
         
@@ -271,7 +277,7 @@ def test_template_matching():
     """Test template matching year detection on test images."""
     detector = TemplateMatchingYearDetector()
     
-    test_folder = r"C:\Users\<username>\CascadeProjects\coin-analyzer\test_coins"
+    test_folder = DEFAULT_TEST_FOLDER
     
     print("=" * 60)
     print("Template Matching Year Detection - Experimental Test")
@@ -279,7 +285,7 @@ def test_template_matching():
     
     results = []
     
-    for filename in os.listdir(test_folder):
+    for filename in sorted(os.listdir(test_folder), key=str.casefold):
         if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
             image_path = os.path.join(test_folder, filename)
             print(f"\nTesting: {filename}")
