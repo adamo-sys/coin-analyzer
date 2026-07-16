@@ -54,6 +54,23 @@ class TestCoinCollectionBackend(unittest.TestCase):
         self.assertEqual(len(reloaded.items), 1)
         self.assertEqual(reloaded.items[0].country, "Canada")
 
+    def test_default_collection_path_is_created_on_first_save(self):
+        original_working_directory = os.getcwd()
+        try:
+            os.chdir(self.temp_dir.name)
+            default_collection_path = os.path.join("data", "collection.json")
+
+            app = CoinCollectionApp()
+
+            self.assertEqual([], app.collection.items)
+            self.assertFalse(os.path.exists(default_collection_path))
+            self.assertTrue(app.collection.save_collection())
+            self.assertTrue(os.path.isfile(default_collection_path))
+            with open(default_collection_path, "r", encoding="utf-8") as handle:
+                self.assertEqual([], json.load(handle))
+        finally:
+            os.chdir(original_working_directory)
+
     def test_json_loading_preserves_multiple_items(self):
         collection = CoinCollection(self.collection_path)
         collection.items = [

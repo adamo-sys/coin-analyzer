@@ -145,7 +145,7 @@ From the project root:
 py coin_collection_gui.py
 ```
 
-The main data file is `data/collection.json`. Analysis and preview workflows are designed to be read-only unless the user explicitly performs a collection-management action.
+The main data file is `data/collection.json`. It is local runtime data and is not committed to the repository. A fresh installation starts with an empty collection; the application creates the file automatically on the first successful save. Back up this file independently because cloning or backing up the repository does not preserve it. Analysis and preview workflows are designed to be read-only unless the user explicitly performs a collection-management action.
 
 ## Running Tests
 
@@ -1610,7 +1610,7 @@ Limitations:
 
 ## Data Safety
 
-- Production collection data lives in `data/collection.json`.
+- Production collection data lives locally in the uncommitted `data/collection.json` file, which is created automatically on the first successful save.
 - Tests use `test_data/` fixtures and temporary files.
 - Legacy portfolio import workflows stage previews first and do not overwrite collection data.
-- Keep regular backups of the repository, collection JSON, and legacy workbook. See [docs/BACKUP.md](docs/BACKUP.md).
+- Back up the collection JSON independently from the repository, and keep regular backups of the repository and legacy workbook. See [docs/BACKUP.md](docs/BACKUP.md).

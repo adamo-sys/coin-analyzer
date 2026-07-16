@@ -19,3 +19,8 @@ htmlcov/
 .mypy_cache/
 .DS_Store
 Thumbs.db
+
+# Local runtime collection state
+/data/collection.json
+/data/debug_feedback.csv
+/data/photo_inbox_state.json
