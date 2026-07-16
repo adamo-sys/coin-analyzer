@@ -658,7 +658,7 @@ Total Unique Dates: {total_unique_dates}
         collection_frame = ttk.LabelFrame(right_panel, text="Collection", padding="10")
         collection_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         collection_frame.columnconfigure(0, weight=1)
-        collection_frame.rowconfigure(1, weight=1)
+        collection_frame.rowconfigure(2, weight=1)
         
         # Search box
         search_frame = ttk.Frame(collection_frame)
@@ -671,9 +671,22 @@ Total Unique Dates: {total_unique_dates}
         search_entry.bind('<KeyRelease>', self.on_search)
         ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT)
 
+        # Collection buttons
+        collection_buttons = ttk.Frame(collection_frame)
+        collection_buttons.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        ttk.Button(collection_buttons, text="View Details", command=self.view_item_details).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Edit Item", command=self.edit_item).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Delete Item", command=self.delete_item).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Buy Advisor", command=self.open_buy_advisor).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Import Numista", command=self.import_numista).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Analyze Collection", command=self.analyze_collection).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Gap Report", command=self.open_collection_gap_report).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(collection_buttons, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT)
+
         # Collection list with scrollbar
         list_frame = ttk.Frame(collection_frame)
-        list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
         
@@ -698,19 +711,6 @@ Total Unique Dates: {total_unique_dates}
         scrollbar.config(command=self.collection_tree.yview)
         
         self.collection_tree.bind("<<TreeviewSelect>>", self.on_collection_select)
-        
-        # Collection buttons
-        collection_buttons = ttk.Frame(collection_frame)
-        collection_buttons.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
-        
-        ttk.Button(collection_buttons, text="View Details", command=self.view_item_details).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Edit Item", command=self.edit_item).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Delete Item", command=self.delete_item).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Buy Advisor", command=self.open_buy_advisor).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Import Numista", command=self.import_numista).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Analyze Collection", command=self.analyze_collection).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Gap Report", command=self.open_collection_gap_report).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(collection_buttons, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT)
 
         status_frame = ttk.Frame(main_frame)
         status_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
