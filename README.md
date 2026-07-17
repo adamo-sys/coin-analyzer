@@ -6,6 +6,18 @@ Coin Analyzer is a local-first Python desktop application for managing a coin an
 
 The project combines practical collector workflows with disciplined software engineering: deterministic analytics, backward-compatible JSON persistence, optional cloud AI, explicit privacy boundaries, and 1,598 automated tests.
 
+## See it in action
+
+| Main application | Portfolio Analytics |
+| --- | --- |
+| ![Main Coin Analyzer application](docs/screenshots/main-application.png) | ![Portfolio Analytics](docs/screenshots/portfolio-analytics.png) |
+
+| Ask My Collection | Short demonstration |
+| --- | --- |
+| ![Ask My Collection with grounded evidence](docs/screenshots/ask-my-collection.png) | ![Short Ask My Collection demonstration](docs/screenshots/ask-my-collection-demo.gif) |
+
+*All screenshots and demonstrations use synthetic collection data. No real collection records, API keys, or personal information are shown.*
+
 ## Why this project exists
 
 Collectors often spread their records across spreadsheets, photographs, notes, price references, and memory. That makes simple questions surprisingly difficult:
