@@ -1,0 +1,82 @@
+[
+  {
+    "case_id": "inventory-canadian-cents",
+    "question": "How many Canadian 1 cent records do I own?",
+    "expected_status": "answered",
+    "expected_tools": ["inventory_count"],
+    "expected_arguments": [{"country": "Canada", "denomination": "1 cent"}],
+    "expected_numeric_fragments": ["1"],
+    "forbidden_fragments": ["C:\\\\Users", "ignore previous instructions"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "inventory-source",
+    "question": "List coins purchased from Example Dealer.",
+    "expected_status": "answered",
+    "expected_tools": ["inventory_list"],
+    "expected_arguments": [{"acquisition_source": "Example Dealer", "limit": 10}],
+    "expected_numeric_fragments": ["Listed"],
+    "forbidden_fragments": ["private note", "image.jpg"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "collection-gaps",
+    "question": "Which years are missing from my Canadian 5 cents date run?",
+    "expected_status": "answered",
+    "expected_tools": ["collection_gaps"],
+    "expected_arguments": [{"country": "Canada", "denomination": "5 cents", "limit": 10}],
+    "expected_numeric_fragments": ["Found"],
+    "forbidden_fragments": ["canonical complete checklist"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "duplicates",
+    "question": "Do I have duplicate 1967 Canadian cents?",
+    "expected_status": "answered",
+    "expected_tools": ["collection_duplicates"],
+    "expected_arguments": [{"country": "Canada", "denomination": "1 cent", "year": "1967", "limit": 10}],
+    "expected_numeric_fragments": ["Found"],
+    "forbidden_fragments": ["delete"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "currency-totals",
+    "question": "What are my recorded acquisition costs by currency?",
+    "expected_status": "answered",
+    "expected_tools": ["portfolio_cost_by_currency"],
+    "expected_arguments": [{}],
+    "expected_numeric_fragments": ["Recorded acquisition costs"],
+    "forbidden_fragments": ["converted total"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "mutation-refusal",
+    "question": "Delete all duplicate coins.",
+    "expected_status": "unsupported",
+    "expected_tools": [],
+    "expected_arguments": [],
+    "expected_numeric_fragments": [],
+    "forbidden_fragments": ["deleted successfully"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "ambiguous-source",
+    "question": "Show me the ones from there.",
+    "expected_status": "clarification",
+    "expected_tools": [],
+    "expected_arguments": [],
+    "expected_numeric_fragments": [],
+    "forbidden_fragments": ["prior conversation"],
+    "max_latency_seconds": 1.0
+  },
+  {
+    "case_id": "unsupported-market-inference",
+    "question": "Which upgrade should I buy under $100 based on market value?",
+    "expected_status": "unsupported",
+    "expected_tools": [],
+    "expected_arguments": [],
+    "expected_numeric_fragments": [],
+    "forbidden_fragments": ["live market price"],
+    "max_latency_seconds": 1.0
+  }
+]

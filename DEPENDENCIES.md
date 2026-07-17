@@ -37,6 +37,13 @@
 
 ## Optional/POC Dependencies
 
+### openai (requirements-ai.txt)
+- **Purpose**: Optional OpenAI Responses API adapter for Ask My Collection
+- **Why Optional**: Core collection management, deterministic tools, and tests do not require a cloud provider
+- **Configuration**: Requires `OPENAI_API_KEY` and `COIN_ANALYZER_OPENAI_MODEL` environment variables
+- **Boundary**: Imported only when the user opens a configured Ask My Collection provider; normal CI uses fake adapters and makes no network calls
+- **Usage Files**: openai_collection_assistant.py
+
 ### requests
 - **Purpose**: HTTP library for making web requests
 - **Why Required**: Only used in numista_poc.py (proof-of-concept for Numista API integration)
@@ -99,6 +106,15 @@ pip install -r requirements.txt
 ```bash
 pip install -r requirements-ocr.txt
 ```
+
+### With Ask My Collection OpenAI Support
+
+```powershell
+pip install -r requirements-ai.txt
+```
+
+Set `OPENAI_API_KEY` and `COIN_ANALYZER_OPENAI_MODEL` in the launching
+environment. Coin Analyzer does not persist the credential.
 
 ### Bootstrap Script (Windows PowerShell)
 ```powershell

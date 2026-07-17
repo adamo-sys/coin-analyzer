@@ -37,7 +37,8 @@ CoinCollectionGUI
           `-- lazily composes existing engines and returns report DTOs
 
 Workflow/orchestration modules
-  `-- coordinate deterministic intelligence engines and domain models
+  |-- coordinate deterministic intelligence engines and domain models
+  `-- Ask My Collection validates model plans and invokes read-only tools
 
 Domain and local state
   |-- CoinItem / ItemPhoto / CoinCollection
@@ -99,6 +100,8 @@ create authoritative collection facts.
 |---|---|
 | `collector_workspace.py` | Lazy composition, caching, lifecycle, and report DTOs for selected dashboard, workflow, data-safety, Connected Data, Image Assessment, and Canadian-reference surfaces |
 | `coin_collection_gui.py` | Supported Tkinter collection manager and controller for collection mutation, dialogs, reports, workspace panels, and tool entry points |
+| `grounded_collection_assistant.py` | Dependency-free assistant contracts, strict read-only tool registry, bounded evidence, orchestration, and grounded-response validation |
+| `openai_collection_assistant.py` | Optional OpenAI Responses structured-output adapter; imported only when explicitly configured |
 | `gui.py` / `main.py` | Older experimental folder-analysis GUI and launcher |
 
 ### Platform, fixtures, and experiments
@@ -126,6 +129,7 @@ create authoritative collection facts.
 | Photo Inbox | Review-driven | Yes | No; the GUI owns this workflow directly | No |
 | Canadian reference providers and aggregation | Yes | Providers may read local reference data; aggregation is not a collection store | Yes | No |
 | Confirmed observations | Evidence only | Yes | No; currently written by the collection GUI | No; it is a future evaluation foundation, not a learning pipeline |
+| Ask My Collection | Yes; deterministic tools are authoritative | Session display only; no chat store | Uses a read-only `CollectorWorkspace` collection snapshot | No; optional cloud provider |
 | OCR and template-matching experiment scripts | Yes | Generated outputs only | No | Yes |
 
 “Persistent” means the subsystem owns or participates in local saved state; it
@@ -237,6 +241,28 @@ Existing collection and workflow context
 engine instances. It keeps a reference to collection items rather than creating a
 second collection store.
 
+### Ask My Collection
+
+```text
+Standalone question
+  -> optional LanguageModelAdapter creates a structured query plan
+  -> local schema and allowlist validation (one bounded repair attempt)
+  -> ReadOnlyAssistantToolRegistry
+       |-- inventory queries over a CollectorWorkspace item snapshot
+       |-- existing CollectionIntelligenceEngine
+       `-- existing PortfolioPerformanceEngine
+  -> bounded, sanitized, deterministically ordered evidence
+  -> optional model explanation plus deterministic verified facts
+  -> session-only GUI response and expandable evidence
+```
+
+The planning call receives no collection records. The explanation call receives
+only allowlisted tool output with row and field limits. Raw `CoinItem` objects,
+notes, images, absolute paths, credentials, and local state files never enter the
+provider payload. Tk provider calls run on a worker that writes to a queue; Tk
+polls the queue on its own event loop. The assistant has no mutation or
+persistence tool. See [ADR-006: Grounded collection assistant](docs/adr/ADR-006-grounded-collection-assistant.md).
+
 ## Representative Public Surfaces
 
 The supported application surface is `CoinCollectionGUI`. Representative
@@ -273,6 +299,9 @@ already been removed:
   privacy, ownership, and migration policies.
 - Deterministic analysis may advise; uncertain or pixel-derived results require
   review before collection mutation.
+- Optional model adapters must degrade safely, keep credentials out of local
+  stores, and preserve deterministic tools as the authority for numeric and
+  collection-specific facts.
 
 ## Extension Points
 
@@ -310,6 +339,10 @@ supported recognition behavior as a side effect of experiment maintenance.
   serialization, persistence failure modes, and backward compatibility.
 - **Engine and integration tests** cover deterministic analysis, provider
   aggregation, orchestration, and cross-module contracts.
+- **Grounded-assistant tests** use fake adapters to cover plan/tool schemas,
+  evidence and privacy limits, exact engine agreement, prompt-injection data,
+  failure handling, evaluation metrics, and non-blocking GUI helpers without
+  network calls.
 - **Focused workflow tests** exercise import/export, collection mutation,
   acquisition, photo, reference, and observation paths with temporary data.
 - **Headless GUI/helper/layout tests** cover presentation helpers, delegated

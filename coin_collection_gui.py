@@ -8,6 +8,8 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
 import os
+import queue
+import threading
 import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
@@ -327,6 +329,7 @@ class CoinCollectionGUI:
         tools_menu.add_command(label="Platform Analytics", command=self.open_platform_analytics)
         tools_menu.add_command(label="Collection Insights", command=self.open_collection_insights)
         tools_menu.add_command(label="Acquisition Strategy", command=self.open_acquisition_strategy)
+        tools_menu.add_command(label="Ask My Collection", command=self.open_ask_my_collection)
         tools_menu.add_command(label="Collection Assistant", command=self.open_collection_assistant)
         tools_menu.add_command(label="Deal Hunter Ranking", command=self.open_deal_hunter_ranking)
         tools_menu.add_command(label="Deal Hunter Calibration", command=self.open_deal_hunter_calibration)
@@ -6428,6 +6431,227 @@ Total Unique Dates: {total_unique_dates}
         # Initialize acquisition strategy engine for export functions
         from acquisition_strategy import AcquisitionStrategyEngine
         engine = AcquisitionStrategyEngine()
+
+    @staticmethod
+    def ask_my_collection_response_text(response):
+        """Format a grounded response without recalculating backend facts."""
+        status = str(getattr(response, "status", "error") or "error").replace("_", " ").title()
+        answer = str(getattr(response, "answer_text", "") or "No answer was returned.")
+        if getattr(response, "truncated", False):
+            answer += "\n\nSome evidence was truncated at the configured result limit."
+        return f"{status}\n\n{answer}"
+
+    @staticmethod
+    def ask_my_collection_evidence_text(response):
+        """Format the read-only evidence and diagnostic metadata shown on demand."""
+        provider = str(getattr(response, "provider_name", "") or "Not available")
+        model = str(getattr(response, "model_name", "") or "Not available")
+        calls = getattr(response, "tool_calls_used", ()) or ()
+        call_text = ", ".join(str(getattr(call, "name", "")) for call in calls) or "None"
+        evidence = response.evidence_text() if hasattr(response, "evidence_text") else "No evidence details."
+        return "\n".join([
+            f"Provider: {provider}",
+            f"Model: {model}",
+            f"Tools used: {call_text}",
+            "",
+            evidence,
+        ])
+
+    @staticmethod
+    def run_ask_my_collection_request(assistant, question, result_queue, request_id):
+        """Run one standalone request without touching Tk from the worker thread."""
+        try:
+            response = assistant.ask(question)
+        except Exception as error:
+            from grounded_collection_assistant import GroundedAssistantResponse
+
+            response = GroundedAssistantResponse(
+                answer_text=(
+                    "The configured provider could not complete the request. "
+                    "No collection data was changed."
+                ),
+                status="error",
+                limitations=(f"Provider error type: {error.__class__.__name__}",),
+                provider_name=str(getattr(assistant.adapter, "provider_name", "") or ""),
+                model_name=str(getattr(assistant.adapter, "model_name", "") or ""),
+            )
+        result_queue.put((request_id, question, response))
+
+    def create_ask_my_collection_service(self):
+        """Build the optional read-only assistant from current in-memory collection state."""
+        from grounded_collection_assistant import (
+            GroundedCollectionAssistant,
+            ReadOnlyAssistantToolRegistry,
+        )
+        from openai_collection_assistant import OpenAIResponsesAdapter
+
+        adapter = OpenAIResponsesAdapter.from_environment()
+        workspace = CollectorWorkspace(
+            self._collection_items(),
+            want_list_intents=self._active_want_list_intents(),
+            photo_records=self.photo_records,
+            shopping_candidates=self.shopping_candidates,
+            market_awareness_engine=self.market_awareness_engine,
+        )
+        registry = ReadOnlyAssistantToolRegistry(
+            workspace,
+            want_list_intents=self._active_want_list_intents(),
+            portfolio_engine_options={
+                "market_awareness_engine": self.market_awareness_engine,
+                "snapshot_manager": self.snapshot_manager,
+                "shopping_candidates": self.shopping_candidates,
+                "photo_records": self.photo_records,
+            },
+        )
+        return GroundedCollectionAssistant(adapter, registry)
+
+    def open_ask_my_collection(self):
+        """Open the session-only, read-only Ask My Collection dialog."""
+        from openai_collection_assistant import OpenAIResponsesAdapter
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Ask My Collection")
+        dialog.geometry("900x720")
+
+        main_frame = ttk.Frame(dialog, padding="12")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        configured, provider_message = OpenAIResponsesAdapter.configuration_status()
+        provider_var = tk.StringVar(value=f"Provider status: {provider_message}")
+        ttk.Label(main_frame, textvariable=provider_var).pack(anchor=tk.W)
+        ttk.Label(
+            main_frame,
+            text=(
+                "Cloud privacy: each standalone question sends only the question and bounded, "
+                "allowlisted tool evidence. Images, paths, notes, credentials, and complete records "
+                "are never sent. Ask My Collection is read-only and does not save chat history."
+            ),
+            wraplength=850,
+        ).pack(anchor=tk.W, pady=(4, 10))
+
+        question_frame = ttk.LabelFrame(main_frame, text="Collection question", padding="8")
+        question_frame.pack(fill=tk.X, pady=(0, 8))
+        question_text = tk.Text(question_frame, height=3, wrap=tk.WORD)
+        question_text.pack(fill=tk.X)
+
+        status_var = tk.StringVar(value="Ready." if configured else provider_message)
+        ttk.Label(main_frame, textvariable=status_var).pack(anchor=tk.W, pady=(0, 6))
+
+        session_frame = ttk.LabelFrame(main_frame, text="Session (not saved)", padding="8")
+        session_frame.pack(fill=tk.BOTH, expand=True)
+        session_text = tk.Text(session_frame, wrap=tk.WORD, state=tk.DISABLED)
+        session_text.pack(fill=tk.BOTH, expand=True)
+
+        evidence_visible = tk.BooleanVar(value=False)
+        evidence_frame = ttk.LabelFrame(main_frame, text="Evidence and tools used", padding="8")
+        evidence_text = tk.Text(evidence_frame, height=9, wrap=tk.WORD, state=tk.DISABLED)
+        evidence_text.pack(fill=tk.BOTH, expand=True)
+
+        controls = ttk.Frame(main_frame)
+        controls.pack(fill=tk.X, pady=(8, 0))
+
+        result_queue = queue.Queue()
+        request_state = {"running": False, "request_id": 0}
+
+        def set_text(widget, value, *, append=False):
+            widget.config(state=tk.NORMAL)
+            if not append:
+                widget.delete("1.0", tk.END)
+            widget.insert(tk.END, value)
+            widget.see(tk.END)
+            widget.config(state=tk.DISABLED)
+
+        def toggle_evidence():
+            visible = not evidence_visible.get()
+            evidence_visible.set(visible)
+            if visible:
+                evidence_frame.pack(fill=tk.BOTH, pady=(8, 0), before=controls)
+                evidence_button.config(text="Hide Evidence")
+            else:
+                evidence_frame.pack_forget()
+                evidence_button.config(text="Show Evidence")
+
+        def submit():
+            if request_state["running"]:
+                return
+            question = question_text.get("1.0", tk.END).strip()
+            if not question:
+                status_var.set("Enter a standalone collection question.")
+                return
+            if not configured:
+                status_var.set(provider_message)
+                return
+            try:
+                request_assistant = self.create_ask_my_collection_service()
+            except Exception as error:
+                status_var.set(
+                    "Provider setup could not be completed "
+                    f"({error.__class__.__name__}). Review requirements-ai.txt and environment variables."
+                )
+                return
+            request_state["running"] = True
+            request_state["request_id"] += 1
+            request_id = request_state["request_id"]
+            status_var.set("Working…")
+            submit_button.config(state=tk.DISABLED)
+            cancel_button.config(state=tk.NORMAL)
+            set_text(session_text, f"You\n{question}\n\n", append=True)
+            question_text.delete("1.0", tk.END)
+            worker = threading.Thread(
+                target=self.run_ask_my_collection_request,
+                args=(request_assistant, question, result_queue, request_id),
+                daemon=True,
+            )
+            worker.start()
+
+        def cancel():
+            if not request_state["running"]:
+                return
+            request_state["request_id"] += 1
+            request_state["running"] = False
+            status_var.set("Cancelled. Any in-flight provider result will be ignored.")
+            submit_button.config(state=tk.NORMAL if configured else tk.DISABLED)
+            cancel_button.config(state=tk.DISABLED)
+
+        def clear_session():
+            set_text(session_text, "")
+            set_text(evidence_text, "No evidence details yet.")
+            status_var.set("Session display cleared. No history was persisted.")
+
+        def poll_results():
+            try:
+                while True:
+                    request_id, _question, response = result_queue.get_nowait()
+                    if request_id != request_state["request_id"]:
+                        continue
+                    request_state["running"] = False
+                    set_text(
+                        session_text,
+                        "Ask My Collection\n" + self.ask_my_collection_response_text(response) + "\n\n",
+                        append=True,
+                    )
+                    set_text(evidence_text, self.ask_my_collection_evidence_text(response))
+                    status_var.set(f"Completed: {str(response.status).replace('_', ' ')}")
+                    submit_button.config(state=tk.NORMAL if configured else tk.DISABLED)
+                    cancel_button.config(state=tk.DISABLED)
+            except queue.Empty:
+                pass
+            if dialog.winfo_exists():
+                dialog.after(50, poll_results)
+
+        submit_button = ttk.Button(controls, text="Submit", command=submit)
+        submit_button.pack(side=tk.LEFT, padx=(0, 6))
+        submit_button.config(state=tk.NORMAL if configured else tk.DISABLED)
+        cancel_button = ttk.Button(controls, text="Cancel", command=cancel, state=tk.DISABLED)
+        cancel_button.pack(side=tk.LEFT, padx=(0, 6))
+        evidence_button = ttk.Button(controls, text="Show Evidence", command=toggle_evidence)
+        evidence_button.pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(controls, text="Clear Session", command=clear_session).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(controls, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
+        set_text(evidence_text, "No evidence details yet.")
+        dialog.after(50, poll_results)
+        question_text.focus_set()
 
     def open_collection_assistant(self):
         """Open Collection Assistant dialog."""

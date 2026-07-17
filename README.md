@@ -59,6 +59,7 @@ The app is especially tuned for Adam-specific priorities:
 - Multi-Device Collector Workspace: offline workspace architecture for desktop, laptop, phone, and tablet use with device profiles, workspace snapshots, capability reports, activity summaries, health reports, scenario simulations, Tools -> Multi-Device Workspace, and CSV/Markdown export without real sync, accounts, cloud providers, or automatic conflict resolution.
 - Device Linking & Conflict Resolution: offline review layer for linked devices, relationship mapping, capability overlap, workspace link maps, conflict cases, LOW/MEDIUM/HIGH classification, MERGE/KEEP_PRIMARY/KEEP_SECONDARY/REVIEW_REQUIRED/REJECT recommendations, readiness reports, Tools -> Device Linking & Conflict Resolution, and CSV/Markdown export without automatic resolution.
 - Portfolio Analytics: explain collection growth, exact acquisition costs by currency, acquisition and legacy-estimate coverage, a clearly bounded comparable-CAD subset, series progress, health, risks, and focus areas using deterministic local data.
+- Ask My Collection: ask standalone natural-language inventory, collection-intelligence, and portfolio questions through an optional, read-only, tool-grounded cloud adapter with bounded evidence and visible limitations.
 - External Listing Connectors: normalize local eBay CSV, Auction CSV, Dealer Inventory CSV, and Generic CSV files into a common listing model with validation, source tracking, duplicate-opportunity detection, and multi-source ranking compatibility.
 - Opportunity Engine: answers "What should I buy next?" with deterministic local opportunity scoring, budget-aware recommendations, counterarguments, and CSV/Markdown export.
 - Collection Dashboard: actionable overview of collection size, priorities, WANT_LIST opportunities, upgrade opportunities, collection gaps, and series completion.
@@ -136,6 +137,18 @@ If the repository is already cloned, install dependencies from the project root:
 ```powershell
 py -m pip install -r requirements.txt
 ```
+
+Ask My Collection is optional. Core collection management does not require an
+API key or AI dependency. To enable its OpenAI adapter:
+
+```powershell
+py -m pip install -r requirements-ai.txt
+$env:OPENAI_API_KEY = "your-api-key"
+$env:COIN_ANALYZER_OPENAI_MODEL = "a-structured-output-capable-model"
+py coin_collection_gui.py
+```
+
+The credential is read from the environment and is not stored by Coin Analyzer.
 
 ## Running the Application
 
@@ -773,6 +786,27 @@ Portfolio Analytics builds on the existing Portfolio Performance engine and adds
 Acquisition `total_cost` is treated as the complete cost of its collection record or lot and is not multiplied by quantity. Legacy `estimate_cad` values remain approximate: only finite positive values count as usable, and comparison is limited to records with CAD acquisition cost and usable estimates. Market Awareness purchase records remain separate from item-owned acquisition data.
 
 Portfolio Analytics reuses the Collection Snapshot System, Collection Intelligence, Opportunity Engine, Market Intelligence context, Series Tracker, Collection Quality, Collection Integrity, Market Awareness, and local collection records. It does not convert currencies, scrape, call APIs, forecast markets, provide investment advice, purchase automatically, persist financial snapshots, or mutate collection data.
+
+## Ask My Collection
+
+Use Tools -> Ask My Collection for standalone natural-language questions backed
+by current local collection data. The MVP supports bounded inventory lookup,
+known gap and duplicate analysis, upgrade and priority explanations, acquisition
+coverage, currency-isolated costs, source/year breakdowns, and the comparable-CAD
+portfolio summary.
+
+The assistant is read-only. Existing deterministic engines calculate every
+collection and financial result. The model selects allowlisted tools and explains
+their returned evidence; verified tool summaries remain visible with evidence,
+limitations, provider status, and truncation state.
+
+Cloud requests are optional and explicitly configured. Planning sends the
+standalone question and tool schemas. Explanation sends the question and bounded,
+sanitized tool results. Coin Analyzer does not send complete records, notes,
+images, absolute paths, credentials, or local state files, and it does not save
+conversation history. Canadian References, Image Assessment, item-level
+appreciation ranking, editing, embeddings, currency conversion, and live market
+inference are outside this MVP.
 
 ## Watchlists & Alerts
 

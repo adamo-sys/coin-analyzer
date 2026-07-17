@@ -34,7 +34,7 @@ Recommended requirements:
 - Tkinter, which is included with most standard Python installations
 - Git, optional, for cloning the repository and tracking project updates
 
-Core Python dependencies are installed from `requirements.txt`. Optional OCR support may require additional setup beyond the base install, including OCR-related Python packages and, in some cases, a separate OCR engine.
+Core Python dependencies are installed from `requirements.txt`. Optional OCR support may require additional setup beyond the base install, including OCR-related Python packages and, in some cases, a separate OCR engine. Ask My Collection also has an optional cloud dependency and requires explicit environment configuration; the rest of the application remains usable without it.
 
 ## 3. Installation
 
@@ -66,6 +66,17 @@ pip install -r requirements-ocr.txt
 ```
 
 OCR features should still be treated as review aids. Always confirm any OCR result before using it in collection records.
+
+To enable the optional Ask My Collection OpenAI adapter:
+
+```powershell
+pip install -r requirements-ai.txt
+$env:OPENAI_API_KEY = "your-api-key"
+$env:COIN_ANALYZER_OPENAI_MODEL = "a-structured-output-capable-model"
+```
+
+Start the application from that configured terminal. Coin Analyzer never writes
+the API key to collection data or application settings.
 
 ## 4. Starting Coin Analyzer
 
@@ -171,6 +182,7 @@ Important files and folders:
 - `backups/`: storage for backup packages and other backup records.
 - `requirements.txt`: core Python dependencies.
 - `requirements-ocr.txt`: optional OCR-related dependencies.
+- `requirements-ai.txt`: optional Ask My Collection provider dependency.
 
 Recommended first-time steps:
 
@@ -236,6 +248,22 @@ Purpose: Provide advisory grading-related support from available information.
 Typical use: Use it as a second-pass review aid when thinking about condition, photos, or grading notes.
 
 Expected output: Guidance that should be manually reviewed. It does not replace a professional grading service.
+
+### Ask My Collection
+
+Purpose: Ask standalone natural-language questions grounded in inventory,
+collection-intelligence, and portfolio evidence.
+
+Typical use: Open Tools -> Ask My Collection, submit one self-contained question,
+and expand Evidence and Tools Used to review the deterministic sources,
+limitations, and truncation status.
+
+Expected output: A read-only explanation with verified tool facts. The visible
+session is not saved or used as hidden conversational context. Cloud planning
+sends only the question and tool schemas; explanation sends the question and
+bounded sanitized tool results. Complete records, notes, images, paths,
+credentials, and local state files are excluded. The assistant cannot edit
+records, infer market prices, convert currencies, or provide general chat.
 
 ### Connected Data
 

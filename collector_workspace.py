@@ -741,6 +741,10 @@ class CollectorWorkspace:
         """Clear all caches. Next panel query will re-query engines."""
         self._cache.clear()
 
+    def collection_items_snapshot(self) -> tuple:
+        """Return a read-only snapshot for bounded service integrations."""
+        return tuple(self._collection_items)
+
     def get_lifecycle(self) -> LifecycleInfo:
         """Return a diagnostic snapshot of workspace state. No engine calls, no mutations."""
         return LifecycleInfo(
