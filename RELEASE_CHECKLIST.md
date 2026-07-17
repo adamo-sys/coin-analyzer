@@ -163,8 +163,10 @@ Create annotated tag.
 Example:
 
 ```
-git tag -a v8.0 -m "Release v8.0"
+git tag -a <version> -m "Release <version>"
 ```
+
+Replace `<version>` with the intended release tag, such as `v1.0.0`.
 
 Never use lightweight tags.
 
@@ -181,7 +183,7 @@ git push origin main
 Push tag.
 
 ```
-git push origin v8.0
+git push origin <version>
 ```
 
 ---
@@ -192,8 +194,8 @@ Verify:
 
 ```
 git ls-remote origin refs/heads/main
-git ls-remote origin refs/tags/v8.0
-git ls-remote origin "refs/tags/v8.0^{}"
+git ls-remote origin refs/tags/<version>
+git ls-remote origin "refs/tags/<version>^{}"
 ```
 
 Confirm:

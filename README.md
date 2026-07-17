@@ -165,11 +165,19 @@ CI currently verifies Python 3.12. The optional live-provider acceptance test al
 git clone https://github.com/adamo-sys/coin-analyzer.git
 cd coin-analyzer
 
+# Preferred when the Windows Python launcher is available:
 py -3.12 -m venv .venv
+
+# Fallback when `py` is unavailable:
+python -m venv .venv
+
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe coin_collection_gui.py
 ```
+
+Use one virtual-environment command, not both. Whichever `py` or `python`
+executable you select must report Python 3.12 or newer.
 
 After dependencies are installed, `Launch_Coin_Analyzer.bat` is also available as a Windows launcher.
 

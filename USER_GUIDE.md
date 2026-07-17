@@ -30,7 +30,7 @@ Coin Analyzer is currently built as a local Python desktop application.
 Recommended requirements:
 
 - Windows
-- Python 3.8 or newer
+- Python 3.12 or newer
 - Tkinter, which is included with most standard Python installations
 - Git, optional, for cloning the repository and tracking project updates
 
@@ -47,22 +47,31 @@ cd coin-analyzer
 
 If you downloaded the project as a ZIP file, extract it and open the extracted project folder instead.
 
-Install the required Python packages from the project folder:
+Create a virtual environment from the project folder with either the Windows
+Python launcher or the `python` executable. The selected executable must be
+Python 3.12 or newer:
 
 ```powershell
-pip install -r requirements.txt
+py -3.12 -m venv .venv
 ```
 
-On some Windows systems, the Python launcher is more reliable:
+If the `py` launcher is unavailable, use:
 
 ```powershell
-py -m pip install -r requirements.txt
+python -m venv .venv
+```
+
+Install the required Python packages into that environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 Optional OCR-related dependencies may be installed separately if you plan to use OCR experiments or OCR-assisted review:
 
 ```powershell
-pip install -r requirements-ocr.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-ocr.txt
 ```
 
 OCR features should still be treated as review aids. Always confirm any OCR result before using it in collection records.
@@ -70,7 +79,7 @@ OCR features should still be treated as review aids. Always confirm any OCR resu
 To enable the optional Ask My Collection OpenAI adapter:
 
 ```powershell
-pip install -r requirements-ai.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-ai.txt
 $env:OPENAI_API_KEY = "your-api-key"
 $env:COIN_ANALYZER_OPENAI_MODEL = "a-structured-output-capable-model"
 ```

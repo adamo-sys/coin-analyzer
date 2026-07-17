@@ -58,12 +58,12 @@ The following are Python standard library modules and are NOT included in requir
 - csv, json, os, sys, re, datetime, typing, dataclasses (standard library)
 - urllib, xml, tempfile, shutil, pathlib, math, random, time, uuid, hashlib, base64, copy, itertools, functools, warnings, logging, decimal, fractions, statistics, inspect, textwrap, io, enum, abc, threading, multiprocessing, queue, concurrent, subprocess, signal, select, socket, ssl, http, email, mimetypes, html, xml, pickle, shelve, sqlite3, hmac, secrets, zoneinfo, calendar
 
-## Verification Test Results (July 2, 2026)
+## Historical Verification Snapshot (July 2, 2026)
 
 **Fresh Environment Test:**
 - Created fresh virtual environment
 - Installed only from requirements.txt
-- Ran full test suite: **1261 tests passed in 12.952s**
+- Historical full-suite result: **1,261 tests passed in 12.952s**
 - **Result: OK - No missing dependencies**
 
 **Transitive dependencies automatically installed:**
@@ -72,7 +72,7 @@ The following are Python standard library modules and are NOT included in requir
 - tzdata (required by pandas)
 - et-xmlfile (required by openpyxl)
 
-**Conclusion:** requirements.txt is complete and accurate. All 1261 tests pass with only the core dependencies installed.
+**Snapshot conclusion:** requirements.txt was complete for that revision, where all 1,261 tests passed with only the core dependencies installed. See `README.md` for the current verified test total.
 
 ## Development Tools
 

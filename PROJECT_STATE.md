@@ -136,7 +136,7 @@ Last updated: 2026-07-13 after v8.8.0 release and v8.9 discovery transition.
 * Manual entry support: allows manually entered collection items and basic autocomplete suggestions from Numista-backed data.
 * Experimental image detection: CV/OCR-based identification exists but is suggestion-only and not treated as truth.
 * Test infrastructure: root-level `unittest` discovery, isolated `test_data` fixtures, `run_tests.bat`, `TESTING.md`, and GitHub Actions workflow.
-* Infrastructure milestone (v8.5): production-quality dependency management with requirements.txt (core), requirements-dev.txt (development tools), requirements-ocr.txt (optional OCR), requirements-gui.txt (GUI), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, clean-install verification (1261 tests pass), and GitHub Actions CI workflow testing against Python 3.11, 3.12, and 3.14.
+* Infrastructure milestone (v8.5): production-quality dependency management with requirements.txt (core), requirements-dev.txt (development tools), requirements-ocr.txt (optional OCR), requirements-gui.txt (GUI), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, and a historical clean-install verification where 1,261 tests passed. The current GitHub Actions CI workflow runs Python 3.12 only.
 * Task queue: `TASK_QUEUE.md` tracks prioritized work, status, and changelog entries.
 * Collection Intelligence Engine: reusable analysis for country, denomination, series, missing years, completion percentages, duplicates, upgrade candidates, and acquisition priorities.
 * Focused Collection Intelligence Engine: deterministic manual candidate evaluation that classifies owned matches, upgrades, duplicates, want-list matches, collection gaps, unrelated items, and review-needed cases without modifying collection data.
@@ -369,7 +369,7 @@ Current archive status:
 
 ## Development Notes
 
-* Python 3.8+ is expected.
+* Python 3.12 or newer is expected.
 * Runtime dependencies are pinned in `requirements.txt`: `pytesseract`, `Pillow`, `opencv-python`, `pandas`, and `openpyxl`.
 * Tests must not mutate `data/collection.json`; copy fixtures from `test_data/` into temporary directories instead.
 * Keep app data as UTF-8 JSON.
