@@ -250,4 +250,4 @@ Start with the [Engineering Playbook](docs/ENGINEERING_PLAYBOOK.md) and use the 
 
 ## License
 
-A license will be selected and added before the first public semantic release. Until then, the repository does not grant an open-source license.
+Licensed under the [Apache License 2.0](LICENSE).
