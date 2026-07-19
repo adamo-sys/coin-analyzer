@@ -374,11 +374,18 @@ class SmartPhoneCataloguer:
 
         Returns a mapping of session_id -> OCRIdentificationReport.
         """
-        results = {}
-        for session in self.workflow.sessions:
-            if session.ready_for_ocr:
-                results[session.session_id] = self.identify_session(session, raw_text_by_photo_id)
-        return results
+        ready_sessions = [
+            session for session in self.workflow.sessions if session.ready_for_ocr
+        ]
+        session_ids = [session.session_id for session in ready_sessions]
+        if len(session_ids) != len(set(session_ids)):
+            raise ValueError("Duplicate photo capture session identifier.")
+        return {
+            session.session_id: self.identify_session(
+                session, raw_text_by_photo_id
+            )
+            for session in ready_sessions
+        }
 
     def catalogue_and_identify(self, subject: str, front_path: str = "", back_path: str = "",
                                 location: str = "", notes: str = "",

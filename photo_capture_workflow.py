@@ -10,7 +10,8 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
+from uuid import UUID, uuid4
 
 from photo_vault import PhotoRecord
 
@@ -417,8 +418,19 @@ class PhotoCaptureReport:
 class PhotoCaptureWorkflow:
     """Create and summarize field photo capture sessions."""
 
-    def __init__(self, sessions: Optional[Iterable[PhotoCaptureSession]] = None):
+    def __init__(
+        self,
+        sessions: Optional[Iterable[PhotoCaptureSession]] = None,
+        *,
+        now_fn: Optional[Callable[[], datetime]] = None,
+        uuid_factory: Optional[Callable[[], UUID]] = None,
+    ):
         self.sessions = [session if isinstance(session, PhotoCaptureSession) else PhotoCaptureSession(**session) for session in (sessions or [])]
+        session_ids = [session.session_id for session in self.sessions]
+        if len(session_ids) != len(set(session_ids)):
+            raise ValueError("Duplicate photo capture session identifier.")
+        self._now_fn = now_fn or datetime.now
+        self._uuid_factory = uuid_factory or uuid4
 
     def start_session(
         self,
@@ -428,7 +440,18 @@ class PhotoCaptureWorkflow:
         notes: str = "",
     ) -> PhotoCaptureSession:
         slug = _normalize_choice(session_type, [SESSION_COIN_FRONT_BACK, SESSION_NOTE_FRONT_BACK, SESSION_LISTING_PHOTOS], SESSION_COIN_FRONT_BACK)
-        session_id = f"photo-capture-{slug.lower().replace('/', '-').replace(' ', '-')}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        timestamp = self._now_fn()
+        unique_value = self._uuid_factory()
+        if not isinstance(timestamp, datetime):
+            raise TypeError("now_fn must return a datetime")
+        if not isinstance(unique_value, UUID):
+            raise TypeError("uuid_factory must return a UUID")
+        session_id = (
+            f"photo-capture-{slug.lower().replace('/', '-').replace(' ', '-')}"
+            f"-{timestamp.strftime('%Y%m%d%H%M%S%f')}-{unique_value.hex}"
+        )
+        if any(existing.session_id == session_id for existing in self.sessions):
+            raise ValueError("Generated session identifier already exists.")
         session = PhotoCaptureSession(session_id=session_id, session_type=slug, subject=subject, location=location, notes=notes)
         self.sessions.append(session)
         return session

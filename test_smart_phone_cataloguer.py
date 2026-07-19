@@ -4,6 +4,8 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 import tempfile
 import os
+from datetime import datetime
+from uuid import UUID
 
 from smart_phone_cataloguer import (
     SmartPhoneCataloguer,
@@ -362,6 +364,46 @@ class TestOCRIntegration(unittest.TestCase):
         for session_id, report in results.items():
             self.assertIsInstance(session_id, str)
             self.assertIsInstance(report, OCRIdentificationReport)
+
+    def test_batch_identify_preserves_sessions_created_at_identical_time(self):
+        fixed_time = datetime(2026, 7, 19, 10, 30, 45, 123456)
+        values = iter((UUID(int=1), UUID(int=2)))
+        cataloguer = SmartPhoneCataloguer(
+            PhotoCaptureWorkflow(
+                now_fn=lambda: fixed_time,
+                uuid_factory=lambda: next(values),
+            )
+        )
+        cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
+        for session in cataloguer.workflow.sessions:
+            session.mark_ready_for_ocr()
+
+        results = cataloguer.batch_identify()
+
+        self.assertEqual(len(cataloguer.workflow.sessions), 2)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(
+            set(results),
+            {session.session_id for session in cataloguer.workflow.sessions},
+        )
+
+    def test_batch_identify_rejects_duplicate_ids_before_processing(self):
+        cataloguer = SmartPhoneCataloguer()
+        cataloguer.catalog_coin("Coin 1", "/tmp/f1.jpg", "/tmp/b1.jpg")
+        cataloguer.catalog_coin("Coin 2", "/tmp/f2.jpg", "/tmp/b2.jpg")
+        first, second = cataloguer.workflow.sessions
+        second.session_id = first.session_id
+        for session in cataloguer.workflow.sessions:
+            session.mark_ready_for_ocr()
+
+        with patch.object(cataloguer, "identify_session") as identify:
+            with self.assertRaisesRegex(
+                ValueError, "Duplicate photo capture session identifier"
+            ):
+                cataloguer.batch_identify()
+
+        identify.assert_not_called()
 
     def test_batch_identify_skips_incomplete_sessions(self):
         """Verify batch_identify only processes sessions ready for OCR."""

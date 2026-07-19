@@ -1,6 +1,8 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime
+from uuid import UUID
 
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
@@ -18,12 +20,71 @@ from photo_capture_workflow import (
     STATUS_NEEDS_BACK,
     STATUS_READY_FOR_OCR,
     PhotoCaptureReport,
+    PhotoCaptureSession,
     PhotoCaptureWorkflow,
 )
 from photo_vault import PhotoRecord
 
 
 class TestPhotoCaptureWorkflow(unittest.TestCase):
+    def test_session_ids_remain_distinct_when_timestamps_match(self):
+        fixed_time = datetime(2026, 7, 19, 10, 30, 45, 123456)
+        values = iter((UUID(int=1), UUID(int=2)))
+        workflow = PhotoCaptureWorkflow(
+            now_fn=lambda: fixed_time,
+            uuid_factory=lambda: next(values),
+        )
+
+        first = workflow.start_session(subject="Coin 1")
+        second = workflow.start_session(subject="Coin 2")
+
+        self.assertNotEqual(first.session_id, second.session_id)
+        self.assertIn("20260719103045123456", first.session_id)
+        self.assertTrue(first.session_id.endswith(UUID(int=1).hex))
+        self.assertTrue(second.session_id.endswith(UUID(int=2).hex))
+
+    def test_injected_duplicate_session_id_fails_explicitly(self):
+        fixed_time = datetime(2026, 7, 19, 10, 30, 45, 123456)
+        workflow = PhotoCaptureWorkflow(
+            now_fn=lambda: fixed_time,
+            uuid_factory=lambda: UUID(int=1),
+        )
+        workflow.start_session(subject="Coin 1")
+
+        with self.assertRaisesRegex(
+            ValueError, "Generated session identifier already exists"
+        ):
+            workflow.start_session(subject="Coin 2")
+
+        self.assertEqual(len(workflow.sessions), 1)
+
+    def test_duplicate_session_ids_are_rejected_during_initialization(self):
+        sessions = (
+            PhotoCaptureSession(session_id="duplicate"),
+            PhotoCaptureSession(session_id="duplicate"),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "Duplicate photo capture session identifier"
+        ):
+            PhotoCaptureWorkflow(sessions)
+
+    def test_injected_session_ids_are_deterministic_across_runs(self):
+        fixed_time = datetime(2026, 7, 19, 10, 30, 45, 123456)
+
+        def generated_ids():
+            values = iter((UUID(int=1), UUID(int=2)))
+            workflow = PhotoCaptureWorkflow(
+                now_fn=lambda: fixed_time,
+                uuid_factory=lambda: next(values),
+            )
+            return tuple(
+                workflow.start_session(subject=f"Coin {number}").session_id
+                for number in (1, 2)
+            )
+
+        self.assertEqual(generated_ids(), generated_ids())
+
     def test_photo_capture_session_creation(self):
         workflow = PhotoCaptureWorkflow()
 
