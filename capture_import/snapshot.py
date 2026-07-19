@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import os
@@ -10,7 +11,7 @@ from pathlib import Path
 import secrets
 import socket
 import stat
-from typing import Any, BinaryIO, Callable, Mapping
+from typing import Any, BinaryIO, Callable, Iterator, Mapping
 
 from ._advisory import acquire_advisory_lock, release_advisory_lock
 from ._filesystem import (
@@ -44,6 +45,7 @@ from .models import (
 
 Clock = Callable[[], str]
 TokenFactory = Callable[[], str]
+FileIdentity = tuple[int, int]
 DEFAULT_COPY_CHUNK_SIZE = 1024 * 1024
 OWNER_FILENAME = "snapshot-owner.json"
 LEASE_FILENAME = "snapshot.lease"
@@ -185,11 +187,17 @@ class SnapshotHandle:
         descriptor: SnapshotDescriptor,
         owner: SnapshotOwner,
         lease_handle: BinaryIO,
+        root_identity: FileIdentity,
+        directory_identity: FileIdentity,
+        owner_identity: FileIdentity,
     ) -> None:
         self._service = service
         self.descriptor = descriptor
         self.owner = owner
         self._lease_handle = lease_handle
+        self._root_identity = root_identity
+        self._directory_identity = directory_identity
+        self._owner_identity = owner_identity
         self._cleaned = False
 
     @property
@@ -198,6 +206,13 @@ class SnapshotHandle:
 
     def validate(self) -> None:
         self._service.validate_snapshot(self)
+
+    @contextmanager
+    def open_package(self) -> Iterator[BinaryIO]:
+        """Open the protected package through an identity-checked read lease."""
+
+        with self._service.open_snapshot(self) as package:
+            yield package
 
     def cleanup(self) -> None:
         self._service.cleanup_snapshot(self)
@@ -303,7 +318,20 @@ class CapturePackageSnapshotService:
                 byte_length=byte_length,
             )
             descriptor.validate()
-            return SnapshotHandle(self, descriptor, owner, lease_handle)
+            root_identity = self._path_identity(self._root.lstat())
+            directory_identity = self._path_identity(directory.lstat())
+            owner_identity = self._path_identity(
+                require_plain_regular_file(owner_path)
+            )
+            return SnapshotHandle(
+                self,
+                descriptor,
+                owner,
+                lease_handle,
+                root_identity,
+                directory_identity,
+                owner_identity,
+            )
         except (PackageChanged, PackageTooLarge):
             if directory_created:
                 self._cleanup_failed_create(directory, lease_handle)
@@ -324,9 +352,9 @@ class CapturePackageSnapshotService:
     def validate_snapshot(self, handle: SnapshotHandle) -> None:
         """Rehash the accepted snapshot and reject any integrity change."""
 
-        self._require_owned_handle(handle)
-        package_path = self._path_for(handle.descriptor)
         try:
+            self._verify_snapshot_binding(handle)
+            package_path = self._path_for(handle.descriptor)
             before = require_plain_regular_file(package_path)
             if (
                 before.st_size != handle.descriptor.byte_length
@@ -349,7 +377,7 @@ class CapturePackageSnapshotService:
                     digest.update(chunk)
                 after_handle = os.fstat(package.fileno())
             after = require_plain_regular_file(package_path)
-        except OSError as error:
+        except (OSError, SnapshotRecoveryRequired) as error:
             raise PackageChanged(error) from error
         stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
         if any(
@@ -363,6 +391,56 @@ class CapturePackageSnapshotService:
             or byte_length != handle.descriptor.byte_length
         ):
             raise PackageChanged()
+
+    @contextmanager
+    def open_snapshot(self, handle: SnapshotHandle) -> Iterator[BinaryIO]:
+        """Yield the exact accepted snapshot and verify it before and after use."""
+
+        self.validate_snapshot(handle)
+        package: BinaryIO | None = None
+        try:
+            package_path = self._path_for(handle.descriptor)
+            before = require_plain_regular_file(package_path)
+            package = package_path.open("rb")
+            opened = os.fstat(package.fileno())
+            if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                package.close()
+                raise PackageChanged()
+            self._verify_snapshot_binding(handle)
+            if not handle_matches_path(package, package_path):
+                package.close()
+                raise PackageChanged()
+        except (OSError, SnapshotRecoveryRequired) as error:
+            if package is not None and not package.closed:
+                package.close()
+            raise PackageChanged(error) from error
+        integrity_error: PackageChanged | None = None
+        try:
+            yield package
+        finally:
+            try:
+                after_handle = os.fstat(package.fileno())
+                stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
+                if any(
+                    getattr(opened, field) != getattr(after_handle, field)
+                    for field in stable_fields
+                ):
+                    integrity_error = PackageChanged()
+                self._verify_snapshot_binding(handle)
+                if not handle_matches_path(package, package_path):
+                    integrity_error = PackageChanged()
+            except OSError as error:
+                integrity_error = PackageChanged(error)
+            except SnapshotRecoveryRequired as error:
+                integrity_error = PackageChanged(error)
+            finally:
+                package.close()
+            try:
+                self.validate_snapshot(handle)
+            except PackageChanged as error:
+                integrity_error = error
+            if integrity_error is not None:
+                raise integrity_error
 
     def cleanup_snapshot(self, handle: SnapshotHandle) -> None:
         """Idempotently remove only the exact snapshot owned by ``handle``."""
@@ -410,6 +488,35 @@ class CapturePackageSnapshotService:
         handle.descriptor.validate()
         handle.owner.validate()
 
+    def _verify_snapshot_binding(self, handle: SnapshotHandle) -> None:
+        """Rebind a live handle to its root, directory, lease, and owner objects."""
+
+        self._require_owned_handle(handle)
+        directory = self._root / handle.descriptor.snapshot_token
+        owner_path = directory / OWNER_FILENAME
+        lease_path = directory / LEASE_FILENAME
+        try:
+            require_plain_directory(self._root)
+            require_plain_directory(directory)
+            if directory.parent != self._root:
+                raise SnapshotRecoveryRequired()
+            if self._path_identity(self._root.lstat()) != handle._root_identity:
+                raise SnapshotRecoveryRequired()
+            if self._path_identity(directory.lstat()) != handle._directory_identity:
+                raise SnapshotRecoveryRequired()
+            self._verify_snapshot_children(directory, require_complete=True)
+            if not handle_matches_path(handle._lease_handle, lease_path):
+                raise SnapshotRecoveryRequired()
+            owner, owner_identity = self._read_owner_with_identity(owner_path)
+            if owner_identity != handle._owner_identity or owner != handle.owner:
+                raise SnapshotRecoveryRequired()
+            if owner.snapshot_token != handle.descriptor.snapshot_token:
+                raise SnapshotRecoveryRequired()
+        except SnapshotRecoveryRequired:
+            raise
+        except (OSError, ValueError) as error:
+            raise SnapshotRecoveryRequired(error) from error
+
     def _path_for(self, descriptor: SnapshotDescriptor) -> Path:
         return self._snapshot_directory(descriptor) / PACKAGE_FILENAME
 
@@ -428,12 +535,36 @@ class CapturePackageSnapshotService:
         return directory
 
     def _read_owner(self, path: Path) -> SnapshotOwner:
-        require_plain_regular_file(path)
-        with path.open("rb") as handle:
-            raw = handle.read(MAX_JSON_BYTES + 1)
-        return SnapshotOwner.from_dict(
-            parse_bounded_json_object(raw, "snapshot owner metadata")
+        owner, _ = self._read_owner_with_identity(path)
+        return owner
+
+    def _read_owner_with_identity(
+        self, path: Path
+    ) -> tuple[SnapshotOwner, FileIdentity]:
+        before = require_plain_regular_file(path)
+        with path.open("rb") as owner_handle:
+            opened = os.fstat(owner_handle.fileno())
+            if self._path_identity(opened) != self._path_identity(before):
+                raise OSError("Snapshot owner identity changed while opening.")
+            raw = owner_handle.read(MAX_JSON_BYTES + 1)
+            after_handle = os.fstat(owner_handle.fileno())
+        after = require_plain_regular_file(path)
+        identity = self._path_identity(opened)
+        if (
+            self._path_identity(after_handle) != identity
+            or self._path_identity(after) != identity
+        ):
+            raise OSError("Snapshot owner identity changed while reading.")
+        return (
+            SnapshotOwner.from_dict(
+                parse_bounded_json_object(raw, "snapshot owner metadata")
+            ),
+            identity,
         )
+
+    @staticmethod
+    def _path_identity(info: os.stat_result) -> FileIdentity:
+        return (info.st_dev, info.st_ino)
 
     def _open_exclusive(self, path: Path) -> BinaryIO:
         return open_exclusive_binary(path)

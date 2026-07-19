@@ -7,9 +7,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import tempfile
 import unittest
+from unittest import mock
 
 from capture_import.errors import (
     PackageChanged,
@@ -249,6 +251,274 @@ class CapturePackageSnapshotServiceTests(unittest.TestCase):
             lease_path.unlink()
             os.replace(moved, lease_path)
             handle.cleanup()
+
+    def test_open_snapshot_rejects_replacement_owner_with_equal_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            owner_path = root / TOKEN / OWNER_FILENAME
+            moved = root / TOKEN / "original-owner.json"
+            original = owner_path.read_bytes()
+            os.replace(owner_path, moved)
+            owner_path.write_bytes(original)
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package():
+                        self.fail("A replacement owner must be rejected before yield.")
+            finally:
+                owner_path.unlink()
+                os.replace(moved, owner_path)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits replacing an open lease pathname")
+    def test_open_snapshot_rejects_lease_replacement_at_close(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            lease_path = root / TOKEN / LEASE_FILENAME
+            moved = root / TOKEN / "original.lease"
+            package_handle = None
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package() as package_handle:
+                        os.replace(lease_path, moved)
+                        lease_path.write_bytes(b"replacement")
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+            finally:
+                if lease_path.exists():
+                    lease_path.unlink()
+                if moved.exists():
+                    os.replace(moved, lease_path)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits renaming a leased directory")
+    def test_open_snapshot_rejects_token_directory_replacement_at_close(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            directory = root / TOKEN
+            moved = root / f"{TOKEN}-original"
+            replacement_created = False
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package():
+                        os.replace(directory, moved)
+                        directory.mkdir()
+                        replacement_created = True
+                        for name in (OWNER_FILENAME, LEASE_FILENAME, PACKAGE_FILENAME):
+                            shutil.copyfile(moved / name, directory / name)
+            finally:
+                if replacement_created and directory.exists():
+                    shutil.rmtree(directory)
+                if moved.exists():
+                    os.replace(moved, directory)
+                handle.cleanup()
+
+    def test_open_snapshot_preserves_body_exception_and_closes_handle(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            package_handle = None
+            try:
+                with self.assertRaisesRegex(RuntimeError, "body failure"):
+                    with handle.open_package() as package_handle:
+                        raise RuntimeError("body failure")
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+            finally:
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits concurrent package mutation")
+    def test_open_snapshot_detects_package_mutation_during_lease(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            package_path = root / TOKEN / PACKAGE_FILENAME
+            package_handle = None
+            try:
+                package_path.chmod(stat.S_IWRITE | stat.S_IREAD)
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package() as package_handle:
+                        package_path.write_bytes(PACKAGE_BYTES + b"changed")
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+            finally:
+                package_path.write_bytes(PACKAGE_BYTES)
+                handle.cleanup()
+
+    def test_open_snapshot_closes_package_when_post_open_binding_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            snapshot_service = service(root)
+            handle = snapshot_service.create_snapshot(source, PACKAGE_SHA)
+            package_path = root / TOKEN / PACKAGE_FILENAME
+            moved = root / TOKEN / "moved-package.ca-package"
+            try:
+                with mock.patch.object(
+                    snapshot_service,
+                    "_verify_snapshot_binding",
+                    side_effect=[None, SnapshotRecoveryRequired()],
+                ):
+                    with self.assertRaises(PackageChanged):
+                        with handle.open_package():
+                            self.fail("Binding failure must occur before yield.")
+                os.replace(package_path, moved)
+                os.replace(moved, package_path)
+            finally:
+                if moved.exists() and not package_path.exists():
+                    os.replace(moved, package_path)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits replacing an open package pathname")
+    def test_open_snapshot_rejects_exact_byte_package_path_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            package_path = root / TOKEN / PACKAGE_FILENAME
+            moved = base / "original-package.ca-package"
+            package_handle = None
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package() as package_handle:
+                        os.replace(package_path, moved)
+                        package_path.write_bytes(PACKAGE_BYTES)
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+                self.assertEqual(package_path.read_bytes(), PACKAGE_BYTES)
+            finally:
+                if package_path.exists():
+                    package_path.unlink()
+                if moved.exists():
+                    os.replace(moved, package_path)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits renaming a live snapshot root")
+    def test_open_snapshot_rejects_snapshot_root_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            moved = base / "snapshots-original"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            package_handle = None
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package() as package_handle:
+                        os.replace(root, moved)
+                        shutil.copytree(moved, root)
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+                self.assertTrue((root / TOKEN / PACKAGE_FILENAME).is_file())
+            finally:
+                if root.exists():
+                    shutil.rmtree(root)
+                if moved.exists():
+                    os.replace(moved, root)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX permits renaming a snapshot parent")
+    def test_open_snapshot_rejects_parent_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            parent = base / "imports"
+            root = parent / "snapshots"
+            moved = base / "imports-original"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            package_handle = None
+            try:
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package() as package_handle:
+                        os.replace(parent, moved)
+                        shutil.copytree(moved, parent)
+                self.assertIsNotNone(package_handle)
+                self.assertTrue(package_handle.closed)
+                self.assertTrue((root / TOKEN / PACKAGE_FILENAME).is_file())
+            finally:
+                if parent.exists():
+                    shutil.rmtree(parent)
+                if moved.exists():
+                    os.replace(moved, parent)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX symlink swap coverage")
+    def test_open_snapshot_rejects_owner_symlink_swap_without_deleting_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            owner_path = root / TOKEN / OWNER_FILENAME
+            moved = base / "original-owner.json"
+            try:
+                os.replace(owner_path, moved)
+                owner_path.symlink_to(moved)
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package():
+                        self.fail("A symlink replacement must fail before yield.")
+                self.assertTrue(owner_path.is_symlink())
+                self.assertEqual(moved.read_bytes(), owner_path.read_bytes())
+            finally:
+                if owner_path.is_symlink():
+                    owner_path.unlink()
+                if moved.exists():
+                    os.replace(moved, owner_path)
+                handle.cleanup()
+
+    @unittest.skipUnless(os.name != "nt", "POSIX hard-link swap coverage")
+    def test_open_snapshot_rejects_owner_hard_link_swap_without_deleting_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            source = base / "source.ca-package"
+            source.write_bytes(PACKAGE_BYTES)
+            root = base / "snapshots"
+            handle = service(root).create_snapshot(source, PACKAGE_SHA)
+            owner_path = root / TOKEN / OWNER_FILENAME
+            moved = base / "original-owner.json"
+            replacement_source = base / "replacement-owner.json"
+            owner_bytes = owner_path.read_bytes()
+            try:
+                os.replace(owner_path, moved)
+                replacement_source.write_bytes(owner_bytes)
+                os.link(replacement_source, owner_path)
+                with self.assertRaises(PackageChanged):
+                    with handle.open_package():
+                        self.fail("A hard-link replacement must fail before yield.")
+                self.assertEqual(owner_path.read_bytes(), owner_bytes)
+                self.assertTrue(owner_path.exists())
+            finally:
+                if owner_path.exists():
+                    owner_path.unlink()
+                if replacement_source.exists():
+                    replacement_source.unlink()
+                if moved.exists():
+                    os.replace(moved, owner_path)
+                handle.cleanup()
 
     def test_unsafe_ancestor_is_rejected_before_any_child_is_created(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

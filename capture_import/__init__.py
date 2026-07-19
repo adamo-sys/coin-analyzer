@@ -1,6 +1,7 @@
 """Pure domain contracts for Coin Analyzer capture-package imports."""
 
 from .audit import AuditCoin, AuditSession, deserialize, serialize
+from .archive import ArchiveEntry, CapturePackageArchiveReader, ValidatedArchiveIndex
 from .baseline import (
     capture_collection_baseline,
     collection_matches_baseline,
@@ -17,6 +18,8 @@ from .enums import (
 )
 from .journal import JournalEntry
 from .lock import LockMetadata, PackageImportLock
+from .manifest import CapturePackageManifestParser
+from .media import CapturePackageMediaValidator, ValidatedMedia
 from .models import (
     CollectionBaseline,
     ImportDecision,
@@ -33,11 +36,18 @@ from .snapshot import (
     SnapshotHandle,
     SnapshotOwner,
 )
+from .package import CapturePackageValidator, ValidatedCapturePackage
+from .validation_limits import ValidationLimits
 
 __all__ = [
     "AuditCoin",
     "AuditSession",
+    "ArchiveEntry",
+    "CapturePackageArchiveReader",
+    "CapturePackageManifestParser",
+    "CapturePackageMediaValidator",
     "CapturePackageSnapshotService",
+    "CapturePackageValidator",
     "CollectionBaseline",
     "Composition",
     "DuplicateDecision",
@@ -59,6 +69,10 @@ __all__ = [
     "SnapshotDescriptor",
     "SnapshotHandle",
     "SnapshotOwner",
+    "ValidatedArchiveIndex",
+    "ValidatedCapturePackage",
+    "ValidatedMedia",
+    "ValidationLimits",
     "capture_collection_baseline",
     "collection_matches_baseline",
     "deserialize",
