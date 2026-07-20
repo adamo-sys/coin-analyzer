@@ -28,6 +28,27 @@ class DuplicateDecision(str, Enum):
     IMPORT_AS_NEW = "IMPORT_AS_NEW"
 
 
+class DuplicateConfidence(str, Enum):
+    """Strength of one explained duplicate signal."""
+
+    EXACT = "EXACT"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    WEAK = "WEAK"
+
+
+class DuplicateCategory(str, Enum):
+    """Stable category for duplicate evidence shown during preview."""
+
+    PACKAGE_REPLAY = "PACKAGE_REPLAY"
+    SOURCE_AND_MEDIA = "SOURCE_AND_MEDIA"
+    MEDIA_HASHES = "MEDIA_HASHES"
+    IDENTITY_AND_ACQUISITION = "IDENTITY_AND_ACQUISITION"
+    IDENTITY = "IDENTITY"
+    ACQUISITION_DETAILS = "ACQUISITION_DETAILS"
+    PARTIAL_MEDIA = "PARTIAL_MEDIA"
+
+
 class ImportRecordOutcome(str, Enum):
     """Derived terminal outcome for one proposed source record."""
 

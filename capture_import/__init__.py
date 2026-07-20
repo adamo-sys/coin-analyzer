@@ -9,6 +9,8 @@ from .baseline import (
 )
 from .enums import (
     Composition,
+    DuplicateCategory,
+    DuplicateConfidence,
     DuplicateDecision,
     ErrorCategory,
     ImageRole,
@@ -16,6 +18,8 @@ from .enums import (
     ImportRecordOutcome,
     ImportResult,
 )
+from .decisions import ImportDecisionModel
+from .duplicates import DuplicateCandidate, PackageDuplicateDetectionService
 from .journal import JournalEntry
 from .lock import LockMetadata, PackageImportLock
 from .manifest import CapturePackageManifestParser
@@ -37,6 +41,14 @@ from .snapshot import (
     SnapshotOwner,
 )
 from .package import CapturePackageValidator, ValidatedCapturePackage
+from .preview import (
+    PackageImportPreview,
+    PackageImportPreviewBuilder,
+    PreviewDecisionSet,
+    PreviewImage,
+    ProposedCoin,
+    UnmappedFact,
+)
 from .validation_limits import ValidationLimits
 
 __all__ = [
@@ -50,10 +62,14 @@ __all__ = [
     "CapturePackageValidator",
     "CollectionBaseline",
     "Composition",
+    "DuplicateCandidate",
+    "DuplicateCategory",
+    "DuplicateConfidence",
     "DuplicateDecision",
     "ErrorCategory",
     "ImageRole",
     "ImportDecision",
+    "ImportDecisionModel",
     "ImportPhase",
     "ImportRecordOutcome",
     "ImportResult",
@@ -64,8 +80,14 @@ __all__ = [
     "PackageImage",
     "PackageManifest",
     "PackageImportLock",
+    "PackageImportPreview",
+    "PackageImportPreviewBuilder",
+    "PackageDuplicateDetectionService",
     "PackageSession",
     "PreviewCoin",
+    "PreviewDecisionSet",
+    "PreviewImage",
+    "ProposedCoin",
     "SnapshotDescriptor",
     "SnapshotHandle",
     "SnapshotOwner",
@@ -73,6 +95,7 @@ __all__ = [
     "ValidatedCapturePackage",
     "ValidatedMedia",
     "ValidationLimits",
+    "UnmappedFact",
     "capture_collection_baseline",
     "collection_matches_baseline",
     "deserialize",
