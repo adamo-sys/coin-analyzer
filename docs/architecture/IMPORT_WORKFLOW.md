@@ -135,19 +135,45 @@ Once `TransactionService.execute()` begins, Sprint 6 cancellation semantics appl
 
 ## Event ordering
 
+On a successful durable handoff, events are emitted in exactly this order:
+
 ```text
-IMPORT_STARTED          ← TransactionService (existing)
-PIPELINE_STARTED
+PIPELINE_STARTED        ← ImportWorkflow
 STAGE_STARTED           (stage_id, stage_index, stage_count)
-STAGE_COMPLETED
-STAGE_FAILED            (if applicable)
-PIPELINE_COMPLETED / PIPELINE_CANCELLED
+STAGE_COMPLETED / STAGE_FAILED
+PIPELINE_COMPLETED      ← ImportWorkflow (preprocessing succeeded)
+IMPORT_STARTED          ← TransactionService (existing)
 PACKAGE_VALIDATED       ← TransactionService (existing)
 ...                     ← existing transaction events
 IMPORT_COMPLETE         ← TransactionService (existing)
 ```
 
-No duplicate `IMPORT_STARTED`. Pipeline events describe preprocessing only.
+- Pipeline-family events are emitted entirely before transaction-family
+  events: `IMPORT_STARTED` never precedes `PIPELINE_STARTED`.
+- `IMPORT_STARTED` originates inside `TransactionService.execute()`; the
+  transaction begins only after preprocessing has completed and the
+  `PreparedImport` handoff occurs.
+- `ImportWorkflow` does not emit or duplicate transaction-family events,
+  and there is no duplicate `IMPORT_STARTED`.
+- `PIPELINE_CANCELLED` replaces `PIPELINE_COMPLETED` on cancellation paths;
+  a run never emits both. Cancellation before the handoff commits nothing,
+  so no transaction-family event follows it.
+
+## Prepared-import assembly failure
+
+Assembly occurs after successful stage execution and before the durability
+handoff. If assembly fails (a declared artifact is missing or is not a
+plain regular file in the workspace):
+
+- the transaction delegate is invoked zero times;
+- a stage-attributed `StageContractError` is raised, identifying the
+  declaring stage and preserving the original `OSError` via chaining;
+- neither `STAGE_FAILED` nor any transaction-family event is emitted;
+- under the current Sprint 7 contract, no additional pipeline-terminal
+  event is emitted either: `PIPELINE_COMPLETED` represents successful
+  preprocessing execution, while assembly is a separate pre-handoff
+  boundary. The bus therefore shows `PIPELINE_STARTED` plus the stage
+  lifecycle events with no terminal marker on this path.
 
 ## Error model
 
