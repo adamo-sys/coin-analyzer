@@ -38,28 +38,9 @@ progress UI, debugging, telemetry, and future plugin hooks.
 
 ### Unit 5: Cancellation Support ✅
 - `is_cancelled` callable parameter on transaction service
-- `_check_cancelled()` helper at durable boundaries
+- `_check_cancelled()` helper at durable boundaries; cancellation invariant documented
 - Event emission on cancellation
 - **Status:** Implemented
-- Emit events at durable boundaries in `PackageImportTransactionService.execute()`
-- Emit events during rollback paths
-- **Status:** Planned
-
-### Unit 3: Event Integration into Recovery Service
-- Emit events during recovery reconciliation
-- Emit progress events for long-running recovery
-- **Status:** Planned
-
-### Unit 4: Execution Metrics
-- Per-stage timing (validation, copy, commit, cleanup)
-- Retry counts
-- Failure rate tracking
-- **Status:** Planned
-
-### Unit 5: Cancellation Support
-- Graceful abort with deterministic rollback
-- Event emission on cancellation
-- **Status:** Planned
 
 ## Risks
 
@@ -85,16 +66,5 @@ progress UI, debugging, telemetry, and future plugin hooks.
 - Context fields are plain JSON-serializable types only
 - Transaction and recovery services accept optional `event_bus`; no events emitted when None
 - Cancellation checked at journal creation, image copy, and collection commit boundaries
-
-- [ ] All 10 event types are emitted from at least one code path
-- [ ] Events are queryable by type and severity
-- [ ] Progress events support UI rendering (current/total/stage)
-- [ ] Full regression: 207+ tests pass
-- [ ] No performance regression in import path
-
-## Implementation Notes
-
-- Events are immutable dataclasses with strict typing
-- Event bus is in-memory only for Sprint 6; persistence is Sprint 6.x or later
-- Severity ordering: DEBUG < INFO < WARNING < ERROR < CRITICAL
-- Context fields are plain JSON-serializable types only
+- Cancellation invariant: cooperative only before commit; once COMMITTING_COLLECTION begins, execution must complete or enter recovery
+- EventBus lifecycle: one instance per import session; must not be retained or reused across imports

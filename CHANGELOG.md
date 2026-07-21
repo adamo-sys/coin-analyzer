@@ -46,7 +46,49 @@
 
 ---
 
-## Sprint 7 — Image Processing Pipeline (Planned)
+## Sprint 7 — Deterministic Import Workflow and Processing-Stage Framework (Planned)
+
+**Depends on:**
+
+| Foundation | Reference |
+|---|---|
+| Sprint 6 baseline | Commit `fd1682e` |
+| Sprint 5 baseline | Commit `55817fd` |
+| Architecture | Schema-2 Durable Persistence |
+| Frozen spec hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
+| ADR | `docs/adr/ADR-007-internal-processing-stage-framework.md` |
+
+### Objective
+
+Introduce a typed, deterministic workflow for running bounded preprocessing stages before durable collection persistence, while preserving all Sprint 5–6 transaction, recovery, cancellation, and event semantics.
+
+### Planned Deliverables
+
+- **`ProcessingStage` protocol** — internal stage contract, not a public plugin API
+- **`ProcessingPipeline`** — deterministic stage ordering with unique ID enforcement
+- **`ImportWorkflow`** — orchestrates stages, workspace lifecycle, cancellation, events
+- **Typed domain models** — `ImportRequest`, `StageInput`, `StageResult`, `PreparedImport`
+- **Pipeline events** — `PIPELINE_STARTED`, `STAGE_STARTED`, `STAGE_COMPLETED`, `STAGE_FAILED`, `PIPELINE_COMPLETED`, `PIPELINE_CANCELLED`
+- **Workspace lifecycle** — path-contained temporary workspace, cleanup on all terminal paths
+- **Transaction integration** — `ImportWorkflow` delegates exactly once to `TransactionService`
+- **Reference stages** — `PackageValidationStage`, `ManifestPreparationStage`
+
+### Explicitly Out of Scope
+
+- OCR, AI grading, image enhancement, EXIF parsing, perceptual hashing
+- Numista integration, networking, cloud services, GUI
+- Third-party plugins, dynamic stage discovery, parallel execution
+- Retries, resumable preprocessing, caching, persistent event storage
+- Changes to Schema-2 recovery semantics
+
+### Proposed Roadmap
+
+| Sprint | Focus | Builds On |
+|---|---|---|
+| 7 | Deterministic Import Workflow and Processing-Stage Framework | Sprint 6 events and cancellation |
+| 8 | OCR + Metadata Extraction | Sprint 7 pipeline |
+| 9 | Grading Engine | Sprint 8 metadata |
+| 10 | Dealer Tools (valuation, market, ROI) | Sprint 9 grades |
 
 | Sprint | Focus | Builds On |
 |---|---|---|
