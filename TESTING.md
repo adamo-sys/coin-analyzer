@@ -2,6 +2,10 @@
 
 This project uses Python's standard `unittest` test runner. Tests are discovered from root-level files named `test_*.py`.
 
+## Interpreter Requirements
+
+Run tests with the project's configured Python (the interpreter used by `Run_Tests.bat` and CI, with project dependencies installed). The suite imports `cv2` transitively via `coin_collection`; a bare interpreter without project dependencies fails at import time with `ModuleNotFoundError: No module named 'cv2'`.
+
 ## Run All Tests
 
 On Windows:

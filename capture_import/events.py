@@ -42,6 +42,15 @@ class EventType(str, Enum):
     RECOVERY_TRIGGERED = "RECOVERY_TRIGGERED"
     RECOVERY_COMPLETE = "RECOVERY_COMPLETE"
     CANCELLED = "CANCELLED"
+    # Sprint 7 preprocessing pipeline lifecycle.  These events describe
+    # nondurable preparation only; the transaction events above retain
+    # their existing semantics, ordering, and ownership.
+    PIPELINE_STARTED = "PIPELINE_STARTED"
+    STAGE_STARTED = "STAGE_STARTED"
+    STAGE_COMPLETED = "STAGE_COMPLETED"
+    STAGE_FAILED = "STAGE_FAILED"
+    PIPELINE_COMPLETED = "PIPELINE_COMPLETED"
+    PIPELINE_CANCELLED = "PIPELINE_CANCELLED"
     PROGRESS = "PROGRESS"
 
 
@@ -284,6 +293,101 @@ class ImportEventBus:
             EventType.CANCELLED,
             import_id=import_id,
             severity=EventSeverity.INFO,
+            reason=reason,
+        )
+
+    # -- Pipeline lifecycle (Sprint 7 preprocessing) ------------------------
+
+    def record_pipeline_started(
+        self,
+        *,
+        import_id: str | None,
+        stage_ids: tuple[str, ...],
+    ) -> ImportEvent:
+        return self.record(
+            EventType.PIPELINE_STARTED,
+            import_id=import_id,
+            severity=EventSeverity.INFO,
+            stage_ids=stage_ids,
+            stage_count=len(stage_ids),
+        )
+
+    def record_stage_started(
+        self,
+        *,
+        import_id: str | None,
+        stage_id: str,
+        stage_index: int,
+        stage_count: int,
+    ) -> ImportEvent:
+        return self.record(
+            EventType.STAGE_STARTED,
+            import_id=import_id,
+            severity=EventSeverity.INFO,
+            stage_id=stage_id,
+            stage_index=stage_index,
+            stage_count=stage_count,
+        )
+
+    def record_stage_completed(
+        self,
+        *,
+        import_id: str | None,
+        stage_id: str,
+        stage_index: int,
+    ) -> ImportEvent:
+        return self.record(
+            EventType.STAGE_COMPLETED,
+            import_id=import_id,
+            severity=EventSeverity.INFO,
+            stage_id=stage_id,
+            stage_index=stage_index,
+        )
+
+    def record_stage_failed(
+        self,
+        *,
+        import_id: str | None,
+        stage_id: str,
+        stage_index: int,
+        error_type: str,
+    ) -> ImportEvent:
+        return self.record(
+            EventType.STAGE_FAILED,
+            import_id=import_id,
+            severity=EventSeverity.ERROR,
+            stage_id=stage_id,
+            stage_index=stage_index,
+            error_type=error_type,
+        )
+
+    def record_pipeline_completed(
+        self,
+        *,
+        import_id: str | None,
+        stage_count: int,
+    ) -> ImportEvent:
+        return self.record(
+            EventType.PIPELINE_COMPLETED,
+            import_id=import_id,
+            severity=EventSeverity.INFO,
+            stage_count=stage_count,
+        )
+
+    def record_pipeline_cancelled(
+        self,
+        *,
+        import_id: str | None,
+        stage_id: str | None,
+        stage_index: int | None,
+        reason: str,
+    ) -> ImportEvent:
+        return self.record(
+            EventType.PIPELINE_CANCELLED,
+            import_id=import_id,
+            severity=EventSeverity.INFO,
+            stage_id=stage_id,
+            stage_index=stage_index,
             reason=reason,
         )
 
