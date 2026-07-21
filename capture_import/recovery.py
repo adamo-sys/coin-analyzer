@@ -19,6 +19,7 @@ from .enums import (
     ImportResult,
 )
 from .errors import RecoveryRequired, RollbackFailed
+from .events import ImportEventBus
 from .image_store import ManagedCollectionImageStore
 from .journal import JournalEntry
 from .journal_repository import PackageImportJournalRepository
@@ -46,6 +47,7 @@ class PackageImportRecoveryService:
         snapshots: CapturePackageSnapshotService,
         images: ManagedCollectionImageStore,
         clock: Clock = _utc_now,
+        event_bus: ImportEventBus | None = None,
     ) -> None:
         self._collection_path = Path(collection_path)
         self._lock_path = Path(lock_path)
@@ -53,6 +55,7 @@ class PackageImportRecoveryService:
         self._snapshots = snapshots
         self._images = images
         self._clock = clock
+        self._event_bus = event_bus
 
     def reconcile_pending_imports(self) -> tuple[JournalEntry, ...]:
         """Reconcile every non-history journal or fail without broad cleanup."""
@@ -140,6 +143,12 @@ class PackageImportRecoveryService:
         raise RollbackFailed()
 
     def _enter_recovery(self, current: JournalEntry) -> JournalEntry:
+        if self._event_bus is not None:
+            self._event_bus.record_recovery_triggered(
+                import_id=current.import_id,
+                journal_phase=current.phase.value,
+                recovery_attempt_count=current.recovery_attempt_count + 1,
+            )
         if current.phase is ImportPhase.RECOVERY_REQUIRED:
             return self._journals.update(
                 current,
@@ -206,6 +215,13 @@ class PackageImportRecoveryService:
         return handle, package, plan
 
     def _finish_committed(self, journal, handle, package, plan) -> JournalEntry:
+        if self._event_bus is not None:
+            self._event_bus.record_progress(
+                import_id=journal.import_id,
+                stage="recovery_finish_committed",
+                current=1,
+                total=1,
+            )
         self._images.verify(plan)
         current = journal
         if current.committed_collection_item_ids != current.desktop_item_ids:
@@ -237,7 +253,7 @@ class PackageImportRecoveryService:
             if handle.is_active:
                 handle.preserve_for_recovery()
             raise RecoveryRequired(error) from error
-        return self._journals.update(
+        result = self._journals.update(
             current,
             replace(
                 current,
@@ -250,6 +266,12 @@ class PackageImportRecoveryService:
                 updated_at=self._clock(),
             ),
         )
+        if self._event_bus is not None:
+            self._event_bus.record_recovery_complete(
+                import_id=result.import_id,
+                final_phase="SUCCEEDED",
+            )
+        return result
 
     def _finish_rollback(
         self,
@@ -284,7 +306,7 @@ class PackageImportRecoveryService:
             if handle.is_active:
                 handle.preserve_for_recovery()
             raise RecoveryRequired(error) from error
-        return self._journals.update(
+        result = self._journals.update(
             current,
             replace(
                 current,
@@ -299,6 +321,12 @@ class PackageImportRecoveryService:
                 updated_at=self._clock(),
             ),
         )
+        if self._event_bus is not None:
+            self._event_bus.record_recovery_complete(
+                import_id=result.import_id,
+                final_phase="ROLLED_BACK",
+            )
+        return result
 
     def _collection_items(self) -> dict[str, CoinItem]:
         if not self._collection_path.exists():

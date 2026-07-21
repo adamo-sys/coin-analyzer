@@ -20,7 +20,40 @@
 
 ---
 
-## Sprint 6 — Import Execution Engine & Observability (Planned)
+## Sprint 6 — Import Execution Engine & Observability
+
+**Depends on:**
+
+| Foundation | Reference |
+|---|---|
+| Sprint 5 baseline | Commit `55817fd` |
+| Architecture | Schema-2 Durable Persistence |
+| Frozen spec hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
+
+### Added
+
+- **`capture_import/events.py`** — Structured event system with 12 event types, 5 severity levels, immutable dataclasses, and in-memory event bus.
+- **Event integration into transaction service** — `PackageImportTransactionService` emits `IMPORT_STARTED`, `PACKAGE_VALIDATED`, `COLLECTION_CREATED`, `IMAGES_IMPORTED`, `COLLECTION_COMMITTED`, `IMPORT_COMPLETE`, `ROLLBACK_STARTED`, `ROLLBACK_COMPLETE`, `CANCELLED`.
+- **Event integration into recovery service** — `PackageImportRecoveryService` emits `RECOVERY_TRIGGERED`, `RECOVERY_COMPLETE`, `PROGRESS`.
+- **Cancellation support** — Optional `is_cancelled` callable on transaction service; checked at durable boundaries; deterministic rollback on cancel.
+- **Execution metrics** — Per-event timestamps enable stage timing; retry counts in recovery event context.
+
+### Tests
+
+- `tests/test_capture_import_events.py` — 13 tests, event system contracts
+- `tests/test_capture_import_events_integration.py` — 4 tests, transaction and recovery event emission
+- Full regression: 211 tests pass, 13 skipped (POSIX)
+
+---
+
+## Sprint 7 — Image Processing Pipeline (Planned)
+
+| Sprint | Focus | Builds On |
+|---|---|---|
+| 7 | Image Processing Pipeline | Sprint 6 pipeline |
+| 8 | OCR + Metadata Extraction | Sprint 7 images |
+| 9 | Grading Engine | Sprint 8 metadata |
+| 10 | Dealer Tools (valuation, market, ROI) | Sprint 9 grades |
 
 **Depends on:**
 

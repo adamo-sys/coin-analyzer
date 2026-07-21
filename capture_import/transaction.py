@@ -30,6 +30,7 @@ from .errors import (
     RecoveryRequired,
     RollbackFailed,
 )
+from .events import ImportEventBus
 from .image_store import ManagedCollectionImageStore, ManagedImagePlan
 from .journal import JournalEntry
 from .journal_repository import PackageImportJournalRepository
@@ -75,6 +76,8 @@ class PackageImportTransactionService:
         clock: Clock = _utc_now,
         identifier_factory: IdentifierFactory = _uuid,
         ownership_token_factory: IdentifierFactory = _uuid,
+        event_bus: ImportEventBus | None = None,
+        is_cancelled: Callable[[], bool] | None = None,
     ) -> None:
         self._collection = collection
         self._lock_path = Path(lock_path)
@@ -83,6 +86,29 @@ class PackageImportTransactionService:
         self._clock = clock
         self._identifier_factory = identifier_factory
         self._ownership_token_factory = ownership_token_factory
+        self._event_bus = event_bus
+        self._is_cancelled = is_cancelled
+
+    def _check_cancelled(self, import_id: str | None) -> None:
+        """Raise RecoveryRequired if the caller has requested cancellation.
+
+        Cancellation is cooperative and checked only at safe points *before*
+        the commit boundary. Once ``COMMITTING_COLLECTION`` begins, the
+        transaction must either complete or enter recovery; cancellation
+        must not interrupt durable collection persistence.
+        """
+        if self._is_cancelled is not None and self._is_cancelled():
+            if self._event_bus is not None:
+                self._event_bus.record_cancelled(
+                    import_id=import_id, reason="cancelled by caller"
+                )
+            raise RecoveryRequired("import cancelled")
+        if self._is_cancelled is not None and self._is_cancelled():
+            if self._event_bus is not None:
+                self._event_bus.record_cancelled(
+                    import_id=import_id, reason="cancelled by caller"
+                )
+            raise RecoveryRequired("import cancelled")
 
     def execute(
         self,
@@ -123,6 +149,12 @@ class PackageImportTransactionService:
             )
 
         import_id = self._identifier_factory()
+        if self._event_bus is not None:
+            self._event_bus.record_started(
+                import_id=import_id,
+                package_basename=package.package_basename,
+                proposed_count=len(preview.proposals),
+            )
         desktop_ids = tuple(self._identifier_factory() for _ in selected_ids)
         if len(set(desktop_ids)) != len(desktop_ids):
             raise CollectionCommitFailed()
@@ -147,6 +179,12 @@ class PackageImportTransactionService:
                 )
                 if locked_package != package:
                     raise PackageChanged()
+                if self._event_bus is not None:
+                    self._event_bus.record_validated(
+                        import_id=import_id,
+                        package_sha256=package.package_sha256,
+                        package_byte_length=package.package_byte_length,
+                    )
                 require_collection_baseline(
                     self._collection.storage_path, preview.collection_baseline
                 )
@@ -165,6 +203,12 @@ class PackageImportTransactionService:
                         started_at,
                     )
                 )
+                if self._event_bus is not None:
+                    self._event_bus.record_collection_created(
+                        import_id=import_id,
+                        journal_phase="PREPARED",
+                    )
+                self._check_cancelled(import_id)
                 journal = self._transition(journal, ImportPhase.COPYING_IMAGES)
 
                 def record_created(relative_path: str) -> None:
@@ -182,6 +226,13 @@ class PackageImportTransactionService:
                         ),
                     )
 
+                if self._event_bus is not None:
+                    self._event_bus.record_progress(
+                        import_id=import_id,
+                        stage="copy_images",
+                        current=0,
+                        total=len(plan.media),
+                    )
                 photos = self._images.copy(
                     snapshot,
                     package,
@@ -189,6 +240,13 @@ class PackageImportTransactionService:
                     record_created,
                     import_lock=import_lock,
                 )
+                if self._event_bus is not None:
+                    self._event_bus.record_images_imported(
+                        import_id=import_id,
+                        image_count=len(photos),
+                        created_relative_paths=journal.created_relative_paths if journal is not None else (),
+                    )
+                self._check_cancelled(import_id)
                 journal = self._transition(journal, ImportPhase.FILES_READY)
                 new_items = self._build_items(
                     preview,
@@ -211,6 +269,12 @@ class PackageImportTransactionService:
                 ):
                     raise CollectionCommitFailed(self._collection.last_save_error)
                 committed = True
+                if self._event_bus is not None:
+                    self._event_bus.record_collection_committed(
+                        import_id=import_id,
+                        committed_count=len(desktop_ids),
+                        desktop_item_ids=desktop_ids,
+                    )
                 journal = self._journals.update(
                     journal,
                     replace(
@@ -256,6 +320,14 @@ class PackageImportTransactionService:
                         updated_at=self._clock(),
                     ),
                 )
+                if self._event_bus is not None:
+                    self._event_bus.record_complete(
+                        import_id=import_id,
+                        status="SUCCEEDED",
+                        imported_count=len(desktop_ids),
+                        skipped_count=len(preview.proposals) - len(desktop_ids),
+                        image_count=len(plan.media),
+                    )
                 return PackageImportExecutionResult(
                     import_id=import_id,
                     status=ImportResult.SUCCEEDED,
@@ -293,6 +365,11 @@ class PackageImportTransactionService:
                         )
                         self._journals.update(journal, failed)
                         raise RollbackFailed(error) from error
+                if self._event_bus is not None:
+                    self._event_bus.record_rollback_started(
+                        import_id=import_id if 'import_id' in locals() else None,
+                        reason=str(error),
+                    )
                 self._rollback(
                     journal,
                     snapshot,
@@ -305,6 +382,11 @@ class PackageImportTransactionService:
                     error,
                     import_lock,
                 )
+                if self._event_bus is not None:
+                    self._event_bus.record_rollback_complete(
+                        import_id=import_id if 'import_id' in locals() else None,
+                        status="ROLLED_BACK",
+                    )
                 raise
 
     def _reserved_ids_present(self, desktop_ids: tuple[str, ...]) -> set[str]:
