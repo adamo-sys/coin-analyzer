@@ -68,4 +68,5 @@ Reconsider only through a separate approved design if:
 | Item | Location | Finding | Disposition |
 |---|---|---|---|
 | Duplicate `_check_cancelled` | `capture_import/transaction.py` lines 100–111 | Two identical consecutive blocks; does not affect compilation or behavior | Note for cleanup; do not modify unless blocking |
+| Chmod follows links in verified delete | `capture_import/_filesystem.py` (callers: `snapshot.py` `_delete_regular_file`, `workflow_workspace.py` `_delete_verified_file`) | Cleanup chmods a path before the no-follow open; an attacker able to race filesystem entries could cause chmod to affect a substituted symlink target (permission tampering only; the subsequent no-follow open still fails closed). Unit 5 mirrors the frozen Sprint 5 pattern and neither worsens nor independently redesigns it. | Accepted (Minor): stages are trusted and the workspace is process-owned. Remediate in the shared filesystem primitive and validate against both snapshot and workspace cleanup. Must not be forgotten. |
 
