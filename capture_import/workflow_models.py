@@ -35,8 +35,8 @@ def _validate_json_value(value: Any, field_name: str) -> JsonValue:
 
 
 def _validate_json_mapping(value: Mapping[str, Any], field_name: str) -> None:
-    if not isinstance(value, dict):
-        raise ValueError(f"{field_name} must be a dict mapping.")
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field_name} must be a mapping.")
     for key, item in value.items():
         if not isinstance(key, str):
             raise ValueError(f"{field_name} keys must be strings.")
@@ -82,13 +82,14 @@ class StageArtifact:
 
 
 def _validate_artifact_mapping(value: Mapping[str, Any], field_name: str) -> None:
-    if not isinstance(value, dict):
-        raise ValueError(f"{field_name} must be a dict mapping.")
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field_name} must be a mapping.")
     for key, artifact in value.items():
         if not isinstance(key, str):
             raise ValueError(f"{field_name} keys must be strings.")
         if not isinstance(artifact, StageArtifact):
             raise ValueError(f"{field_name} values must be StageArtifact instances.")
+        artifact.validate()
 
 
 @dataclass(frozen=True, slots=True)

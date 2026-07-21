@@ -328,5 +328,40 @@ class JsonValueTypeTests(unittest.TestCase):
                 result.validate()
 
 
+class NestedArtifactRegressionTests(unittest.TestCase):
+    def test_stage_result_rejects_nested_parent_traversal(self) -> None:
+        result = StageResult(
+            artifacts={"bad": StageArtifact(relative_path="../escape")},
+            metadata={},
+        )
+        with self.assertRaisesRegex(ValueError, "safe relative"):
+            result.validate()
+
+    def test_stage_result_rejects_nested_absolute_path(self) -> None:
+        result = StageResult(
+            artifacts={"bad": StageArtifact(relative_path="/etc/passwd")},
+            metadata={},
+        )
+        with self.assertRaisesRegex(ValueError, "safe relative"):
+            result.validate()
+
+    def test_stage_input_rejects_nested_invalid_artifact(self) -> None:
+        stage_input = StageInput(
+            request=make_request(),
+            workspace=Path(tempfile.gettempdir()),
+            artifacts={"bad": StageArtifact(relative_path="foo/../../bar")},
+        )
+        with self.assertRaisesRegex(ValueError, "safe relative"):
+            stage_input.validate()
+
+    def test_nested_valid_artifact_still_passes(self) -> None:
+        result = StageResult(
+            artifacts={"good": StageArtifact(relative_path="images/coin/front.jpg")},
+            metadata={},
+        )
+        result.validate()  # Should not raise
+
+
 if __name__ == "__main__":
     unittest.main()
+
