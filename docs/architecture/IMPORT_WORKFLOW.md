@@ -20,7 +20,12 @@ ImportWorkflow
     ├── Run ordered preparation stages
     │       ├── PackageValidationStage
     │       ├── ManifestPreparationStage
-    │       └── (future: image normalization, OCR, metadata extraction)
+    │       ├── ImageNormalizationStage        ← Sprint 8
+    │       ├── ImageQualityScoringStage       ← Sprint 8 (metadata only)
+    │       ├── CropDetectionStage             ← Sprint 8
+    │       ├── ObverseReversePairingStage     ← Sprint 8 (metadata only)
+    │       ├── ImageDuplicateDetectionStage   ← Sprint 8 (metadata only)
+    │       └── (future: OCR, metadata extraction)
     │
     ├── Produce PreparedImport
     │
@@ -115,6 +120,8 @@ class ProcessingStage(Protocol):
 
 ## Pipeline construction
 
+### Sprint 7 reference pipeline
+
 ```python
 pipeline = ProcessingPipeline(
     stages=(
@@ -124,10 +131,27 @@ pipeline = ProcessingPipeline(
 )
 ```
 
+### Sprint 8 extended pipeline
+
+```python
+pipeline = ProcessingPipeline(
+    stages=(
+        PackageValidationStage(),
+        ManifestPreparationStage(),
+        ImageNormalizationStage(),
+        ImageQualityScoringStage(),
+        CropDetectionStage(),
+        ObverseReversePairingStage(),
+        ImageDuplicateDetectionStage(),
+    )
+)
+```
+
 - Order is explicit and deterministic.
 - Duplicate `stage_id` values fail at construction time.
 - Empty pipeline policy (ADR-007): an empty pipeline is valid and behaves as the identity operation.
 - Reference implementation: `build_reference_pipeline()` in `capture_import/workflow_stages.py`.
+- Sprint 8 image stages are optional additions to the reference pipeline; callers that do not require image processing may continue to use the Sprint 7 pipeline.
 
 ## Cancellation boundaries
 
@@ -195,11 +219,53 @@ ImportWorkflowError
 - Do not convert transaction or recovery errors into generic stage errors.
 - Cleanup failure must not conceal the primary failure.
 
+## Image-stage contracts (Sprint 8)
+
+Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full contracts are defined in `docs/adr/ADR-008-image-processing-pipeline.md`. The following rules govern every image stage:
+
+- **Input format:** JPEG and PNG only, matching `capture_import/media.py` validation.
+- **Output format:** Canonical normalized JPEG (sRGB, EXIF stripped, baseline, quality 92) unless a stage explicitly documents otherwise.
+- **Artifact ownership:** All image artifacts are written beneath `StageInput.workspace` and declared in `StageResult.artifacts` with stable keys.
+- **Determinism:** Same input bytes + same configuration produce identical output bytes on the same platform/library version.
+- **Resource bounds:** Output dimensions, pixel counts, and file sizes are bounded by existing `capture_import/limits.py` values.
+- **No durable writes:** Stages do not mutate journals, locks, collections, or managed image storage.
+
+### Stage order
+
+1. `ImageNormalizationStage` — produces `normalized/<coin_id>/<role>.jpg` artifacts.
+2. `ImageQualityScoringStage` — metadata-only quality metrics on normalized artifacts.
+3. `CropDetectionStage` — produces optional `cropped/<coin_id>/<role>.jpg` artifacts and crop rectangles.
+4. `ObverseReversePairingStage` — metadata-only consistency check between front and reverse images.
+5. `ImageDuplicateDetectionStage` — metadata-only duplicate signals based on exact normalized-byte hashes.
+
+## Adapter amendment for preprocessed images
+
+Sprint 8 amends the Sprint 7 adapter contract. `capture_import/workflow_adapter.py` currently forwards only `prepared.request.source` to `PackageImportCoordinator.prepare()`. Under Sprint 8:
+
+- `PreparedImport.files` contains the workspace-relative paths of normalized (and optionally cropped) image artifacts produced by image-processing stages.
+- The adapter must pass these preprocessed artifacts to the coordinator so that durable persistence uses the normalized bytes.
+- Unit 7 must design a routing mechanism so the adapter can distinguish image artifacts from non-image artifacts (e.g., `prepared-manifest.json`). Options include: extending `PreparedFile` with `content_type`, passing the `StageArtifact` mapping alongside `PreparedImport`, or using deterministic path conventions/file extensions.
+- `PackageImportCoordinator` retains sole ownership of snapshots, validation, and transaction boundaries.
+- The existing prepare-from-source path remains available for backward compatibility.
+
+The exact coordinator signature change is left to Sprint 8 Unit 7 implementation and must preserve fail-closed semantics.
+
+## Duplicate detection signals
+
+Image-derived duplicate detection in Sprint 8 supplements — but does not replace — the existing `PackageDuplicateDetectionService` evidence categories. It emits signals such as `NORMALIZED_MEDIA_HASHES` based on exact SHA-256 hashes of normalized images.
+
+- **Within-package:** exact normalized-byte matches between coins in the same package.
+- **Package-vs-collection:** exact normalized-byte matches against existing collection image descriptors, bounded by `MAX_DUPLICATE_EXISTING_ITEMS`.
+- **Precedence:** existing categories remain unchanged; new categories are additive.
+- **Durability:** signals are ephemeral preprocessing metadata that flow through `PreparedImport.metadata` to the coordinator; no durable mutation occurs before collector confirmation.
+
 ## Workspace lifecycle
 
 1. The application driver creates a workflow-owned, path-contained temporary workspace (`WorkflowWorkspace`); the execution engine never creates or deletes it.
 2. Stages write outputs into this workspace only.
-3. On success: the transaction delegate re-derives durable inputs from `request.source` through the existing coordinator snapshot path — workspace artifacts are ephemeral preprocessing products, not transaction inputs; the workspace is cleaned.
+3. On success:
+   - In the Sprint 7 reference pipeline, the transaction delegate re-derives durable inputs from `request.source` through the existing coordinator snapshot path — workspace artifacts are ephemeral preprocessing products, not transaction inputs; the workspace is cleaned.
+   - In the Sprint 8 extended pipeline, the adapter passes preprocessed image artifacts from `PreparedImport.files` to the coordinator as durable inputs, while `request.source` remains the immutable audit source; the workspace is cleaned after the handoff.
 4. On failure: workspace is cleaned; primary exception is raised.
 5. On cancellation: workspace is cleaned; `WorkflowCancelledError` is raised.
 
