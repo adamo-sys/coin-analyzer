@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from live_deal_hunter import LiveListing, LiveListingBatch, RSSListingConnector
 from live_source_validation import (
@@ -18,6 +19,12 @@ from live_source_validation import (
 )
 
 
+def _fresh_timestamp() -> str:
+    """RSS-style timestamp guaranteed inside the validator's 30-day fresh window."""
+    moment = datetime.now(timezone.utc) - timedelta(days=1)
+    return moment.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+
 def listing(**overrides):
     values = {
         "title": "1901 Newfoundland 50 cents VF20",
@@ -27,7 +34,7 @@ def listing(**overrides):
         "seller": "trusted-seller",
         "source": "Fixture RSS",
         "url": "https://www.ebay.ca/itm/validation-1",
-        "listing_timestamp": "Sat, 20 Jun 2026 12:00:00 GMT",
+        "listing_timestamp": _fresh_timestamp(),
         "raw_metadata": {"description": "Newfoundland silver coin"},
     }
     values.update(overrides)
