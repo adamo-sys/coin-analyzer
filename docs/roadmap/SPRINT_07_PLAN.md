@@ -62,7 +62,7 @@ Introduce a typed, deterministic workflow for running bounded preprocessing stag
 - Update `docs/roadmap/PRODUCT_ROADMAP.md`
 - Independent review
 - Full regression
-- **Status:** In progress
+- **Status:** VERIFIED — documentation synchronized; full regression `2045 pass, 17 skipped`; frozen spec hash re-verified; independent review passed with no blocking or major findings
 
 ## Risks
 
@@ -104,9 +104,11 @@ Introduce a typed, deterministic workflow for running bounded preprocessing stag
 | 6 | Transaction integration | `workflow_execution.py` handoff + `assemble_prepared_import`; `IMPORT_WORKFLOW.md` event/assembly contract | `test_workflow_integration.py` — 28 (1 platform skip) | `0617382` | VERIFIED |
 | 7 | Reference stages + application adapter | `capture_import/workflow_stages.py`, `capture_import/workflow_adapter.py` | `test_workflow_reference_stages.py` — 36 (1 platform skip) | `3e61860` | VERIFIED |
 | — | Test maintenance (time-dependent fixture, unrelated to Sprint 7 code) | `test_live_source_validation.py` | — | `7e3a99f` | VERIFIED |
+| 8 | Documentation, traceability, release gate | `CHANGELOG.md`, `PRODUCT_ROADMAP.md`, this reconciliation | Full regression `python -m unittest discover -s . -p "test_*.py"` — 2045 pass, 17 skipped | Unit 8 closeout | VERIFIED |
 
 Every Unit 2–7 commit passed a fresh-context independent review with zero
-blocking and zero major findings before commit.
+blocking and zero major findings before commit. Unit 8 adds the documentation
+reconciliation and final full-regression gate.
 
 ## Exit Criteria Verification
 

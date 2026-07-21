@@ -48,7 +48,7 @@
 
 ## Sprint 7 — Deterministic Import Workflow and Processing-Stage Framework
 
-**Commit:** `3e61860`  
+**Commit:** `f73f29f`  
 **Date:** 2026-07-21
 
 **Depends on:**

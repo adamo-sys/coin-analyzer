@@ -38,7 +38,7 @@ with optional mobile companions and cloud services.
 - Workflow-owned workspace lifecycle and exactly-once transaction handoff
 - Reference stages: package validation, manifest preparation
 
-**Status:** Completed (commit `3e61860`)
+**Status:** Completed (commit `f73f29f`)
 
 ### Sprint 8 — Image Processing Pipeline
 - Image normalization
