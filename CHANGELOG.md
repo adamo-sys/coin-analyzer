@@ -46,7 +46,10 @@
 
 ---
 
-## Sprint 7 — Deterministic Import Workflow and Processing-Stage Framework (Planned)
+## Sprint 7 — Deterministic Import Workflow and Processing-Stage Framework
+
+**Commit:** `3e61860`  
+**Date:** 2026-07-21
 
 **Depends on:**
 
@@ -56,22 +59,23 @@
 | Sprint 5 baseline | Commit `55817fd` |
 | Architecture | Schema-2 Durable Persistence |
 | Frozen spec hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
-| ADR | `docs/adr/ADR-007-internal-processing-stage-framework.md` |
+| ADR | `docs/adr/ADR-007-internal-processing-stage-framework.md` (Accepted) |
 
-### Objective
+### Added
 
-Introduce a typed, deterministic workflow for running bounded preprocessing stages before durable collection persistence, while preserving all Sprint 5–6 transaction, recovery, cancellation, and event semantics.
+- **Typed domain models** (`capture_import/workflow_models.py`) — `ImportRequest`, `StageInput`, `StageResult`, `PreparedImport`, `PreparedFile`, `StageArtifact` (Unit 2, `3bfcfec`/`785bf15`).
+- **Stage protocol and pipeline validation** (`capture_import/workflow_pipeline.py`) — internal `ProcessingStage` protocol (not a public plugin API) and `ProcessingPipeline` with explicit ordering and unique-ID enforcement (Unit 3, `220dd98`).
+- **Execution engine** (`capture_import/workflow_execution.py`) — sequential `ImportWorkflow` with cooperative cancellation at 2N+2 boundaries and the pipeline event family (`PIPELINE_STARTED`, `STAGE_STARTED`, `STAGE_COMPLETED`, `STAGE_FAILED`, `PIPELINE_COMPLETED`, `PIPELINE_CANCELLED`) (Unit 4, `71d0d8d`).
+- **Workspace lifecycle** (`capture_import/workflow_workspace.py`) — workflow-owned, path-contained temporary workspace with ownership-verified, idempotent cleanup on success, failure, and cancellation (Unit 5, `2c67ee3`).
+- **Transaction integration** — `PreparedImport` assembly (fail-closed plain-file verification) and a single durable handoff through a caller-supplied delegate, exactly once per execution; zero durable writes on failure or cancellation (Unit 6, `0617382`).
+- **Reference stages and application adapter** (`capture_import/workflow_stages.py`, `capture_import/workflow_adapter.py`) — `PackageValidationStage` (race-aware source validation via the existing `CapturePackageValidator`), `ManifestPreparationStage` (normalized `prepared-manifest.json` via the existing manifest serializer/parser), deterministic `build_reference_pipeline()`, and the stateless one-way adapter onto the existing `PackageImportCoordinator.prepare()/commit()` seam (Unit 7, `3e61860`).
 
-### Planned Deliverables
+### Tests
 
-- **`ProcessingStage` protocol** — internal stage contract, not a public plugin API
-- **`ProcessingPipeline`** — deterministic stage ordering with unique ID enforcement
-- **`ImportWorkflow`** — orchestrates stages, workspace lifecycle, cancellation, events
-- **Typed domain models** — `ImportRequest`, `StageInput`, `StageResult`, `PreparedImport`
-- **Pipeline events** — `PIPELINE_STARTED`, `STAGE_STARTED`, `STAGE_COMPLETED`, `STAGE_FAILED`, `PIPELINE_COMPLETED`, `PIPELINE_CANCELLED`
-- **Workspace lifecycle** — path-contained temporary workspace, cleanup on all terminal paths
-- **Transaction integration** — `ImportWorkflow` delegates exactly once to `TransactionService`
-- **Reference stages** — `PackageValidationStage`, `ManifestPreparationStage`
+- Sprint 7 focused suites: `test_workflow_models.py` (35), `test_workflow_pipeline.py` (22), `test_workflow_execution.py` (35), `test_workflow_workspace.py` (56), `test_workflow_integration.py` (28), `test_workflow_reference_stages.py` (36)
+- Full regression (authoritative root discovery, `python -m unittest discover -s . -p "test_*.py"`): **2045 tests pass, 17 skipped** (POSIX-specific and platform-gated)
+- No Sprint 5/6 behavior was modified (`events.py` extended additively only); transaction, rollback, recovery, journal, and event semantics remain unchanged
+- Technical debt explicitly tracked in the ADR-007 register (chmod-before-no-follow race, pre-validation digest efficiency, AST-audit dynamic-import scope, adapter source forwarding)
 
 ### Explicitly Out of Scope
 
@@ -81,52 +85,6 @@ Introduce a typed, deterministic workflow for running bounded preprocessing stag
 - Retries, resumable preprocessing, caching, persistent event storage
 - Changes to Schema-2 recovery semantics
 
-### Proposed Roadmap
+### Roadmap
 
-| Sprint | Focus | Builds On |
-|---|---|---|
-| 7 | Deterministic Import Workflow and Processing-Stage Framework | Sprint 6 events and cancellation |
-| 8 | OCR + Metadata Extraction | Sprint 7 pipeline |
-| 9 | Grading Engine | Sprint 8 metadata |
-| 10 | Dealer Tools (valuation, market, ROI) | Sprint 9 grades |
-
-| Sprint | Focus | Builds On |
-|---|---|---|
-| 7 | Image Processing Pipeline | Sprint 6 pipeline |
-| 8 | OCR + Metadata Extraction | Sprint 7 images |
-| 9 | Grading Engine | Sprint 8 metadata |
-| 10 | Dealer Tools (valuation, market, ROI) | Sprint 9 grades |
-
-**Depends on:**
-
-| Foundation | Reference |
-|---|---|
-| Sprint 5 baseline | Commit `55817fd` |
-| Architecture | Schema-2 Durable Persistence |
-| Frozen spec hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
-
-### Objective
-
-Turn the durable persistence system into a complete import execution pipeline with structured observability.
-
-### Planned Deliverables
-
-- **Transactional import coordinator** — multi-stage execution pipeline leveraging Sprint 5 replay guarantees.
-- **Structured event system** — `ImportStarted`, `PackageValidated`, `CollectionCreated`, `ImagesImported`, `OCRStarted`, `OCRComplete`, `RecoveryTriggered`, `RollbackStarted`, `RollbackComplete`, `ImportComplete`.
-- **Progress persistence** — resume interrupted imports from any durable boundary.
-- **Cancellation support** — graceful abort with deterministic rollback.
-- **Execution metrics** — per-stage timing, retry counts, failure rates.
-
-### Why Now
-
-Sprint 5 guarantees durability and replay. Sprint 6 uses those guarantees to build a user-visible, observable, and resumable import pipeline.
-
-### Proposed Roadmap
-
-| Sprint | Focus | Builds On |
-|---|---|---|
-| 6 | Import Execution Engine & Observability | Sprint 5 durability |
-| 7 | Image Processing Pipeline | Sprint 6 pipeline |
-| 8 | OCR + Metadata Extraction | Sprint 7 images |
-| 9 | Grading Engine | Sprint 8 metadata |
-| 10 | Dealer Tools (valuation, market, ROI) | Sprint 9 grades |
+See `docs/roadmap/PRODUCT_ROADMAP.md` for the forward plan.

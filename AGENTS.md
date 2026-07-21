@@ -166,14 +166,26 @@ python -m unittest tests.test_capture_package_execution
 python -m unittest tests.test_capture_package_durability
 python -m unittest tests.test_capture_import_lock
 python -m unittest tests.test_capture_import_snapshot
+python -m unittest tests.test_workflow_models
+python -m unittest tests.test_workflow_pipeline
+python -m unittest tests.test_workflow_execution
+python -m unittest tests.test_workflow_workspace
+python -m unittest tests.test_workflow_integration
+python -m unittest tests.test_workflow_reference_stages
 ```
 
-### Full Regression
+### Full Regression (authoritative)
 ```bash
-python -m unittest discover -s tests -p 'test_capture_*.py'
+python -m unittest discover -s . -p "test_*.py"
 ```
 
-Expected baseline: 194 tests pass, 13 skipped (POSIX-specific).
+Root discovery is the authoritative gate: it includes the `test_capture_*.py`
+and `test_workflow_*.py` families plus every other suite. Expected baseline
+(Sprint 7 closeout): 2045 tests pass, 17 skipped (POSIX-specific and
+platform-gated).
+
+Tests must run with the project's configured Python (project dependencies
+installed; `cv2` is imported transitively). See `TESTING.md`.
 
 ## Project-Specific Invariants
 

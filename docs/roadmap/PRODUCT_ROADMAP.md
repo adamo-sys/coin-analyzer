@@ -23,26 +23,38 @@ with optional mobile companions and cloud services.
 
 ## Phase 2 — Core Platform
 
-### Sprint 6 — Import Execution Engine & Observability
+### Sprint 6 — Import Execution Engine & Observability ✅
 - Structured event system
 - Transaction coordination with progress
 - Resume interrupted imports
 - Cancellation support
 - Execution metrics
 
-### Sprint 7 — Image Processing Pipeline
+**Status:** Completed (commit `fd1682e`)
+
+### Sprint 7 — Deterministic Import Workflow & Processing-Stage Framework ✅
+- Typed domain models and internal `ProcessingStage` protocol (not a public plugin API)
+- Deterministic pipeline, cooperative cancellation, pipeline lifecycle events
+- Workflow-owned workspace lifecycle and exactly-once transaction handoff
+- Reference stages: package validation, manifest preparation
+
+**Status:** Completed (commit `3e61860`)
+
+### Sprint 8 — Image Processing Pipeline
 - Image normalization
 - Crop detection
 - Obverse/reverse pairing
 - Duplicate detection improvements
 - Image quality scoring
 
-### Sprint 8 — OCR & Metadata Extraction
+**Builds on:** Sprint 7 processing-stage framework
+
+### Sprint 9 — OCR & Metadata Extraction
 - OCR orchestration
 - Metadata reconciliation
 - Numista integration foundations
 
-### Sprint 9 — AI Grading Engine
+### Sprint 10 — AI Grading Engine
 - Wear estimation
 - Cleaning detection
 - Rim damage detection
@@ -50,7 +62,7 @@ with optional mobile companions and cloud services.
 - Luster estimation
 - Confidence scoring
 
-### Sprint 10 — Dealer Tools
+### Sprint 11 — Dealer Tools
 - Valuation engine
 - Market integration
 - Inventory management

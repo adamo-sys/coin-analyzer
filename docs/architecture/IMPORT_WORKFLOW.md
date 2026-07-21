@@ -25,6 +25,9 @@ ImportWorkflow
     ├── Produce PreparedImport
     │
     ▼
+Transaction delegate (application-layer adapter
+    │                    → PackageImportCoordinator)
+    ▼
 PackageImportTransactionService
     │
     ├── journal
@@ -39,9 +42,10 @@ PackageImportTransactionService
 
 | Layer | Responsibility |
 |---|---|
-| `ImportWorkflow` | Sequencing nondurable preparation; workspace lifecycle; cancellation; event emission |
+| `ImportWorkflow` | Sequencing nondurable preparation; cancellation; event emission |
 | `ProcessingPipeline` | Deterministic stage ordering; unique ID enforcement; result validation |
 | `ProcessingStage` | Pure or workspace-bounded transformation; explicit input/output contract |
+| `WorkflowWorkspace` | Workspace creation, containment, and cleanup (owned by the application driver) |
 | `PackageImportTransactionService` | Durable persistence and rollback (unchanged) |
 | `PackageImportRecoveryService` | Reconciliation of interrupted durable work (unchanged) |
 | `ImportEventBus` | Observability only (unchanged) |
@@ -122,14 +126,15 @@ pipeline = ProcessingPipeline(
 
 - Order is explicit and deterministic.
 - Duplicate `stage_id` values fail at construction time.
-- Empty pipeline policy: reject or allow no-op passthrough (TBD in implementation).
+- Empty pipeline policy (ADR-007): an empty pipeline is valid and behaves as the identity operation.
+- Reference implementation: `build_reference_pipeline()` in `capture_import/workflow_stages.py`.
 
 ## Cancellation boundaries
 
 Cancellation is checked:
 1. Before each stage
 2. After each stage
-3. Before handing `PreparedImport` to `TransactionService`
+3. Before handing `PreparedImport` to the transaction delegate (the application-layer adapter, which reaches `PackageImportCoordinator` and `TransactionService`)
 
 Once `TransactionService.execute()` begins, Sprint 6 cancellation semantics apply: cooperative checks before `COMMITTING_COLLECTION`, then commit-or-recovery only.
 
@@ -192,13 +197,13 @@ ImportWorkflowError
 
 ## Workspace lifecycle
 
-1. Workflow creates a path-contained temporary workspace.
+1. The application driver creates a workflow-owned, path-contained temporary workspace (`WorkflowWorkspace`); the execution engine never creates or deletes it.
 2. Stages write outputs into this workspace only.
-3. On success: workspace contents are handed to transaction service; workspace is cleaned.
+3. On success: the transaction delegate re-derives durable inputs from `request.source` through the existing coordinator snapshot path — workspace artifacts are ephemeral preprocessing products, not transaction inputs; the workspace is cleaned.
 4. On failure: workspace is cleaned; primary exception is raised.
 5. On cancellation: workspace is cleaned; `WorkflowCancelledError` is raised.
 
-Reuse Sprint 5 snapshot/workspace safety primitives where applicable.
+Reuse Sprint 5 snapshot/workspace safety primitives where applicable (implemented in `workflow_workspace.py`).
 
 ## Invariants
 

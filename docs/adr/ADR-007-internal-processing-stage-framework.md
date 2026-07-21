@@ -1,6 +1,6 @@
 # ADR-007: Internal Processing Stage Framework
 
-- Status: Proposed
+- Status: Accepted (implemented in Sprint 7, Units 2–7)
 - Date: 2026-07-21
 
 ## Context
@@ -67,6 +67,9 @@ Reconsider only through a separate approved design if:
 
 | Item | Location | Finding | Disposition |
 |---|---|---|---|
-| Duplicate `_check_cancelled` | `capture_import/transaction.py` lines 100–111 | Two identical consecutive blocks; does not affect compilation or behavior | Note for cleanup; do not modify unless blocking |
-| Chmod follows links in verified delete | `capture_import/_filesystem.py` (callers: `snapshot.py` `_delete_regular_file`, `workflow_workspace.py` `_delete_verified_file`) | Cleanup chmods a path before the no-follow open; an attacker able to race filesystem entries could cause chmod to affect a substituted symlink target (permission tampering only; the subsequent no-follow open still fails closed). Unit 5 mirrors the frozen Sprint 5 pattern and neither worsens nor independently redesigns it. | Accepted (Minor): stages are trusted and the workspace is process-owned. Remediate in the shared filesystem primitive and validate against both snapshot and workspace cleanup. Must not be forgotten. |
+| Duplicate `_check_cancelled` | `capture_import/transaction.py` lines 100–111 (origin: Sprint 6 review) | Two identical consecutive blocks; does not affect compilation or behavior | Note for cleanup; do not modify unless blocking |
+| Chmod follows links in verified delete | `capture_import/_filesystem.py` (callers: `snapshot.py` `_delete_regular_file`, `workflow_workspace.py` `_delete_verified_file`; origin: Unit 5 review) | Cleanup chmods a path before the no-follow open; an attacker able to race filesystem entries could cause chmod to affect a substituted symlink target (permission tampering only; the subsequent no-follow open still fails closed). Unit 5 mirrors the frozen Sprint 5 pattern and neither worsens nor independently redesigns it. | Accepted (Minor): stages are trusted and the workspace is process-owned. Remediate in the shared filesystem primitive and validate against both snapshot and workspace cleanup. Must not be forgotten. |
+| Uncapped pre-validation digest pass | `capture_import/workflow_stages.py` `_digest_handle` (origin: Unit 7 review M2) | An oversized source is fully hashed before `validate_stream` rejects it at limit+1 bytes; the coordinator's `_source_digest` caps mid-digest. The stage digest is deliberately policy-free so validation policy stays singular inside the validator. | Accepted (Minor): efficiency/robustness asymmetry only — no correctness, safety, or durability impact. Future remediation: cap the streaming digest at the validator's size budget in a dedicated optimization pass, without coupling stage behavior to validator policy. |
+| Dynamic imports invisible to AST audit | `tests/test_workflow_reference_stages.py` durability-boundary audit (origin: Unit 7 review) | The structural import audit parses static `import`/`from` statements; `importlib.import_module()` or equivalent dynamic loading would be invisible to it. Dynamic/third-party code loading is currently forbidden by boundary 1 of this ADR. | Accepted (Minor): structural audit covers all static forms and fails closed on unrecognized ones. If dynamic loading is ever introduced (a separate approved design per "Reconsider When"), the audit must be extended with runtime import tracking first. |
+| Adapter forwards only `request.source` | `capture_import/workflow_adapter.py` `commit_prepared_import` (origin: Unit 7 review O2) | `PreparedImport.files`/`metadata` are ephemeral workflow products and are not consumed by the durable path; the coordinator re-derives snapshot, validation, and preview from the source. Deliberate per the no-new-durability-semantics constraint. | Accepted (by design): no remediation required. Revisit only through an architecture amendment if a future stage's output must cross the durability boundary. |
 
