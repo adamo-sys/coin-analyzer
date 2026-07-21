@@ -7,20 +7,22 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import secrets
 import socket
 import stat
-from typing import Any, BinaryIO, Callable, Iterator, Mapping
+from typing import Any, BinaryIO, Callable, Iterable, Iterator, Mapping
 
 from ._advisory import acquire_advisory_lock, release_advisory_lock
 from ._filesystem import (
     delete_open_file,
     ensure_plain_directory,
+    handle_object_identity,
     handle_matches_path,
     is_link_or_reparse,
     open_existing_binary_for_delete,
     open_exclusive_binary,
+    path_object_identity,
     require_plain_directory,
     require_plain_regular_file,
 )
@@ -32,7 +34,9 @@ from .errors import (
     SnapshotFailed,
     SnapshotRecoveryRequired,
 )
+from .durable_models import NativeObjectIdentity, OwnershipDescriptor
 from .limits import MAX_JSON_BYTES, MAX_PACKAGE_SIZE, SNAPSHOT_SCHEMA_VERSION
+from .lock import PackageImportLock, require_verified_import_lock
 from .models import (
     _require_fields,
     _require_integer,
@@ -45,6 +49,7 @@ from .models import (
 
 Clock = Callable[[], str]
 TokenFactory = Callable[[], str]
+ProcessLiveness = Callable[[int], bool]
 FileIdentity = tuple[int, int]
 DEFAULT_COPY_CHUNK_SIZE = 1024 * 1024
 OWNER_FILENAME = "snapshot-owner.json"
@@ -58,6 +63,18 @@ def _utc_now() -> str:
 
 def _token() -> str:
     return secrets.token_hex(32)
+
+
+def _process_is_live(process_id: int) -> bool:
+    try:
+        os.kill(process_id, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
+    return True
 
 
 def _validate_snapshot_token(value: Any) -> str:
@@ -217,6 +234,18 @@ class SnapshotHandle:
     def cleanup(self) -> None:
         self._service.cleanup_snapshot(self)
 
+    def preserve_for_recovery(self) -> None:
+        """Close the live lease while deliberately retaining owned evidence."""
+
+        self._service.preserve_snapshot(self)
+
+    def ownership_descriptors(
+        self, import_ownership_token: str
+    ) -> tuple[OwnershipDescriptor, ...]:
+        """Return the exact snapshot cleanup inventory while the lease is held."""
+
+        return self._service.ownership_descriptors(self, import_ownership_token)
+
     def __enter__(self) -> "SnapshotHandle":
         return self
 
@@ -237,6 +266,7 @@ class CapturePackageSnapshotService:
         token_factory: TokenFactory = _token,
         process_id: int | None = None,
         hostname: str | None = None,
+        process_is_live: ProcessLiveness = _process_is_live,
     ) -> None:
         if (
             isinstance(maximum_package_size, bool)
@@ -253,6 +283,109 @@ class CapturePackageSnapshotService:
         self._token_factory = token_factory
         self._process_id = os.getpid() if process_id is None else process_id
         self._hostname = socket.gethostname() if hostname is None else hostname
+        self._process_is_live = process_is_live
+
+    @property
+    def root(self) -> Path:
+        return self._root
+
+    def cleanup_orphaned_snapshots(
+        self,
+        referenced_relative_paths: Iterable[str],
+        *,
+        import_lock: PackageImportLock,
+    ) -> tuple[str, ...]:
+        """Remove only proven, inactive, unjournaled snapshot directories."""
+
+        require_verified_import_lock(import_lock)
+        references = set()
+        try:
+            for value in referenced_relative_paths:
+                references.add(_validate_relative_path(value, "snapshot reference"))
+            if not self._root.exists():
+                return ()
+            require_plain_directory(self._root)
+            root_identity = path_object_identity(self._root)
+            removed: list[str] = []
+            for directory in sorted(self._root.iterdir(), key=lambda path: path.name):
+                if is_link_or_reparse(directory) or not directory.is_dir():
+                    raise SnapshotRecoveryRequired()
+                token = _validate_snapshot_token(directory.name)
+                relative_path = f"{token}/{PACKAGE_FILENAME}"
+                if relative_path in references:
+                    continue
+                require_verified_import_lock(import_lock)
+                if self._cleanup_one_orphan(directory, token, root_identity):
+                    removed.append(relative_path)
+            return tuple(removed)
+        except SnapshotRecoveryRequired:
+            raise
+        except (OSError, ValueError) as error:
+            raise SnapshotRecoveryRequired(error) from error
+
+    def _cleanup_one_orphan(
+        self, directory: Path, token: str, root_identity: FileIdentity
+    ) -> bool:
+        self._verify_snapshot_children(directory, require_complete=True)
+        owner_path = directory / OWNER_FILENAME
+        owner, owner_identity = self._read_owner_with_identity(owner_path)
+        if owner.snapshot_token != token or owner.hostname != self._hostname:
+            raise SnapshotRecoveryRequired()
+        lease_path = directory / LEASE_FILENAME
+        lease_handle = open_existing_binary_for_delete(lease_path)
+        locked = False
+        try:
+            try:
+                acquire_advisory_lock(lease_handle)
+                locked = True
+            except BlockingIOError:
+                return False
+            if self._process_is_live(owner.process_id):
+                raise SnapshotRecoveryRequired()
+            package_path = directory / PACKAGE_FILENAME
+            require_plain_regular_file(package_path)
+            digest = hashlib.sha256()
+            byte_length = 0
+            with package_path.open("rb") as package_handle:
+                while True:
+                    chunk = package_handle.read(self._chunk_size)
+                    if not chunk:
+                        break
+                    byte_length += len(chunk)
+                    if byte_length > self._maximum_package_size:
+                        raise SnapshotRecoveryRequired()
+                    digest.update(chunk)
+            descriptor = SnapshotDescriptor(
+                snapshot_token=token,
+                relative_path=f"{token}/{PACKAGE_FILENAME}",
+                sha256=digest.hexdigest(),
+                byte_length=byte_length,
+            )
+            descriptor.validate()
+            handle = SnapshotHandle(
+                self,
+                descriptor,
+                owner,
+                lease_handle,
+                root_identity,
+                path_object_identity(directory),
+                owner_identity,
+            )
+            self.validate_snapshot(handle)
+            handle.cleanup()
+            return True
+        except SnapshotRecoveryRequired:
+            raise
+        except (OSError, ValueError) as error:
+            raise SnapshotRecoveryRequired(error) from error
+        finally:
+            if not lease_handle.closed:
+                if locked:
+                    try:
+                        release_advisory_lock(lease_handle)
+                    except OSError:
+                        pass
+                lease_handle.close()
 
     def create_snapshot(
         self,
@@ -318,11 +451,10 @@ class CapturePackageSnapshotService:
                 byte_length=byte_length,
             )
             descriptor.validate()
-            root_identity = self._path_identity(self._root.lstat())
-            directory_identity = self._path_identity(directory.lstat())
-            owner_identity = self._path_identity(
-                require_plain_regular_file(owner_path)
-            )
+            root_identity = path_object_identity(self._root)
+            directory_identity = path_object_identity(directory)
+            require_plain_regular_file(owner_path)
+            owner_identity = path_object_identity(owner_path)
             return SnapshotHandle(
                 self,
                 descriptor,
@@ -348,6 +480,58 @@ class CapturePackageSnapshotService:
         finally:
             if not directory_created and lease_handle is not None and not lease_handle.closed:
                 lease_handle.close()
+
+    def resume_snapshot(
+        self,
+        relative_path: str,
+        sha256: str,
+        byte_length: int,
+    ) -> SnapshotHandle:
+        """Reacquire the exact durable snapshot lease for proven recovery."""
+
+        parts = PurePosixPath(relative_path).parts
+        if len(parts) != 2 or parts[1] != PACKAGE_FILENAME:
+            raise SnapshotRecoveryRequired()
+        descriptor = SnapshotDescriptor(parts[0], relative_path, sha256, byte_length)
+        descriptor.validate()
+        directory = self._snapshot_directory(descriptor)
+        owner_path = directory / OWNER_FILENAME
+        lease_path = directory / LEASE_FILENAME
+        lease_handle: BinaryIO | None = None
+        try:
+            self._verify_snapshot_children(directory, require_complete=True)
+            owner, owner_identity = self._read_owner_with_identity(owner_path)
+            if owner.snapshot_token != descriptor.snapshot_token:
+                raise SnapshotRecoveryRequired()
+            lease_handle = open_existing_binary_for_delete(lease_path)
+            acquire_advisory_lock(lease_handle)
+            handle = SnapshotHandle(
+                self,
+                descriptor,
+                owner,
+                lease_handle,
+                path_object_identity(self._root),
+                path_object_identity(directory),
+                owner_identity,
+            )
+            self.validate_snapshot(handle)
+            return handle
+        except SnapshotRecoveryRequired:
+            if lease_handle is not None and not lease_handle.closed:
+                try:
+                    release_advisory_lock(lease_handle)
+                except OSError:
+                    pass
+                lease_handle.close()
+            raise
+        except (BlockingIOError, OSError, ValueError) as error:
+            if lease_handle is not None and not lease_handle.closed:
+                try:
+                    release_advisory_lock(lease_handle)
+                except OSError:
+                    pass
+                lease_handle.close()
+            raise SnapshotRecoveryRequired(error) from error
 
     def validate_snapshot(self, handle: SnapshotHandle) -> None:
         """Rehash the accepted snapshot and reject any integrity change."""
@@ -480,6 +664,76 @@ class CapturePackageSnapshotService:
         except (OSError, ValueError) as error:
             raise SnapshotRecoveryRequired(error) from error
 
+    def ownership_descriptors(
+        self, handle: SnapshotHandle, import_ownership_token: str
+    ) -> tuple[OwnershipDescriptor, ...]:
+        """Build identity-bound cleanup evidence for the active snapshot."""
+
+        handle.validate()
+        directory = self._snapshot_directory(handle.descriptor)
+        parent_identity = NativeObjectIdentity.from_native(
+            path_object_identity(self._root), windows=os.name == "nt"
+        )
+        directory_identity = NativeObjectIdentity.from_native(
+            path_object_identity(directory), windows=os.name == "nt"
+        )
+        result: list[OwnershipDescriptor] = []
+        for name in (PACKAGE_FILENAME, LEASE_FILENAME, OWNER_FILENAME):
+            path = directory / name
+            if name == LEASE_FILENAME:
+                info = os.fstat(handle._lease_handle.fileno())
+                position = handle._lease_handle.tell()
+                handle._lease_handle.seek(0)
+                payload = handle._lease_handle.read(self._maximum_package_size + 1)
+                handle._lease_handle.seek(position)
+                if not handle_matches_path(handle._lease_handle, path):
+                    raise SnapshotRecoveryRequired()
+                object_identity = handle_object_identity(handle._lease_handle)
+            else:
+                info = require_plain_regular_file(path)
+                payload = path.read_bytes()
+                object_identity = path_object_identity(path)
+            digest = hashlib.sha256(payload).hexdigest()
+            result.append(
+                OwnershipDescriptor(
+                    root="SNAPSHOT",
+                    relative_path=f"{handle.descriptor.snapshot_token}/{name}",
+                    object_kind="FILE",
+                    ownership_token=import_ownership_token,
+                    expected_byte_length=info.st_size,
+                    expected_sha256=digest,
+                    parent_identity=directory_identity,
+                    object_identity=NativeObjectIdentity.from_native(
+                        object_identity, windows=os.name == "nt"
+                    ),
+                )
+            )
+        result.append(
+            OwnershipDescriptor(
+                root="SNAPSHOT",
+                relative_path=handle.descriptor.snapshot_token,
+                object_kind="DIRECTORY",
+                ownership_token=import_ownership_token,
+                expected_byte_length=None,
+                expected_sha256=None,
+                parent_identity=parent_identity,
+                object_identity=directory_identity,
+            )
+        )
+        return tuple(result)
+
+    def preserve_snapshot(self, handle: SnapshotHandle) -> None:
+        """Verify ownership, then release only the lease without deleting files."""
+
+        self._verify_snapshot_binding(handle)
+        try:
+            release_advisory_lock(handle._lease_handle)
+            handle._lease_handle.close()
+        except OSError as error:
+            if not handle._lease_handle.closed:
+                handle._lease_handle.close()
+            raise SnapshotRecoveryRequired(error) from error
+
     def _require_owned_handle(self, handle: SnapshotHandle) -> None:
         if not isinstance(handle, SnapshotHandle) or handle._service is not self:
             raise ValueError("The snapshot handle belongs to a different service.")
@@ -500,9 +754,9 @@ class CapturePackageSnapshotService:
             require_plain_directory(directory)
             if directory.parent != self._root:
                 raise SnapshotRecoveryRequired()
-            if self._path_identity(self._root.lstat()) != handle._root_identity:
+            if path_object_identity(self._root) != handle._root_identity:
                 raise SnapshotRecoveryRequired()
-            if self._path_identity(directory.lstat()) != handle._directory_identity:
+            if path_object_identity(directory) != handle._directory_identity:
                 raise SnapshotRecoveryRequired()
             self._verify_snapshot_children(directory, require_complete=True)
             if not handle_matches_path(handle._lease_handle, lease_path):
@@ -541,30 +795,22 @@ class CapturePackageSnapshotService:
     def _read_owner_with_identity(
         self, path: Path
     ) -> tuple[SnapshotOwner, FileIdentity]:
-        before = require_plain_regular_file(path)
-        with path.open("rb") as owner_handle:
-            opened = os.fstat(owner_handle.fileno())
-            if self._path_identity(opened) != self._path_identity(before):
+        require_plain_regular_file(path)
+        with open_existing_binary_for_delete(path) as owner_handle:
+            identity = handle_object_identity(owner_handle)
+            if identity != path_object_identity(path):
                 raise OSError("Snapshot owner identity changed while opening.")
             raw = owner_handle.read(MAX_JSON_BYTES + 1)
-            after_handle = os.fstat(owner_handle.fileno())
-        after = require_plain_regular_file(path)
-        identity = self._path_identity(opened)
-        if (
-            self._path_identity(after_handle) != identity
-            or self._path_identity(after) != identity
-        ):
-            raise OSError("Snapshot owner identity changed while reading.")
+            if identity != handle_object_identity(owner_handle) or not handle_matches_path(
+                owner_handle, path
+            ):
+                raise OSError("Snapshot owner identity changed while reading.")
         return (
             SnapshotOwner.from_dict(
                 parse_bounded_json_object(raw, "snapshot owner metadata")
             ),
             identity,
         )
-
-    @staticmethod
-    def _path_identity(info: os.stat_result) -> FileIdentity:
-        return (info.st_dev, info.st_ino)
 
     def _open_exclusive(self, path: Path) -> BinaryIO:
         return open_exclusive_binary(path)

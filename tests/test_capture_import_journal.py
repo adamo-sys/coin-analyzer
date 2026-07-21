@@ -198,8 +198,12 @@ def make_journal(phase: ImportPhase = ImportPhase.PREPARED) -> JournalEntry:
 
 
 class JournalPhaseTests(unittest.TestCase):
-    def test_one_valid_record_for_every_durable_phase(self) -> None:
-        for phase in ImportPhase:
+    def test_one_valid_record_for_every_schema1_durable_phase(self) -> None:
+        phases = tuple(
+            phase for phase in ImportPhase if phase is not ImportPhase.COMPACTING
+        )
+        self.assertEqual(len(phases), len(ImportPhase) - 1)
+        for phase in phases:
             with self.subTest(phase=phase):
                 journal = make_journal(phase)
                 journal.validate()
@@ -230,6 +234,7 @@ class JournalPhaseTests(unittest.TestCase):
                 make_journal(ImportPhase.COLLECTION_COMMITTED),
                 audit_finalization_pending=False,
             ),
+            replace(make_journal(ImportPhase.COMPACTING)),
             replace(
                 make_journal(ImportPhase.SUCCEEDED),
                 committed_collection_item_ids=(),

@@ -267,3 +267,25 @@ class PackageImportLock:
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
         self.release()
+
+
+def require_verified_import_lock(
+    lease: PackageImportLock, *, import_id: str | None = None
+) -> LockMetadata:
+    """Prove the caller still owns the global importer lease.
+
+    Schema-2 mutating services call this at every durable mutation boundary.
+    A startup-recovery lease has a null import ID; an execution lease may be
+    bound to the exact import ID.
+    """
+
+    if not isinstance(lease, PackageImportLock):
+        raise RecoveryRequired()
+    metadata = lease.verify_ownership()
+    if (
+        import_id is not None
+        and metadata.import_id is not None
+        and metadata.import_id != import_id
+    ):
+        raise RecoveryRequired()
+    return metadata

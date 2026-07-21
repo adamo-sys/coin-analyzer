@@ -441,9 +441,21 @@ class CoinCollection:
             self.items = []
             print("No existing collection found, starting fresh")
     
-    def save_collection(self) -> bool:
+    def save_collection(self, *, import_lock=None) -> bool:
         """Save collection to JSON storage."""
+        owned_lock = None
         try:
+            if import_lock is None:
+                from capture_import.lock import PackageImportLock
+
+                lock_path = os.path.join(
+                    os.path.dirname(os.path.abspath(self.storage_path)),
+                    "imports",
+                    "package_import.lock",
+                )
+                owned_lock = PackageImportLock.acquire(lock_path)
+                import_lock = owned_lock
+            import_lock.verify_ownership()
             write_json_atomically(
                 self.storage_path,
                 [item.to_dict() for item in self.items],
@@ -456,6 +468,58 @@ class CoinCollection:
         except Exception as e:
             self.last_save_error = str(e)
             print(f"Error saving collection: {self.last_save_error}")
+            return False
+        finally:
+            if owned_lock is not None:
+                owned_lock.release()
+
+    def replace_items_for_import(
+        self,
+        prospective_items: List[CoinItem],
+        *,
+        expected_baseline,
+        import_lock,
+    ) -> bool:
+        """Perform the importer's single baseline-checked batch replacement."""
+
+        from capture_import.baseline import require_collection_baseline
+
+        original_items = self.items
+        replacement_completed = False
+        try:
+            import_lock.verify_ownership()
+            require_collection_baseline(self.storage_path, expected_baseline)
+            if not isinstance(prospective_items, list) or any(
+                not isinstance(item, CoinItem) for item in prospective_items
+            ):
+                raise ValueError("prospective_items must contain CoinItem values")
+            identifiers = [item.id for item in prospective_items]
+            if any(not identifier for identifier in identifiers) or len(
+                set(identifiers)
+            ) != len(identifiers):
+                raise ValueError("prospective collection IDs must be unique")
+            # Serialize every record before changing in-memory state or disk.
+            payload = [item.to_dict() for item in prospective_items]
+            require_collection_baseline(self.storage_path, expected_baseline)
+            write_json_atomically(
+                self.storage_path,
+                payload,
+                indent=2,
+                ensure_ascii=False,
+            )
+            replacement_completed = True
+            with open(self.storage_path, "r", encoding="utf-8") as handle:
+                verified = json.load(handle)
+            if verified != payload:
+                raise OSError("The committed collection did not verify.")
+            self.items = prospective_items
+            self.last_save_error = ""
+            return True
+        except Exception as error:
+            self.items = original_items
+            self.last_save_error = str(error)
+            if replacement_completed:
+                raise
             return False
     
     def add_item(self, item: CoinItem) -> bool:

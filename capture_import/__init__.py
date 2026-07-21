@@ -19,8 +19,17 @@ from .enums import (
     ImportResult,
 )
 from .decisions import ImportDecisionModel
+from .collection_persistence import (
+    DurableCollectionPublisher,
+    serialize_collection_items,
+)
+from .coordinator import PackageImportCoordinator, PreparedPackageImport
 from .duplicates import DuplicateCandidate, PackageDuplicateDetectionService
 from .journal import JournalEntry
+from .journal_repository import PackageImportJournalRepository
+from .durable_repository import Schema2PackageImportJournalRepository
+from .terminal_persistence import TerminalPersistenceService
+from .image_store import ManagedCollectionImageStore, ManagedImage, ManagedImagePlan
 from .lock import LockMetadata, PackageImportLock
 from .manifest import CapturePackageManifestParser
 from .media import CapturePackageMediaValidator, ValidatedMedia
@@ -40,6 +49,8 @@ from .snapshot import (
     SnapshotHandle,
     SnapshotOwner,
 )
+from .recovery import PackageImportRecoveryService
+from .transaction import PackageImportExecutionResult, PackageImportTransactionService
 from .package import CapturePackageValidator, ValidatedCapturePackage
 from .preview import (
     PackageImportPreview,
@@ -61,6 +72,7 @@ __all__ = [
     "CapturePackageSnapshotService",
     "CapturePackageValidator",
     "CollectionBaseline",
+    "DurableCollectionPublisher",
     "Composition",
     "DuplicateCandidate",
     "DuplicateCategory",
@@ -75,11 +87,20 @@ __all__ = [
     "ImportResult",
     "ImportSession",
     "JournalEntry",
+    "ManagedCollectionImageStore",
+    "ManagedImage",
+    "ManagedImagePlan",
     "LockMetadata",
     "PackageCoin",
     "PackageImage",
     "PackageManifest",
     "PackageImportLock",
+    "PackageImportCoordinator",
+    "PackageImportExecutionResult",
+    "PackageImportJournalRepository",
+    "Schema2PackageImportJournalRepository",
+    "PackageImportRecoveryService",
+    "PackageImportTransactionService",
     "PackageImportPreview",
     "PackageImportPreviewBuilder",
     "PackageDuplicateDetectionService",
@@ -87,10 +108,12 @@ __all__ = [
     "PreviewCoin",
     "PreviewDecisionSet",
     "PreviewImage",
+    "PreparedPackageImport",
     "ProposedCoin",
     "SnapshotDescriptor",
     "SnapshotHandle",
     "SnapshotOwner",
+    "TerminalPersistenceService",
     "ValidatedArchiveIndex",
     "ValidatedCapturePackage",
     "ValidatedMedia",
@@ -100,5 +123,6 @@ __all__ = [
     "collection_matches_baseline",
     "deserialize",
     "serialize",
+    "serialize_collection_items",
     "require_collection_baseline",
 ]

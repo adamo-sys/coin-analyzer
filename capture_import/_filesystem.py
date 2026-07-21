@@ -4,8 +4,46 @@ from __future__ import annotations
 
 import os
 import stat
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
+
+ObjectIdentity = tuple[int, int]
+
+
+@dataclass
+class PlainDirectoryHandle:
+    """Held plain-directory identity used to bind pathname operations."""
+
+    path: Path
+    identity: ObjectIdentity
+    descriptor: int | None = None
+    windows_handle: int | None = None
+
+    def close(self) -> None:
+        if self.descriptor is not None:
+            os.close(self.descriptor)
+            self.descriptor = None
+        if self.windows_handle is not None:
+            import ctypes
+
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(
+                self.windows_handle
+            )
+            self.windows_handle = None
+
+    def __enter__(self) -> PlainDirectoryHandle:
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        self.close()
+
+    def verify_path(self) -> bool:
+        try:
+            return path_object_identity(self.path) == self.identity
+        except OSError:
+            return False
 
 
 def is_link_or_reparse(path: Path) -> bool:
@@ -74,15 +112,69 @@ def handle_matches_path(handle: BinaryIO, path: Path) -> bool:
     """Return whether an open handle still names the same plain regular file."""
 
     try:
-        path_info = require_plain_regular_file(path)
-        handle_info = os.fstat(handle.fileno())
+        require_plain_regular_file(path)
+        return handle_object_identity(handle) == path_object_identity(path)
     except OSError:
         return False
-    return (
-        handle_info.st_dev == path_info.st_dev
-        and handle_info.st_ino == path_info.st_ino
-        and stat.S_ISREG(handle_info.st_mode)
-    )
+
+
+def handle_object_identity(handle: BinaryIO) -> ObjectIdentity:
+    """Return the platform-native stable identity for one open object."""
+
+    if os.name == "nt":
+        import msvcrt
+
+        return _windows_handle_identity(msvcrt.get_osfhandle(handle.fileno()))
+    info = os.fstat(handle.fileno())
+    return info.st_dev, info.st_ino
+
+
+def path_object_identity(path: Path) -> ObjectIdentity:
+    """Open and return the native identity of one plain file or directory."""
+
+    if os.name != "nt":
+        info = path.lstat()
+        return info.st_dev, info.st_ino
+    return _windows_path_identity(path)
+
+
+def open_plain_directory_handle(path: Path) -> PlainDirectoryHandle:
+    """Open and retain one plain directory without following substitutions."""
+
+    require_plain_directory(path)
+    if os.name != "nt":
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(
+            os, "O_NOFOLLOW", 0
+        )
+        descriptor = os.open(path, flags)
+        info = os.fstat(descriptor)
+        identity = (info.st_dev, info.st_ino)
+        result = PlainDirectoryHandle(path, identity, descriptor=descriptor)
+    else:
+        raw_handle = _windows_open_path(
+            path,
+            desired_access=0x00000080 | 0x00000001,
+            share_mode=0x00000001 | 0x00000002 | 0x00000004,
+            flags=0x02000000 | 0x00200000,
+            message="The directory identity could not be opened safely.",
+        )
+        try:
+            information = _windows_handle_information(raw_handle)
+            _require_windows_plain_type(information, directory=True)
+            result = PlainDirectoryHandle(
+                path,
+                _windows_file_id_information(raw_handle),
+                windows_handle=raw_handle,
+            )
+        except Exception:
+            import ctypes
+
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+            raise
+    if not result.verify_path():
+        result.close()
+        raise OSError("The directory identity changed while it was opened.")
+    return result
 
 
 def open_exclusive_binary(path: Path) -> BinaryIO:
@@ -128,8 +220,8 @@ def delete_open_file(handle: BinaryIO, path: Path) -> None:
     import ctypes
     import msvcrt
 
-    class FileDispositionInfo(ctypes.Structure):
-        _fields_ = [("delete_file", ctypes.c_int)]
+    class FileDispositionInfoEx(ctypes.Structure):
+        _fields_ = [("flags", ctypes.c_uint32)]
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     operation = kernel32.SetFileInformationByHandle
@@ -140,11 +232,13 @@ def delete_open_file(handle: BinaryIO, path: Path) -> None:
         ctypes.c_uint32,
     )
     operation.restype = ctypes.c_int
-    disposition = FileDispositionInfo(1)
+    disposition = FileDispositionInfoEx(
+        0x00000001 | 0x00000002 | 0x00000010
+    )
     windows_handle = msvcrt.get_osfhandle(handle.fileno())
     if not operation(
         windows_handle,
-        4,
+        21,
         ctypes.byref(disposition),
         ctypes.sizeof(disposition),
     ):
@@ -152,9 +246,364 @@ def delete_open_file(handle: BinaryIO, path: Path) -> None:
         raise OSError(error_code, "The verified file could not be marked for deletion.")
 
 
-def _open_windows_binary(path: Path, *, create_new: bool) -> BinaryIO:
+def replace_open_file_in_directory(
+    handle: BinaryIO, directory: PlainDirectoryHandle, filename: str
+) -> None:
+    """Atomically rename an open file relative to one held Windows directory."""
+
+    if os.name != "nt" or directory.windows_handle is None:
+        raise OSError("Native relative replacement is unavailable.")
+    if not filename or filename != Path(filename).name:
+        raise OSError("The replacement filename is invalid.")
+
     import ctypes
     import msvcrt
+
+    class FileRenameInformation(ctypes.Structure):
+        _fields_ = (
+            ("flags", ctypes.c_uint32),
+            ("root_directory", ctypes.c_void_p),
+            ("file_name_length", ctypes.c_uint32),
+            ("file_name", ctypes.c_wchar * 1),
+        )
+
+    class IoStatusBlock(ctypes.Structure):
+        _fields_ = (("status", ctypes.c_void_p), ("information", ctypes.c_void_p))
+
+    encoded_name = filename.encode("utf-16-le")
+    name_offset = FileRenameInformation.file_name.offset
+    buffer = ctypes.create_string_buffer(name_offset + len(encoded_name))
+    information = FileRenameInformation.from_buffer(buffer)
+    information.flags = 0x00000001 | 0x00000002
+    information.root_directory = directory.windows_handle
+    information.file_name_length = len(encoded_name)
+    ctypes.memmove(ctypes.addressof(buffer) + name_offset, encoded_name, len(encoded_name))
+
+    operation = ctypes.WinDLL("ntdll", use_last_error=True).NtSetInformationFile
+    operation.argtypes = (
+        ctypes.c_void_p,
+        ctypes.POINTER(IoStatusBlock),
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_int,
+    )
+    operation.restype = ctypes.c_long
+    io_status = IoStatusBlock()
+    status = operation(
+        msvcrt.get_osfhandle(handle.fileno()),
+        ctypes.byref(io_status),
+        buffer,
+        len(buffer),
+        65,
+    )
+    if status < 0:
+        raise OSError(status & 0xFFFFFFFF, "The journal could not be replaced safely.")
+
+
+def publish_open_file_no_replace_in_directory(
+    handle: BinaryIO,
+    directory: PlainDirectoryHandle,
+    temporary_name: str,
+    destination_name: str,
+) -> None:
+    """Publish one verified same-directory file without replacing a destination.
+
+    Durable Persistence §§516–532, 1288–1427; RM-03 and RM-41.
+    """
+
+    if any(not name or name != Path(name).name for name in (temporary_name, destination_name)):
+        raise OSError("A publication filename is invalid.")
+    if not directory.verify_path():
+        raise OSError("The publication parent identity changed.")
+    if os.name == "nt":
+        if directory.windows_handle is None:
+            raise OSError("A held Windows publication parent is required.")
+        import ctypes
+        operation = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        operation.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32)
+        operation.restype = ctypes.c_int
+        if not operation(
+            str(directory.path / temporary_name),
+            str(directory.path / destination_name),
+            0x00000008,
+        ):
+            code = ctypes.get_last_error()
+            if code in {80, 183}:
+                raise FileExistsError(code, "The publication destination exists.")
+            raise OSError(code, "The file could not be published exclusively.")
+        return
+    if directory.descriptor is None:
+        raise OSError("A held POSIX publication parent is required.")
+    import ctypes
+
+    library = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin":
+        operation = getattr(library, "renameatx_np", None)
+        flags = 0x4  # RENAME_EXCL
+    else:
+        operation = getattr(library, "renameat2", None)
+        flags = 0x1  # RENAME_NOREPLACE
+    if operation is None:
+        raise OSError("Exclusive same-directory publication is unavailable.")
+    operation.argtypes = (ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint)
+    operation.restype = ctypes.c_int
+    if operation(directory.descriptor, os.fsencode(temporary_name), directory.descriptor, os.fsencode(destination_name), flags) != 0:
+        error_code = ctypes.get_errno()
+        if error_code in {17, 80, 183}:
+            raise FileExistsError(error_code, "The publication destination exists.")
+        raise OSError(error_code, "The file could not be published exclusively.")
+
+
+def sync_directory(directory: PlainDirectoryHandle) -> None:
+    """Make a supported POSIX directory namespace update durable."""
+
+    if not directory.verify_path():
+        raise OSError("The directory identity changed before durability sync.")
+    if os.name == "nt":
+        # The approved Windows contract explicitly does not claim directory fsync.
+        return
+    if directory.descriptor is None:
+        raise OSError("A held POSIX directory descriptor is required.")
+    os.fsync(directory.descriptor)
+
+
+def rename_entry_no_replace_in_directory(
+    directory: PlainDirectoryHandle, source_name: str, destination_name: str
+) -> None:
+    """Rename one verified same-parent entry without replacement."""
+
+    if any(not name or name != Path(name).name for name in (source_name, destination_name)):
+        raise OSError("A rename basename is invalid.")
+    if not directory.verify_path():
+        raise OSError("The rename parent identity changed.")
+    if os.name == "nt":
+        import ctypes
+        operation = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        operation.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32)
+        operation.restype = ctypes.c_int
+        if not operation(str(directory.path / source_name), str(directory.path / destination_name), 0x8):
+            code = ctypes.get_last_error()
+            if code in {80, 183}:
+                raise FileExistsError(code, "The rename destination exists.")
+            raise OSError(code, "The directory entry could not be renamed exclusively.")
+        return
+    if directory.descriptor is None:
+        raise OSError("A held POSIX rename parent is required.")
+    import ctypes
+    library = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin":
+        operation = getattr(library, "renameatx_np", None)
+        flags = 0x4
+    else:
+        operation = getattr(library, "renameat2", None)
+        flags = 0x1
+    if operation is None:
+        raise OSError("Exclusive same-directory rename is unavailable.")
+    operation.argtypes = (ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint)
+    operation.restype = ctypes.c_int
+    if operation(directory.descriptor, os.fsencode(source_name), directory.descriptor, os.fsencode(destination_name), flags) != 0:
+        code = ctypes.get_errno()
+        if code == 17:
+            raise FileExistsError(code, "The rename destination exists.")
+        raise OSError(code, "The directory entry could not be renamed exclusively.")
+
+
+def exchange_paths_in_directory(
+    directory: PlainDirectoryHandle, first: str, second: str
+) -> None:
+    """Atomically exchange two POSIX directory entries without path traversal."""
+
+    if os.name == "nt" or directory.descriptor is None:
+        raise OSError("Native directory-entry exchange is unavailable.")
+    if any(not name or name != Path(name).name for name in (first, second)):
+        raise OSError("An exchange filename is invalid.")
+
+    import ctypes
+
+    library = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin":
+        operation = getattr(library, "renameatx_np", None)
+    else:
+        operation = getattr(library, "renameat2", None)
+    if operation is None:
+        raise OSError("Atomic directory-entry exchange is unavailable.")
+    operation.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    operation.restype = ctypes.c_int
+    if operation(
+        directory.descriptor,
+        os.fsencode(first),
+        directory.descriptor,
+        os.fsencode(second),
+        0x2,
+    ) != 0:
+        error_code = ctypes.get_errno()
+        raise OSError(error_code, "The journal entries could not be exchanged.")
+
+
+def _open_windows_binary(
+    path: Path, *, create_new: bool, share_delete: bool = True
+) -> BinaryIO:
+    import ctypes
+    import msvcrt
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (ctypes.c_void_p,)
+    close_handle.restype = ctypes.c_int
+    desired_access = 0x80000000 | 0x00010000
+    if create_new:
+        desired_access |= 0x40000000
+    try:
+        raw_handle = _windows_open_path(
+            path,
+            desired_access=desired_access,
+            share_mode=(
+                0x00000001 | 0x00000002 | (0x00000004 if share_delete else 0)
+            ),
+            disposition=1 if create_new else 3,
+            flags=0x00000080 | 0x00200000,
+            message="The file could not be opened safely.",
+        )
+    except OSError as error:
+        error_code = getattr(error, "winerror", None) or error.errno
+        if create_new and error_code in {80, 183}:
+            raise FileExistsError(
+                error_code, "The destination already exists.", str(path)
+            ) from error
+        raise
+    try:
+        _require_windows_plain_type(
+            _windows_handle_information(raw_handle), directory=False
+        )
+        descriptor = msvcrt.open_osfhandle(
+            raw_handle,
+            (os.O_RDWR if create_new else os.O_RDONLY)
+            | getattr(os, "O_BINARY", 0),
+        )
+    except Exception:
+        close_handle(raw_handle)
+        raise
+    return os.fdopen(descriptor, "w+b" if create_new else "rb", buffering=0)
+
+
+def _windows_path_identity(path: Path) -> ObjectIdentity:
+    import ctypes
+
+    raw_handle = _windows_open_path(
+        path,
+        desired_access=0x00000080,
+        share_mode=0x00000001 | 0x00000002 | 0x00000004,
+        flags=0x02000000 | 0x00200000,
+        message="The object identity could not be opened.",
+    )
+    try:
+        _require_windows_plain_type(
+            _windows_handle_information(raw_handle), directory=None
+        )
+        return _windows_file_id_information(raw_handle)
+    finally:
+        ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+
+
+def _windows_handle_identity(raw_handle: int) -> ObjectIdentity:
+    information = _windows_handle_information(raw_handle)
+    _require_windows_plain_type(information, directory=None)
+    return _windows_file_id_information(raw_handle)
+
+
+def _windows_handle_information(raw_handle: int):
+    import ctypes
+
+    class ByHandleFileInformation(ctypes.Structure):
+        _fields_ = (
+            ("file_attributes", ctypes.c_uint32),
+            ("creation_time_low", ctypes.c_uint32),
+            ("creation_time_high", ctypes.c_uint32),
+            ("last_access_time_low", ctypes.c_uint32),
+            ("last_access_time_high", ctypes.c_uint32),
+            ("last_write_time_low", ctypes.c_uint32),
+            ("last_write_time_high", ctypes.c_uint32),
+            ("volume_serial_number", ctypes.c_uint32),
+            ("file_size_high", ctypes.c_uint32),
+            ("file_size_low", ctypes.c_uint32),
+            ("number_of_links", ctypes.c_uint32),
+            ("file_index_high", ctypes.c_uint32),
+            ("file_index_low", ctypes.c_uint32),
+        )
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    operation = kernel32.GetFileInformationByHandle
+    operation.argtypes = (ctypes.c_void_p, ctypes.POINTER(ByHandleFileInformation))
+    operation.restype = ctypes.c_int
+    information = ByHandleFileInformation()
+    if not operation(raw_handle, ctypes.byref(information)):
+        error_code = ctypes.get_last_error()
+        raise OSError(error_code, "The object identity could not be read.")
+    return information
+
+
+def _windows_file_id_information(raw_handle: int) -> ObjectIdentity:
+    """Return the native 64-bit volume serial and 128-bit FILE_ID_128."""
+
+    import ctypes
+
+    class FileId128(ctypes.Structure):
+        _fields_ = (("identifier", ctypes.c_ubyte * 16),)
+
+    class FileIdInfo(ctypes.Structure):
+        _fields_ = (
+            ("volume_serial_number", ctypes.c_uint64),
+            ("file_id", FileId128),
+        )
+
+    operation = ctypes.WinDLL(
+        "kernel32", use_last_error=True
+    ).GetFileInformationByHandleEx
+    operation.argtypes = (
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+    )
+    operation.restype = ctypes.c_int
+    information = FileIdInfo()
+    if not operation(
+        raw_handle,
+        18,
+        ctypes.byref(information),
+        ctypes.sizeof(information),
+    ):
+        code = ctypes.get_last_error()
+        raise OSError(code, "The native file identity could not be read.")
+    file_id = int.from_bytes(bytes(information.file_id.identifier), "little")
+    return information.volume_serial_number, file_id
+
+
+def _require_windows_plain_type(information, *, directory: bool | None) -> None:
+    attributes = information.file_attributes
+    if attributes & 0x00000400:
+        raise OSError("A reparse point cannot be used by the importer.")
+    is_directory = bool(attributes & 0x00000010)
+    if directory is not None and is_directory is not directory:
+        raise OSError("The opened importer object has the wrong type.")
+
+
+def _windows_open_path(
+    path: Path,
+    *,
+    desired_access: int,
+    share_mode: int,
+    flags: int,
+    message: str,
+    disposition: int = 3,
+) -> int:
+    import ctypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     create_file = kernel32.CreateFileW
@@ -168,31 +617,17 @@ def _open_windows_binary(path: Path, *, create_new: bool) -> BinaryIO:
         ctypes.c_void_p,
     )
     create_file.restype = ctypes.c_void_p
-    close_handle = kernel32.CloseHandle
-    close_handle.argtypes = (ctypes.c_void_p,)
-    close_handle.restype = ctypes.c_int
-    desired_access = 0x80000000 | 0x40000000 | 0x00010000
-    disposition = 1 if create_new else 3
     raw_handle = create_file(
         str(path),
         desired_access,
-        0,
+        share_mode,
         None,
         disposition,
-        0x00000080,
+        flags,
         None,
     )
     invalid_handle = ctypes.c_void_p(-1).value
     if raw_handle == invalid_handle:
         error_code = ctypes.get_last_error()
-        if create_new and error_code in {80, 183}:
-            raise FileExistsError(error_code, "The destination already exists.", str(path))
-        raise OSError(error_code, "The file could not be opened safely.", str(path))
-    try:
-        descriptor = msvcrt.open_osfhandle(
-            raw_handle, os.O_RDWR | getattr(os, "O_BINARY", 0)
-        )
-    except Exception:
-        close_handle(raw_handle)
-        raise
-    return os.fdopen(descriptor, "w+b" if create_new else "r+b", buffering=0)
+        raise OSError(error_code, message, str(path))
+    return raw_handle

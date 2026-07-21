@@ -118,6 +118,8 @@ from platform_integration import PlatformIntegration
 from batch_processing import BatchProcessingEngine, BatchReport
 from application_metadata import APPLICATION_VERSION
 from confirmed_observations import ConfirmedObservationRecord, ConfirmedObservationStore
+from capture_import.errors import CaptureImportError, RecoveryRequired
+from capture_import.ui import CapturePackageImportDialog, build_default_import_services
 
 
 GRADE_SUGGESTIONS = (
@@ -239,6 +241,12 @@ class CoinCollectionGUI:
         self.pending_inbox_refresh_callback = None
         self.pending_inbox_completion_done = False
         self.detection_result = None
+
+        self.capture_import_ready = False
+        self.capture_import_recovery_message = RecoveryRequired().safe_message
+        self.capture_import_recovery = None
+        self.capture_import_coordinator = None
+        self.initialize_capture_import_recovery()
         
         # Create menu bar
         self.create_menu_bar()
@@ -257,6 +265,11 @@ class CoinCollectionGUI:
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Import Collection CSV", command=self.import_collection_csv)
+        file_menu.add_command(
+            label="Import Capture Package...",
+            command=self.import_capture_package,
+            state=self.capture_import_menu_state(),
+        )
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
@@ -383,6 +396,56 @@ Total Unique Dates: {total_unique_dates}
         
         # Refresh collection list
         self.refresh_collection_list()
+
+    def import_capture_package(self):
+        """Select, preview, and explicitly import one local capture package."""
+
+        if not self.capture_import_ready:
+            messagebox.showerror(
+                "Capture Package Import",
+                self.capture_import_recovery_message,
+            )
+            return
+
+        package_path = filedialog.askopenfilename(
+            title="Import Capture Package",
+            filetypes=[
+                ("Coin Analyzer capture packages", "*.ca-package"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not package_path:
+            return
+        CapturePackageImportDialog(
+            self.root,
+            package_path,
+            self.app.collection,
+            on_success=self.refresh_collection_list,
+        )
+
+    def initialize_capture_import_recovery(self) -> bool:
+        """Complete fail-closed importer recovery before enabling package import."""
+
+        self.capture_import_ready = False
+        try:
+            recovery, coordinator = build_default_import_services(self.app.collection)
+            recovery.reconcile_pending_imports()
+        except CaptureImportError as error:
+            self.capture_import_recovery_message = error.safe_message
+            return False
+        except Exception as error:
+            self.capture_import_recovery_message = RecoveryRequired(error).safe_message
+            return False
+        self.capture_import_recovery = recovery
+        self.capture_import_coordinator = coordinator
+        self.capture_import_recovery_message = ""
+        self.capture_import_ready = True
+        return True
+
+    def capture_import_menu_state(self):
+        """Return the Tk state that reflects startup recovery readiness."""
+
+        return tk.NORMAL if self.capture_import_ready else tk.DISABLED
 
     @staticmethod
     def acquisition_values_from_text(values):

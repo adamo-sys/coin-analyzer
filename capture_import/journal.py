@@ -176,6 +176,8 @@ class JournalEntry:
         _validate_uuid(self.random_ownership_token, "random_ownership_token")
         if not isinstance(self.phase, ImportPhase):
             raise ValueError("phase must be an ImportPhase.")
+        if self.phase is ImportPhase.COMPACTING:
+            raise ValueError("COMPACTING is reserved for journal schema 2.")
         _validate_timestamp(self.created_at, "created_at")
         _validate_timestamp(self.updated_at, "updated_at")
         _validate_sha256(self.package_sha256, "package_sha256")

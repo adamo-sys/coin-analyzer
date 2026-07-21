@@ -94,6 +94,21 @@ class CapturePackageMediaValidator:
                 raise UnreferencedArchiveEntry()
         return tuple(validated)
 
+    def verify_payload(self, payload: bytes, expected: ValidatedMedia) -> None:
+        """Revalidate copied bytes against one immutable media descriptor."""
+
+        if not isinstance(payload, bytes) or not isinstance(expected, ValidatedMedia):
+            raise InvalidMedia()
+        if len(payload) != expected.byte_length or sha256(payload).hexdigest() != expected.sha256:
+            raise InvalidMedia()
+        actual_format, width, height = self._validate_image(payload)
+        expected_format = "JPEG" if expected.mime_type == "image/jpeg" else "PNG"
+        if actual_format != expected_format or (width, height) != (
+            expected.width,
+            expected.height,
+        ):
+            raise InvalidMedia()
+
     def _validate_image(self, payload: bytes) -> tuple[str, int, int]:
         if payload.startswith(b"\x89PNG\r\n\x1a\n"):
             self._require_complete_png(payload)

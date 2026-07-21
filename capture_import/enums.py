@@ -13,11 +13,13 @@ class ImportPhase(str, Enum):
     FILES_READY = "FILES_READY"
     COMMITTING_COLLECTION = "COMMITTING_COLLECTION"
     COLLECTION_COMMITTED = "COLLECTION_COMMITTED"
-    SUCCEEDED = "SUCCEEDED"
     ROLLING_BACK = "ROLLING_BACK"
-    ROLLED_BACK = "ROLLED_BACK"
     RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
     ROLLBACK_FAILED = "ROLLBACK_FAILED"
+    COMPACTING = "COMPACTING"
+    # Schema-1 read-only history values. Schema 2 rejects them operationally.
+    SUCCEEDED = "SUCCEEDED"
+    ROLLED_BACK = "ROLLED_BACK"
     CANCELLED = "CANCELLED"
 
 
@@ -98,6 +100,35 @@ class ErrorCategory(str, Enum):
     ROLLBACK_FAILED = "ROLLBACK_FAILED"
     JOURNAL_CORRUPT = "JOURNAL_CORRUPT"
     DUPLICATE_PACKAGE = "DUPLICATE_PACKAGE"
+    UNSUPPORTED_DURABILITY_ENVIRONMENT = "UNSUPPORTED_DURABILITY_ENVIRONMENT"
+    JOURNAL_GENERATION_EXHAUSTED = "JOURNAL_GENERATION_EXHAUSTED"
+    IMPORT_STATE_LIMIT_EXCEEDED = "IMPORT_STATE_LIMIT_EXCEEDED"
+
+
+class CollectionPublicationState(str, Enum):
+    """Durable state of one collection publication artifact."""
+
+    PLANNED = "PLANNED"
+    CREATED = "CREATED"
+    VERIFIED = "VERIFIED"
+    EXCHANGED = "EXCHANGED"
+    PUBLISHED = "PUBLISHED"
+    RETAINED = "RETAINED"
+    CLEANED = "CLEANED"
+
+
+class CleanupStatus(str, Enum):
+    """Append-only cleanup operation status."""
+
+    INTENT = "INTENT"
+    COMPLETE = "COMPLETE"
+
+
+class TerminalCompactionStatus(str, Enum):
+    """The two durable G/H compaction substates."""
+
+    PLANNING_MANIFEST = "PLANNING_MANIFEST"
+    READY_FOR_TERMINAL = "READY_FOR_TERMINAL"
 
 
 class ImageRole(str, Enum):
