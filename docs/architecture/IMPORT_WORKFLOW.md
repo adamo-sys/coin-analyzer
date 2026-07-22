@@ -229,6 +229,16 @@ Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full 
 - **Determinism:** Same input bytes + same configuration produce identical output bytes on the same platform/library version.
 - **Resource bounds:** Output dimensions, pixel counts, and file sizes are bounded by existing `capture_import/limits.py` values.
 - **No durable writes:** Stages do not mutate journals, locks, collections, or managed image storage.
+- **Subject extensibility:** The `coin_id` field in pipeline records and artifact paths is a generic collectible-item identifier. `ImageRole.FRONT` and `ImageRole.REVERSE` are generic two-sided roles. `ImageRole.EDGE` is coin-specific and ignored by stages that do not recognise it. Crop-detection strategies are geometry-specific and may be replaced for non-circular subjects without changing the stage protocol.
+
+Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full contracts are defined in `docs/adr/ADR-008-image-processing-pipeline.md`. The following rules govern every image stage:
+
+- **Input format:** JPEG and PNG only, matching `capture_import/media.py` validation.
+- **Output format:** Canonical normalized JPEG (sRGB, EXIF stripped, baseline, quality 92) unless a stage explicitly documents otherwise.
+- **Artifact ownership:** All image artifacts are written beneath `StageInput.workspace` and declared in `StageResult.artifacts` with stable keys.
+- **Determinism:** Same input bytes + same configuration produce identical output bytes on the same platform/library version.
+- **Resource bounds:** Output dimensions, pixel counts, and file sizes are bounded by existing `capture_import/limits.py` values.
+- **No durable writes:** Stages do not mutate journals, locks, collections, or managed image storage.
 
 ### Stage order
 

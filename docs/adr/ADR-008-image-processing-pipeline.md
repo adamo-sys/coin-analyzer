@@ -229,3 +229,23 @@ The following decisions materially affect durable data, backward compatibility, 
 - The adapter/coordinator contract must change; this is the only deliberate durability-boundary amendment in Sprint 8.
 - Testing burden increases because image stages require fixtures and deterministic OpenCV/PIL behavior.
 - No public API or plugin surface is introduced.
+
+## Subject extensibility
+
+The Sprint 8 pipeline is designed for coin photographs but the stage protocol and data contracts are intentionally geometry-neutral wherever feasible.
+
+### Identifiers
+
+The `coin_id` field in pipeline records, artifact keys, and workspace paths is a **generic collectible-item identifier** for the purpose of the pre-import pipeline. It is treated as an opaque, path-safe string (`^[A-Za-z0-9_-]{1,64}$`). Future subject types (banknotes, medals, tokens) can reuse the same pipeline by supplying their own identifiers; no field renaming is required for the pipeline to function, although downstream documentation may use subject-specific terminology.
+
+### Image roles
+
+`ImageRole.FRONT` and `ImageRole.REVERSE` describe two-sided collectibles generically. `ImageRole.EDGE` is coin-specific; stages that consume normalized artifacts gracefully ignore unknown roles. A future `ImageRole.BACK` (or renaming `REVERSE` to `BACK`) would be a capture-package format change, not a pipeline-protocol change.
+
+### Crop detection
+
+The `CropDetectionStage` (Unit 4) uses circular-contour qualification because coins are the initial target subject. The stage's fallback behavior—copying the full normalized image when no confident crop is found—ensures the pipeline remains usable for rectangular subjects (banknotes, stamps) without modification. A future geometry-specific crop stage can replace or extend the circular strategy without changing the `ProcessingStage` protocol, artifact key format, or downstream consumer contracts.
+
+### Geometry-specific quality metrics
+
+The `ImageQualityScoringStage` metrics (sharpness, contrast, brightness, resolution, blown highlights) are pixel-statistic based and remain valid for any flat subject. No amendment is required.

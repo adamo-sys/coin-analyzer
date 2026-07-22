@@ -21,6 +21,10 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 
 **In scope:** Pre-import image processing inside the Sprint 7 pipeline.
 
+**Subject-type extensibility note:** Sprint 8 targets coin photographs, but the stage protocol, quality metrics, and duplicate detection are geometry-neutral. `coin_id` in pipeline records and paths is a generic item identifier. Crop detection uses a coin-oriented circular strategy with full-image fallback; future subjects may use different geometry-specific crop strategies without protocol changes.
+
+**Explicitly out of scope:**
+
 **Explicitly out of scope:**
 - Post-import collection image analysis (`image_assessment.py`, `image_analyzer.py` workflows on `CoinItem`).
 - OCR and metadata extraction (Sprint 9).
