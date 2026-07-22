@@ -477,7 +477,7 @@ class VerifiedImageEvidence(ExpectedImageEvidence):
     object_identity: NativeObjectIdentity
 
     def validate(self) -> None:
-        super().validate()
+        ExpectedImageEvidence.validate(self)
         self.parent_identity.validate()
         self.object_identity.validate()
 
