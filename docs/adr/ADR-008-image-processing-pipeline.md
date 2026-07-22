@@ -1,6 +1,6 @@
 # ADR-008: Image Processing Pipeline
 
-- Status: Proposed (awaiting acceptance to begin Sprint 8 implementation)
+- Status: Accepted (implementation begins in Sprint 8 Unit 2)
 - Date: 2026-07-21
 
 ## Context
