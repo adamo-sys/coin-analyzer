@@ -10,21 +10,27 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import cv2
 import numpy as np
+from PIL import Image
 
+import capture_import.workflow_obverse_reverse_pairing as pairing_module
+from capture_import.workflow_execution import ImportWorkflow
 from capture_import.workflow_models import (
     ImportConfiguration,
     ImportRequest,
     StageArtifact,
     StageInput,
+    StageResult,
 )
 from capture_import.workflow_obverse_reverse_pairing import (
     OBVERSE_REVERSE_PAIRING_STAGE_ID,
     PAIRING_THRESHOLD,
     ObverseReversePairingStage,
     _build_explanation,
+    _color_histogram_similarity,
     _compute_image_metrics,
     _compute_pairing_score,
     _parse_artifact_key,
@@ -35,6 +41,7 @@ from capture_import.workflow_pipeline import (
     ProcessingPipeline,
     StageContractError,
     StageExecutionError,
+    WorkflowCancelledError,
 )
 
 # ---------------------------------------------------------------------------
@@ -170,17 +177,20 @@ class ComputeImageMetricsTests(unittest.TestCase):
 class ComputePairingScoreTests(unittest.TestCase):
     def test_identical_images_score_one(self) -> None:
         img = _make_uniform_image(width=600, height=600, color=(128, 128, 128))
-        score, dim, aspect, bright, contrast = _compute_pairing_score(img, img)
+        score, dim, aspect, bright, contrast, histogram = _compute_pairing_score(
+            img, img
+        )
         self.assertAlmostEqual(score, 1.0, places=3)
         self.assertAlmostEqual(dim, 1.0, places=3)
         self.assertAlmostEqual(aspect, 1.0, places=3)
         self.assertAlmostEqual(bright, 1.0, places=3)
         self.assertAlmostEqual(contrast, 1.0, places=3)
+        self.assertAlmostEqual(histogram, 1.0, places=3)
 
     def test_different_sizes_lowers_dim_score(self) -> None:
         front = _make_uniform_image(width=600, height=600)
         reverse = _make_uniform_image(width=300, height=300)
-        score, dim, aspect, bright, contrast = _compute_pairing_score(
+        score, dim, aspect, bright, contrast, histogram = _compute_pairing_score(
             front, reverse
         )
         self.assertAlmostEqual(dim, 0.5, places=3)
@@ -190,7 +200,7 @@ class ComputePairingScoreTests(unittest.TestCase):
     def test_different_brightness_lowers_score(self) -> None:
         front = _make_dark_image()
         reverse = _make_bright_image()
-        score, dim, aspect, bright, contrast = _compute_pairing_score(
+        score, dim, aspect, bright, contrast, histogram = _compute_pairing_score(
             front, reverse
         )
         self.assertLess(bright, 0.5)
@@ -199,7 +209,7 @@ class ComputePairingScoreTests(unittest.TestCase):
     def test_different_aspect_ratios_lowers_score(self) -> None:
         front = _make_uniform_image(width=600, height=600)
         reverse = _make_uniform_image(width=600, height=300)
-        score, dim, aspect, bright, contrast = _compute_pairing_score(
+        score, dim, aspect, bright, contrast, histogram = _compute_pairing_score(
             front, reverse
         )
         self.assertLess(aspect, 1.0)
@@ -214,15 +224,44 @@ class ComputePairingScoreTests(unittest.TestCase):
         self.assertGreaterEqual(score, 0.0)
         self.assertLessEqual(score, 1.0)
 
+    def test_disjoint_equal_luminance_colors_lower_histogram_score(self) -> None:
+        front = _make_uniform_image(color=(255, 0, 0))
+        reverse = _make_uniform_image(color=(0, 0, 97))
+        front_gray = cv2.cvtColor(front, cv2.COLOR_BGR2GRAY)
+        reverse_gray = cv2.cvtColor(reverse, cv2.COLOR_BGR2GRAY)
+        self.assertEqual(int(front_gray[0, 0]), int(reverse_gray[0, 0]))
+        score, _, _, brightness, _, histogram = _compute_pairing_score(
+            front, reverse
+        )
+        self.assertEqual(brightness, 1.0)
+        self.assertEqual(histogram, 0.0)
+        self.assertLess(score, PAIRING_THRESHOLD)
+
+    def test_similar_color_histograms_score_high(self) -> None:
+        front = _make_uniform_image(color=(120, 130, 140))
+        reverse = _make_uniform_image(color=(122, 132, 142))
+        similarity = _color_histogram_similarity(front, reverse)
+        self.assertGreaterEqual(similarity, 0.99)
+
+    def test_histogram_similarity_is_deterministic_and_bounded(self) -> None:
+        front = _make_noisy_image()
+        reverse = _make_gradient_image()
+        first = _color_histogram_similarity(front, reverse)
+        second = _color_histogram_similarity(front, reverse)
+        self.assertEqual(first, second)
+        self.assertGreaterEqual(first, 0.0)
+        self.assertLessEqual(first, 1.0)
+
 
 class BuildExplanationTests(unittest.TestCase):
     def test_paired_explanation(self) -> None:
-        text = _build_explanation(True, 0.9, 0.9, 0.9, 0.9)
+        text = _build_explanation(True, 0.9, 0.9, 0.9, 0.9, 0.9)
         self.assertIn("plausibly depict", text)
         self.assertIn("dimension=0.90", text)
+        self.assertIn("color_histogram=0.90", text)
 
     def test_not_paired_explanation(self) -> None:
-        text = _build_explanation(False, 0.3, 0.3, 0.3, 0.3)
+        text = _build_explanation(False, 0.3, 0.3, 0.3, 0.3, 0.3)
         self.assertIn("may not depict", text)
 
 
@@ -616,6 +655,171 @@ class FailureModeTests(unittest.TestCase):
             stage.execute(stage_input)
         self.assertIn("traversal", str(ctx.exception).lower())
 
+    def _write_valid_pair(
+        self,
+        *,
+        front_name: str = "front.jpg",
+        reverse_name: str = "reverse.jpg",
+    ) -> dict[str, StageArtifact]:
+        image = _make_uniform_image(width=200, height=200)
+        directory = self.workspace / "normalized" / "coin-1"
+        directory.mkdir(parents=True, exist_ok=True)
+        _save_test_jpeg(directory / front_name, image)
+        _save_test_jpeg(directory / reverse_name, image)
+        return {
+            "normalized-coin-1-front": StageArtifact(
+                relative_path=f"normalized/coin-1/{front_name}",
+                content_type="image/jpeg",
+            ),
+            "normalized-coin-1-reverse": StageArtifact(
+                relative_path=f"normalized/coin-1/{reverse_name}",
+                content_type="image/jpeg",
+            ),
+        }
+
+    def test_declared_mime_mismatch_raises_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        artifacts["normalized-coin-1-front"] = StageArtifact(
+            relative_path="normalized/coin-1/front.jpg",
+            content_type="image/png",
+        )
+        with (
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_extension_mismatch_raises_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        front_jpg = self.workspace / "normalized" / "coin-1" / "front.jpg"
+        front_png = front_jpg.with_suffix(".png")
+        front_jpg.replace(front_png)
+        artifacts["normalized-coin-1-front"] = StageArtifact(
+            relative_path="normalized/coin-1/front.png",
+            content_type="image/jpeg",
+        )
+        with (
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_unsupported_decodable_format_raises_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        front_path = self.workspace / "normalized" / "coin-1" / "front.jpg"
+        Image.new("RGB", (20, 20), "red").save(front_path, format="BMP")
+        with (
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_file_size_limit_is_enforced_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        front_path = self.workspace / "normalized" / "coin-1" / "front.jpg"
+        with (
+            mock.patch.object(
+                pairing_module, "MAX_IMAGE_SIZE", front_path.stat().st_size - 1
+            ),
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_dimension_limit_is_enforced_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        with (
+            mock.patch.object(pairing_module, "MAX_IMAGE_DIMENSION", 199),
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_pixel_limit_is_enforced_before_decode(self) -> None:
+        artifacts = self._write_valid_pair()
+        with (
+            mock.patch.object(pairing_module, "MAX_IMAGE_PIXELS", 39_999),
+            mock.patch.object(pairing_module.cv2, "imdecode") as decode,
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        decode.assert_not_called()
+
+    def test_exact_resource_boundaries_are_accepted(self) -> None:
+        artifacts = self._write_valid_pair()
+        front_path = self.workspace / "normalized" / "coin-1" / "front.jpg"
+        with (
+            mock.patch.object(
+                pairing_module, "MAX_IMAGE_SIZE", front_path.stat().st_size
+            ),
+            mock.patch.object(pairing_module, "MAX_IMAGE_DIMENSION", 200),
+            mock.patch.object(pairing_module, "MAX_IMAGE_PIXELS", 40_000),
+        ):
+            result = ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+        self.assertEqual(result.metadata["total_coin_count"], 1)
+
+    def test_symlink_artifact_is_rejected(self) -> None:
+        artifacts = self._write_valid_pair()
+        front_path = self.workspace / "normalized" / "coin-1" / "front.jpg"
+        outside = self.tmp / "outside.jpg"
+        _save_test_jpeg(outside, _make_uniform_image(width=200, height=200))
+        front_path.unlink()
+        try:
+            front_path.symlink_to(outside)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"symlinks unavailable: {exc}")
+        try:
+            with self.assertRaises(StageContractError):
+                ObverseReversePairingStage().execute(
+                    _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+                )
+        finally:
+            front_path.unlink(missing_ok=True)
+
+    @unittest.skipIf(os.name == "nt", "POSIX pathname replacement semantics")
+    def test_replacement_after_verified_open_is_rejected(self) -> None:
+        artifacts = self._write_valid_pair()
+        original_open = pairing_module._open_artifact_readonly
+        replacement = self.tmp / "replacement.jpg"
+        _save_test_jpeg(replacement, _make_uniform_image(width=200, height=200))
+
+        def replace_after_open(path: Path):
+            handle = original_open(path)
+            if path.name == "front.jpg":
+                os.replace(replacement, path)
+            return handle
+
+        with (
+            mock.patch.object(
+                pairing_module,
+                "_open_artifact_readonly",
+                side_effect=replace_after_open,
+            ),
+            self.assertRaises(StageContractError),
+        ):
+            ObverseReversePairingStage().execute(
+                _build_stage_input(workspace=self.workspace, artifacts=artifacts)
+            )
+
 
 class PipelineIntegrationTests(unittest.TestCase):
     def test_stage_conforms_to_protocol(self) -> None:
@@ -639,6 +843,80 @@ class PipelineIntegrationTests(unittest.TestCase):
             )
         )
         self.assertIn(OBVERSE_REVERSE_PAIRING_STAGE_ID, pipeline.stage_ids)
+
+    def test_repeated_execution_and_artifact_order_are_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            image = _make_noisy_image(width=200, height=200)
+            for role in ("front", "reverse"):
+                path = workspace / "normalized" / "coin-1" / f"{role}.jpg"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                _save_test_jpeg(path, image)
+            artifacts = {
+                f"normalized-coin-1-{role}": StageArtifact(
+                    relative_path=f"normalized/coin-1/{role}.jpg",
+                    content_type="image/jpeg",
+                )
+                for role in ("front", "reverse")
+            }
+            stage = ObverseReversePairingStage()
+            first = stage.execute(
+                _build_stage_input(workspace=workspace, artifacts=artifacts)
+            )
+            second = stage.execute(
+                _build_stage_input(
+                    workspace=workspace,
+                    artifacts=dict(reversed(tuple(artifacts.items()))),
+                )
+            )
+            self.assertEqual(first.metadata, second.metadata)
+
+    def test_cancellation_after_pairing_prevents_transaction_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            image = _make_uniform_image(width=200, height=200)
+            for role in ("front", "reverse"):
+                path = workspace / "normalized" / "coin-1" / f"{role}.jpg"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                _save_test_jpeg(path, image)
+            artifacts = {
+                f"normalized-coin-1-{role}": StageArtifact(
+                    relative_path=f"normalized/coin-1/{role}.jpg",
+                    content_type="image/jpeg",
+                )
+                for role in ("front", "reverse")
+            }
+
+            class ArtifactFeeder:
+                stage_id = "artifact-feeder"
+
+                def execute(self, stage_input: StageInput) -> StageResult:
+                    return StageResult(artifacts=artifacts, metadata={})
+
+            checks = {"count": 0}
+            transaction_calls: list[object] = []
+
+            def is_cancelled() -> bool:
+                checks["count"] += 1
+                return checks["count"] >= 4
+
+            workflow = ImportWorkflow(
+                ProcessingPipeline(
+                    stages=(ArtifactFeeder(), ObverseReversePairingStage())
+                ),
+                is_cancelled=is_cancelled,
+            )
+            request = _build_stage_input(
+                workspace=workspace,
+                artifacts={},
+            ).request
+            with self.assertRaises(WorkflowCancelledError):
+                workflow.execute(
+                    request,
+                    workspace,
+                    transaction=transaction_calls.append,
+                )
+            self.assertEqual(transaction_calls, [])
 
 
 if __name__ == "__main__":

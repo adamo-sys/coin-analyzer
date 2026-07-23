@@ -8,14 +8,31 @@ emits pairing records with a bounded consistency score.
 
 from __future__ import annotations
 
+import os
 import re
+import warnings
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
+from typing import BinaryIO
 
 import cv2
 import numpy as np
+from PIL import Image
 
-from .limits import MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS
+from ._filesystem import (
+    handle_matches_path,
+    open_plain_directory_handle,
+    require_plain_directory,
+    require_plain_regular_file,
+)
+from .limits import (
+    MAX_IMAGE_DIMENSION,
+    MAX_IMAGE_PIXELS,
+    MAX_IMAGE_SIZE,
+    SUPPORTED_IMAGE_EXTENSIONS,
+    SUPPORTED_IMAGE_TYPES,
+)
 from .workflow_models import JsonValue, StageArtifact, StageInput, StageResult
 from .workflow_pipeline import StageContractError, StageExecutionError
 
@@ -32,10 +49,14 @@ _SAFE_COIN_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 PAIRING_THRESHOLD = 0.6
 
 # Metric weights for consistency score.
-_WEIGHT_DIM = 0.30
-_WEIGHT_ASPECT = 0.25
-_WEIGHT_BRIGHTNESS = 0.25
-_WEIGHT_CONTRAST = 0.20
+_WEIGHT_DIM = 0.15
+_WEIGHT_ASPECT = 0.10
+_WEIGHT_BRIGHTNESS = 0.15
+_WEIGHT_CONTRAST = 0.15
+_WEIGHT_HISTOGRAM = 0.45
+
+_COLOR_HISTOGRAM_BINS = 8
+_READ_CHUNK = 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +75,7 @@ class PairingRecord:
     aspect_score: float
     brightness_score: float
     contrast_score: float
+    color_histogram_score: float
 
     def to_dict(self) -> dict[str, JsonValue]:
         return {
@@ -69,6 +91,7 @@ class PairingRecord:
             "aspect_score": self.aspect_score,
             "brightness_score": self.brightness_score,
             "contrast_score": self.contrast_score,
+            "color_histogram_score": self.color_histogram_score,
         }
 
 
@@ -112,6 +135,210 @@ def _ratio_similarity(a: float, b: float) -> float:
     return min(a, b) / max(a, b)
 
 
+def _open_artifact_readonly(path: Path) -> BinaryIO:
+    """Open one plain artifact without following a substituted final component."""
+
+    require_plain_regular_file(path)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    handle = os.fdopen(descriptor, "rb")
+    if not handle_matches_path(handle, path):
+        handle.close()
+        raise OSError("The artifact identity changed while it was opened.")
+    return handle
+
+
+def _read_bounded_artifact(
+    workspace: Path,
+    relative_path: Path,
+    *,
+    stage_id: str,
+    label: str,
+) -> bytes:
+    """Read one workspace artifact through held directory and file identities."""
+
+    _require_contained(
+        relative_path,
+        workspace,
+        stage_id=stage_id,
+        label=label,
+    )
+    candidate = workspace / relative_path
+    try:
+        require_plain_directory(workspace)
+        require_plain_directory(candidate.parent)
+        with (
+            open_plain_directory_handle(workspace) as workspace_handle,
+            open_plain_directory_handle(candidate.parent) as parent_handle,
+        ):
+            handle = _open_artifact_readonly(candidate)
+            try:
+                before = os.fstat(handle.fileno())
+                if before.st_size > MAX_IMAGE_SIZE:
+                    raise StageContractError(
+                        stage_id,
+                        f"{label} exceeds MAX_IMAGE_SIZE.",
+                    )
+                chunks: list[bytes] = []
+                total = 0
+                while total <= MAX_IMAGE_SIZE:
+                    chunk = handle.read(min(_READ_CHUNK, MAX_IMAGE_SIZE + 1 - total))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    total += len(chunk)
+                if total > MAX_IMAGE_SIZE:
+                    raise StageContractError(
+                        stage_id,
+                        f"{label} exceeds MAX_IMAGE_SIZE.",
+                    )
+                after = os.fstat(handle.fileno())
+                if (
+                    before.st_size != after.st_size
+                    or before.st_mtime_ns != after.st_mtime_ns
+                    or before.st_ctime_ns != after.st_ctime_ns
+                    or total != before.st_size
+                ):
+                    raise OSError("The artifact changed while it was read.")
+                if (
+                    not workspace_handle.verify_path()
+                    or not parent_handle.verify_path()
+                    or not handle_matches_path(handle, candidate)
+                ):
+                    raise OSError("The artifact path identity changed while it was read.")
+                return b"".join(chunks)
+            finally:
+                handle.close()
+    except StageContractError:
+        raise
+    except (FileNotFoundError, OSError) as exc:
+        raise StageContractError(
+            stage_id,
+            f"{label} is not a stable plain file inside the workflow workspace.",
+        ) from exc
+
+
+def _decode_bounded_image(
+    payload: bytes,
+    artifact: StageArtifact,
+    *,
+    stage_id: str,
+    label: str,
+) -> np.ndarray:
+    """Validate the encoded contract before performing one bounded OpenCV decode."""
+
+    declared_type = artifact.content_type
+    suffix = Path(artifact.relative_path).suffix.lower()
+    if declared_type not in SUPPORTED_IMAGE_TYPES:
+        raise StageContractError(
+            stage_id,
+            f"{label} has unsupported content type.",
+        )
+    if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
+        raise StageContractError(
+            stage_id,
+            f"{label} has unsupported filename extension.",
+        )
+
+    if payload.startswith(b"\xff\xd8"):
+        signature_format = "JPEG"
+    elif payload.startswith(b"\x89PNG\r\n\x1a\n"):
+        signature_format = "PNG"
+    else:
+        try:
+            with Image.open(BytesIO(payload)) as unsupported_probe:
+                unsupported_format = unsupported_probe.format
+        except (OSError, SyntaxError, ValueError) as exc:
+            raise StageExecutionError(
+                stage_id,
+                ValueError(f"{label} could not be validated as an image."),
+            ) from exc
+        raise StageContractError(
+            stage_id,
+            f"{label} uses unsupported encoded format {unsupported_format!r}.",
+        )
+
+    expected_format = "JPEG" if declared_type == "image/jpeg" else "PNG"
+    expected_suffix = ".jpg" if expected_format == "JPEG" else ".png"
+    if signature_format != expected_format or suffix != expected_suffix:
+        raise StageContractError(
+            stage_id,
+            f"{label} bytes, content type, and extension disagree.",
+        )
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(payload)) as probe:
+                width, height = probe.size
+                if probe.format != expected_format or getattr(probe, "n_frames", 1) != 1:
+                    raise StageContractError(
+                        stage_id,
+                        f"{label} does not match the accepted single-image format.",
+                    )
+                if width < 1 or height < 1:
+                    raise StageContractError(stage_id, f"{label} has invalid dimensions.")
+                if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+                    raise StageContractError(
+                        stage_id,
+                        f"{label} exceeds MAX_IMAGE_DIMENSION.",
+                    )
+                if width * height > MAX_IMAGE_PIXELS:
+                    raise StageContractError(
+                        stage_id,
+                        f"{label} exceeds MAX_IMAGE_PIXELS.",
+                    )
+                probe.verify()
+    except StageContractError:
+        raise
+    except (
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        OSError,
+        SyntaxError,
+        ValueError,
+    ) as exc:
+        raise StageExecutionError(
+            stage_id,
+            ValueError(f"{label} could not be validated as an image."),
+        ) from exc
+
+    try:
+        encoded = np.frombuffer(payload, dtype=np.uint8)
+        decoded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    except (cv2.error, MemoryError, ValueError) as exc:
+        raise StageExecutionError(stage_id, exc) from exc
+    if decoded is None or decoded.shape[:2] != (height, width):
+        raise StageExecutionError(
+            stage_id,
+            ValueError(f"{label} could not be decoded consistently."),
+        )
+    return decoded
+
+
+def _compute_color_histogram(image: np.ndarray) -> np.ndarray:
+    """Return a deterministic, normalized joint BGR color histogram."""
+
+    pixel_count = image.shape[0] * image.shape[1]
+    histogram = cv2.calcHist(
+        [image],
+        [0, 1, 2],
+        None,
+        [_COLOR_HISTOGRAM_BINS] * 3,
+        [0, 256] * 3,
+    ).reshape(-1)
+    return histogram.astype(np.float64) / float(pixel_count)
+
+
+def _color_histogram_similarity(front: np.ndarray, reverse: np.ndarray) -> float:
+    """Return fixed-bin histogram intersection in the closed interval [0, 1]."""
+
+    front_histogram = _compute_color_histogram(front)
+    reverse_histogram = _compute_color_histogram(reverse)
+    intersection = float(np.minimum(front_histogram, reverse_histogram).sum())
+    return min(1.0, max(0.0, intersection))
+
+
 def _compute_image_metrics(image: np.ndarray) -> tuple[float, float, float, float]:
     """Compute explainable metrics from an image.
 
@@ -129,11 +356,11 @@ def _compute_image_metrics(image: np.ndarray) -> tuple[float, float, float, floa
 def _compute_pairing_score(
     front: np.ndarray,
     reverse: np.ndarray,
-) -> tuple[float, float, float, float, float]:
+) -> tuple[float, float, float, float, float, float]:
     """Compute deterministic pairing scores.
 
     Returns ``(consistency_score, dim_score, aspect_score,
-    brightness_score, contrast_score)``.
+    brightness_score, contrast_score, color_histogram_score)``.
     """
     f_mean, f_contrast, f_aspect, f_pixels = _compute_image_metrics(front)
     r_mean, r_contrast, r_aspect, r_pixels = _compute_image_metrics(reverse)
@@ -155,11 +382,14 @@ def _compute_pairing_score(
     contrast_diff = abs(f_contrast - r_contrast)
     contrast_score = max(0.0, 1.0 - contrast_diff / 128.0)
 
+    color_histogram_score = _color_histogram_similarity(front, reverse)
+
     consistency = (
         _WEIGHT_DIM * dim_score
         + _WEIGHT_ASPECT * aspect_score
         + _WEIGHT_BRIGHTNESS * brightness_score
         + _WEIGHT_CONTRAST * contrast_score
+        + _WEIGHT_HISTOGRAM * color_histogram_score
     )
 
     return (
@@ -168,6 +398,7 @@ def _compute_pairing_score(
         round(aspect_score, 4),
         round(brightness_score, 4),
         round(contrast_score, 4),
+        round(color_histogram_score, 4),
     )
 
 
@@ -177,6 +408,7 @@ def _build_explanation(
     aspect_score: float,
     brightness_score: float,
     contrast_score: float,
+    color_histogram_score: float,
 ) -> str:
     """Produce a human-readable explanation of the pairing decision."""
     parts: list[str] = []
@@ -186,7 +418,8 @@ def _build_explanation(
         parts.append("Images may not depict opposite sides of the same object.")
     parts.append(
         f"dimension={dim_score:.2f} aspect={aspect_score:.2f} "
-        f"brightness={brightness_score:.2f} contrast={contrast_score:.2f}"
+        f"brightness={brightness_score:.2f} contrast={contrast_score:.2f} "
+        f"color_histogram={color_histogram_score:.2f}"
     )
     return " ".join(parts)
 
@@ -243,61 +476,30 @@ class ObverseReversePairingStage:
             front_key, front_artifact = roles["front"]
             reverse_key, reverse_artifact = roles["reverse"]
 
-            front_path = stage_input.workspace / front_artifact.relative_path
-            reverse_path = stage_input.workspace / reverse_artifact.relative_path
-
-            for path, label in (
-                (front_path, f"front ({front_key})"),
-                (reverse_path, f"reverse ({reverse_key})"),
-            ):
-                _require_contained(
-                    Path(
-                        front_artifact.relative_path
-                        if "front" in label
-                        else reverse_artifact.relative_path
-                    ),
-                    stage_input.workspace,
-                    stage_id=self.stage_id,
-                    label=label,
-                )
-                if not path.exists():
-                    raise StageContractError(
-                        self.stage_id,
-                        f"artifact not found in workspace: {path.name!r}.",
-                    )
-
-            # Load images and validate bounds.
-            try:
-                front_image = cv2.imread(str(front_path))
-                if front_image is None:
-                    raise StageExecutionError(
-                        self.stage_id,
-                        ValueError(f"front image could not be decoded: {front_path}"),
-                    )
-                reverse_image = cv2.imread(str(reverse_path))
-                if reverse_image is None:
-                    raise StageExecutionError(
-                        self.stage_id,
-                        ValueError(
-                            f"reverse image could not be decoded: {reverse_path}"
-                        ),
-                    )
-            except OSError as exc:
-                raise StageExecutionError(self.stage_id, exc) from exc
-
-            for image, label in ((front_image, "front"), (reverse_image, "reverse")):
-                h, w = image.shape[:2]
-                pixels = w * h
-                if pixels > MAX_IMAGE_PIXELS:
-                    raise StageContractError(
-                        self.stage_id,
-                        f"{label} image exceeds MAX_IMAGE_PIXELS: {pixels}.",
-                    )
-                if w > MAX_IMAGE_DIMENSION or h > MAX_IMAGE_DIMENSION:
-                    raise StageContractError(
-                        self.stage_id,
-                        f"{label} image exceeds MAX_IMAGE_DIMENSION: {w}x{h}",
-                    )
+            front_payload = _read_bounded_artifact(
+                stage_input.workspace,
+                Path(front_artifact.relative_path),
+                stage_id=self.stage_id,
+                label=f"front ({front_key})",
+            )
+            reverse_payload = _read_bounded_artifact(
+                stage_input.workspace,
+                Path(reverse_artifact.relative_path),
+                stage_id=self.stage_id,
+                label=f"reverse ({reverse_key})",
+            )
+            front_image = _decode_bounded_image(
+                front_payload,
+                front_artifact,
+                stage_id=self.stage_id,
+                label=f"front ({front_key})",
+            )
+            reverse_image = _decode_bounded_image(
+                reverse_payload,
+                reverse_artifact,
+                stage_id=self.stage_id,
+                label=f"reverse ({reverse_key})",
+            )
 
             (
                 consistency_score,
@@ -305,6 +507,7 @@ class ObverseReversePairingStage:
                 aspect_score,
                 brightness_score,
                 contrast_score,
+                color_histogram_score,
             ) = _compute_pairing_score(front_image, reverse_image)
 
             paired = consistency_score >= PAIRING_THRESHOLD
@@ -314,7 +517,12 @@ class ObverseReversePairingStage:
                 paired=paired,
                 consistency_score=consistency_score,
                 explanation=_build_explanation(
-                    paired, dim_score, aspect_score, brightness_score, contrast_score
+                    paired,
+                    dim_score,
+                    aspect_score,
+                    brightness_score,
+                    contrast_score,
+                    color_histogram_score,
                 ),
                 front_width=front_image.shape[1],
                 front_height=front_image.shape[0],
@@ -324,6 +532,7 @@ class ObverseReversePairingStage:
                 aspect_score=aspect_score,
                 brightness_score=brightness_score,
                 contrast_score=contrast_score,
+                color_histogram_score=color_histogram_score,
             )
             pairing_records.append(record)
 
