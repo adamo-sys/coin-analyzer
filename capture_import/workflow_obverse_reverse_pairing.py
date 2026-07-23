@@ -154,9 +154,14 @@ def _read_bounded_artifact(
     *,
     stage_id: str,
     label: str,
+    max_bytes: int | None = None,
 ) -> bytes:
     """Read one workspace artifact through held directory and file identities."""
 
+    if max_bytes is None:
+        max_bytes = MAX_IMAGE_SIZE
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes < 1:
+        raise StageContractError(stage_id, f"{label} has an invalid read limit.")
     _require_contained(
         relative_path,
         workspace,
@@ -174,23 +179,23 @@ def _read_bounded_artifact(
             handle = _open_artifact_readonly(candidate)
             try:
                 before = os.fstat(handle.fileno())
-                if before.st_size > MAX_IMAGE_SIZE:
+                if before.st_size > max_bytes:
                     raise StageContractError(
                         stage_id,
-                        f"{label} exceeds MAX_IMAGE_SIZE.",
+                        f"{label} exceeds its byte limit.",
                     )
                 chunks: list[bytes] = []
                 total = 0
-                while total <= MAX_IMAGE_SIZE:
-                    chunk = handle.read(min(_READ_CHUNK, MAX_IMAGE_SIZE + 1 - total))
+                while total <= max_bytes:
+                    chunk = handle.read(min(_READ_CHUNK, max_bytes + 1 - total))
                     if not chunk:
                         break
                     chunks.append(chunk)
                     total += len(chunk)
-                if total > MAX_IMAGE_SIZE:
+                if total > max_bytes:
                     raise StageContractError(
                         stage_id,
-                        f"{label} exceeds MAX_IMAGE_SIZE.",
+                        f"{label} exceeds its byte limit.",
                     )
                 after = os.fstat(handle.fileno())
                 if (

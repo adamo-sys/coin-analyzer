@@ -49,6 +49,7 @@ class DuplicateCategory(str, Enum):
     IDENTITY = "IDENTITY"
     ACQUISITION_DETAILS = "ACQUISITION_DETAILS"
     PARTIAL_MEDIA = "PARTIAL_MEDIA"
+    NORMALIZED_MEDIA_HASHES = "NORMALIZED_MEDIA_HASHES"
 
 
 class ImportRecordOutcome(str, Enum):
