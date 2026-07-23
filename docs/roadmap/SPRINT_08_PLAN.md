@@ -121,7 +121,7 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | 3 | Image quality scoring stage | `capture_import/workflow_image_quality.py` | `test_workflow_image_quality.py` | TBD | PLANNED |
 | 4 | Crop detection stage | `capture_import/workflow_crop_detection.py` | `test_workflow_crop_detection.py` | TBD | PLANNED |
 | 5 | Obverse/reverse pairing stage | `capture_import/workflow_obverse_reverse_pairing.py` | `test_workflow_obverse_reverse_pairing.py` (48 run, 2 expected Windows skips) | `6a42ab0`, `dc6363b` | VERIFIED |
-| 6 | Image duplicate detection stage | `capture_import/workflow_image_duplicates.py` | `test_workflow_image_duplicates.py` | TBD | PLANNED |
+| 6 | Image duplicate detection stage | `capture_import/workflow_image_duplicates.py` | `test_workflow_image_duplicates.py` (31 passed) | `456db79` | VERIFIED |
 | 7 | Adapter amendment and pipeline integration | `workflow_adapter.py`, `workflow_stages.py`, optional `coordinator.py` | `test_workflow_image_integration.py` | TBD | PLANNED |
 | 8 | Documentation, traceability, release gate | `CHANGELOG.md`, `PRODUCT_ROADMAP.md`, traceability updates | Full regression | TBD | PLANNED |
 
