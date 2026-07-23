@@ -11,8 +11,10 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | Sprint 7 baseline | Commit `f73f29f` |
 | Sprint 6 baseline | Commit `fd1682e` |
 | Sprint 5 baseline | Commit `55817fd` |
-| Architecture | Schema-2 Durable Persistence |
-| Frozen spec hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
+| Legacy architecture | Schema-2 Durable Persistence |
+| Legacy frozen hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
+| Processed-media architecture | Unit 7A processed-artifact durability successor |
+| Processed-media frozen hash | `9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014` |
 | ADR | `docs/adr/ADR-007-internal-processing-stage-framework.md` (Accepted) |
 | ADR | `docs/adr/ADR-008-image-processing-pipeline.md` (Proposed) |
 | Builds on | Sprint 7 `ProcessingStage` protocol and `ProcessingPipeline` |
@@ -54,7 +56,7 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 ### Unit 4: Crop detection stage
 - `capture_import/workflow_crop_detection.py` — `CropDetectionStage`
 - `tests/test_workflow_crop_detection.py` — coin region detection, fallback to full image, oversized/empty crop rejection, deterministic rectangles
-- **Objective:** Detect the coin region in normalized images and emit crop rectangles plus optional cropped artifacts.
+- **Objective:** Detect the coin region in normalized images and emit crop rectangles plus one cropped artifact per normalized input; low-confidence output is a byte-identical full-frame fallback.
 
 ### Unit 5: Obverse/reverse pairing stage
 - `capture_import/workflow_obverse_reverse_pairing.py` — `ObverseReversePairingStage`
@@ -294,7 +296,7 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 
 ### Unit 4: Crop Detection Stage
 
-**Objective:** Detect the coin region in normalized images and emit crop rectangles plus optional cropped artifacts.
+**Objective:** Detect the coin region in normalized images and emit crop rectangles plus one cropped artifact per normalized input; low-confidence output is a byte-identical full-frame fallback.
 
 **Files expected to change:**
 - `capture_import/workflow_crop_detection.py` (new)
@@ -324,7 +326,8 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 
 **Acceptance criteria:**
 - Stage emits crop metadata for every normalized image.
-- Stage emits a valid cropped artifact when confidence is high.
+- Stage always emits a valid cropped artifact; durable selection uses it exactly
+  when `crop_applied` is true and `crop_confidence >= 0.65`.
 - Stage falls back to the normalized image when confidence is low.
 - Stage fails with `StageContractError` on invalid crop geometry.
 
@@ -445,11 +448,10 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 derived bytes with the original package identity. The selected architecture is a
 separate coordinator-owned immutable processed-artifact snapshot.
 
-**Implementation gate:** Unit 7 production work is blocked. The frozen
-schema-2 journal, snapshot-owner, cleanup, terminal-history, and RM-01–RM-41
-contracts cannot represent a second snapshot. Unit 7A must amend and re-freeze
-the durability specification before any later sub-unit begins. Existing schema-2
-records are never reinterpreted.
+**Implementation gate:** Existing Schema 2 records are never reinterpreted.
+Unit 7A separately versions and freezes processed-media durability. Unit 7B may
+begin only against the approved Unit 7A bundle; Units 7C–7E remain gated by their
+predecessor unit and the frozen successor traceability contract.
 
 #### Unit 7A — Durable processed-snapshot specification
 
@@ -457,21 +459,22 @@ records are never reinterpreted.
 snapshot and define every new crash boundary.
 
 **Expected files:**
-- `docs/architecture/durable-persistence.md`
-- `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_MATRIX.md`
-- `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_INVARIANTS.md`
-- `docs/architecture/durable-persistence-traceability.md`
-- `docs/adr/ADR-008-image-processing-pipeline.md` if reconciliation is needed
+- `docs/architecture/processed-artifact-durability.md`
+- `docs/DESKTOP_PROCESSED_ARTIFACT_RECOVERY_MATRIX.md`
+- `docs/DESKTOP_PROCESSED_ARTIFACT_RECOVERY_INVARIANTS.md`
+- `docs/architecture/processed-artifact-durability-traceability.md`
+- ADR, workflow, and plan reconciliation documents outside the hashed bundle
 
 **Contracts changed:**
-- Versioned operational journal, snapshot owner, cleanup target/root kinds, and
-  terminal processed-media proof.
+- Journal `3.0`, journal owner `2.0`, terminal history `2.0`, collection photo
+  provenance `1.0`, processed snapshot owner/manifest/completion `1.0`, cleanup
+  target/root kinds, and terminal processed-media proof.
 - Processed-snapshot descriptor, owner, sealed manifest, artifact inventory, and
   aggregate digest.
 - Startup enumeration, referenced/orphan classification, rollback, success
   cleanup, compaction, and privacy-complete terminalization.
-- New recovery scenarios for every creation, sealing, verification, deletion,
-  receipt, and replay boundary.
+- PA-RM-01 through PA-RM-43 cover every creation, sealing, verification,
+  deletion, receipt, version, terminalization, and replay boundary.
 
 **Focused validation:** Documentation schema audit, RM completeness audit,
 cross-document symbol/path checks, `git diff --check`, and independent
@@ -489,7 +492,9 @@ this unit and may be rerun as non-mutating confirmation if requested.
 
 **Acceptance criteria:** The review verdict is
 `READY TO IMPLEMENT PROCESSED ARTIFACT DURABILITY`; a new SHA-256 is frozen; no
-schema-2 bytes are reinterpreted; all new durable states are representable.
+Schema 2 bytes are reinterpreted; all new durable states are representable. The
+authoritative Unit 7A bundle hash is
+`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`.
 
 **Stop conditions:** Cyclic identity commitments, unrepresentable cleanup state,
 ambiguous replay authority, terminal history requiring private paths, or a
@@ -517,12 +522,13 @@ boundary and seal selected media into an independently verified snapshot.
 - `tests/test_processed_artifact_snapshot.py` (new)
 
 **Contracts changed:** `PreparedFile` routing facts, optional
-`PreparedArtifactSet`, `ProcessedArtifactDescriptor`,
-`ProcessedArtifactSnapshotHandle`, sealed manifest/owner schemas, and aggregate
+`PreparedArtifactSet`, ephemeral `PreparedArtifactDescriptor`, durable
+`ProcessedArtifactDescriptor`,
+`ProcessedSnapshotHandle`, sealed manifest/owner schemas, and aggregate
 digest.
 
 `PreparedArtifactSet` is non-serializable and single use. Its immutable ordered
-descriptors require artifact key, source coin id, role, variant, content type,
+prepared descriptors require artifact key, source coin id, role, variant, content type,
 expected byte length, SHA-256, relative path, and captured native identity. Its
 `PreparedWorkspaceLease` owns a verified workspace-root handle plus open
 read-only no-follow handles for the selected files. Assembly verifies and hashes
@@ -530,6 +536,9 @@ through those handles. Ownership transfers exactly once to the coordinator,
 which copies through the same handles, rechecks identity/length/digest/root/
 parents/path binding, and closes all handles on every terminal path. Before
 transfer, the workflow driver owns cleanup. No workspace fact is durable.
+Selection is exact: use `CROPPED` only when `crop_applied` is true and
+`crop_confidence >= 0.65`; otherwise use `NORMALIZED` and verify the always-
+present cropped fallback is the specified byte-identical full-frame copy.
 
 **Focused tests:** Model validation, deterministic routing, exact-byte sealing,
 no-follow/no-overwrite creation, identity replacement races, path collision,

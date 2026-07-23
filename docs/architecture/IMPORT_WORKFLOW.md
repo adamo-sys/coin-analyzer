@@ -5,6 +5,9 @@
 This document describes the deterministic preprocessing pipeline that runs before the durable transaction boundary. It is subordinate to:
 
 - `docs/architecture/durable-persistence.md` (frozen at SHA-256 `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`)
+- `docs/architecture/processed-artifact-durability.md` for processed-media
+  imports (Unit 7A bundle SHA-256
+  `9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`)
 - `docs/adr/ADR-007-internal-processing-stage-framework.md`
 
 ## Overview
@@ -259,7 +262,7 @@ Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full 
 
 1. `ImageNormalizationStage` — produces `normalized/<coin_id>/<role>.jpg` artifacts.
 2. `ImageQualityScoringStage` — metadata-only quality metrics on normalized artifacts.
-3. `CropDetectionStage` — produces optional `cropped/<coin_id>/<role>.jpg` artifacts and crop rectangles.
+3. `CropDetectionStage` — always produces `cropped/<coin_id>/<role>.jpg` artifacts and crop records; the durable selector uses cropped bytes only when `crop_applied` is true and `crop_confidence >= 0.65`, otherwise it selects the normalized artifact and requires the cropped fallback to be an exact full-frame copy.
 4. `ObverseReversePairingStage` — metadata-only consistency check between front and reverse images.
 5. `ImageDuplicateDetectionStage` — metadata-only duplicate signals based on exact normalized-byte hashes.
 
@@ -269,8 +272,10 @@ Sprint 8 amends the Sprint 7 adapter contract. `capture_import/workflow_adapter.
 
 - `PreparedFile` retains the artifact key, content type, producer stage,
   durability classification, mandatory expected length, mandatory SHA-256, and
-  captured native file identity verified during assembly. Typed selection
-  metadata maps each `(source_coin_id, role)` to one candidate artifact.
+  captured native file identity verified during assembly. Stage output identifies
+  both normalized/cropped candidate keys and the exact crop record. Assembly
+  validates both, applies the inclusive `0.65` selection rule, verifies fallback
+  equivalence, and creates one selected `PreparedArtifactDescriptor`.
 - The adapter routes immutable descriptors without parsing filenames, inspecting
   bytes, or opening files.
 - The coordinator API becomes
@@ -305,21 +310,19 @@ from that snapshot. Missing, mismatched, or unverifiable processed evidence fail
 closed; there is no silent fallback to original media. Without one, the current
 package-snapshot path remains unchanged.
 
-### Durability implementation gate
+### Versioned durability gate
 
-The target contract is not representable by the current frozen schema-2
-durability specification. Its operational journal, snapshot owner, cleanup
-ledger, terminal history, and recovery matrix are closed around one package
-snapshot. Unit 7 implementation is blocked until a separate amendment:
+The frozen Schema 2 contract remains authoritative for imports without processed
+media. It is not extended in place. Processed imports use the separately frozen
+Unit 7A successor bundle at SHA-256
+`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`, which defines journal `3.0`, processed snapshot
+owner/manifest/completion `1.0`, journal owner `2.0`, terminal history `2.0`,
+PA-RM-01 through PA-RM-43, and the complete cleanup/recovery contract.
 
-1. versions every affected closed schema;
-2. defines immutable processed-snapshot evidence and cleanup targets;
-3. extends startup orphan reconciliation and recovery crash cases;
-4. preserves legacy schema-2 behavior without reinterpretation;
-5. passes independent review and freezes a new specification hash.
-
-ADR-008 defines the target processed-snapshot contract; it does not authorize
-production changes against the current frozen durability specification.
+Unit 7B may implement only the identity-bound handoff and sealing portion after
+Unit 7A approval. Units 7C–7E remain bounded by the successor traceability gates.
+Any behavior absent from the frozen bundle requires a documentation-only
+amendment, re-review, and new bundle hash before production changes continue.
 
 ## Duplicate detection signals
 

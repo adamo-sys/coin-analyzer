@@ -1,6 +1,6 @@
 # ADR-008: Image Processing Pipeline
 
-- Status: Accepted (implementation begins in Sprint 8 Unit 2)
+- Status: Accepted; Unit 7 processed-media durability contract frozen separately
 - Date: 2026-07-21
 
 ## Context
@@ -62,7 +62,9 @@ ImageDuplicateDetectionStage
 Rationale:
 - Normalization runs first so every downstream stage works on a canonical pixel representation.
 - Quality scoring can run on normalized images before or after crop detection; placing it before crop detection lets quality metrics inform whether cropping is attempted.
-- Crop detection produces crop rectangles and optional cropped artifacts.
+- Crop detection produces crop rectangles and one cropped artifact per
+  normalized input; low-confidence output is a byte-identical full-frame
+  fallback.
 - Obverse/reverse pairing consumes normalized front/reverse images and emits consistency metadata.
 - Duplicate detection consumes normalized images and hashes last, after all other preprocessing, so its evidence reflects the final pre-import representation.
 
@@ -123,23 +125,29 @@ workflow workspace
 and durability classification in addition to relative path, expected size, and
 digest. The digest is mandatory for every selected processed-media artifact.
 Image stages mark normalized/cropped outputs as processed-media candidates;
-support files such as `prepared-manifest.json` remain ephemeral.
-The crop stage metadata identifies the selected durable artifact key for each
-`(source_coin_id, role)`. The adapter routes only the typed descriptors and never
-opens files, parses paths, or inspects bytes.
+support files such as `prepared-manifest.json` remain ephemeral. Stage output
+identifies both candidate keys and the exact crop record for each
+`(source_coin_id, role)`. Assembly validates both candidates, applies the
+inclusive `0.65` rule, verifies fallback equivalence, and creates the single
+selected ephemeral descriptor. Neither the crop stage nor adapter chooses
+durable bytes. The adapter routes only typed descriptors and never opens files,
+parses paths, or inspects bytes.
 
 The handoff object is a non-serializable `PreparedArtifactSet` with two parts:
 
 - an immutable, deterministically ordered tuple of
-  `ProcessedArtifactDescriptor` values containing exactly the artifact key,
+  `PreparedArtifactDescriptor` values containing exactly the artifact key,
   source coin id, role, variant, content type, mandatory expected byte length,
   mandatory SHA-256, workspace-relative path, and captured native file identity;
 - a single-use `PreparedWorkspaceLease` that owns a verified workspace-root
   directory handle plus open, read-only, no-follow handles for every selected
   file. Those handles are captured during assembly after bounded hashing.
 
-Assembly verifies the workspace root, parent chain, regular-file identity,
-length, and digest before creating this set. The coordinator accepts ownership
+`ProcessedArtifactDescriptor` is reserved for the closed durable manifest
+schema; coordinator sealing deterministically transforms the prepared type and
+removes all workspace/native facts. Assembly verifies the workspace root, parent
+chain, regular-file identity, length, and digest before creating this set. The
+coordinator accepts ownership
 exactly once, copies only from the held handles, verifies handle identity/length
 before and after each bounded copy, recomputes every digest, and revalidates the
 workspace root, parent chain, and pathname identity before sealing. A replaced
@@ -191,21 +199,16 @@ ownership token, native root identity, owner record, manifest, and aggregate
 digest. It is derived evidence and never changes the original package SHA-256,
 byte length, version, basename, manifest, or audit identity.
 
-The sealed manifest is canonical JSON with schema version `1.0` and contains:
-
-- `processed_snapshot_id`, ownership-token SHA-256, creation timestamp;
-- original `package_sha256` and package version as immutable derivation
-  provenance;
-- ordered artifact descriptors containing exactly `artifact_key`,
-  `source_coin_id`, `role`, `variant` (`NORMALIZED` or `CROPPED`),
-  snapshot-relative path, byte length, SHA-256, content type, width, and height;
-- aggregate byte length, artifact count, and `artifact_inventory_sha256`.
-
-The aggregate hashes the canonical ordered descriptor array. Paths are strict
-relative paths beneath the processed snapshot, use the approved Windows-safe
-canonical key, and cannot collide after NFC normalization and Windows case-folding.
-The owner record commits the exact manifest name, length, SHA-256, and snapshot
-root identity. Unknown fields or versions fail closed.
+The exact closed manifest, descriptor, owner, completion, lease, and canonical
+JSON schemas are defined only by the versioned
+[Processed-Artifact Durability Specification](../architecture/processed-artifact-durability.md).
+That successor bundle is authoritative if this ADR's non-normative summary is
+less specific. The owner is durably published before artifacts, commits the
+captured root identity and exact planned manifest, and authorizes only its closed
+inventory. The manifest includes the ownership-token SHA-256, original-package
+provenance, ordered selected descriptors, aggregate byte length, count, and
+inventory digest. The immutable zero-byte lease is created after owner
+publication. Completion is published last and alone proves sealing.
 
 #### Bounds and sealing
 
@@ -217,16 +220,16 @@ root identity. Unknown fields or versions fail closed.
 - Every destination is created no-follow and no-overwrite, copied through a
   bounded held handle, flushed and synced, then verified for exact length,
   digest, canonical image facts, object identity, and parent identity.
-- The manifest and owner record are written and synced only after every artifact
-  is verified. A snapshot is sealed only after a fresh inventory reproduces the
-  aggregate digest and directory durability is confirmed.
+- The owner precedes artifact creation; artifacts and manifest are then written
+  and verified in canonical order. A snapshot is sealed only after completion
+  publication, fresh inventory verification, and directory durability.
 - Partial or ambiguous creation is never returned. Proven coordinator-owned
   partial state is removed; uncertain state is preserved and blocks.
 
 #### Transaction, image store, and recovery
 
 - The transaction input is an optional verified
-  `ProcessedArtifactSnapshotHandle` alongside the existing original
+  `ProcessedSnapshotHandle` alongside the existing original
   `SnapshotHandle`. It contains no workspace reference.
 - When the handle is present, managed-image planning and copying use the selected
   processed descriptor for each imported `(source_coin_id, role)`. They never
@@ -277,7 +280,7 @@ It never substitutes the processed digest for `package_sha256`.
 
 | Alternative | Disposition | Reason |
 | --- | --- | --- |
-| Coordinator-owned immutable processed-artifact snapshot | **Selected, implementation blocked pending durability-spec amendment** | Preserves original evidence, gives transformed bytes independent identity, and permits deterministic recovery. |
+| Coordinator-owned immutable processed-artifact snapshot | **Selected; implementation requires the Unit 7A successor contract** | Preserves original evidence, gives transformed bytes independent identity, and permits deterministic recovery. |
 | Rewritten canonical capture-package snapshot | Rejected | Conflates source and derived evidence, changes package/manifest hashes, and complicates audit and replay semantics. |
 | Original media remains durable; processed artifacts are advisory | Rejected | Preserves the current engine but fails the Sprint 8 product requirement that normalized output becomes the stored media. |
 
@@ -290,10 +293,19 @@ Journal schema 2.0, snapshot owner schema 1.0, cleanup target/root kinds, termin
 history schema 1.0, and RM-01–RM-41 are closed and describe one package snapshot.
 They have no legal representation for a second snapshot or its cleanup evidence.
 
-No implementation may reinterpret those schemas or append unknown fields. A
-separate durability-architecture amendment must version the affected schemas,
-extend the recovery matrix, obtain independent approval, and freeze a new
-specification hash before Unit 7 production work begins.
+No implementation may reinterpret those schemas or append unknown fields.
+Unit 7A therefore defines a separate successor bundle:
+
+- `docs/architecture/processed-artifact-durability.md`;
+- `docs/DESKTOP_PROCESSED_ARTIFACT_RECOVERY_MATRIX.md`;
+- `docs/DESKTOP_PROCESSED_ARTIFACT_RECOVERY_INVARIANTS.md`;
+- `docs/architecture/processed-artifact-durability-traceability.md`.
+
+The bundle SHA-256 is
+`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`, calculated over the exact bytes and domain-separated
+framing defined by the successor specification. The legacy file and hash remain
+unchanged. Units 7B–7E MUST implement only the successor contract and MUST stop
+on any missing field, transition, recovery action, or platform guarantee.
 
 ### Image contracts
 
@@ -333,7 +345,7 @@ specification hash before Unit 7 production work begins.
 - **Input:** Normalized image artifacts.
 - **Output artifacts:** Cropped images under `cropped/<coin_id>/<role>.jpg`, where `<role>` is the lowercase `ImageRole` value.
 - **Output metadata:** Per-photo crop rectangle (`x`, `y`, `width`, `height`) and a `crop_confidence` value.
-- **Behavior:** Rule-based or simple contour heuristic to find the coin region. If a confident crop is found, the cropped region is saved under `cropped/<coin_id>/<role>.jpg`. If no confident crop is found, the stage copies the normalized image into `cropped/<coin_id>/<role>.jpg` and sets `crop_confidence` to `0.0`; the crop rectangle covers the full normalized image. This guarantees every downstream consumer has a single artifact path to read.
+- **Behavior:** Rule-based or simple contour heuristic to find the coin region. If `crop_applied` is true and `crop_confidence >= 0.65`, durable selection uses the cropped artifact. Otherwise durable selection uses the normalized artifact, and the stage's always-present cropped fallback is an exact byte-for-byte full-frame copy with `crop_confidence == 0.0`. The crop rectangle covers the full normalized image. This exact selection rule is defined normatively by the processed-artifact durability specification.
 - **Determinism:** Fixed thresholds; no ML inference in Sprint 8.
 - **Limits:** Cropped output dimensions bounded by `MAX_IMAGE_DIMENSION` and `MAX_IMAGE_PIXELS`.
 - **Stop condition:** If cropping produces an empty or oversized region, fail closed with `StageContractError`.
@@ -409,9 +421,10 @@ Sprint 8 image-derived duplicate detection **supplements** the existing `Package
      snapshot. The original archive remains the immutable audit source.
 
 2. **Crop detection produces durable cropped artifacts or only metadata.**
-   - Decision: Cropped artifacts are selected when confidence is high; otherwise
-     normalized artifacts are selected. The explicit selection metadata, not
-     adapter path parsing, determines the durable descriptor.
+   - Decision: Cropped artifacts are selected exactly when `crop_applied` is
+     true and `crop_confidence >= 0.65`; otherwise normalized artifacts are
+     selected and the cropped fallback must be byte-identical. The explicit
+     selection metadata, not adapter path parsing, determines the descriptor.
 
 3. **Duplicate detection compares against the durable collection.**
    - Decision: Yes, read-only, bounded to `MAX_DUPLICATE_EXISTING_ITEMS`.
