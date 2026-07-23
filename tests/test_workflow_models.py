@@ -11,6 +11,7 @@ from capture_import.workflow_models import (
     ImportConfiguration,
     ImportRequest,
     JsonValue,
+    PreparedArtifactDescriptor,
     PreparedFile,
     PreparedImport,
     StageArtifact,
@@ -47,6 +48,62 @@ class ConstructionTests(unittest.TestCase):
         artifact.validate()
         self.assertEqual(artifact.relative_path, "test.txt")
         self.assertEqual(artifact.content_type, "text/plain")
+
+    def test_prepared_file_legacy_defaults_remain_valid(self) -> None:
+        value = PreparedFile(relative_path="legacy.txt", expected_size=0)
+        value.validate()
+        self.assertIsNone(value.artifact_key)
+        self.assertIsNone(value.producer_stage)
+        self.assertEqual(value.durability_classification, "EPHEMERAL")
+
+    def test_prepared_artifact_descriptor_is_immutable_and_closed(self) -> None:
+        descriptor = PreparedArtifactDescriptor(
+            artifact_key="normalized-coin-front",
+            source_coin_id="coin",
+            role="front",
+            variant="NORMALIZED",
+            content_type="image/jpeg",
+            expected_byte_length=1,
+            expected_sha256="a" * 64,
+            workspace_relative_path="normalized/coin/front.jpg",
+            root_identity=(1, 2),
+            parent_identity=(1, 3),
+            file_identity=(1, 4),
+        )
+        descriptor.validate()
+        with self.assertRaises(FrozenInstanceError):
+            descriptor.role = "reverse"  # type: ignore[misc]
+
+    def test_prepared_artifact_descriptor_rejects_noncanonical_values(self) -> None:
+        descriptor = PreparedArtifactDescriptor(
+            artifact_key="key",
+            source_coin_id="coin",
+            role="front",
+            variant="NORMALIZED",
+            content_type="image/jpeg",
+            expected_byte_length=1,
+            expected_sha256="a" * 64,
+            workspace_relative_path="normalized/coin/front.jpg",
+            root_identity=(1, 2),
+            parent_identity=(1, 3),
+            file_identity=(1, 4),
+        )
+        invalid_values = (
+            ("artifact_key", "e\u0301"),
+            ("artifact_key", "x" * 256),
+            ("source_coin_id", "bad\u0085"),
+            ("role", "obverse"),
+            ("variant", "RAW"),
+            ("content_type", "image/png"),
+            ("workspace_relative_path", "../escape.jpg"),
+            ("workspace_relative_path", "normalized//front.jpg"),
+            ("workspace_relative_path", "normalized/front.jpg "),
+            ("workspace_relative_path", "normalized\\front.jpg"),
+        )
+        for field, invalid in invalid_values:
+            with self.subTest(field=field, invalid=repr(invalid)):
+                with self.assertRaises(ValueError):
+                    replace(descriptor, **{field: invalid}).validate()
 
     def test_stage_input_construction(self) -> None:
         request = make_request()
@@ -364,4 +421,3 @@ class NestedArtifactRegressionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

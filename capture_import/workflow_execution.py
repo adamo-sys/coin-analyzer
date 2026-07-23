@@ -60,16 +60,38 @@ Deliberately excluded:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
+import hashlib
+import os
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any, Callable, Mapping, TypeVar, overload
 
-from ._filesystem import require_plain_regular_file
+from PIL import Image, UnidentifiedImageError
+
+from ._filesystem import (
+    handle_matches_path,
+    handle_object_identity,
+    open_plain_child_directory,
+    open_plain_child_file_readonly,
+    open_plain_directory_handle,
+    require_plain_regular_file,
+)
 from .events import ImportEventBus
+from .image_validation import require_complete_jpeg
+from .limits import (
+    MAX_IMAGE_DIMENSION,
+    MAX_IMAGE_PIXELS,
+    MAX_PROCESSED_ARTIFACT_SIZE,
+)
 from .workflow_models import (
     ImportRequest,
     JsonValue,
+    PreparedArtifactDescriptor,
+    PreparedArtifactSet,
     PreparedFile,
     PreparedImport,
+    PreparedWorkspaceLease,
     StageArtifact,
     StageInput,
     StageResult,
@@ -87,6 +109,10 @@ _CANCELLED_BY_CALLER = "cancelled by caller"
 _CANCELLED_BY_STAGE = "cancelled by stage"
 
 T = TypeVar("T")
+_ROLE_ORDER = {"front": 0, "reverse": 1, "edge": 2}
+_MIN_CROP_CONFIDENCE = 0.65
+_NORMALIZATION_STAGE_ID = "image-normalization"
+_CROP_STAGE_ID = "crop-detection"
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,30 +162,379 @@ def assemble_prepared_import(
             exception chaining.  No pipeline-terminal event accompanies an
             assembly failure: the stages completed, but no handoff occurred.
     """
-    files: list[PreparedFile] = []
-    for key, artifact in outcome.artifacts.items():
-        candidate = workspace / artifact.relative_path
-        try:
-            info = require_plain_regular_file(candidate)
-        except OSError as exc:
-            raise StageContractError(
-                artifact_stages.get(key, "<unknown>"),
-                f"declared artifact {key!r} is not an existing plain regular "
-                f"file in the workspace: {artifact.relative_path!r}.",
-            ) from exc
-        files.append(
-            PreparedFile(
-                relative_path=artifact.relative_path,
-                expected_size=info.st_size,
+    processed_artifacts = _assemble_processed_artifacts(
+        outcome, workspace, artifact_stages
+    )
+    selected = (
+        {item.artifact_key: item for item in processed_artifacts.descriptors}
+        if processed_artifacts is not None
+        else {}
+    )
+    try:
+        files: list[PreparedFile] = []
+        for key, artifact in outcome.artifacts.items():
+            candidate = workspace / artifact.relative_path
+            try:
+                info = require_plain_regular_file(candidate)
+            except OSError as exc:
+                raise StageContractError(
+                    artifact_stages.get(key, "<unknown>"),
+                    f"declared artifact {key!r} is not an existing plain regular "
+                    f"file in the workspace: {artifact.relative_path!r}.",
+                ) from exc
+            producer_stage = artifact_stages.get(key)
+            files.append(
+                PreparedFile(
+                    relative_path=artifact.relative_path,
+                    expected_size=info.st_size,
+                    sha256=(
+                        selected[key].expected_sha256 if key in selected else None
+                    ),
+                    artifact_key=key,
+                    content_type=artifact.content_type,
+                    producer_stage=producer_stage,
+                    durability_classification=(
+                        "PROCESSED_SELECTED"
+                        if key in selected
+                        else (
+                            "PROCESSED_CANDIDATE"
+                            if producer_stage
+                            in {_NORMALIZATION_STAGE_ID, _CROP_STAGE_ID}
+                            else "EPHEMERAL"
+                        )
+                    ),
+                )
+            )
+        prepared = PreparedImport(
+            request=request,
+            files=tuple(files),
+            metadata=dict(outcome.metadata),
+            processed_artifacts=processed_artifacts,
+        )
+        prepared.validate()
+        return prepared
+    except Exception:
+        if processed_artifacts is not None:
+            processed_artifacts.close_if_unclaimed()
+        raise
+
+
+def _open_candidate(
+    root_handle, relative_path: str
+) -> tuple[Any, tuple[Any, ...]]:
+    parts = PurePosixPath(relative_path).parts
+    if not parts:
+        raise OSError("A prepared artifact path is empty.")
+    chain = []
+    parent = root_handle
+    try:
+        for component in parts[:-1]:
+            child = open_plain_child_directory(parent, component)
+            chain.append(child)
+            parent = child
+        handle = open_plain_child_file_readonly(parent, parts[-1])
+        if not root_handle.verify_path() or any(
+            not directory.verify_path() for directory in chain
+        ):
+            handle.close()
+            raise OSError("A prepared artifact parent identity changed.")
+        return handle, tuple(chain)
+    except Exception:
+        for directory in reversed(chain):
+            directory.close()
+        raise
+
+
+def _close_candidate(handle, chain) -> None:
+    if not handle.closed:
+        handle.close()
+    for directory in reversed(chain):
+        directory.close()
+
+
+def _read_verified_jpeg(handle, path: Path) -> tuple[bytes, int, int, str]:
+    before = os.fstat(handle.fileno())
+    if before.st_size < 1 or before.st_size > MAX_PROCESSED_ARTIFACT_SIZE:
+        raise ValueError("A processed JPEG exceeds its byte limit.")
+    handle.seek(0)
+    payload = handle.read(MAX_PROCESSED_ARTIFACT_SIZE + 1)
+    if len(payload) != before.st_size or len(payload) > MAX_PROCESSED_ARTIFACT_SIZE:
+        raise ValueError("A processed JPEG changed or exceeds its byte limit.")
+    require_complete_jpeg(payload)
+    try:
+        with Image.open(BytesIO(payload)) as probe:
+            probe.verify()
+        with Image.open(BytesIO(payload)) as image:
+            if image.format != "JPEG" or image.info.get("progressive"):
+                raise ValueError("A processed artifact must be a baseline JPEG.")
+            width, height = image.size
+            image.load()
+    except (OSError, UnidentifiedImageError) as error:
+        raise ValueError("A processed artifact is not a valid JPEG.") from error
+    if (
+        width < 1
+        or height < 1
+        or width > MAX_IMAGE_DIMENSION
+        or height > MAX_IMAGE_DIMENSION
+        or width * height > MAX_IMAGE_PIXELS
+    ):
+        raise ValueError("A processed JPEG exceeds its dimension limits.")
+    after = os.fstat(handle.fileno())
+    if (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+    ) != (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ) or not handle_matches_path(handle, path):
+        raise OSError("A processed artifact changed while it was read.")
+    return payload, width, height, hashlib.sha256(payload).hexdigest()
+
+
+def _assemble_processed_artifacts(
+    outcome: PipelineOutcome,
+    workspace: Path,
+    artifact_stages: Mapping[str, str],
+) -> PreparedArtifactSet | None:
+    records = outcome.metadata.get("crop_records")
+    if records is None:
+        return None
+    if not isinstance(records, list) or not records:
+        raise StageContractError("crop-detection", "crop_records must be non-empty.")
+    crop_record_fields = {
+        "coin_id",
+        "role",
+        "x",
+        "y",
+        "width",
+        "height",
+        "crop_confidence",
+        "crop_applied",
+        "source_normalized_key",
+        "source_width",
+        "source_height",
+    }
+    if any(
+        not isinstance(record, dict) or set(record) != crop_record_fields
+        for record in records
+    ):
+        raise StageContractError(
+            "crop-detection", "A crop record does not match its closed schema."
+        )
+
+    root_handle = None
+    selected_handles = []
+    selected_chains = []
+    selected_by_key = {}
+    other_handles = []
+    try:
+        root_handle = open_plain_directory_handle(workspace)
+        descriptors: list[PreparedArtifactDescriptor] = []
+        seen_pairs: set[tuple[str, str]] = set()
+        expected_candidate_keys: set[str] = set()
+        normalized_keys = [
+            key
+            for key in outcome.artifacts
+            if artifact_stages.get(key) == _NORMALIZATION_STAGE_ID
+        ]
+        cropped_keys = [
+            key
+            for key in outcome.artifacts
+            if artifact_stages.get(key) == _CROP_STAGE_ID
+        ]
+        if len(normalized_keys) != len(records) or len(cropped_keys) != len(records):
+            raise ValueError("Processed candidate routing is incomplete.")
+        # The crop stage emits records and artifacts in the same deterministic
+        # lexical order. Preserve that typed association here; durable
+        # front/reverse/edge ordering is applied only to final descriptors.
+        cropped_key_by_pair = {
+            (record["coin_id"], record["role"]): key
+            for record, key in zip(records, cropped_keys)
+            if isinstance(record, dict)
+        }
+        if len(cropped_key_by_pair) != len(records):
+            raise ValueError("Cropped candidate routing is ambiguous.")
+        for raw in records:
+            coin_id = raw["coin_id"]
+            role = raw["role"]
+            normalized_key = raw["source_normalized_key"]
+            if (
+                not isinstance(coin_id, str)
+                or not coin_id
+                or role not in _ROLE_ORDER
+                or not isinstance(normalized_key, str)
+                or not normalized_key
+            ):
+                raise ValueError("A crop record identity is invalid.")
+            pair = (coin_id, role)
+            if pair in seen_pairs:
+                raise ValueError("Duplicate crop record.")
+            seen_pairs.add(pair)
+            cropped_key = cropped_key_by_pair.get(pair)
+            if cropped_key is None:
+                raise ValueError("A cropped candidate route is missing.")
+            expected_candidate_keys.update((normalized_key, cropped_key))
+            normalized = outcome.artifacts.get(normalized_key)
+            cropped = outcome.artifacts.get(cropped_key)
+            if normalized is None or cropped is None:
+                raise ValueError("A processed candidate is missing.")
+            if (
+                normalized.content_type != "image/jpeg"
+                or cropped.content_type != "image/jpeg"
+            ):
+                raise ValueError("Processed candidates must be JPEG.")
+            norm_path = workspace / normalized.relative_path
+            crop_path = workspace / cropped.relative_path
+            norm_handle, norm_chain = _open_candidate(
+                root_handle, normalized.relative_path
+            )
+            other_handles.append((norm_handle, norm_chain))
+            crop_handle, crop_chain = _open_candidate(
+                root_handle, cropped.relative_path
+            )
+            other_handles.append((crop_handle, crop_chain))
+            norm_payload, norm_width, norm_height, norm_digest = _read_verified_jpeg(
+                norm_handle, norm_path
+            )
+            crop_payload, crop_width, crop_height, crop_digest = _read_verified_jpeg(
+                crop_handle, crop_path
+            )
+            applied = raw["crop_applied"]
+            confidence = raw["crop_confidence"]
+            integer_fields = (
+                raw["x"],
+                raw["y"],
+                raw["width"],
+                raw["height"],
+                raw["source_width"],
+                raw["source_height"],
+            )
+            if (
+                not isinstance(applied, bool)
+                or isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
+                or not __import__("math").isfinite(confidence)
+                or not 0.0 <= confidence <= 1.0
+                or applied is not (confidence >= _MIN_CROP_CONFIDENCE)
+                or any(
+                    isinstance(value, bool) or not isinstance(value, int)
+                    for value in integer_fields
+                )
+                or (raw["source_width"], raw["source_height"])
+                != (norm_width, norm_height)
+            ):
+                raise ValueError("The crop decision is inconsistent.")
+            if applied:
+                if (
+                    raw["x"] < 0
+                    or raw["y"] < 0
+                    or raw["width"] < 1
+                    or raw["height"] < 1
+                    or raw["x"] + raw["width"] > norm_width
+                    or raw["y"] + raw["height"] > norm_height
+                    or (raw["width"], raw["height"]) != (crop_width, crop_height)
+                ):
+                    raise ValueError("The applied crop geometry is inconsistent.")
+                selected_key, selected_artifact = cropped_key, cropped
+                selected_handle = crop_handle
+                selected_chain = crop_chain
+                payload, width, height, digest = (
+                    crop_payload,
+                    crop_width,
+                    crop_height,
+                    crop_digest,
+                )
+            else:
+                if (
+                    confidence != 0.0
+                    or (raw["x"], raw["y"], raw["width"], raw["height"])
+                    != (0, 0, norm_width, norm_height)
+                    or crop_payload != norm_payload
+                    or (crop_width, crop_height, crop_digest)
+                    != (norm_width, norm_height, norm_digest)
+                ):
+                    raise ValueError("The crop fallback is not an exact full frame.")
+                selected_key, selected_artifact = normalized_key, normalized
+                selected_handle = norm_handle
+                selected_chain = norm_chain
+                payload, width, height, digest = (
+                    norm_payload,
+                    norm_width,
+                    norm_height,
+                    norm_digest,
+                )
+            if selected_key in selected_by_key:
+                raise ValueError("A selected artifact key is duplicated.")
+            selected_handles.append(selected_handle)
+            selected_chains.append(selected_chain)
+            selected_by_key[selected_key] = (selected_handle, selected_chain)
+            other_handles.remove((selected_handle, selected_chain))
+            descriptors.append(
+                PreparedArtifactDescriptor(
+                    artifact_key=selected_key,
+                    source_coin_id=coin_id,
+                    role=role,
+                    variant="CROPPED" if applied else "NORMALIZED",
+                    content_type="image/jpeg",
+                    expected_byte_length=len(payload),
+                    expected_sha256=digest,
+                    workspace_relative_path=selected_artifact.relative_path,
+                    root_identity=root_handle.identity,
+                    parent_identity=(
+                        selected_chain[-1].identity
+                        if selected_chain
+                        else root_handle.identity
+                    ),
+                    file_identity=handle_object_identity(selected_handle),
+                )
+            )
+        candidate_keys = {
+            key
+            for key in outcome.artifacts
+            if artifact_stages.get(key)
+            in {_NORMALIZATION_STAGE_ID, _CROP_STAGE_ID}
+        }
+        if candidate_keys != expected_candidate_keys:
+            raise ValueError("Processed candidate inventory is inconsistent.")
+        descriptors.sort(
+            key=lambda value: (
+                value.source_coin_id,
+                _ROLE_ORDER[value.role],
+                value.variant,
+                value.artifact_key,
             )
         )
-    prepared = PreparedImport(
-        request=request,
-        files=tuple(files),
-        metadata=dict(outcome.metadata),
-    )
-    prepared.validate()
-    return prepared
+        # Sorting descriptors requires the corresponding handles to follow them.
+        ordered_pairs = tuple(
+            selected_by_key[item.artifact_key] for item in descriptors
+        )
+        lease = PreparedWorkspaceLease(
+            workspace,
+            root_handle,
+            tuple(pair[0] for pair in ordered_pairs),
+            tuple(pair[1] for pair in ordered_pairs),
+        )
+        root_handle = None
+        selected_handles = []
+        selected_chains = []
+        return PreparedArtifactSet(tuple(descriptors), lease)
+    except (StageContractError, ValueError, OSError) as error:
+        if isinstance(error, StageContractError):
+            raise
+        raise StageContractError(
+            "crop-detection", "processed artifact assembly failed."
+        ) from error
+    finally:
+        for handle, chain in other_handles:
+            _close_candidate(handle, chain)
+        for handle, chain in zip(selected_handles, selected_chains):
+            _close_candidate(handle, chain)
+        if root_handle is not None:
+            root_handle.close()
 
 
 class ImportWorkflow:
@@ -309,7 +684,11 @@ class ImportWorkflow:
                 import_id=import_id,
                 stage_count=stage_count,
             )
-        return transaction(prepared)
+        try:
+            return transaction(prepared)
+        finally:
+            if prepared.processed_artifacts is not None:
+                prepared.processed_artifacts.close_if_unclaimed()
 
     # -- Stage execution and result contract ---------------------------------
 

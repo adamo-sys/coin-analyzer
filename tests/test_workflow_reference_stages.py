@@ -661,10 +661,21 @@ class DurabilityBoundaryAuditTests(unittest.TestCase):
 
         self._assert_runtime_imports(
             workflow_execution,
-            stdlib={"__future__", "dataclasses", "pathlib", "typing"},
+            stdlib={
+                "PIL",
+                "__future__",
+                "dataclasses",
+                "hashlib",
+                "io",
+                "os",
+                "pathlib",
+                "typing",
+            },
             package={
                 "capture_import._filesystem",
                 "capture_import.events",
+                "capture_import.image_validation",
+                "capture_import.limits",
                 "capture_import.workflow_models",
                 "capture_import.workflow_pipeline",
             },

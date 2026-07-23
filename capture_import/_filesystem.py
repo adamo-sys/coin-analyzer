@@ -177,6 +177,272 @@ def open_plain_directory_handle(path: Path) -> PlainDirectoryHandle:
     return result
 
 
+def open_plain_child_directory(
+    parent: PlainDirectoryHandle, name: str
+) -> PlainDirectoryHandle:
+    """Open one plain child directory relative to a verified held parent."""
+
+    _validate_child_name(name)
+    if not parent.verify_path():
+        raise OSError("The parent directory identity changed.")
+    path = parent.path / name
+    if os.name != "nt":
+        if parent.descriptor is None:
+            raise OSError("A held POSIX parent directory is required.")
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(
+            os, "O_NOFOLLOW", 0
+        )
+        descriptor = os.open(name, flags, dir_fd=parent.descriptor)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISDIR(info.st_mode):
+                raise OSError("The child object is not a directory.")
+            result = PlainDirectoryHandle(
+                path, (info.st_dev, info.st_ino), descriptor=descriptor
+            )
+        except Exception:
+            os.close(descriptor)
+            raise
+    else:
+        if parent.windows_handle is None:
+            raise OSError("A held Windows parent directory is required.")
+        raw_handle = _windows_open_relative_path(
+            parent.windows_handle,
+            name,
+            desired_access=0x00000080 | 0x00100000,
+            create_options=0x00000001 | 0x00000020 | 0x00200000,
+            message="The child directory could not be opened safely.",
+        )
+        try:
+            information = _windows_handle_information(raw_handle)
+            _require_windows_plain_type(information, directory=True)
+            result = PlainDirectoryHandle(
+                path,
+                _windows_file_id_information(raw_handle),
+                windows_handle=raw_handle,
+            )
+        except Exception:
+            import ctypes
+
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+            raise
+    if (
+        result.identity[0] != parent.identity[0]
+        or not parent.verify_path()
+        or not result.verify_path()
+    ):
+        result.close()
+        raise OSError("The child directory binding changed or crossed a volume.")
+    return result
+
+
+def create_plain_child_directory(
+    parent: PlainDirectoryHandle, name: str
+) -> PlainDirectoryHandle:
+    """Exclusively create and hold one plain child relative to ``parent``."""
+
+    _validate_child_name(name)
+    if not parent.verify_path():
+        raise OSError("The parent directory identity changed.")
+    path = parent.path / name
+    if os.name != "nt":
+        if parent.descriptor is None:
+            raise OSError("A held POSIX parent directory is required.")
+        os.mkdir(name, 0o700, dir_fd=parent.descriptor)
+        try:
+            result = open_plain_child_directory(parent, name)
+        except Exception:
+            try:
+                os.rmdir(name, dir_fd=parent.descriptor)
+            except OSError:
+                pass
+            raise
+        return result
+
+    if parent.windows_handle is None:
+        raise OSError("A held Windows parent directory is required.")
+    raw_handle = _windows_open_relative_path(
+        parent.windows_handle,
+        name,
+        desired_access=0x00000001 | 0x00000080 | 0x00010000 | 0x00100000,
+        create_options=0x00000001 | 0x00000020 | 0x00200000,
+        disposition=2,
+        file_attributes=0x00000010,
+        message="The child directory could not be created safely.",
+    )
+    try:
+        information = _windows_handle_information(raw_handle)
+        _require_windows_plain_type(information, directory=True)
+        result = PlainDirectoryHandle(
+            path,
+            _windows_file_id_information(raw_handle),
+            windows_handle=raw_handle,
+        )
+    except Exception:
+        import ctypes
+
+        ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+        raise
+    if (
+        result.identity[0] != parent.identity[0]
+        or not parent.verify_path()
+        or not result.verify_path()
+    ):
+        result.close()
+        raise OSError("The child directory binding changed or crossed a volume.")
+    return result
+
+
+def open_plain_child_file_readonly(
+    parent: PlainDirectoryHandle, name: str
+) -> BinaryIO:
+    """Open one regular file relative to a verified held directory."""
+
+    _validate_child_name(name)
+    if not parent.verify_path():
+        raise OSError("The parent directory identity changed.")
+    path = parent.path / name
+    if os.name != "nt":
+        if parent.descriptor is None:
+            raise OSError("A held POSIX parent directory is required.")
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(
+            os, "O_NOFOLLOW", 0
+        )
+        descriptor = os.open(name, flags, dir_fd=parent.descriptor)
+        handle = os.fdopen(descriptor, "rb", buffering=0)
+    else:
+        if parent.windows_handle is None:
+            raise OSError("A held Windows parent directory is required.")
+        raw_handle = _windows_open_relative_path(
+            parent.windows_handle,
+            name,
+            desired_access=0x80000000 | 0x00100000 | 0x00010000,
+            create_options=0x00000040 | 0x00000020 | 0x00200000,
+            message="The child file could not be opened safely.",
+        )
+        import msvcrt
+
+        try:
+            _require_windows_plain_type(
+                _windows_handle_information(raw_handle), directory=False
+            )
+            descriptor = msvcrt.open_osfhandle(
+                raw_handle, os.O_RDONLY | getattr(os, "O_BINARY", 0)
+            )
+        except Exception:
+            import ctypes
+
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+            raise
+        handle = os.fdopen(descriptor, "rb", buffering=0)
+    try:
+        if (
+            handle_object_identity(handle)[0] != parent.identity[0]
+            or not parent.verify_path()
+            or not handle_matches_path(handle, path)
+        ):
+            raise OSError("The child file binding changed or crossed a volume.")
+        require_dense_regular_handle(handle)
+        return handle
+    except Exception:
+        handle.close()
+        raise
+
+
+def open_exclusive_child_binary(
+    parent: PlainDirectoryHandle, name: str
+) -> BinaryIO:
+    """Exclusively create one regular file relative to a verified held parent."""
+
+    _validate_child_name(name)
+    if not parent.verify_path():
+        raise OSError("The parent directory identity changed.")
+    path = parent.path / name
+    if os.name != "nt":
+        if parent.descriptor is None:
+            raise OSError("A held POSIX parent directory is required.")
+        descriptor = os.open(
+            name,
+            os.O_CREAT
+            | os.O_EXCL
+            | os.O_RDWR
+            | getattr(os, "O_BINARY", 0)
+            | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=parent.descriptor,
+        )
+        handle = os.fdopen(descriptor, "w+b", buffering=0)
+    else:
+        if parent.windows_handle is None:
+            raise OSError("A held Windows parent directory is required.")
+        raw_handle = _windows_open_relative_path(
+            parent.windows_handle,
+            name,
+            desired_access=(
+                0x80000000 | 0x40000000 | 0x00010000 | 0x00100000
+            ),
+            create_options=0x00000040 | 0x00000020 | 0x00200000,
+            disposition=2,
+            file_attributes=0x00000080,
+            message="The child file could not be created safely.",
+        )
+        import msvcrt
+
+        try:
+            _require_windows_plain_type(
+                _windows_handle_information(raw_handle), directory=False
+            )
+            descriptor = msvcrt.open_osfhandle(
+                raw_handle, os.O_RDWR | getattr(os, "O_BINARY", 0)
+            )
+        except Exception:
+            import ctypes
+
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(raw_handle)
+            raise
+        handle = os.fdopen(descriptor, "w+b", buffering=0)
+    try:
+        if (
+            handle_object_identity(handle)[0] != parent.identity[0]
+            or not parent.verify_path()
+            or not handle_matches_path(handle, path)
+        ):
+            raise OSError("The child file binding changed or crossed a volume.")
+        return handle
+    except Exception:
+        handle.close()
+        raise
+
+
+def _validate_child_name(name: str) -> None:
+    if (
+        not isinstance(name, str)
+        or not name
+        or name != Path(name).name
+        or name in {".", ".."}
+        or "/" in name
+        or "\\" in name
+    ):
+        raise OSError("An importer child name is invalid.")
+
+
+def require_dense_regular_handle(handle: BinaryIO) -> None:
+    info = os.fstat(handle.fileno())
+    if not stat.S_ISREG(info.st_mode):
+        raise OSError("The importer object is not a regular file.")
+    if os.name == "nt":
+        import msvcrt
+
+        attributes = _windows_handle_information(
+            msvcrt.get_osfhandle(handle.fileno())
+        ).file_attributes
+        if attributes & (0x00000200 | 0x00001000 | 0x00040000 | 0x00400000):
+            raise OSError("Sparse or placeholder files are not supported.")
+    elif info.st_size > 0 and hasattr(info, "st_blocks"):
+        if info.st_blocks * 512 < info.st_size:
+            raise OSError("Sparse files are not supported.")
+
+
 def open_exclusive_binary(path: Path) -> BinaryIO:
     """Exclusively create a binary file with delete rights on Windows."""
 
@@ -631,3 +897,85 @@ def _windows_open_path(
         error_code = ctypes.get_last_error()
         raise OSError(error_code, message, str(path))
     return raw_handle
+
+
+def _windows_open_relative_path(
+    parent_handle: int,
+    name: str,
+    *,
+    desired_access: int,
+    create_options: int,
+    message: str,
+    disposition: int = 1,
+    file_attributes: int = 0,
+) -> int:
+    """Open one NT child relative to a held directory without reparsing it."""
+
+    import ctypes
+
+    class UnicodeString(ctypes.Structure):
+        _fields_ = (
+            ("length", ctypes.c_ushort),
+            ("maximum_length", ctypes.c_ushort),
+            ("buffer", ctypes.c_wchar_p),
+        )
+
+    class ObjectAttributes(ctypes.Structure):
+        _fields_ = (
+            ("length", ctypes.c_ulong),
+            ("root_directory", ctypes.c_void_p),
+            ("object_name", ctypes.POINTER(UnicodeString)),
+            ("attributes", ctypes.c_ulong),
+            ("security_descriptor", ctypes.c_void_p),
+            ("security_quality_of_service", ctypes.c_void_p),
+        )
+
+    class IoStatusBlock(ctypes.Structure):
+        _fields_ = (("status", ctypes.c_void_p), ("information", ctypes.c_void_p))
+
+    name_buffer = ctypes.create_unicode_buffer(name)
+    encoded_length = len(name.encode("utf-16-le"))
+    unicode_name = UnicodeString(
+        encoded_length, encoded_length + 2, ctypes.cast(name_buffer, ctypes.c_wchar_p)
+    )
+    attributes = ObjectAttributes(
+        ctypes.sizeof(ObjectAttributes),
+        parent_handle,
+        ctypes.pointer(unicode_name),
+        0x00000040,
+        None,
+        None,
+    )
+    result = ctypes.c_void_p()
+    io_status = IoStatusBlock()
+    operation = ctypes.WinDLL("ntdll", use_last_error=True).NtCreateFile
+    operation.argtypes = (
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.c_uint32,
+        ctypes.POINTER(ObjectAttributes),
+        ctypes.POINTER(IoStatusBlock),
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+    )
+    operation.restype = ctypes.c_long
+    status = operation(
+        ctypes.byref(result),
+        desired_access,
+        ctypes.byref(attributes),
+        ctypes.byref(io_status),
+        None,
+        file_attributes,
+        0x00000001 | 0x00000002 | 0x00000004,
+        disposition,
+        create_options,
+        None,
+        0,
+    )
+    if status < 0 or not result.value:
+        raise OSError(status & 0xFFFFFFFF, message, name)
+    return int(result.value)

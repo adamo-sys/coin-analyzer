@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 import tempfile
 import unittest
 
+from PIL import Image
+
 from capture_import.events import EventType, ImportEventBus
-from capture_import.workflow_execution import ImportWorkflow, PipelineOutcome
+from capture_import.workflow_execution import (
+    ImportWorkflow,
+    PipelineOutcome,
+    assemble_prepared_import,
+)
 from capture_import.workflow_models import (
     ImportConfiguration,
     ImportRequest,
@@ -23,6 +30,14 @@ from capture_import.workflow_pipeline import (
 )
 
 WORKSPACE = Path(tempfile.gettempdir())
+
+
+def make_baseline_jpeg(size: tuple[int, int] = (8, 6)) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", size, (50, 100, 150)).save(
+        output, format="JPEG", progressive=False, exif=b""
+    )
+    return output.getvalue()
 
 
 def make_request(collection_id: str = "collection-1") -> ImportRequest:
@@ -615,6 +630,285 @@ class EventOrderingTests(unittest.TestCase):
         }
         for event in bus.events:
             self.assertNotIn(event.event_type, transaction_types)
+
+
+class ProcessedArtifactAssemblyTests(unittest.TestCase):
+    def test_multi_role_crop_stage_order_maps_then_sorts_descriptors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            payload = make_baseline_jpeg()
+            records = []
+            artifacts = {}
+            stages = {}
+            for role in ("edge", "front", "reverse"):
+                normalized_key = f"source-{role}"
+                cropped_key = f"output-{role}"
+                normalized_path = f"source/{role}.jpg"
+                cropped_path = f"result/{role}.jpg"
+                (workspace / normalized_path).parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                (workspace / cropped_path).parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                (workspace / normalized_path).write_bytes(payload)
+                (workspace / cropped_path).write_bytes(payload)
+                artifacts[normalized_key] = StageArtifact(
+                    normalized_path, "image/jpeg"
+                )
+                stages[normalized_key] = "image-normalization"
+                records.append(
+                    {
+                        "coin_id": "coin-1",
+                        "role": role,
+                        "x": 0,
+                        "y": 0,
+                        "width": 8,
+                        "height": 6,
+                        "crop_confidence": 0.0,
+                        "crop_applied": False,
+                        "source_normalized_key": normalized_key,
+                        "source_width": 8,
+                        "source_height": 6,
+                    }
+                )
+                artifacts[cropped_key] = StageArtifact(
+                    cropped_path, "image/jpeg"
+                )
+                stages[cropped_key] = "crop-detection"
+            # Real crop-stage output is lexical by role: edge/front/reverse.
+            artifacts = {
+                **{
+                    key: value
+                    for key, value in artifacts.items()
+                    if stages[key] == "image-normalization"
+                },
+                **{
+                    f"output-{role}": artifacts[f"output-{role}"]
+                    for role in ("edge", "front", "reverse")
+                },
+            }
+            prepared = assemble_prepared_import(
+                make_request(),
+                PipelineOutcome(
+                    artifacts=artifacts,
+                    metadata={"crop_records": records},
+                ),
+                workspace,
+                stages,
+            )
+            self.assertEqual(
+                [item.role for item in prepared.processed_artifacts.descriptors],
+                ["front", "reverse", "edge"],
+            )
+            prepared.processed_artifacts.close()
+
+    def test_exact_stage_routing_ignores_misleading_keys_and_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            payload = make_baseline_jpeg()
+            normalized = workspace / "looks-cropped" / "selected.jpg"
+            cropped = workspace / "looks-normalized" / "fallback.jpg"
+            normalized.parent.mkdir(parents=True)
+            cropped.parent.mkdir(parents=True)
+            normalized.write_bytes(payload)
+            cropped.write_bytes(payload)
+            outcome = PipelineOutcome(
+                artifacts={
+                    "definitely-cropped-by-name": StageArtifact(
+                        "looks-cropped/selected.jpg", "image/jpeg"
+                    ),
+                    "definitely-normalized-by-name": StageArtifact(
+                        "looks-normalized/fallback.jpg", "image/jpeg"
+                    ),
+                },
+                metadata={
+                    "crop_records": [
+                        {
+                            "coin_id": "coin-1",
+                            "role": "front",
+                            "x": 0,
+                            "y": 0,
+                            "width": 8,
+                            "height": 6,
+                            "crop_confidence": 0.0,
+                            "crop_applied": False,
+                            "source_normalized_key": "definitely-cropped-by-name",
+                            "source_width": 8,
+                            "source_height": 6,
+                        }
+                    ]
+                },
+            )
+            prepared = assemble_prepared_import(
+                make_request(),
+                outcome,
+                workspace,
+                {
+                    "definitely-cropped-by-name": "image-normalization",
+                    "definitely-normalized-by-name": "crop-detection",
+                },
+            )
+            self.assertEqual(
+                prepared.processed_artifacts.descriptors[0].artifact_key,
+                "definitely-cropped-by-name",
+            )
+            self.assertEqual(
+                prepared.processed_artifacts.descriptors[0].variant,
+                "NORMALIZED",
+            )
+            prepared.processed_artifacts.close()
+
+    def test_non_jpeg_typed_candidate_is_rejected_not_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            payload = make_baseline_jpeg()
+            normalized = workspace / "normalized.jpg"
+            cropped = workspace / "cropped.jpg"
+            normalized.write_bytes(payload)
+            cropped.write_bytes(payload)
+            outcome = PipelineOutcome(
+                artifacts={
+                    "source": StageArtifact("normalized.jpg", "image/png"),
+                    "candidate": StageArtifact("cropped.jpg", "image/jpeg"),
+                },
+                metadata={
+                    "crop_records": [
+                        {
+                            "coin_id": "coin-1",
+                            "role": "front",
+                            "x": 0,
+                            "y": 0,
+                            "width": 8,
+                            "height": 6,
+                            "crop_confidence": 0.0,
+                            "crop_applied": False,
+                            "source_normalized_key": "source",
+                            "source_width": 8,
+                            "source_height": 6,
+                        }
+                    ]
+                },
+            )
+            with self.assertRaises(StageContractError):
+                assemble_prepared_import(
+                    make_request(),
+                    outcome,
+                    workspace,
+                    {
+                        "source": "image-normalization",
+                        "candidate": "crop-detection",
+                    },
+                )
+
+    def test_exact_fallback_selects_normalized_with_single_use_lease(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            payload = make_baseline_jpeg()
+            normalized = workspace / "normalized/coin-1/front.jpg"
+            cropped = workspace / "cropped/coin-1/front.jpg"
+            normalized.parent.mkdir(parents=True)
+            cropped.parent.mkdir(parents=True)
+            normalized.write_bytes(payload)
+            cropped.write_bytes(payload)
+            outcome = PipelineOutcome(
+                artifacts={
+                    "normalized-coin-1-front": StageArtifact(
+                        "normalized/coin-1/front.jpg", "image/jpeg"
+                    ),
+                    "cropped-coin-1-front": StageArtifact(
+                        "cropped/coin-1/front.jpg", "image/jpeg"
+                    ),
+                },
+                metadata={
+                    "crop_records": [
+                        {
+                            "coin_id": "coin-1",
+                            "role": "front",
+                            "x": 0,
+                            "y": 0,
+                            "width": 8,
+                            "height": 6,
+                            "crop_confidence": 0.0,
+                            "crop_applied": False,
+                            "source_normalized_key": "normalized-coin-1-front",
+                            "source_width": 8,
+                            "source_height": 6,
+                        }
+                    ]
+                },
+            )
+            prepared = assemble_prepared_import(
+                make_request(),
+                outcome,
+                workspace,
+                {
+                    "normalized-coin-1-front": "image-normalization",
+                    "cropped-coin-1-front": "crop-detection",
+                },
+            )
+            self.assertIsNotNone(prepared.processed_artifacts)
+            descriptor = prepared.processed_artifacts.descriptors[0]
+            self.assertEqual(descriptor.variant, "NORMALIZED")
+            self.assertEqual(descriptor.artifact_key, "normalized-coin-1-front")
+            selected = next(
+                item
+                for item in prepared.files
+                if item.artifact_key == "normalized-coin-1-front"
+            )
+            self.assertEqual(selected.durability_classification, "PROCESSED_SELECTED")
+            self.assertIsNotNone(selected.sha256)
+            prepared.processed_artifacts.close_if_unclaimed()
+
+    def test_inconsistent_fallback_fails_and_closes_handles(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            normalized = workspace / "normalized/coin-1/front.jpg"
+            cropped = workspace / "cropped/coin-1/front.jpg"
+            normalized.parent.mkdir(parents=True)
+            cropped.parent.mkdir(parents=True)
+            normalized.write_bytes(make_baseline_jpeg())
+            cropped.write_bytes(make_baseline_jpeg((7, 5)))
+            outcome = PipelineOutcome(
+                artifacts={
+                    "normalized-coin-1-front": StageArtifact(
+                        "normalized/coin-1/front.jpg", "image/jpeg"
+                    ),
+                    "cropped-coin-1-front": StageArtifact(
+                        "cropped/coin-1/front.jpg", "image/jpeg"
+                    ),
+                },
+                metadata={
+                    "crop_records": [
+                        {
+                            "coin_id": "coin-1",
+                            "role": "front",
+                            "x": 0,
+                            "y": 0,
+                            "width": 8,
+                            "height": 6,
+                            "crop_confidence": 0.0,
+                            "crop_applied": False,
+                            "source_normalized_key": "normalized-coin-1-front",
+                            "source_width": 8,
+                            "source_height": 6,
+                        }
+                    ]
+                },
+            )
+            with self.assertRaises(StageContractError):
+                assemble_prepared_import(
+                    make_request(),
+                    outcome,
+                    workspace,
+                    {
+                        "normalized-coin-1-front": "image-normalization",
+                        "cropped-coin-1-front": "crop-detection",
+                    },
+                )
+            # No leaked handle prevents cleanup on Windows.
+            normalized.unlink()
+            cropped.unlink()
 
 
 if __name__ == "__main__":
