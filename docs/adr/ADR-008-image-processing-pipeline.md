@@ -26,21 +26,24 @@ Sprint 8 must not conflate these. The Sprint 7 framework owns the pre-import sea
 
 ## Decision
 
-Extend the Sprint 7 pre-import pipeline with a bounded family of internal image-processing stages. All stages obey ADR-007 boundaries with one deliberate amendment: **preprocessed image artifacts are allowed to cross the durability boundary as `PreparedImport.files`**, so the durable collection contains normalized images instead of raw archive bytes.
+Extend the Sprint 7 pre-import pipeline with a bounded family of internal image-processing stages. All stages obey ADR-007 boundaries with one deliberate amendment: **selected `PreparedImport.files` are bound into a `PreparedArtifactSet` that may cross the durability boundary**, so the durable collection contains normalized images instead of raw archive bytes.
 
 ### Scope boundary
 
 **In scope for Sprint 8:**
 - Pre-import processing of capture-package images before `TransactionService.execute()`.
 - Stages that read from `ImportRequest.source` (the validated capture-package archive) and write normalized/derived artifacts into the caller-owned workspace.
-- Producing `PreparedImport.files` and `PreparedImport.metadata` that the transaction delegate consumes.
+- Producing `PreparedImport.files`, `PreparedImport.metadata`, and an optional
+  identity-bound `PreparedArtifactSet` that the transaction delegate consumes.
 
 **Explicitly out of scope:**
 - Post-import collection image analysis (`image_assessment.py`, `image_analyzer.py` workflows on `CoinItem`).
 - OCR and metadata extraction (Sprint 9).
 - AI grading (Sprint 10).
 - Third-party plugins, dynamic stage discovery, parallel execution, GPU acceleration, cloud processing.
-- Modifying Schema-2 durable persistence, recovery, or event semantics.
+- Reinterpreting existing Schema-2 durable persistence, recovery, or event
+  semantics in place. A separately versioned successor requires Unit 7A approval
+  and a new frozen specification hash.
 
 ### Pipeline contract
 
@@ -63,6 +66,12 @@ Rationale:
 - Obverse/reverse pairing consumes normalized front/reverse images and emits consistency metadata.
 - Duplicate detection consumes normalized images and hashes last, after all other preprocessing, so its evidence reflects the final pre-import representation.
 
+The existing `build_reference_pipeline()` remains the two-stage Sprint 7
+pipeline for backward compatibility. Sprint 8 adds
+`build_image_processing_pipeline()` for the fixed seven-stage order above.
+Unit 7E may migrate the production call site only after Units 7A–7D are
+verified; callers that explicitly request the legacy builder remain unchanged.
+
 #### Inputs and outputs
 
 Every stage implements the existing `ProcessingStage` protocol:
@@ -84,20 +93,207 @@ class ProcessingStage(Protocol):
 - Artifact paths are validated by `_validate_relative_path` (no `..`, no absolute paths, no control characters).
 - Each artifact is declared in `StageResult.artifacts` with a stable key and `content_type`.
 - `ImportWorkflow` merges artifacts and metadata; duplicate keys across stages fail fast with `StageContractError`.
-- `assemble_prepared_import` verifies every declared artifact is a plain regular file inside the workspace and converts it to `PreparedFile(expected_size=..., sha256=None)` (byte-integrity hashing remains with the Sprint 5/6 snapshot path).
-- The workspace is cleaned on success, failure, and cancellation by the caller (`WorkflowWorkspace`).
+- The current `assemble_prepared_import` verifies every declared artifact is a
+  plain regular file and emits only path/size facts. Unit 7B must extend that
+  assembly contract with typed routing facts and a verified ephemeral artifact
+  set; no durable code may rely on the current path-only form.
+- The caller (`WorkflowWorkspace`) cleans the workspace on failure and
+  cancellation. On a successful processed-media handoff, cleanup occurs only
+  after the coordinator has sealed and independently verified the processed
+  snapshot.
 
 #### Consuming `PreparedImport.files` downstream
 
-ADR-007’s technical debt register notes that `workflow_adapter.py` currently forwards only `request.source` and ignores `PreparedImport.files`/`metadata`. Sprint 8 amends this:
+ADR-007’s technical debt register notes that `workflow_adapter.py` currently
+forwards only `request.source` and ignores `PreparedImport.files`/`metadata`.
+Sprint 8 adopts a **coordinator-owned immutable processed-artifact snapshot**.
+The workflow workspace is never a transaction input.
 
-- `commit_prepared_import` remains the sole application-layer bridge.
-- It must pass the normalized image artifacts from `PreparedImport.files` to `PackageImportCoordinator` so that durable persistence uses the preprocessed bytes.
-- Unit 7 must design a routing mechanism so the adapter can distinguish image artifacts from non-image artifacts (e.g., `prepared-manifest.json`). Options include: extending `PreparedFile` with `content_type`, passing the `StageArtifact` mapping alongside `PreparedImport`, or using deterministic path conventions/file extensions. The chosen mechanism must be documented before implementation.
-- `PackageImportCoordinator.prepare()` may need a new overload or optional argument that accepts a verified workspace of preprocessed images instead of re-deriving everything from the raw archive.
-- The coordinator continues to own snapshots, validation, and transaction boundaries. Stages do not call the coordinator.
+The handoff is:
 
-This amendment is architectural: it requires an update to `docs/architecture/IMPORT_WORKFLOW.md` and a new contract between the adapter and the coordinator.
+```text
+workflow workspace
+    -> PreparedImport artifact descriptors
+    -> coordinator verifies and seals a processed snapshot
+    -> workspace may be cleaned
+    -> transaction receives the original-package snapshot plus the processed snapshot
+```
+
+`PreparedFile` must carry an explicit artifact key, content type, producer stage,
+and durability classification in addition to relative path, expected size, and
+digest. The digest is mandatory for every selected processed-media artifact.
+Image stages mark normalized/cropped outputs as processed-media candidates;
+support files such as `prepared-manifest.json` remain ephemeral.
+The crop stage metadata identifies the selected durable artifact key for each
+`(source_coin_id, role)`. The adapter routes only the typed descriptors and never
+opens files, parses paths, or inspects bytes.
+
+The handoff object is a non-serializable `PreparedArtifactSet` with two parts:
+
+- an immutable, deterministically ordered tuple of
+  `ProcessedArtifactDescriptor` values containing exactly the artifact key,
+  source coin id, role, variant, content type, mandatory expected byte length,
+  mandatory SHA-256, workspace-relative path, and captured native file identity;
+- a single-use `PreparedWorkspaceLease` that owns a verified workspace-root
+  directory handle plus open, read-only, no-follow handles for every selected
+  file. Those handles are captured during assembly after bounded hashing.
+
+Assembly verifies the workspace root, parent chain, regular-file identity,
+length, and digest before creating this set. The coordinator accepts ownership
+exactly once, copies only from the held handles, verifies handle identity/length
+before and after each bounded copy, recomputes every digest, and revalidates the
+workspace root, parent chain, and pathname identity before sealing. A replaced
+path or changed handle fails closed; path equivalence alone is never authority.
+
+Before ownership transfer, the workflow driver closes the lease on failure or
+cancellation. After successful transfer, the coordinator closes every handle on
+success, failure, and cancellation. A rejected or repeated transfer fails
+explicitly, so neither side can silently double-own or leak the lease. Workspace
+paths and native identities are ephemeral assembly facts and never appear in a
+journal, audit record, terminal history, or processed-snapshot manifest.
+
+`commit_prepared_import` remains the sole application-layer bridge and calls:
+
+```python
+PackageImportCoordinator.prepare(
+    prepared.request.source,
+    processed_artifacts=prepared.processed_artifacts,
+)
+```
+
+`processed_artifacts` is optional. Omitting it is exactly the existing
+prepare-from-source behavior. When present, it is an ephemeral descriptor set
+bound to the verified workflow workspace; it is not durable evidence. The
+coordinator must create and verify both snapshots before returning
+`PreparedPackageImport`. The returned object owns the original snapshot and the
+processed snapshot as one preparation lease. Cancellation cleans both through
+their verified identities.
+
+### Processed-artifact snapshot contract
+
+#### Ownership and creation
+
+- The coordinator is the sole owner and creator. Stages and the adapter cannot
+  create, name, delete, or adopt a processed snapshot.
+- Creation occurs after the original package snapshot has been verified and
+  before the transaction boundary.
+- The coordinator consumes artifacts while holding a verified workflow-root
+  directory identity and verified plain-file handles. It creates one random-token
+  child beneath a dedicated trusted processed-snapshot root.
+- No workspace pathname, host path, or unverified reference is persisted. The
+  temporary workspace may be deleted only after sealing and independent
+  verification succeed.
+
+#### Closed snapshot layout and identity
+
+The processed snapshot has its own canonical UUID `processed_snapshot_id`, random
+ownership token, native root identity, owner record, manifest, and aggregate
+digest. It is derived evidence and never changes the original package SHA-256,
+byte length, version, basename, manifest, or audit identity.
+
+The sealed manifest is canonical JSON with schema version `1.0` and contains:
+
+- `processed_snapshot_id`, ownership-token SHA-256, creation timestamp;
+- original `package_sha256` and package version as immutable derivation
+  provenance;
+- ordered artifact descriptors containing exactly `artifact_key`,
+  `source_coin_id`, `role`, `variant` (`NORMALIZED` or `CROPPED`),
+  snapshot-relative path, byte length, SHA-256, content type, width, and height;
+- aggregate byte length, artifact count, and `artifact_inventory_sha256`.
+
+The aggregate hashes the canonical ordered descriptor array. Paths are strict
+relative paths beneath the processed snapshot, use the approved Windows-safe
+canonical key, and cannot collide after NFC normalization and Windows case-folding.
+The owner record commits the exact manifest name, length, SHA-256, and snapshot
+root identity. Unknown fields or versions fail closed.
+
+#### Bounds and sealing
+
+- At most `MAX_COINS_PER_PACKAGE * MAX_IMAGES_PER_COIN` selected artifacts.
+- Each artifact is at most `MAX_IMAGE_SIZE`; aggregate bytes are at most
+  `MAX_TOTAL_UNCOMPRESSED_SIZE`.
+- Dimensions and pixels remain bounded by `MAX_IMAGE_DIMENSION` and
+  `MAX_IMAGE_PIXELS`; content type is `image/jpeg` for Sprint 8 durable output.
+- Every destination is created no-follow and no-overwrite, copied through a
+  bounded held handle, flushed and synced, then verified for exact length,
+  digest, canonical image facts, object identity, and parent identity.
+- The manifest and owner record are written and synced only after every artifact
+  is verified. A snapshot is sealed only after a fresh inventory reproduces the
+  aggregate digest and directory durability is confirmed.
+- Partial or ambiguous creation is never returned. Proven coordinator-owned
+  partial state is removed; uncertain state is preserved and blocks.
+
+#### Transaction, image store, and recovery
+
+- The transaction input is an optional verified
+  `ProcessedArtifactSnapshotHandle` alongside the existing original
+  `SnapshotHandle`. It contains no workspace reference.
+- When the handle is present, managed-image planning and copying use the selected
+  processed descriptor for each imported `(source_coin_id, role)`. They never
+  fall back silently to original media. When absent, the legacy original-package
+  media path is unchanged.
+- Before the first durable mutation and at every processed-media read, the
+  transaction verifies the processed snapshot owner, root identity, manifest,
+  inventory, aggregate digest, and package derivation commitment.
+- Journal evidence must identify both snapshots independently and must commit the
+  processed manifest/inventory before any managed-image write. Cleanup receipts
+  must distinguish original-package and processed-snapshot targets.
+- Startup recovery enumerates both snapshot roots under the global lock. A
+  journal-referenced processed snapshot is never an orphan. An unreferenced
+  snapshot is removable only through the same conservative owner, identity,
+  lease, containment, and exact-byte proof required for package snapshots.
+- Rollback deletes managed images, then both owned snapshots, using durable
+  cleanup intents and receipts. Success retains managed images but cleans both
+  snapshots before terminalization. Ambiguity preserves evidence and remains
+  nonterminal.
+- Crash boundaries are required for processed-snapshot creation, sealing,
+  pre-journal verification, each managed-image read, cleanup intent, each
+  snapshot deletion, receipt publication, and terminal eligibility. Repeated
+  recovery is idempotent and exactly-once.
+
+#### Audit semantics
+
+Original package provenance remains authoritative: package hashes and manifest
+facts in audit/history always describe the uploaded `.ca-package`. Processed
+media is separate derived evidence. Operational journal generations commit its
+snapshot and artifact digests; sanitized terminal history may retain only
+path-free aggregate processed-media proof (outcome, count, aggregate digest).
+It never substitutes the processed digest for `package_sha256`.
+
+#### Failure, cancellation, and cleanup ordering
+
+- Failure or cancellation before sealing cleans only proven temporary workspace
+  and partial processed-snapshot state; no transaction begins.
+- Failure after sealing but before journal creation cleans both coordinator-owned
+  snapshots or preserves ambiguous evidence for startup reconciliation.
+- After journal creation, only transaction/recovery cleanup rules may delete
+  either snapshot.
+- The workflow workspace must outlive sealing, but not transaction execution.
+  Durable state must never depend on it.
+- Terminal `SUCCEEDED`, `ROLLED_BACK`, or `CANCELLED` is illegal until every
+  required snapshot cleanup receipt is durable.
+
+### Processed-media durability alternatives
+
+| Alternative | Disposition | Reason |
+| --- | --- | --- |
+| Coordinator-owned immutable processed-artifact snapshot | **Selected, implementation blocked pending durability-spec amendment** | Preserves original evidence, gives transformed bytes independent identity, and permits deterministic recovery. |
+| Rewritten canonical capture-package snapshot | Rejected | Conflates source and derived evidence, changes package/manifest hashes, and complicates audit and replay semantics. |
+| Original media remains durable; processed artifacts are advisory | Rejected | Preserves the current engine but fails the Sprint 8 product requirement that normalized output becomes the stored media. |
+
+### Frozen durability-specification conflict
+
+The selected design cannot be implemented under the current frozen
+`docs/architecture/durable-persistence.md` hash
+`A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`.
+Journal schema 2.0, snapshot owner schema 1.0, cleanup target/root kinds, terminal
+history schema 1.0, and RM-01–RM-41 are closed and describe one package snapshot.
+They have no legal representation for a second snapshot or its cleanup evidence.
+
+No implementation may reinterpret those schemas or append unknown fields. A
+separate durability-architecture amendment must version the affected schemas,
+extend the recovery matrix, obtain independent approval, and freeze a new
+specification hash before Unit 7 production work begins.
 
 ### Image contracts
 
@@ -176,7 +372,7 @@ Sprint 8 image-derived duplicate detection **supplements** the existing `Package
 - False-positive handling: exact hash collisions on normalized bytes are treated as true duplicates for the purpose of the signal; downstream `PreviewDecisionSet` still lets the collector decide.
 - Durability implications: duplicate signals are ephemeral preprocessing metadata. They flow through `PreparedImport.metadata` to the coordinator but do not modify durable state until the collector confirms an import decision.
 
-### Alternatives considered
+### Pipeline-stage alternatives
 
 | Alternative | Trade-off | Disposition |
 |---|---|---|
@@ -195,31 +391,34 @@ Sprint 8 image-derived duplicate detection **supplements** the existing `Package
 5. A failed or cancelled pipeline cannot invoke `TransactionService`.
 6. Source material (the original capture-package archive) remains immutable.
 7. Temporary resources are path-contained and ownership-verified.
-8. Existing Sprint 5 recovery semantics remain unchanged.
+8. Existing schema-2 imports retain their exact recovery semantics; processed
+   snapshots require a separately versioned durability contract before use.
 9. Existing Sprint 6 transaction event ordering remains unchanged.
 10. Cancellation remains cooperative and cannot interrupt the durable commit boundary.
 11. No dynamic or third-party code loading is introduced.
-12. The frozen Schema-2 specification hash remains unchanged.
-13. Preprocessed image artifacts cross the durability boundary only through `PreparedImport.files` consumed by the amended adapter.
+12. The current frozen Schema-2 hash remains authoritative and blocks processed
+    snapshot implementation until a separately approved amendment is frozen.
+13. Preprocessed image artifacts cross the durability boundary only through the
+    `PreparedArtifactSet` assembled from selected `PreparedImport.files` and
+    consumed by the amended adapter.
 
-### Unresolved choices requiring clarification
-
-The following decisions materially affect durable data, backward compatibility, or pipeline ownership. The recommended choice is indicated; if you disagree, stop and clarify before implementation begins.
+### Resolved product choices
 
 1. **Normalized images replace raw archive bytes in durable storage.**
-   - Recommended: Yes. The durable collection stores normalized JPEGs; the original archive remains the immutable source of truth for re-import/audit.
-   - Implication: `PackageImportCoordinator` must accept preprocessed image artifacts.
+   - Decision: Yes, through the separately identified processed-artifact
+     snapshot. The original archive remains the immutable audit source.
 
 2. **Crop detection produces durable cropped artifacts or only metadata.**
-   - Recommended: Cropped artifacts are durable by default if confidence is high; otherwise the normalized image is carried forward. The crop rectangle is always metadata.
-   - Implication: `ImageDuplicateDetectionStage` should operate on the final durable image (cropped if available).
+   - Decision: Cropped artifacts are selected when confidence is high; otherwise
+     normalized artifacts are selected. The explicit selection metadata, not
+     adapter path parsing, determines the durable descriptor.
 
 3. **Duplicate detection compares against the durable collection.**
-   - Recommended: Yes, read-only, bounded to `MAX_DUPLICATE_EXISTING_ITEMS`.
+   - Decision: Yes, read-only, bounded to `MAX_DUPLICATE_EXISTING_ITEMS`.
    - Implication: The stage needs a read-only lookup into existing collection image descriptors, not a full `CoinItem` load.
 
 4. **Perceptual hashing is deferred beyond Sprint 8.**
-   - Recommended: Yes. Use exact normalized-byte hashes in Sprint 8.
+   - Decision: Yes. Use exact normalized-byte hashes in Sprint 8.
    - Implication: Near-duplicate images (same coin, different lighting) will not be detected as duplicates in Sprint 8.
 
 ## Consequences

@@ -24,13 +24,13 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 **Subject-type extensibility note:** Sprint 8 targets coin photographs, but the stage protocol, quality metrics, and duplicate detection are geometry-neutral. `coin_id` in pipeline records and paths is a generic item identifier. Crop detection uses a coin-oriented circular strategy with full-image fallback; future subjects may use different geometry-specific crop strategies without protocol changes.
 
 **Explicitly out of scope:**
-
-**Explicitly out of scope:**
 - Post-import collection image analysis (`image_assessment.py`, `image_analyzer.py` workflows on `CoinItem`).
 - OCR and metadata extraction (Sprint 9).
 - AI grading (Sprint 10).
 - Third-party plugins, dynamic stage discovery, parallel execution, GPU acceleration, cloud processing.
-- Changes to Schema-2 durable persistence, recovery, or event semantics.
+- In-place reinterpretation of existing Schema-2 durable persistence, recovery,
+  or event semantics. Unit 7 may add a separately versioned successor only after
+  Unit 7A architecture approval and a newly frozen specification hash.
 
 ## Deliverables
 
@@ -67,11 +67,12 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 - **Objective:** Emit image-derived duplicate signals that supplement existing `PackageDuplicateDetectionService` evidence.
 
 ### Unit 7: Adapter amendment and pipeline integration
-- `capture_import/workflow_adapter.py` — consume `PreparedImport.files` for normalized images
-- `capture_import/workflow_stages.py` — `build_reference_pipeline()` extended deterministically
-- `capture_import/coordinator.py` — new coordinator overload/argument accepting preprocessed image artifacts (only if required by adapter amendment)
-- `tests/test_workflow_image_integration.py` — end-to-end pipeline with normalized images crossing the adapter boundary
-- **Objective:** Wire all Sprint 8 stages into the reference pipeline and amend the adapter so normalized images become durable inputs.
+- **Unit 7A:** Version and freeze durable processed-snapshot contracts and recovery scenarios.
+- **Unit 7B:** Add identity-bound artifact handoff contracts and processed-snapshot sealing.
+- **Unit 7C:** Give the coordinator single ownership of raw and processed snapshot preparation.
+- **Unit 7D:** Integrate transaction, image-store, journal, cleanup, and recovery behavior.
+- **Unit 7E:** Add the deterministic image pipeline builder and thin adapter integration.
+- **Objective:** Make selected normalized/cropped bytes durable through a separately identified processed snapshot without reinterpreting legacy Schema-2 state.
 
 ### Unit 8: Documentation, traceability, and release gate
 - Update `CHANGELOG.md`
@@ -102,13 +103,13 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | Failure handling | First failed stage halts execution and identifies `stage_id` |
 | Cancellation | Safe before, between, and after image-processing stages |
 | Transaction handoff | Occurs exactly once after successful preprocessing |
-| Durable safety | Normalized image artifacts cross the boundary only through `PreparedImport.files` consumed by the adapter |
-| Recovery | Existing recovery matrix remains unchanged and passing |
+| Durable safety | Normalized image artifacts cross the boundary only through the identity-bound `PreparedArtifactSet` assembled from selected `PreparedImport.files` |
+| Recovery | Legacy RM-01–RM-41 remains unchanged and passing; every newly versioned processed-snapshot recovery scenario is mapped and passing |
 | Events | Pipeline lifecycle events remain deterministic and queryable |
 | Workspace | Owned resources cleaned on all terminal paths |
 | Compatibility | Existing imports preserve externally observable behavior when image stages are disabled or not present |
 | Regression | At least Sprint 7 baseline of 2045 passing tests |
-| Architecture | Frozen specification hash unchanged |
+| Architecture | Legacy frozen hash remains authoritative for legacy imports; Unit 7A's independently approved successor hash governs processed-snapshot imports |
 | Documentation | Plan, architecture, ADR, changelog, and traceability synchronized |
 | Review | No unresolved blocking or major findings |
 
@@ -122,7 +123,7 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | 4 | Crop detection stage | `capture_import/workflow_crop_detection.py` | `test_workflow_crop_detection.py` | TBD | PLANNED |
 | 5 | Obverse/reverse pairing stage | `capture_import/workflow_obverse_reverse_pairing.py` | `test_workflow_obverse_reverse_pairing.py` (48 run, 2 expected Windows skips) | `6a42ab0`, `dc6363b` | VERIFIED |
 | 6 | Image duplicate detection stage | `capture_import/workflow_image_duplicates.py` | `test_workflow_image_duplicates.py` (31 passed) | `456db79` | VERIFIED |
-| 7 | Adapter amendment and pipeline integration | `workflow_adapter.py`, `workflow_stages.py`, optional `coordinator.py` | `test_workflow_image_integration.py` | TBD | PLANNED |
+| 7 | Processed-snapshot durability and pipeline integration | Units 7A–7E below | Unit-specific | TBD | BLOCKED — frozen durability amendment required |
 | 8 | Documentation, traceability, release gate | `CHANGELOG.md`, `PRODUCT_ROADMAP.md`, traceability updates | Full regression | TBD | PLANNED |
 
 ## Exit Criteria Verification
@@ -133,13 +134,13 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | Failure handling | First failed stage halts execution and identifies `stage_id` | Pending |
 | Cancellation | Safe before, between, and after image-processing stages | Pending |
 | Transaction handoff | Occurs exactly once after successful preprocessing | Pending |
-| Durable safety | Normalized image artifacts cross boundary only through `PreparedImport.files` | Pending |
-| Recovery | Existing recovery matrix unchanged and passing | Pending |
+| Durable safety | Normalized image artifacts cross boundary only through the identity-bound `PreparedArtifactSet` | Pending |
+| Recovery | Legacy RM-01–RM-41 unchanged and passing plus new processed-snapshot recovery matrix passing | Pending |
 | Events | Pipeline lifecycle events deterministic and queryable | Pending |
 | Workspace | Owned resources cleaned on all terminal paths | Pending |
 | Compatibility | Existing imports preserve observable behavior | Pending |
 | Regression | At least Sprint 7 baseline of 2045 passing tests | Pending |
-| Architecture | Frozen specification hash unchanged | Pending |
+| Architecture | Legacy hash preserved and Unit 7A successor hash independently approved and frozen | Pending |
 | Documentation | Plan, architecture, ADR, changelog, traceability synchronized | Pending |
 | Review | No unresolved blocking or major findings | Pending |
 
@@ -440,54 +441,249 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 
 ### Unit 7: Adapter Amendment and Pipeline Integration
 
-**Objective:** Wire all Sprint 8 stages into the reference pipeline and amend the adapter so normalized images can become durable inputs.
+**Objective:** Make selected normalized/cropped media durable without conflating
+derived bytes with the original package identity. The selected architecture is a
+separate coordinator-owned immutable processed-artifact snapshot.
 
-**Files expected to change:**
-- `capture_import/workflow_stages.py` — extend `build_reference_pipeline()`
-- `capture_import/workflow_adapter.py` — consume `PreparedImport.files`
-- `capture_import/coordinator.py` — optional new overload/argument for preprocessed image artifacts
-- `tests/test_workflow_image_integration.py` (new)
+**Implementation gate:** Unit 7 production work is blocked. The frozen
+schema-2 journal, snapshot-owner, cleanup, terminal-history, and RM-01–RM-41
+contracts cannot represent a second snapshot. Unit 7A must amend and re-freeze
+the durability specification before any later sub-unit begins. Existing schema-2
+records are never reinterpreted.
 
-**Contracts introduced or modified:**
-- `build_reference_pipeline()` deterministic order now includes image stages.
-- Adapter contract: normalized artifacts in `PreparedImport.files` are passed to the coordinator. Unit 7 must design a routing mechanism so the adapter can distinguish image artifacts from non-image artifacts (e.g., `prepared-manifest.json`). Options include: extending `PreparedFile` with `content_type`, passing the `StageArtifact` mapping alongside `PreparedImport`, or using deterministic path conventions/file extensions.
-- Coordinator contract amendment (if needed) to accept a workspace of preprocessed images.
+#### Unit 7A — Durable processed-snapshot specification
 
-**Implementation constraints:**
-- Preserve the existing prepare-from-source path for backward compatibility.
-- Coordinator continues to own snapshots, validation, and transaction boundaries.
-- Adapter remains a thin translation layer with no business logic.
-- All image stages respect the same cancellation and error contracts as Sprint 7 stages.
+**Objective:** Version the closed durability contracts for a second immutable
+snapshot and define every new crash boundary.
+
+**Expected files:**
+- `docs/architecture/durable-persistence.md`
+- `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_MATRIX.md`
+- `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_INVARIANTS.md`
+- `docs/architecture/durable-persistence-traceability.md`
+- `docs/adr/ADR-008-image-processing-pipeline.md` if reconciliation is needed
+
+**Contracts changed:**
+- Versioned operational journal, snapshot owner, cleanup target/root kinds, and
+  terminal processed-media proof.
+- Processed-snapshot descriptor, owner, sealed manifest, artifact inventory, and
+  aggregate digest.
+- Startup enumeration, referenced/orphan classification, rollback, success
+  cleanup, compaction, and privacy-complete terminalization.
+- New recovery scenarios for every creation, sealing, verification, deletion,
+  receipt, and replay boundary.
+
+**Focused validation:** Documentation schema audit, RM completeness audit,
+cross-document symbol/path checks, `git diff --check`, and independent
+architecture review.
+
+**Regression:** This is a documentation-only architecture unit, so it introduces
+no executable production regression requirement. Mandatory regression evidence
+is: the legacy frozen document still hashes to
+`A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`;
+closed-schema/version inventory is complete; every new durable boundary maps to
+an RM scenario; referenced paths and symbols agree across the architecture,
+invariants, recovery matrix, traceability, ADR, workflow, and plan documents;
+and `git diff --check` passes. Existing durability tests remain unchanged during
+this unit and may be rerun as non-mutating confirmation if requested.
+
+**Acceptance criteria:** The review verdict is
+`READY TO IMPLEMENT PROCESSED ARTIFACT DURABILITY`; a new SHA-256 is frozen; no
+schema-2 bytes are reinterpreted; all new durable states are representable.
+
+**Stop conditions:** Cyclic identity commitments, unrepresentable cleanup state,
+ambiguous replay authority, terminal history requiring private paths, or a
+platform primitive without a fail-closed fallback.
+
+**Backward compatibility:** Existing schema-1/2 policy and current imports remain
+byte-for-byte unchanged. The new version is used only when a processed snapshot
+is present.
+
+**Documentation requirement:** Record the frozen hash and full architecture-to-RM
+traceability before implementation authorization.
+
+#### Unit 7B — Processed artifact contracts and sealing
+
+**Objective:** Carry typed artifact descriptors across the ephemeral workflow
+boundary and seal selected media into an independently verified snapshot.
+
+**Expected files:**
+- `capture_import/workflow_models.py`
+- `capture_import/workflow_execution.py`
+- `capture_import/processed_snapshot.py` (new)
+- `capture_import/limits.py` only for approved version/limit constants
+- image-stage modules only if required to emit typed durability selection
+- `tests/test_workflow_models.py`
+- `tests/test_processed_artifact_snapshot.py` (new)
+
+**Contracts changed:** `PreparedFile` routing facts, optional
+`PreparedArtifactSet`, `ProcessedArtifactDescriptor`,
+`ProcessedArtifactSnapshotHandle`, sealed manifest/owner schemas, and aggregate
+digest.
+
+`PreparedArtifactSet` is non-serializable and single use. Its immutable ordered
+descriptors require artifact key, source coin id, role, variant, content type,
+expected byte length, SHA-256, relative path, and captured native identity. Its
+`PreparedWorkspaceLease` owns a verified workspace-root handle plus open
+read-only no-follow handles for the selected files. Assembly verifies and hashes
+through those handles. Ownership transfers exactly once to the coordinator,
+which copies through the same handles, rechecks identity/length/digest/root/
+parents/path binding, and closes all handles on every terminal path. Before
+transfer, the workflow driver owns cleanup. No workspace fact is durable.
+
+**Focused tests:** Model validation, deterministic routing, exact-byte sealing,
+no-follow/no-overwrite creation, identity replacement races, path collision,
+resource boundaries, partial creation cleanup, sealing crash points, and
+workspace deletion after successful sealing.
+
+**Regression:** Workflow model/execution/workspace suites plus snapshot,
+filesystem, and durability contract suites named by the newly frozen
+traceability matrix.
+
+**Acceptance criteria:** Identical inputs create equivalent manifest evidence;
+every returned handle verifies independently; no workspace reference appears in
+durable descriptors; partial/ambiguous state fails closed.
+
+**Stop conditions:** A stage must create a snapshot, routing requires byte
+inspection in the adapter, or sealing cannot prove parent/file identity.
+
+**Backward compatibility:** Existing `PreparedFile` construction remains valid
+through explicit safe defaults; pipelines without selected processed media
+produce no processed artifact set.
+
+**Documentation requirement:** Update traceability with exact symbols and tests
+after verification.
+
+#### Unit 7C — Coordinator ownership and preparation lifecycle
+
+**Objective:** Make the coordinator own the original and optional processed
+snapshots as one preparation lease.
+
+**Expected files:**
+- `capture_import/coordinator.py`
+- `capture_import/processed_snapshot.py`
+- `tests/test_capture_package_execution.py`
+- `tests/test_workflow_image_integration.py` (new or extended)
+
+**Contracts changed:** Backward-compatible
+`prepare(source_path, *, processed_artifacts=None)`,
+`PreparedPackageImport.processed_snapshot`, dual-snapshot cancellation, and
+pre-journal under-lock revalidation.
+
+**Focused tests:** Legacy prepare call, optional processed input, exact ownership
+transfer, sealing before workspace cleanup, cancellation before/after sealing,
+raw/processed identity mismatch, package derivation mismatch, and no transaction
+call on preparation failure.
+
+**Regression:** Coordinator, snapshot, lock, baseline, preview, and workflow
+integration suites.
+
+**Acceptance criteria:** The coordinator is the sole snapshot owner; both
+snapshots are verified before return; failure cleans only proven owned state;
+existing callers observe unchanged behavior.
+
+**Stop conditions:** Breaking positional API change, workspace path retained by
+`PreparedPackageImport`, or snapshot cleanup outside verified ownership.
+
+**Backward compatibility:** `processed_artifacts=None` follows the current
+source-only path and returns no processed handle.
+
+**Documentation requirement:** Record the final API and lifecycle sequence in
+`IMPORT_WORKFLOW.md`.
+
+#### Unit 7D — Transaction, image store, journal, and recovery integration
+
+**Objective:** Persist managed images from the processed snapshot while preserving
+exactly-once commit, rollback, recovery, and terminal privacy semantics.
+
+**Expected files:** Exactly those authorized by the Unit 7A traceability matrix,
+expected to include:
+- `capture_import/transaction.py`
+- `capture_import/image_store.py`
+- `capture_import/durable_models.py`
+- `capture_import/durable_repository.py`
+- `capture_import/recovery.py`
+- journal/audit/terminal modules required by the versioned schemas
+- focused durability and recovery-matrix tests
+
+**Contracts changed:** Optional verified processed-snapshot transaction input,
+processed-source image planning/copying, immutable journal evidence, dual-snapshot
+cleanup receipts, terminal aggregate proof, startup recovery, and orphan
+reconciliation.
+
+**Focused tests:** Every new RM scenario from Unit 7A; corrupt/replaced processed
+media; missing referenced snapshot; managed-image source selection; crashes before
+and after each cleanup receipt; repeated recovery; terminal privacy; and legacy
+schema-2 execution/recovery.
+
+**Regression:** Full importer durability, execution, recovery, lock, collection,
+audit, and platform-specific suites on Windows and POSIX CI.
+
+**Acceptance criteria:** No silent fallback to raw media; exact normalized/cropped
+bytes become managed images; both snapshots are deterministically recoverable and
+cleaned; terminal state is impossible before all receipts are durable.
+
+**Stop conditions:** Any unjournalled deletion, pathname-only authority,
+non-idempotent recovery, schema reinterpretation, or weakening of global-lock
+ownership.
+
+**Backward compatibility:** Imports without a processed snapshot execute the
+existing schema-2 path unchanged.
+
+**Documentation requirement:** Mark every new architecture/RM row `VERIFIED` only
+after executable coverage passes.
+
+#### Unit 7E — Adapter and deterministic pipeline integration
+
+**Objective:** Wire all Sprint 8 stages in fixed order and route the typed
+processed artifact set through the thin adapter.
+
+**Expected files:**
+- `capture_import/workflow_stages.py`
+- `capture_import/workflow_adapter.py`
+- `tests/test_workflow_image_integration.py`
+- `tests/test_workflow_reference_stages.py` for audited import/order updates
+- `docs/architecture/IMPORT_WORKFLOW.md`
+- this plan's Unit 7 row after verification
+
+**Contracts changed:** Full image-processing pipeline order and the adapter call to
+`coordinator.prepare(source, processed_artifacts=...)`.
+
+The legacy `build_reference_pipeline()` remains the Sprint 7 two-stage builder.
+Unit 7E adds `build_image_processing_pipeline()` with the fixed seven-stage
+order and migrates the production call site only after Units 7A–7D are verified.
 
 **Focused tests:**
 - `python -m unittest tests.test_workflow_image_integration`
-- End-to-end pipeline execution with image stages
-- Normalized images present in `PreparedImport.files`
-- Adapter passes artifacts to coordinator
-- Zero durable invocation on failure/cancellation
-- Existing reference pipeline still works when image stages are omitted
+- deterministic seven-stage order;
+- selected processed descriptors present at handoff;
+- adapter passes descriptors unchanged and never inspects bytes;
+- coordinator/transaction invoked exactly once;
+- zero durable invocation on stage failure or cancellation;
+- legacy pipeline and source-only adapter behavior.
 
-**Regression gate:**
-- `python -m unittest tests.test_workflow_models tests.test_workflow_pipeline tests.test_workflow_execution tests.test_workflow_workspace tests.test_workflow_integration tests.test_workflow_reference_stages tests.test_workflow_image_normalization tests.test_workflow_image_quality tests.test_workflow_crop_detection tests.test_workflow_obverse_reverse_pairing tests.test_workflow_image_duplicates`
+**Regression:**
+- Combined Sprint 8 workflow suite from Units 2–7.
+- Full authoritative `python -m unittest discover -s . -p "test_*.py"`.
 
-**Acceptance criteria:**
-- `build_reference_pipeline()` returns a deterministic pipeline with image stages in the documented order.
-- `commit_prepared_import` consumes `PreparedImport.files` when preprocessed artifacts are present.
-- Existing behavior is preserved when the legacy pipeline is used.
-- No transaction invocation on failure or cancellation.
+**Acceptance criteria:** Fixed documented order; transformed images survive
+restart as managed collection media; original audit identity remains unchanged;
+existing legacy callers pass; no unresolved blocking or major review findings.
 
-**Stop conditions:**
-- Coordinator API change would break existing callers.
-- Adapter must inspect artifact contents to route them.
-- Cannot preserve coordinator ownership of snapshots.
+**Stop conditions:** Adapter business logic, direct durable stage access, duplicate
+transaction/event invocation, or any dependence on workflow paths after sealing.
 
-**Documentation obligations:**
-- Update `IMPORT_WORKFLOW.md` with the final integrated pipeline.
-- Update `SPRINT_08_PLAN.md` Unit 7 row.
+**Backward compatibility:** Existing reference-pipeline construction may be
+requested explicitly through `build_reference_pipeline()`; source-only adapter
+calls remain supported.
 
-**Required pre-commit evidence:**
-- Focused integration tests pass.
-- Independent review.
+**Documentation requirement:** Update the Unit 7 traceability row only after full
+validation and independent review.
+
+**Unit-wide required evidence:** Each sub-unit receives separate implementation
+authorization, focused tests, the named regression gate, static/security/hygiene
+checks, and independent review. Unit 8 cannot begin until Units 7A–7E are
+`VERIFIED`.
 
 ---
 
@@ -516,7 +712,8 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 **Acceptance criteria:**
 - All Sprint 8 units show `VERIFIED` in the closeout traceability matrix.
 - Full regression passes.
-- Frozen spec hash unchanged.
+- Legacy frozen hash unchanged and the Unit 7A successor hash matches the
+  independently approved processed-snapshot specification.
 - Independent review passed with no blocking or major findings.
 
 **Stop conditions:**
@@ -535,14 +732,17 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 
 Stop and await direction if any of the following occur:
 
-- Need to change Schema-2 journal or recovery semantics.
+- Need to reinterpret an existing Schema-2 journal or recovery record in place,
+  or to change durability semantics without the approved Unit 7A successor
+  specification.
 - Ambiguity over which layer owns durable writes.
 - Duplicate or conflicting top-level events.
 - Requirement for dynamic plugin loading or third-party image services.
 - Source mutation during preprocessing.
 - Inability to prove workspace path containment for image artifacts.
 - Cancellation that can occur during an atomic durable transition.
-- Required breaking change to `TransactionService` or `RecoveryService`.
+- Required breaking public API change to `TransactionService` or
+  `RecoveryService` outside the approved Unit 7A successor contract.
 - Full-regression failure not directly explained by the current unit.
 - Scope pressure to begin OCR, AI grading, or post-import collection analysis under Sprint 8.
 - Unresolved decision about whether normalized images replace raw archive bytes durably.
@@ -553,7 +753,9 @@ Stop and await direction if any of the following occur:
 - Stage ordering is explicit and deterministic.
 - Stages return typed results rather than mutating a shared god context.
 - `TransactionService` remains the sole owner of journals, durable writes, rollback, and commit.
-- `RecoveryService` semantics remain unchanged.
+- `RecoveryService` semantics remain unchanged for imports without a processed
+  snapshot; the separately versioned Unit 7A contract governs processed-snapshot
+  recovery.
 - Stages may only write into workflow-owned, path-contained temporary workspaces.
 - Pipeline failure or cancellation prevents transaction invocation.
 - Cancellation is cooperative at stage boundaries.
@@ -566,7 +768,7 @@ Stop and await direction if any of the following occur:
 |---|---|
 | Mutable `dict` passed through all stages | Hidden coupling and nondeterministic behavior |
 | Stages writing directly to `coin_photos/collection` | Competing durability model |
-| Bypassing `PreparedImport.files` to pass images to the coordinator | Silent circumvention of the adapter boundary |
+| Bypassing the identity-bound `PreparedArtifactSet` to pass images to the coordinator | Silent circumvention of the adapter boundary |
 | Generic `except Exception: pass` in image decoding | Concealed corruption and debugging failures |
 | Perceptual hashing in Sprint 8 | Cross-version non-determinism and harder testing |
 | Reimplementing archive reading/media validation | Divergent security semantics |
