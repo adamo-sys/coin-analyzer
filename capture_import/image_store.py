@@ -10,7 +10,11 @@ from pathlib import Path, PurePosixPath
 import stat
 from typing import Callable, Mapping
 
-from coin_collection import ItemPhoto, PhotoRole
+from coin_collection import (
+    CaptureImportMediaProvenance,
+    ItemPhoto,
+    PhotoRole,
+)
 
 from ._filesystem import (
     delete_open_file,
@@ -29,15 +33,23 @@ from .archive import CapturePackageArchiveReader
 from .enums import ImageRole
 from .durable_models import (
     ExpectedImageEvidence,
+    ExpectedImageV3,
     NativeObjectIdentity,
     OwnershipDescriptor,
     VerifiedImageEvidence,
+    VerifiedImageV3,
 )
 from .errors import ImageCollision, ImageCopyFailed, RecoveryRequired
 from .media import CapturePackageMediaValidator, ValidatedMedia
 from .lock import PackageImportLock, require_verified_import_lock
+from .limits import (
+    MAX_IMAGE_DIMENSION,
+    MAX_IMAGE_PIXELS,
+    MAX_PROCESSED_ARTIFACT_SIZE,
+)
 from .models import _validate_uuid
 from .package import ValidatedCapturePackage
+from .processed_snapshot import ProcessedSnapshotHandle
 from .snapshot import SnapshotHandle
 
 OWNER_FILENAME = ".import-owner.json"
@@ -94,6 +106,112 @@ class ManagedImagePlan:
             _validate_uuid(desktop_id, "desktop_item_id")
         if any(image.desktop_item_id not in desktop_ids for image in self.media):
             raise ValueError("Managed media refers to an unknown desktop item.")
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedManagedImage:
+    source_coin_id: str
+    desktop_item_id: str
+    role: ImageRole
+    managed_relative_path: str
+    collection_path: str
+    sha256: str
+    byte_length: int
+    media_type: str
+    width: int
+    height: int
+    source_snapshot_id: str
+    source_artifact_key: str
+    variant: str
+    artifact_index: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedManagedImagePlan:
+    import_id: str
+    ownership_token: str
+    import_root_relative_path: str
+    expected_relative_paths: tuple[str, ...]
+    source_to_desktop: tuple[tuple[str, str], ...]
+    processed_snapshot_id: str
+    package_sha256: str
+    media: tuple[ProcessedManagedImage, ...]
+
+    def validate(self) -> None:
+        _validate_uuid(self.import_id, "import_id")
+        _validate_uuid(self.ownership_token, "ownership_token")
+        _validate_uuid(self.processed_snapshot_id, "processed_snapshot_id")
+        if (
+            not isinstance(self.package_sha256, str)
+            or len(self.package_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in self.package_sha256)
+        ):
+            raise ValueError("package_sha256 must be lowercase SHA-256.")
+        if self.import_root_relative_path != f"imports/{self.import_id}":
+            raise ValueError("import root does not match import_id.")
+        if self.expected_relative_paths != tuple(
+            sorted(set(self.expected_relative_paths))
+        ):
+            raise ValueError("expected paths must be unique and sorted.")
+        if not self.source_to_desktop or not self.media:
+            raise ValueError("Processed image plan must not be empty.")
+        sources = tuple(source for source, _desktop in self.source_to_desktop)
+        desktops = tuple(desktop for _source, desktop in self.source_to_desktop)
+        if len(set(sources)) != len(sources) or len(set(desktops)) != len(desktops):
+            raise ValueError("Processed source and desktop IDs must be unique.")
+        for desktop_id in desktops:
+            _validate_uuid(desktop_id, "desktop_item_id")
+        if any(
+            image.source_coin_id not in sources
+            or image.desktop_item_id not in desktops
+            or image.source_snapshot_id != self.processed_snapshot_id
+            or image.media_type != "image/jpeg"
+            or image.variant not in {"NORMALIZED", "CROPPED"}
+            or image.artifact_index < 0
+            for image in self.media
+        ):
+            raise ValueError("Processed managed image evidence is inconsistent.")
+        mapping = dict(self.source_to_desktop)
+        for image in self.media:
+            if image.desktop_item_id != mapping[image.source_coin_id]:
+                raise ValueError("Processed source/desktop mapping is inconsistent.")
+            if (
+                not isinstance(image.source_artifact_key, str)
+                or not 1 <= len(image.source_artifact_key) <= 255
+                or not isinstance(image.sha256, str)
+                or len(image.sha256) != 64
+                or any(value not in "0123456789abcdef" for value in image.sha256)
+                or not 1 <= image.byte_length <= MAX_PROCESSED_ARTIFACT_SIZE
+                or not 1 <= image.width <= MAX_IMAGE_DIMENSION
+                or not 1 <= image.height <= MAX_IMAGE_DIMENSION
+                or image.width * image.height > MAX_IMAGE_PIXELS
+            ):
+                raise ValueError("Processed managed image fields are invalid.")
+            item_root = (
+                f"{self.import_root_relative_path}/{image.desktop_item_id}"
+            )
+            expected_path = f"{item_root}/{_ROLE_FILENAMES[image.role]}.jpg"
+            collection_path = PurePosixPath(image.collection_path)
+            expected_parts = PurePosixPath(expected_path).parts
+            if (
+                image.managed_relative_path != expected_path
+                or collection_path.is_absolute()
+                or ".." in collection_path.parts
+                or collection_path.parts[-len(expected_parts) :]
+                != expected_parts
+            ):
+                raise ValueError("Processed managed image path is not canonical.")
+        identities = tuple(
+            (image.source_coin_id, image.role) for image in self.media
+        )
+        if len(set(identities)) != len(identities):
+            raise ValueError("Processed source coin/role identities must be unique.")
+        if len({image.managed_relative_path for image in self.media}) != len(
+            self.media
+        ):
+            raise ValueError("Processed managed paths must be unique.")
+        if len({image.artifact_index for image in self.media}) != len(self.media):
+            raise ValueError("Processed artifact indices must be unique.")
 
 
 class ManagedCollectionImageStore:
@@ -171,6 +289,329 @@ class ManagedCollectionImageStore:
         )
         result.validate()
         return result
+
+    def plan_processed(
+        self,
+        processed_snapshot: ProcessedSnapshotHandle,
+        package: ValidatedCapturePackage,
+        *,
+        import_id: str,
+        ownership_token: str,
+        source_to_desktop: Mapping[str, str],
+    ) -> ProcessedManagedImagePlan:
+        """Plan managed JPEGs exclusively from a verified processed manifest."""
+
+        _validate_uuid(import_id, "import_id")
+        _validate_uuid(ownership_token, "ownership_token")
+        processed_snapshot.validate()
+        manifest = processed_snapshot.manifest
+        if (
+            manifest.source_package_sha256 != package.package_sha256
+            or manifest.source_package_byte_length != package.package_byte_length
+            or manifest.source_package_version != package.manifest.package_version
+        ):
+            raise ValueError("Processed snapshot does not match the package.")
+        package_media = {
+            (item.coin_id, item.role.value): item for item in package.media
+        }
+        for descriptor in manifest.artifacts:
+            source = package_media.get((descriptor.source_coin_id, descriptor.role))
+            if (
+                source is None
+                or descriptor.source_artifact.package_media_relative_path
+                != source.archive_path
+                or descriptor.source_artifact.package_media_sha256 != source.sha256
+            ):
+                raise ValueError("Processed artifact is mismapped to package media.")
+        ordered_mapping = tuple(source_to_desktop.items())
+        selected = {source for source, _desktop in ordered_mapping}
+        if not selected or len(selected) != len(ordered_mapping):
+            raise ValueError("Processed source selection must be non-empty and unique.")
+        if not selected.issubset({item.id for item in package.manifest.coins}):
+            raise ValueError("Processed source selection contains an unknown coin.")
+        for _source, desktop_id in ordered_mapping:
+            _validate_uuid(desktop_id, "desktop_item_id")
+        root_relative = f"imports/{import_id}"
+        expected = {root_relative, f"{root_relative}/{OWNER_FILENAME}"}
+        planned: list[ProcessedManagedImage] = []
+        by_source = dict(ordered_mapping)
+        for index, descriptor in enumerate(manifest.artifacts):
+            if descriptor.source_coin_id not in selected:
+                continue
+            desktop_id = by_source[descriptor.source_coin_id]
+            item_root = f"{root_relative}/{desktop_id}"
+            expected.add(item_root)
+            role = ImageRole(descriptor.role)
+            relative = f"{item_root}/{_ROLE_FILENAMES[role]}.jpg"
+            expected.add(relative)
+            planned.append(
+                ProcessedManagedImage(
+                    source_coin_id=descriptor.source_coin_id,
+                    desktop_item_id=desktop_id,
+                    role=role,
+                    managed_relative_path=relative,
+                    collection_path=f"{self._collection_path_prefix}/{relative}",
+                    sha256=descriptor.sha256,
+                    byte_length=descriptor.byte_length,
+                    media_type=descriptor.content_type,
+                    width=descriptor.width,
+                    height=descriptor.height,
+                    source_snapshot_id=manifest.processed_snapshot_id,
+                    source_artifact_key=descriptor.artifact_key,
+                    variant=descriptor.variant,
+                    artifact_index=index,
+                )
+            )
+        if {item.source_coin_id for item in planned} != selected:
+            raise ValueError("Selected coins lack processed manifest artifacts.")
+        result = ProcessedManagedImagePlan(
+            import_id=import_id,
+            ownership_token=ownership_token,
+            import_root_relative_path=root_relative,
+            expected_relative_paths=tuple(sorted(expected)),
+            source_to_desktop=ordered_mapping,
+            processed_snapshot_id=manifest.processed_snapshot_id,
+            package_sha256=package.package_sha256,
+            media=tuple(planned),
+        )
+        result.validate()
+        processed_snapshot.validate()
+        return result
+
+    def copy_processed(
+        self,
+        processed_snapshot: ProcessedSnapshotHandle,
+        plan: ProcessedManagedImagePlan,
+        on_created: CreatedCallback,
+        *,
+        import_lock: PackageImportLock,
+    ) -> dict[str, tuple[ItemPhoto, ...]]:
+        """Persist exact processed bytes without opening raw archive media."""
+
+        require_verified_import_lock(import_lock, import_id=plan.import_id)
+        plan.validate()
+        processed_snapshot.validate()
+        if processed_snapshot.manifest.processed_snapshot_id != plan.processed_snapshot_id:
+            raise ImageCopyFailed()
+        import_root = self._resolve(plan.import_root_relative_path)
+        try:
+            ensure_plain_directory(self._root / "imports")
+            require_verified_import_lock(import_lock, import_id=plan.import_id)
+            os.mkdir(import_root, 0o700)
+            self._live_root_identities[plan.import_id] = path_object_identity(
+                import_root
+            )
+            self._live_object_identities[plan.import_id] = {
+                plan.import_root_relative_path: path_object_identity(import_root)
+            }
+            on_created(plan.import_root_relative_path)
+            marker_path = import_root / OWNER_FILENAME
+            marker = {
+                "ownership_schema_version": OWNERSHIP_SCHEMA_VERSION,
+                "import_id": plan.import_id,
+                "random_ownership_token": plan.ownership_token,
+            }
+            require_verified_import_lock(import_lock, import_id=plan.import_id)
+            self._write_exclusive_verified(
+                marker_path, canonical_json_bytes(marker)
+            )
+            self._record_live_identity(
+                plan.import_id,
+                f"{plan.import_root_relative_path}/{OWNER_FILENAME}",
+                marker_path,
+            )
+            on_created(f"{plan.import_root_relative_path}/{OWNER_FILENAME}")
+            directories: set[str] = set()
+            by_source: dict[str, list[ItemPhoto]] = {
+                source: [] for source, _desktop in plan.source_to_desktop
+            }
+            for image in plan.media:
+                item_relative = str(
+                    PurePosixPath(image.managed_relative_path).parent
+                )
+                if item_relative not in directories:
+                    require_verified_import_lock(
+                        import_lock, import_id=plan.import_id
+                    )
+                    item_path = self._resolve(item_relative)
+                    os.mkdir(item_path, 0o700)
+                    self._record_live_identity(
+                        plan.import_id, item_relative, item_path
+                    )
+                    directories.add(item_relative)
+                    on_created(item_relative)
+                processed_snapshot.validate()
+                descriptor = processed_snapshot.manifest.artifacts[
+                    image.artifact_index
+                ]
+                if (
+                    descriptor.source_coin_id != image.source_coin_id
+                    or descriptor.role != image.role.value
+                    or descriptor.artifact_key != image.source_artifact_key
+                    or descriptor.variant != image.variant
+                    or descriptor.content_type != image.media_type
+                    or descriptor.width != image.width
+                    or descriptor.height != image.height
+                    or descriptor.byte_length != image.byte_length
+                    or descriptor.sha256 != image.sha256
+                ):
+                    raise ImageCopyFailed()
+                with processed_snapshot.open_artifact(
+                    image.artifact_index
+                ) as source:
+                    payload = source.read(image.byte_length + 1)
+                    if (
+                        len(payload) != image.byte_length
+                        or sha256(payload).hexdigest() != image.sha256
+                    ):
+                        raise ImageCopyFailed()
+                processed_snapshot.validate()
+                destination = self._resolve(image.managed_relative_path)
+                require_verified_import_lock(
+                    import_lock, import_id=plan.import_id
+                )
+                self._write_exclusive_verified(destination, payload)
+                self._record_live_identity(
+                    plan.import_id,
+                    image.managed_relative_path,
+                    destination,
+                )
+                on_created(image.managed_relative_path)
+                processed_snapshot.validate()
+                by_source[image.source_coin_id].append(
+                    ItemPhoto(
+                        path=image.collection_path,
+                        role=_PHOTO_ROLES[image.role],
+                        is_primary=image.role is ImageRole.FRONT,
+                        display_order=len(by_source[image.source_coin_id]),
+                        capture_import_media=CaptureImportMediaProvenance(
+                            schema_version="1.0",
+                            import_id=plan.import_id,
+                            source_kind="PROCESSED_SNAPSHOT",
+                            package_sha256=plan.package_sha256,
+                            processed_snapshot_id=plan.processed_snapshot_id,
+                            artifact_key=image.source_artifact_key,
+                            artifact_sha256=image.sha256,
+                            variant=image.variant,
+                        ),
+                    )
+                )
+            processed_snapshot.validate()
+            self.verify_processed(plan)
+            result = {key: tuple(value) for key, value in by_source.items()}
+            self.validate_processed_photos(plan, result)
+            return result
+        except FileExistsError as error:
+            try:
+                processed_snapshot.validate()
+            except Exception as validation_error:
+                raise ImageCopyFailed(validation_error) from error
+            raise ImageCollision(error) from error
+        except (ImageCollision, ImageCopyFailed):
+            try:
+                processed_snapshot.validate()
+            except Exception as validation_error:
+                raise ImageCopyFailed(validation_error) from validation_error
+            raise
+        except Exception as error:
+            try:
+                processed_snapshot.validate()
+            except Exception as validation_error:
+                raise ImageCopyFailed(validation_error) from error
+            raise ImageCopyFailed(error) from error
+
+    def expected_evidence_processed(
+        self, plan: ProcessedManagedImagePlan
+    ) -> tuple[ExpectedImageV3, ...]:
+        plan.validate()
+        return tuple(
+            ExpectedImageV3(
+                relative_path=image.managed_relative_path,
+                role=image.role.value,
+                byte_length=image.byte_length,
+                sha256=image.sha256,
+                media_type=image.media_type,
+                width=image.width,
+                height=image.height,
+                source_kind="PROCESSED_SNAPSHOT",
+                source_snapshot_id=image.source_snapshot_id,
+                source_coin_id=image.source_coin_id,
+                source_artifact_key=image.source_artifact_key,
+                variant=image.variant,
+            )
+            for image in plan.media
+        )
+
+    def verified_evidence_processed(
+        self, plan: ProcessedManagedImagePlan
+    ) -> tuple[VerifiedImageV3, ...]:
+        self.verify_processed(plan)
+        return tuple(
+            VerifiedImageV3(
+                **item.to_dict(),
+                parent_identity=NativeObjectIdentity.from_native(
+                    path_object_identity(
+                        self._resolve(item.relative_path).parent
+                    ),
+                    windows=os.name == "nt",
+                ),
+                object_identity=NativeObjectIdentity.from_native(
+                    path_object_identity(self._resolve(item.relative_path)),
+                    windows=os.name == "nt",
+                ),
+            )
+            for item in self.expected_evidence_processed(plan)
+        )
+
+    def verify_processed(self, plan: ProcessedManagedImagePlan) -> None:
+        """Verify exact processed-plan managed bytes and ownership inventory."""
+
+        plan.validate()
+        self.verify(plan)  # The physical managed-tree contract is identical.
+
+    def validate_processed_photos(
+        self,
+        plan: ProcessedManagedImagePlan,
+        photos: Mapping[str, tuple[ItemPhoto, ...]],
+    ) -> None:
+        """Reject collection provenance that differs from the processed plan."""
+
+        plan.validate()
+        expected_sources = tuple(source for source, _desktop in plan.source_to_desktop)
+        if set(photos) != set(expected_sources):
+            raise ValueError("Processed photo sources do not match the plan.")
+        by_source: dict[str, list[ProcessedManagedImage]] = {
+            source: [] for source in expected_sources
+        }
+        for image in plan.media:
+            by_source[image.source_coin_id].append(image)
+        for source in expected_sources:
+            actual = photos[source]
+            expected = by_source[source]
+            if len(actual) != len(expected):
+                raise ValueError("Processed photo inventory does not match the plan.")
+            for order, (photo, image) in enumerate(
+                zip(actual, expected, strict=True)
+            ):
+                provenance = photo.capture_import_media
+                if (
+                    photo.path != image.collection_path
+                    or photo.role is not _PHOTO_ROLES[image.role]
+                    or photo.display_order != order
+                    or provenance is None
+                    or provenance.schema_version != "1.0"
+                    or provenance.import_id != plan.import_id
+                    or provenance.source_kind != "PROCESSED_SNAPSHOT"
+                    or provenance.package_sha256 != plan.package_sha256
+                    or provenance.processed_snapshot_id
+                    != plan.processed_snapshot_id
+                    or provenance.artifact_key != image.source_artifact_key
+                    or provenance.artifact_sha256 != image.sha256
+                    or provenance.variant != image.variant
+                ):
+                    raise ValueError(
+                        "Processed photo provenance does not match its plan."
+                    )
 
     def copy(
         self,

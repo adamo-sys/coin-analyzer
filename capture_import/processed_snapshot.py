@@ -39,7 +39,13 @@ from ._filesystem import (
     sync_directory,
 )
 from ._json import canonical_json_bytes, parse_bounded_json_object
-from .durable_models import NativeObjectIdentity
+from .durable_models import (
+    NativeObjectIdentity,
+    ProcessedMediaCommitment,
+    ProcessedMediaMappingEntry,
+    ProcessedSnapshotReference,
+    processed_media_mapping_sha256,
+)
 from .errors import SnapshotFailed, SnapshotRecoveryRequired
 from .image_validation import require_complete_jpeg
 from .limits import (
@@ -866,6 +872,74 @@ class ProcessedSnapshotHandle:
             yield handle
         finally:
             self.validate()
+
+    def journal_reference(self) -> ProcessedSnapshotReference:
+        """Build the exact closed Schema 3 reference from verified held bytes."""
+
+        self.validate()
+        snapshot_id = self.manifest.processed_snapshot_id
+        root = f"processed-snapshots/{snapshot_id}"
+        completion_bytes = canonical_json_bytes(self.completion.to_dict())
+        result = ProcessedSnapshotReference(
+            processed_snapshot_id=snapshot_id,
+            workflow_execution_id=self.manifest.workflow_execution_id,
+            root_relative_path=root,
+            manifest_relative_path=f"{root}/manifest.json",
+            completion_relative_path=f"{root}/complete.json",
+            manifest_byte_length=self.completion.manifest_byte_length,
+            completion_byte_length=len(completion_bytes),
+            manifest_sha256=self.completion.manifest_sha256,
+            completion_sha256=hashlib.sha256(completion_bytes).hexdigest(),
+            artifact_count=self.manifest.artifact_count,
+            aggregate_byte_length=self.manifest.aggregate_byte_length,
+            artifact_inventory_sha256=self.manifest.artifact_inventory_sha256,
+        )
+        result.validate()
+        self.validate()
+        return result
+
+    def media_commitment(
+        self, selected_source_coin_ids: tuple[str, ...]
+    ) -> ProcessedMediaCommitment:
+        """Commit selected processed descriptors in immutable manifest order."""
+
+        self.validate()
+        if (
+            not isinstance(selected_source_coin_ids, tuple)
+            or not selected_source_coin_ids
+            or len(set(selected_source_coin_ids)) != len(selected_source_coin_ids)
+        ):
+            raise ValueError("selected source coin IDs must be a non-empty tuple.")
+        selected = set(selected_source_coin_ids)
+        mapping = tuple(
+            ProcessedMediaMappingEntry(
+                source_coin_id=descriptor.source_coin_id,
+                role=descriptor.role,
+                artifact_key=descriptor.artifact_key,
+                artifact_sha256=descriptor.sha256,
+                variant=descriptor.variant,
+            )
+            for descriptor in self.manifest.artifacts
+            if descriptor.source_coin_id in selected
+        )
+        if {entry.source_coin_id for entry in mapping} != selected:
+            raise ValueError("selected source coins do not match processed artifacts.")
+        result = ProcessedMediaCommitment(
+            commitment_schema_version="1.0",
+            processed_snapshot_id_sha256=hashlib.sha256(
+                self.manifest.processed_snapshot_id.encode("utf-8")
+            ).hexdigest(),
+            source_package_sha256=self.manifest.source_package_sha256,
+            artifact_count=self.manifest.artifact_count,
+            aggregate_byte_length=self.manifest.aggregate_byte_length,
+            artifact_inventory_sha256=self.manifest.artifact_inventory_sha256,
+            manifest_sha256=self.completion.manifest_sha256,
+            ordered_mapping=mapping,
+            persisted_mapping_sha256=processed_media_mapping_sha256(mapping),
+        )
+        result.validate()
+        self.validate()
+        return result
 
     def cleanup(self) -> None:
         self._service.cleanup_snapshot(self)

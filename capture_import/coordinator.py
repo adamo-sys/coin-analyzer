@@ -20,7 +20,12 @@ from .processed_snapshot import (
     ProcessedSnapshotHandle,
 )
 from .snapshot import CapturePackageSnapshotService, SnapshotHandle
-from .transaction import PackageImportExecutionResult, PackageImportTransactionService
+from .transaction import (
+    PackageImportExecutionResult,
+    PackageImportTransactionService,
+    Schema3PackageImportTransactionService,
+    Schema3TransactionGenesisResult,
+)
 from .workflow_models import PreparedArtifactSet
 
 
@@ -54,12 +59,14 @@ class PackageImportCoordinator:
         journals: PackageImportJournalRepository,
         transaction: PackageImportTransactionService,
         processed_snapshots: ProcessedArtifactSnapshotService | None = None,
+        processed_transaction: Schema3PackageImportTransactionService | None = None,
     ) -> None:
         self._collection_path = Path(collection_path)
         self._snapshots = snapshots
         self._journals = journals
         self._transaction = transaction
         self._processed_snapshots = processed_snapshots
+        self._processed_transaction = processed_transaction
         self._validator = CapturePackageValidator()
         self._preview_builder = PackageImportPreviewBuilder()
 
@@ -111,11 +118,24 @@ class PackageImportCoordinator:
         self,
         prepared: PreparedPackageImport,
         decisions: PreviewDecisionSet,
-    ) -> PackageImportExecutionResult:
+    ) -> PackageImportExecutionResult | Schema3TransactionGenesisResult:
         """Execute one still-owned prepared preview exactly once."""
 
         if not isinstance(prepared, PreparedPackageImport) or prepared.closed:
             raise PackageChanged()
+        if prepared.processed_snapshot is not None:
+            if self._processed_transaction is None:
+                raise ValueError(
+                    "processed preparation requires a Schema 3 transaction service"
+                )
+            prepared.closed = True
+            return self._processed_transaction.execute_genesis(
+                prepared.snapshot,
+                prepared.processed_snapshot,
+                prepared.package,
+                prepared.preview,
+                decisions,
+            )
         try:
             return self._transaction.execute(
                 prepared.snapshot,

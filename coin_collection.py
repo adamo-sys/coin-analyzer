@@ -10,8 +10,9 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Mapping, Optional, Set
 from dataclasses import dataclass, field
+from uuid import UUID
 import cv2
 import numpy as np
 
@@ -130,6 +131,93 @@ class PhotoRole(str, Enum):
             return cls.OTHER
 
 
+@dataclass(frozen=True, slots=True)
+class CaptureImportMediaProvenance:
+    """Closed, path-free Schema 3 source evidence for one managed photo."""
+
+    schema_version: str
+    import_id: str
+    source_kind: str
+    package_sha256: str
+    processed_snapshot_id: str
+    artifact_key: str
+    artifact_sha256: str
+    variant: str
+
+    FIELDS = frozenset(
+        {
+            "schema_version",
+            "import_id",
+            "source_kind",
+            "package_sha256",
+            "processed_snapshot_id",
+            "artifact_key",
+            "artifact_sha256",
+            "variant",
+        }
+    )
+
+    @staticmethod
+    def _uuid4(value: Any, name: str) -> None:
+        if not isinstance(value, str):
+            raise ValueError(f"{name} must be a canonical UUIDv4")
+        try:
+            parsed = UUID(value)
+        except (TypeError, ValueError, AttributeError) as error:
+            raise ValueError(f"{name} must be a canonical UUIDv4") from error
+        if parsed.version != 4 or str(parsed) != value:
+            raise ValueError(f"{name} must be a canonical UUIDv4")
+
+    @staticmethod
+    def _sha256(value: Any, name: str) -> None:
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise ValueError(f"{name} must be a lowercase SHA-256")
+
+    def validate(self) -> None:
+        if self.schema_version != "1.0":
+            raise ValueError("capture import media schema version is unsupported")
+        self._uuid4(self.import_id, "import_id")
+        if self.source_kind != "PROCESSED_SNAPSHOT":
+            raise ValueError("capture import media source_kind is unsupported")
+        self._sha256(self.package_sha256, "package_sha256")
+        self._uuid4(self.processed_snapshot_id, "processed_snapshot_id")
+        if (
+            not isinstance(self.artifact_key, str)
+            or not 1 <= len(self.artifact_key) <= 255
+        ):
+            raise ValueError("artifact_key must be a bounded string")
+        self._sha256(self.artifact_sha256, "artifact_sha256")
+        if self.variant not in {"NORMALIZED", "CROPPED"}:
+            raise ValueError("capture import media variant is unsupported")
+
+    def to_dict(self) -> Dict[str, str]:
+        self.validate()
+        return {
+            "schema_version": self.schema_version,
+            "import_id": self.import_id,
+            "source_kind": self.source_kind,
+            "package_sha256": self.package_sha256,
+            "processed_snapshot_id": self.processed_snapshot_id,
+            "artifact_key": self.artifact_key,
+            "artifact_sha256": self.artifact_sha256,
+            "variant": self.variant,
+        }
+
+    @classmethod
+    def from_dict(
+        cls, data: Mapping[str, Any]
+    ) -> "CaptureImportMediaProvenance":
+        if not isinstance(data, Mapping) or frozenset(data) != cls.FIELDS:
+            raise ValueError(
+                "capture_import_media must contain exactly its closed fields"
+            )
+        if any(not isinstance(data[field], str) for field in cls.FIELDS):
+            raise ValueError("capture_import_media fields must be strings")
+        result = cls(**{field: data[field] for field in cls.FIELDS})
+        result.validate()
+        return result
+
+
 @dataclass
 class ItemPhoto:
     """Photo metadata owned by a collection item; files are never moved."""
@@ -139,6 +227,7 @@ class ItemPhoto:
     is_primary: bool = False
     notes: str = ""
     display_order: int = 0
+    capture_import_media: CaptureImportMediaProvenance | None = None
 
     def __post_init__(self) -> None:
         self.path = str(self.path or "").strip()
@@ -149,15 +238,30 @@ class ItemPhoto:
             self.display_order = int(self.display_order)
         except (TypeError, ValueError):
             self.display_order = 0
+        if isinstance(self.capture_import_media, Mapping):
+            self.capture_import_media = CaptureImportMediaProvenance.from_dict(
+                self.capture_import_media
+            )
+        elif self.capture_import_media is not None:
+            if not isinstance(
+                self.capture_import_media, CaptureImportMediaProvenance
+            ):
+                raise ValueError(
+                    "capture_import_media must be CaptureImportMediaProvenance"
+                )
+            self.capture_import_media.validate()
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "path": self.path,
             "role": self.role.value,
             "is_primary": self.is_primary,
             "notes": self.notes,
             "display_order": self.display_order,
         }
+        if self.capture_import_media is not None:
+            result["capture_import_media"] = self.capture_import_media.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, data: Any, fallback_order: int = 0) -> Optional["ItemPhoto"]:
@@ -169,12 +273,18 @@ class ItemPhoto:
         path = str(data.get("path") or data.get("file_path") or "").strip()
         if not path:
             return None
+        provenance = (
+            CaptureImportMediaProvenance.from_dict(data["capture_import_media"])
+            if "capture_import_media" in data
+            else None
+        )
         return cls(
             path=path,
             role=data.get("role") or data.get("photo_role") or data.get("photo_type") or PhotoRole.OTHER,
             is_primary=bool(data.get("is_primary", False)),
             notes=str(data.get("notes") or ""),
             display_order=data.get("display_order", fallback_order),
+            capture_import_media=provenance,
         )
 
 

@@ -35,10 +35,17 @@ from .image_store import ManagedCollectionImageStore, ManagedImagePlan
 from .journal import JournalEntry
 from .journal_repository import PackageImportJournalRepository
 from .limits import AUDIT_SCHEMA_VERSION, JOURNAL_SCHEMA_VERSION
-from .lock import PackageImportLock
+from .lock import PackageImportLock, require_verified_import_lock
 from .package import CapturePackageValidator, ValidatedCapturePackage
 from .preview import PackageImportPreview, PreviewDecisionSet, ProposedCoin
 from .snapshot import SnapshotHandle
+
+# Schema 3 imports are intentionally additive; the Schema 1/2 classes above
+# retain their existing models, repositories, and byte contracts.
+from .durable_models import OperationalJournalGenerationV3
+from .durable_repository import Schema3PackageImportJournalRepository
+from .image_store import ProcessedManagedImagePlan
+from .processed_snapshot import ProcessedSnapshotHandle
 
 Clock = Callable[[], str]
 IdentifierFactory = Callable[[], str]
@@ -61,6 +68,14 @@ class PackageImportExecutionResult:
     skipped_count: int
     image_count: int
     desktop_item_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Schema3TransactionGenesisResult:
+    """Ephemeral handoff result after durable Schema 3 PREPARED publication."""
+
+    journal: OperationalJournalGenerationV3
+    image_plan: ProcessedManagedImagePlan
 
 
 class PackageImportTransactionService:
@@ -685,3 +700,210 @@ class PackageImportTransactionService:
                 except Exception:
                     pass
             raise RollbackFailed(rollback_error) from error
+
+
+class Schema3PackageImportTransactionService(PackageImportTransactionService):
+    """Validate both preparation leases and publish only Schema 3 genesis."""
+
+    def __init__(
+        self,
+        collection: CoinCollection,
+        *,
+        lock_path: str | os.PathLike[str],
+        journals: Schema3PackageImportJournalRepository,
+        image_store: ManagedCollectionImageStore,
+        clock: Clock = _utc_now,
+        identifier_factory: IdentifierFactory = _uuid,
+        ownership_token_factory: IdentifierFactory = _uuid,
+    ) -> None:
+        super().__init__(
+            collection,
+            lock_path=lock_path,
+            journal_repository=journals,  # type: ignore[arg-type]
+            image_store=image_store,
+            clock=clock,
+            identifier_factory=identifier_factory,
+            ownership_token_factory=ownership_token_factory,
+        )
+        self._schema3_journals = journals
+
+    @staticmethod
+    def _validate_package_linkage(
+        processed_snapshot: ProcessedSnapshotHandle,
+        package: ValidatedCapturePackage,
+    ) -> None:
+        manifest = processed_snapshot.manifest
+        if (
+            manifest.source_package_sha256 != package.package_sha256
+            or manifest.source_package_byte_length != package.package_byte_length
+            or manifest.source_package_version != package.manifest.package_version
+        ):
+            raise PackageChanged()
+
+    @staticmethod
+    def _cleanup_pre_genesis(
+        processed_snapshot: ProcessedSnapshotHandle,
+        snapshot: SnapshotHandle,
+    ) -> None:
+        processed_snapshot.cleanup()
+        snapshot.cleanup()
+
+    @staticmethod
+    def _preserve_after_publication_start(
+        processed_snapshot: ProcessedSnapshotHandle,
+        snapshot: SnapshotHandle,
+    ) -> None:
+        if processed_snapshot.is_active:
+            processed_snapshot.close()
+        if snapshot.is_active:
+            snapshot.preserve_for_recovery()
+
+    def execute_genesis(
+        self,
+        snapshot: SnapshotHandle,
+        processed_snapshot: ProcessedSnapshotHandle,
+        package: ValidatedCapturePackage,
+        preview: PackageImportPreview,
+        decisions: PreviewDecisionSet,
+    ) -> PackageImportExecutionResult | Schema3TransactionGenesisResult:
+        """Transfer both handles once and publish no state before full revalidation."""
+
+        publication_started = False
+        cleanup_started = False
+        try:
+            import_id = self._identifier_factory()
+            acquired_lock = PackageImportLock.acquire(
+                self._lock_path, import_id=import_id
+            )
+        except Exception:
+            self._cleanup_pre_genesis(processed_snapshot, snapshot)
+            raise
+        with acquired_lock as import_lock:
+            try:
+                require_verified_import_lock(import_lock, import_id=import_id)
+                ImportDecisionModel.validate(preview, decisions)
+                if (
+                    package.package_sha256 != preview.package_sha256
+                    or package.package_byte_length != preview.package_byte_length
+                    or package.package_basename != preview.package_basename
+                ):
+                    raise PackageChanged()
+                selected_ids = tuple(
+                    decision.source_coin_id
+                    for decision in decisions
+                    if decision.decision is DuplicateDecision.IMPORT_AS_NEW
+                )
+                snapshot.validate()
+                locked_package = CapturePackageValidator().validate_snapshot(
+                    snapshot, package.package_basename
+                )
+                if locked_package != package:
+                    raise PackageChanged()
+                processed_snapshot.validate()
+                self._validate_package_linkage(processed_snapshot, package)
+                ImportDecisionModel.validate(preview, decisions)
+                require_collection_baseline(
+                    self._collection.storage_path,
+                    preview.collection_baseline,
+                )
+                if not selected_ids:
+                    cleanup_started = True
+                    self._cleanup_pre_genesis(processed_snapshot, snapshot)
+                    return PackageImportExecutionResult(
+                        import_id=None,
+                        status=ImportResult.SUCCEEDED,
+                        proposed_count=len(preview.proposals),
+                        imported_count=0,
+                        skipped_count=len(preview.proposals),
+                        image_count=0,
+                        desktop_item_ids=(),
+                    )
+                desktop_ids = tuple(
+                    self._identifier_factory() for _source in selected_ids
+                )
+                if len(set(desktop_ids)) != len(desktop_ids):
+                    raise CollectionCommitFailed()
+                ownership_token = self._ownership_token_factory()
+                source_to_desktop = dict(
+                    zip(selected_ids, desktop_ids, strict=True)
+                )
+                existing = self._load_collection_strict()
+                if {item.id for item in existing}.intersection(desktop_ids):
+                    raise CollectionCommitFailed()
+                plan = self._images.plan_processed(
+                    processed_snapshot,
+                    package,
+                    import_id=import_id,
+                    ownership_token=ownership_token,
+                    source_to_desktop=source_to_desktop,
+                )
+                reference = processed_snapshot.journal_reference()
+                commitment = processed_snapshot.media_commitment(selected_ids)
+                expected_images = self._images.expected_evidence_processed(plan)
+                started_at = self._clock()
+                genesis = OperationalJournalGenerationV3(
+                    journal_schema_version="3.0",
+                    import_id=import_id,
+                    random_ownership_token=ownership_token,
+                    generation=0,
+                    previous_generation_sha256=None,
+                    transition_id=self._identifier_factory(),
+                    next_generation_token=self._identifier_factory(),
+                    phase=ImportPhase.PREPARED,
+                    resume_phase=None,
+                    created_at=started_at,
+                    updated_at=started_at,
+                    package_sha256=package.package_sha256,
+                    package_version=package.manifest.package_version,
+                    package_basename=package.package_basename,
+                    snapshot_byte_length=snapshot.descriptor.byte_length,
+                    package_snapshot_relative_path=(
+                        snapshot.descriptor.relative_path
+                    ),
+                    processed_snapshot_reference=reference,
+                    processed_media_commitment=commitment,
+                    collection_baseline_sha256_or_sentinel=(
+                        preview.collection_baseline.sha256_or_sentinel
+                    ),
+                    collection_baseline_byte_length=(
+                        preview.collection_baseline.byte_length
+                    ),
+                    prospective_collection_byte_length=None,
+                    prospective_collection_sha256=None,
+                    selected_source_coin_ids=selected_ids,
+                    desktop_item_ids=desktop_ids,
+                    import_root_relative_path=plan.import_root_relative_path,
+                    expected_image_inventory=expected_images,
+                    verified_image_inventory=(),
+                    committed_collection_item_ids=(),
+                    proposed_count=len(preview.proposals),
+                    imported_count=0,
+                    skipped_count=len(preview.proposals) - len(selected_ids),
+                    collection_publication="NONE",
+                    collection_temporary_artifact=None,
+                    collection_backup_artifact=None,
+                    cleanup_operations=(),
+                    pending_terminal_audit=None,
+                    compaction=None,
+                    error_category=None,
+                    recovery_attempt_count=0,
+                )
+                genesis.validate()
+                require_verified_import_lock(import_lock, import_id=import_id)
+                publication_started = True
+                current = self._schema3_journals.create(
+                    genesis,
+                    import_lock=import_lock,
+                )
+                self._preserve_after_publication_start(
+                    processed_snapshot, snapshot
+                )
+                return Schema3TransactionGenesisResult(current, plan)
+            except Exception:
+                if publication_started:
+                    self._preserve_after_publication_start(
+                        processed_snapshot, snapshot
+                    )
+                elif not cleanup_started:
+                    self._cleanup_pre_genesis(processed_snapshot, snapshot)
+                raise
