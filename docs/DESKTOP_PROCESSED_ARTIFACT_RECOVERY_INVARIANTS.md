@@ -51,6 +51,11 @@ imports with processed media.
 19. **Lease bytes are immutable.** The processed lease is an exact zero-byte
     object created once, never rewritten, and used only through a verified held
     identity and platform advisory lock.
+20. **Zero selection remains pre-journal.** If final decisions select no coins,
+    the existing successful no-op result is returned only after processed-then-raw
+    preparation cleanup. No Schema 3 owner, generation, managed image, collection
+    mutation, or terminal history is created, and every actual Schema 3 genesis
+    retains non-empty selected-source and expected-image inventories.
 
 The normative scenario mapping is
 `DESKTOP_PROCESSED_ARTIFACT_RECOVERY_MATRIX.md`.

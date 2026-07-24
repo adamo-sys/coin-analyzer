@@ -7,7 +7,7 @@ This document describes the deterministic preprocessing pipeline that runs befor
 - `docs/architecture/durable-persistence.md` (frozen at SHA-256 `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`)
 - `docs/architecture/processed-artifact-durability.md` for processed-media
   imports (Unit 7A bundle SHA-256
-  `9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`)
+  `047AD4FC27A7422260956946C6DCC6E5912D15B9E925A77D1E7E36890F180710`)
 - `docs/adr/ADR-007-internal-processing-stage-framework.md`
 
 ## Overview
@@ -309,13 +309,16 @@ When a processed snapshot is present, the image store copies selected media only
 from that snapshot. Missing, mismatched, or unverifiable processed evidence fails
 closed; there is no silent fallback to original media. Without one, the current
 package-snapshot path remains unchanged.
+If final decisions select no coins, the image store is not invoked: the
+pre-journal preparation lease cleans processed then raw and returns the existing
+successful no-op without a journal or terminal record.
 
 ### Versioned durability gate
 
 The frozen Schema 2 contract remains authoritative for imports without processed
 media. It is not extended in place. Processed imports use the separately frozen
 Unit 7A successor bundle at SHA-256
-`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`, which defines journal `3.0`, processed snapshot
+`047AD4FC27A7422260956946C6DCC6E5912D15B9E925A77D1E7E36890F180710`, which defines journal `3.0`, processed snapshot
 owner/manifest/completion `1.0`, journal owner `2.0`, terminal history `2.0`,
 PA-RM-01 through PA-RM-43, and the complete cleanup/recovery contract.
 

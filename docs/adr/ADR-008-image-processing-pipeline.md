@@ -302,7 +302,7 @@ Unit 7A therefore defines a separate successor bundle:
 - `docs/architecture/processed-artifact-durability-traceability.md`.
 
 The bundle SHA-256 is
-`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`, calculated over the exact bytes and domain-separated
+`047AD4FC27A7422260956946C6DCC6E5912D15B9E925A77D1E7E36890F180710`, calculated over the exact bytes and domain-separated
 framing defined by the successor specification. The legacy file and hash remain
 unchanged. Units 7B–7E MUST implement only the successor contract and MUST stop
 on any missing field, transition, recovery action, or platform guarantee.

@@ -14,7 +14,7 @@ Extend the Sprint 7 deterministic import workflow with internal image-processing
 | Legacy architecture | Schema-2 Durable Persistence |
 | Legacy frozen hash | `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4` |
 | Processed-media architecture | Unit 7A processed-artifact durability successor |
-| Processed-media frozen hash | `9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014` |
+| Processed-media frozen hash | `047AD4FC27A7422260956946C6DCC6E5912D15B9E925A77D1E7E36890F180710` |
 | ADR | `docs/adr/ADR-007-internal-processing-stage-framework.md` (Accepted) |
 | ADR | `docs/adr/ADR-008-image-processing-pipeline.md` (Proposed) |
 | Builds on | Sprint 7 `ProcessingStage` protocol and `ProcessingPipeline` |
@@ -494,7 +494,7 @@ this unit and may be rerun as non-mutating confirmation if requested.
 `READY TO IMPLEMENT PROCESSED ARTIFACT DURABILITY`; a new SHA-256 is frozen; no
 Schema 2 bytes are reinterpreted; all new durable states are representable. The
 authoritative Unit 7A bundle hash is
-`9281550CCE3D25AF862615FE93283C151E397C1A664A340FAC642881DBA03014`.
+`047AD4FC27A7422260956946C6DCC6E5912D15B9E925A77D1E7E36890F180710`.
 
 **Stop conditions:** Cyclic identity commitments, unrepresentable cleanup state,
 ambiguous replay authority, terminal history requiring private paths, or a
@@ -622,8 +622,8 @@ reconciliation.
 
 **Focused tests:** Every new RM scenario from Unit 7A; corrupt/replaced processed
 media; missing referenced snapshot; managed-image source selection; crashes before
-and after each cleanup receipt; repeated recovery; terminal privacy; and legacy
-schema-2 execution/recovery.
+and after each cleanup receipt; processed preparation with zero final selections;
+repeated recovery; terminal privacy; and legacy schema-2 execution/recovery.
 
 **Regression:** Full importer durability, execution, recovery, lock, collection,
 audit, and platform-specific suites on Windows and POSIX CI.

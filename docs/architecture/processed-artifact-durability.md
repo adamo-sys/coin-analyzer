@@ -53,7 +53,7 @@ The following invariants are absolute:
 | Contract | Identifier | Applies to | Compatibility rule |
 | --- | --- | --- | --- |
 | Legacy operational journal | `2.0` | Imports without processed media | Exact legacy behavior; this specification does not alter it |
-| Processed operational journal | `3.0` | Imports with a processed snapshot | Closed successor schema; never accepted by Schema 2 code |
+| Processed operational journal | `3.0` | Imports with a processed snapshot that reach journal genesis | Closed successor schema; never accepted by Schema 2 code |
 | Legacy journal owner | `1.0` | Journal `2.0` | Unchanged |
 | Processed journal owner | `2.0` | Journal `3.0` | Closed successor schema committing a Schema 3 genesis |
 | Processed snapshot owner | `1.0` | Snapshot creation intent | Closed immutable schema |
@@ -413,9 +413,10 @@ prepare(
 ```
 
 `processed_artifacts=None` MUST execute the existing Schema 2 preparation path
-unchanged. A non-null set selects Schema 3, seals the processed snapshot before
-workspace cleanup, and returns a `PreparedPackageImport` owning both snapshot
-handles as one single-use preparation lease.
+unchanged. A non-null set selects processed preparation, seals the processed
+snapshot before workspace cleanup, and returns a `PreparedPackageImport` owning
+both snapshot handles as one single-use preparation lease. It selects Schema 3
+only if the final decisions select at least one coin and journal genesis occurs.
 
 The coordinator MUST create and validate the original package snapshot first.
 It MUST reject package evidence that differs from the artifact set's source
@@ -426,6 +427,14 @@ evidence is preserved for startup reconciliation.
 
 Commit transfers both handles to the Schema 3 transaction exactly once. After
 `PREPARED` is durable, only transaction/recovery code may release or clean them.
+
+If the final decisions select zero coins, commit MUST instead return the existing
+successful no-op result without creating a Schema 3 owner, journal generation, or
+terminal history record. Journal genesis has not occurred, so the preparation
+lease retains ownership and MUST clean the processed snapshot first and the raw
+package snapshot second before returning. Every published Schema 3 genesis MUST
+therefore contain non-empty `selected_source_coin_ids` and non-empty
+`expected_image_inventory`.
 
 ## Schema 3 journal
 
@@ -448,6 +457,10 @@ reference, with only the replacements below:
 Every other key remains mandatory and retains its Schema 2 meaning. Schema 3
 objects are closed; implementations MUST construct and validate the complete
 effective key set rather than accepting a partial “extension” mapping.
+
+Schema 3 generation zero is forbidden when the final decisions select no coins;
+that case is the pre-journal successful no-op defined under Coordinator API and
+ownership.
 
 ### Processed snapshot reference
 
@@ -601,6 +614,9 @@ Raw exceptions and paths MUST NOT be persisted or displayed.
 Before creating Schema 3 generation zero, the transaction MUST hold and reverify
 the global import lock, collection baseline, package snapshot, processed snapshot,
 package/processed linkage, preview, decisions, and both preparation handles.
+After this revalidation and before any journal or external mutation, zero selected
+coins MUST take the pre-journal successful no-op path: clean processed then raw,
+return the existing zero-import result, and perform no image planning.
 
 Image planning MUST select each expected image from the processed manifest.
 The image store MUST:
@@ -678,6 +694,8 @@ Processed terminal history `2.0` inherits terminal history `1.0` and adds exactl
 one mandatory, non-null `processed_media_proof` field containing a closed
 `TerminalProcessedMediaProof`. Schema 2 imports continue to produce terminal
 history `1.0`; there is no Schema 3 legacy-source variant.
+The pre-journal zero-selection no-op produces no terminal history record of
+either version.
 
 `TerminalProcessedMediaProof` contains exactly:
 
@@ -719,6 +737,7 @@ it never replaces `package_sha256`.
 | During sealing before `complete.json` | Coordinator cleans only proven incomplete candidates or preserves ambiguity; no journal |
 | After sealing before coordinator return | Complete orphan is recoverable through startup reconciliation |
 | After preparation before `PREPARED` | Cancel cleans processed then raw snapshot; crash leaves independently owned orphans |
+| After preparation with zero selected coins | Return the existing successful no-op only after cleaning processed then raw; create no journal or terminal history |
 | After `PREPARED` | Cancellation is cooperative and transitions through Schema 3 rollback |
 | During managed-image copy | Exact journal prefix controls compensation; no raw-media fallback |
 | After collection publication | Commit-or-recovery only; both snapshot references remain until cleanup receipts |

@@ -20,7 +20,7 @@ Unit 7A is documentation-only; every production and test row remains `PLANNED`.
 | Aggregate and exact-byte verification | PA-RM-06–PA-RM-11, PA-RM-16–PA-RM-17, PA-RM-39 | 7B/7D | `processed_snapshot`; transaction verification seam | digest, trailing-byte, corruption, replacement, and terminal-proof cases | PLANNED | PENDING |
 | Identity-bound ephemeral handoff | PA-RM-01, PA-RM-02, PA-RM-07 | 7B | `workflow_models.PreparedArtifactSet`; `PreparedWorkspaceLease`; `workflow_execution.assemble_prepared_import` | handoff transfer, replacement, mutation, cancellation, and handle-leak tests | PLANNED | PENDING |
 | Snapshot owner, sealing, completion, and immutable lease | PA-RM-03–PA-RM-12, PA-RM-37–PA-RM-38, PA-RM-41 | 7B | `processed_snapshot.ProcessedArtifactSnapshotService`; `ProcessedSnapshotHandle` | owner/root binding, zero-byte lease publication, sync, advisory acquisition, crash, and inventory suite | PLANNED | PENDING |
-| Coordinator additive API and dual ownership | PA-RM-02, PA-RM-12–PA-RM-15 | 7C | `coordinator.PackageImportCoordinator.prepare`; `PreparedPackageImport` | source-only compatibility, transfer, dual cancel, pre-journal crash tests | PLANNED | PENDING |
+| Coordinator additive API and dual ownership | PA-RM-02, PA-RM-12–PA-RM-15 | 7C/7D | `coordinator.PackageImportCoordinator.prepare`; `PreparedPackageImport` | source-only compatibility, transfer, dual cancel, zero-selection no-op, pre-journal crash tests | PLANNED | PENDING |
 | Schema 3 genesis, immutable commitment, and processed reference lifecycle | PA-RM-14–PA-RM-16, PA-RM-34–PA-RM-35, PA-RM-42 | 7D | `durable_models.OperationalJournalGenerationV3`; `ProcessedMediaCommitment`; Schema 3 repository | closed schema, proof retention, exact mapping, nullability, genesis boundary, chain, and version-selection tests | PLANNED | PENDING |
 | Processed image planning and source selection | PA-RM-17–PA-RM-20 | 7D | `image_store.ManagedCollectionImageStore`; Schema 3 transaction service | processed source, mismatch, no-fallback, and partial-copy tests | PLANNED | PENDING |
 | Collection photo provenance | PA-RM-20, PA-RM-21, PA-RM-39 | 7D | `coin_collection.ItemPhoto`; transaction record builder | serialization, legacy absence, malformed provenance, exact mapping tests | PLANNED | PENDING |
@@ -73,7 +73,8 @@ Unit 7A is documentation-only; every production and test row remains `PLANNED`.
 
 - Implement only the approved Schema 3 transaction, image-store, journal,
   recovery, cleanup, provenance, and terminal contracts.
-- PA-RM-14 through PA-RM-43 MUST pass on applicable CI platforms.
+- The PA-RM-13 zero-selection branch and PA-RM-14 through PA-RM-43 MUST pass on
+  applicable CI platforms.
 - Stop on any unplanned state, field, transition, failure category, or platform
   downgrade.
 
