@@ -27,7 +27,12 @@ from ._filesystem import (
     sync_directory,
 )
 from ._json import canonical_json_bytes, parse_bounded_json_object
-from .durable_models import JournalOwnerRecord, OperationalJournalGeneration
+from .durable_models import (
+    JournalOwnerRecord,
+    JournalOwnerRecordV2,
+    OperationalJournalGeneration,
+    OperationalJournalGenerationV3,
+)
 from .enums import ImportPhase, TerminalCompactionStatus
 from .errors import JournalCorrupt, RecoveryRequired
 from .limits import MAX_IMPORT_STATE_MEMBERS, MAX_JSON_BYTES
@@ -676,3 +681,349 @@ class Schema2PackageImportJournalRepository:
         ):
             return
         raise JournalCorrupt()
+
+
+class Schema3PackageImportJournalRepository(
+    Schema2PackageImportJournalRepository
+):
+    """Separate owner-2.0/journal-3.0 repository with closed dispatch."""
+
+    def create(
+        self,
+        entry: OperationalJournalGenerationV3,
+        *,
+        import_lock: PackageImportLock,
+    ) -> OperationalJournalGenerationV3:
+        """Create owner 2.0 and publish Schema 3 generation zero."""
+
+        require_verified_import_lock(import_lock, import_id=entry.import_id)
+        entry.validate()
+        if entry.generation != 0 or entry.phase is not ImportPhase.PREPARED:
+            raise ValueError("A Schema 3 journal must begin with PREPARED generation zero.")
+        payload = canonical_json_bytes(entry.to_dict())
+        generation_name = self.generation_name(0, entry.transition_id)
+        genesis_token = self._new_token(
+            {entry.transition_id, entry.next_generation_token}
+        )
+        temporary_name = self.temporary_name(0, genesis_token)
+        owner = JournalOwnerRecordV2(
+            owner_schema_version="2.0",
+            journal_schema_version="3.0",
+            import_id=entry.import_id,
+            random_ownership_token=entry.random_ownership_token,
+            created_at=entry.created_at,
+            genesis_filename=generation_name,
+            genesis_sha256=sha256(payload).hexdigest(),
+            genesis_temporary_token=genesis_token,
+            genesis_temporary_name=temporary_name,
+        )
+        owner_payload = canonical_json_bytes(owner.to_dict())
+        ensure_plain_directory(self._root)
+        import_root = self._import_root(entry.import_id)
+        try:
+            require_verified_import_lock(import_lock, import_id=entry.import_id)
+            os.mkdir(import_root, 0o700)
+        except FileExistsError as error:
+            raise JournalCorrupt(error) from error
+        try:
+            require_plain_directory(import_root)
+            with open_plain_directory_handle(import_root) as directory:
+                require_verified_import_lock(import_lock, import_id=entry.import_id)
+                self._write_direct_exclusive(directory, "owner.json", owner_payload)
+                require_verified_import_lock(import_lock, import_id=entry.import_id)
+                sync_directory(directory)
+                require_verified_import_lock(import_lock, import_id=entry.import_id)
+                self._write_and_publish(
+                    directory,
+                    temporary_name,
+                    generation_name,
+                    payload,
+                )
+                loaded, raw, _identity = self._read_generation(
+                    directory, generation_name
+                )
+                if loaded != entry or raw != payload:
+                    raise RecoveryRequired()
+                return loaded
+        except Exception as error:
+            if isinstance(error, (JournalCorrupt, RecoveryRequired)):
+                raise
+            raise RecoveryRequired(error) from error
+
+    def _read_owner(self, directory) -> tuple[JournalOwnerRecordV2, bytes]:
+        raw, _identity = self._read_bound_bytes(directory, "owner.json")
+        try:
+            owner = JournalOwnerRecordV2.from_dict(
+                parse_bounded_json_object(raw, "Schema 3 journal owner")
+            )
+        except Exception as error:
+            raise JournalCorrupt(error) from error
+        return owner, raw
+
+    def _read_generation(self, directory, name: str, *, temporary: bool = False):
+        raw, identity = self._read_bound_bytes(directory, name)
+        try:
+            entry = OperationalJournalGenerationV3.from_dict(
+                parse_bounded_json_object(raw, "Schema 3 journal generation")
+            )
+        except Exception as error:
+            raise JournalCorrupt(error) from error
+        if not temporary and name != self.generation_name(
+            entry.generation, entry.transition_id
+        ):
+            raise JournalCorrupt()
+        return entry, raw, identity
+
+    def _publish_existing(
+        self, directory, temporary_name: str, final_name: str
+    ) -> None:
+        """Publish a verified candidate while retaining Windows delete sharing."""
+
+        path = directory.path / temporary_name
+        with open_existing_binary_for_delete(path) as handle:
+            publish_open_file_no_replace_in_directory(
+                handle,
+                directory,
+                temporary_name,
+                final_name,
+            )
+        sync_directory(directory)
+
+    def _reconcile_successor_candidate(
+        self,
+        directory,
+        previous: OperationalJournalGenerationV3,
+        temporary_name: str,
+    ) -> None:
+        """Delete only syntactically incomplete candidates; preserve conflicts."""
+
+        raw, _identity = self._read_bound_bytes(directory, temporary_name)
+        try:
+            value = parse_bounded_json_object(
+                raw, "Schema 3 successor candidate"
+            )
+        except Exception:
+            self._delete_incomplete_candidate(directory, temporary_name)
+            return
+        try:
+            entry = OperationalJournalGenerationV3.from_dict(value)
+        except Exception as error:
+            raise JournalCorrupt(error) from error
+        if (
+            entry.generation != previous.generation + 1
+            or entry.previous_generation_sha256
+            != sha256(canonical_json_bytes(previous.to_dict())).hexdigest()
+        ):
+            raise JournalCorrupt()
+        self._validate_immutable(previous, entry)
+        self._validate_transition(previous, entry)
+        self._publish_existing(
+            directory,
+            temporary_name,
+            self.generation_name(entry.generation, entry.transition_id),
+        )
+
+    @staticmethod
+    def _validate_immutable(
+        first: OperationalJournalGenerationV3,
+        current: OperationalJournalGenerationV3,
+    ) -> None:
+        for field in (
+            "journal_schema_version",
+            "import_id",
+            "random_ownership_token",
+            "created_at",
+            "package_sha256",
+            "package_version",
+            "package_basename",
+            "snapshot_byte_length",
+            "processed_media_commitment",
+            "collection_baseline_sha256_or_sentinel",
+            "collection_baseline_byte_length",
+            "selected_source_coin_ids",
+            "desktop_item_ids",
+            "import_root_relative_path",
+            "expected_image_inventory",
+            "proposed_count",
+            "skipped_count",
+        ):
+            if getattr(first, field) != getattr(current, field):
+                raise JournalCorrupt()
+
+    @staticmethod
+    def _validate_transition(
+        previous: OperationalJournalGenerationV3,
+        current: OperationalJournalGenerationV3,
+    ) -> None:
+        """Reject transitions outside the frozen Schema 2+3 allowlists."""
+
+        if previous.processed_media_commitment != current.processed_media_commitment:
+            raise JournalCorrupt()
+        if previous.processed_snapshot_reference != current.processed_snapshot_reference:
+            envelope = {
+                "generation",
+                "previous_generation_sha256",
+                "transition_id",
+                "next_generation_token",
+                "updated_at",
+            }
+            changed = {
+                name
+                for name in previous.__dataclass_fields__
+                if name not in envelope
+                and getattr(previous, name) != getattr(current, name)
+            }
+            if (
+                changed != {"processed_snapshot_reference"}
+                or previous.processed_snapshot_reference is None
+                or current.processed_snapshot_reference is not None
+                or previous.phase is not current.phase
+                or current.phase
+                not in {
+                    ImportPhase.COLLECTION_COMMITTED,
+                    ImportPhase.ROLLING_BACK,
+                }
+                or not any(
+                    operation.status.value == "COMPLETE"
+                    and operation.kind
+                    in {"SUCCESS_PROCESSED_SNAPSHOT", "ROLLBACK_ALL"}
+                    for operation in current.cleanup_operations
+                )
+            ):
+                raise JournalCorrupt()
+            return
+        Schema2PackageImportJournalRepository._validate_transition(
+            previous.schema2_projection(),
+            current.schema2_projection(),
+        )
+
+
+class VersionedPackageImportJournalRepository:
+    """Dispatch closed Schema 2 and Schema 3 state without reinterpretation."""
+
+    def __init__(
+        self,
+        root: str | os.PathLike[str],
+        *,
+        token_factory: TokenFactory = lambda: str(uuid4()),
+    ) -> None:
+        self._root = Path(root).absolute()
+        self._schema2 = Schema2PackageImportJournalRepository(
+            self._root, token_factory=token_factory
+        )
+        self._schema3 = Schema3PackageImportJournalRepository(
+            self._root, token_factory=token_factory
+        )
+
+    @property
+    def root(self) -> Path:
+        return self._root
+
+    def create(
+        self,
+        entry: OperationalJournalGeneration | OperationalJournalGenerationV3,
+        *,
+        import_lock: PackageImportLock,
+    ) -> OperationalJournalGeneration | OperationalJournalGenerationV3:
+        if isinstance(entry, OperationalJournalGenerationV3):
+            return self._schema3.create(entry, import_lock=import_lock)
+        if isinstance(entry, OperationalJournalGeneration):
+            return self._schema2.create(entry, import_lock=import_lock)
+        raise TypeError("Unsupported operational journal generation type.")
+
+    def append(
+        self,
+        previous: OperationalJournalGeneration | OperationalJournalGenerationV3,
+        current: OperationalJournalGeneration | OperationalJournalGenerationV3,
+        *,
+        import_lock: PackageImportLock,
+    ) -> OperationalJournalGeneration | OperationalJournalGenerationV3:
+        if isinstance(previous, OperationalJournalGenerationV3) and isinstance(
+            current, OperationalJournalGenerationV3
+        ):
+            return self._schema3.append(
+                previous, current, import_lock=import_lock
+            )
+        if isinstance(previous, OperationalJournalGeneration) and isinstance(
+            current, OperationalJournalGeneration
+        ):
+            return self._schema2.append(
+                previous, current, import_lock=import_lock
+            )
+        raise JournalCorrupt()
+
+    def _version_for(self, import_id: str) -> str:
+        import_root = self._schema2._import_root(import_id)
+        with open_plain_directory_handle(import_root) as directory:
+            raw, _identity = self._schema2._read_bound_bytes(
+                directory, "owner.json"
+            )
+        try:
+            value = parse_bounded_json_object(raw, "versioned journal owner")
+            owner_version = value["owner_schema_version"]
+            journal_version = value["journal_schema_version"]
+        except Exception as error:
+            raise JournalCorrupt(error) from error
+        pair = (owner_version, journal_version)
+        if pair == ("1.0", "2.0"):
+            JournalOwnerRecord.from_dict(value)
+            return "2.0"
+        if pair == ("2.0", "3.0"):
+            JournalOwnerRecordV2.from_dict(value)
+            return "3.0"
+        raise JournalCorrupt()
+
+    def load(
+        self,
+        import_id: str,
+        *,
+        import_lock: PackageImportLock,
+    ) -> OperationalJournalGeneration | OperationalJournalGenerationV3:
+        require_verified_import_lock(import_lock, import_id=import_id)
+        version = self._version_for(import_id)
+        if version == "2.0":
+            return self._schema2.load(import_id, import_lock=import_lock)
+        return self._schema3.load(import_id, import_lock=import_lock)
+
+    def load_chain(
+        self,
+        import_id: str,
+        *,
+        import_lock: PackageImportLock,
+    ) -> tuple[OperationalJournalGeneration | OperationalJournalGenerationV3, ...]:
+        require_verified_import_lock(import_lock, import_id=import_id)
+        version = self._version_for(import_id)
+        if version == "2.0":
+            return self._schema2.load_chain(import_id, import_lock=import_lock)
+        return self._schema3.load_chain(import_id, import_lock=import_lock)
+
+    def list_heads(
+        self,
+        *,
+        import_lock: PackageImportLock,
+        validated_legacy_names: frozenset[str] = frozenset(),
+    ) -> tuple[OperationalJournalGeneration | OperationalJournalGenerationV3, ...]:
+        require_verified_import_lock(import_lock)
+        if not self._root.exists():
+            return ()
+        require_plain_directory(self._root)
+        names = sorted(os.listdir(self._root))
+        if len(names) > MAX_IMPORT_STATE_MEMBERS:
+            raise JournalCorrupt()
+        heads: list[
+            OperationalJournalGeneration | OperationalJournalGenerationV3
+        ] = []
+        seen: set[str] = set()
+        for name in names:
+            if name in validated_legacy_names:
+                continue
+            if name.startswith(".retire-"):
+                raise RecoveryRequired()
+            try:
+                if str(UUID(name)) != name or name in seen:
+                    raise ValueError
+            except (ValueError, AttributeError) as error:
+                raise JournalCorrupt(error) from error
+            seen.add(name)
+            heads.append(self.load(name, import_lock=import_lock))
+        return tuple(heads)

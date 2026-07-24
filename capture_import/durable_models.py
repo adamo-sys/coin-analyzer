@@ -9,18 +9,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import re
 from typing import Any, Mapping
+import unicodedata
 from uuid import UUID
 
 from .enums import (
     CleanupStatus,
     CollectionPublicationState,
+    ErrorCategory,
     ImportPhase,
     ImportResult,
     TerminalCompactionStatus,
 )
-from .limits import MAX_JSON_BYTES, MAX_JOURNAL_GENERATIONS
+from .limits import (
+    MAX_CLEANUP_OPERATIONS_V3,
+    MAX_CLEANUP_TARGETS_V3,
+    MAX_IMAGE_PIXELS,
+    MAX_JSON_BYTES,
+    MAX_JOURNAL_GENERATIONS,
+    MAX_PROCESSED_ARTIFACTS,
+    MAX_PROCESSED_ARTIFACT_BYTES,
+    PROCESSED_DURABLE_JOURNAL_SCHEMA_VERSION,
+    PROCESSED_JOURNAL_OWNER_SCHEMA_VERSION,
+    PROCESSED_MEDIA_COMMITMENT_SCHEMA_VERSION,
+)
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ASCII_BASENAME = re.compile(r"^[\x21-\x7e]{1,255}$")
@@ -70,6 +84,12 @@ def _timestamp(value: str, name: str) -> None:
 def _closed(value: Mapping[str, Any], keys: frozenset[str], name: str) -> None:
     if not isinstance(value, Mapping) or frozenset(value) != keys:
         raise ValueError(f"{name} must contain exactly its closed schema fields.")
+
+
+def _string(value: Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string.")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,6 +519,559 @@ class VerifiedImageEvidence(ExpectedImageEvidence):
             sha256=value["sha256"], media_type=value["media_type"], width=value["width"], height=value["height"],
             parent_identity=NativeObjectIdentity.from_dict(value["parent_identity"]),
             object_identity=NativeObjectIdentity.from_dict(value["object_identity"]),
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedSnapshotReference:
+    """Closed journal reference to one complete processed snapshot."""
+
+    processed_snapshot_id: str
+    workflow_execution_id: str
+    root_relative_path: str
+    manifest_relative_path: str
+    completion_relative_path: str
+    manifest_byte_length: int
+    completion_byte_length: int
+    manifest_sha256: str
+    completion_sha256: str
+    artifact_count: int
+    aggregate_byte_length: int
+    artifact_inventory_sha256: str
+
+    FIELDS = frozenset(
+        {
+            "processed_snapshot_id",
+            "workflow_execution_id",
+            "root_relative_path",
+            "manifest_relative_path",
+            "completion_relative_path",
+            "manifest_byte_length",
+            "completion_byte_length",
+            "manifest_sha256",
+            "completion_sha256",
+            "artifact_count",
+            "aggregate_byte_length",
+            "artifact_inventory_sha256",
+        }
+    )
+
+    def validate(self) -> None:
+        _uuid4(self.processed_snapshot_id, "processed_snapshot_id")
+        _uuid4(self.workflow_execution_id, "workflow_execution_id")
+        if self.processed_snapshot_id == self.workflow_execution_id:
+            raise ValueError("Processed snapshot operational IDs must be distinct.")
+        root = f"processed-snapshots/{self.processed_snapshot_id}"
+        if self.root_relative_path != root:
+            raise ValueError("Processed snapshot root path is not canonical.")
+        if self.manifest_relative_path != f"{root}/manifest.json":
+            raise ValueError("Processed manifest path is not canonical.")
+        if self.completion_relative_path != f"{root}/complete.json":
+            raise ValueError("Processed completion path is not canonical.")
+        _integer(self.manifest_byte_length, "manifest_byte_length", 1, MAX_JSON_BYTES)
+        _integer(
+            self.completion_byte_length,
+            "completion_byte_length",
+            1,
+            MAX_JSON_BYTES,
+        )
+        _sha(self.manifest_sha256, "manifest_sha256")
+        _sha(self.completion_sha256, "completion_sha256")
+        _integer(
+            self.artifact_count,
+            "artifact_count",
+            1,
+            MAX_PROCESSED_ARTIFACTS,
+        )
+        _integer(
+            self.aggregate_byte_length,
+            "aggregate_byte_length",
+            1,
+            MAX_PROCESSED_ARTIFACT_BYTES,
+        )
+        _sha(self.artifact_inventory_sha256, "artifact_inventory_sha256")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ProcessedSnapshotReference":
+        _closed(value, cls.FIELDS, "ProcessedSnapshotReference")
+        result = cls(
+            _string(value["processed_snapshot_id"], "processed_snapshot_id"),
+            _string(value["workflow_execution_id"], "workflow_execution_id"),
+            _string(value["root_relative_path"], "root_relative_path"),
+            _string(value["manifest_relative_path"], "manifest_relative_path"),
+            _string(value["completion_relative_path"], "completion_relative_path"),
+            value["manifest_byte_length"],
+            value["completion_byte_length"],
+            _string(value["manifest_sha256"], "manifest_sha256"),
+            _string(value["completion_sha256"], "completion_sha256"),
+            value["artifact_count"],
+            value["aggregate_byte_length"],
+            _string(
+                value["artifact_inventory_sha256"],
+                "artifact_inventory_sha256",
+            ),
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedMediaMappingEntry:
+    """One immutable manifest-order source-to-managed-media commitment."""
+
+    source_coin_id: str
+    role: str
+    artifact_key: str
+    artifact_sha256: str
+    variant: str
+
+    FIELDS = frozenset(
+        {"source_coin_id", "role", "artifact_key", "artifact_sha256", "variant"}
+    )
+
+    def validate(self) -> None:
+        for value, name, limit in (
+            (self.source_coin_id, "source_coin_id", 16_384),
+            (self.artifact_key, "artifact_key", 255),
+        ):
+            if (
+                not isinstance(value, str)
+                or not 1 <= len(value) <= limit
+                or unicodedata.normalize("NFC", value) != value
+            ):
+                raise ValueError(f"{name} must be a bounded NFC string.")
+        if self.role not in {"front", "reverse", "edge"}:
+            raise ValueError("Processed mapping role is invalid.")
+        if self.variant not in {"NORMALIZED", "CROPPED"}:
+            raise ValueError("Processed mapping variant is invalid.")
+        _sha(self.artifact_sha256, "artifact_sha256")
+
+    def to_dict(self) -> dict[str, str]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ProcessedMediaMappingEntry":
+        _closed(value, cls.FIELDS, "ProcessedMediaMappingEntry")
+        result = cls(
+            _string(value["source_coin_id"], "source_coin_id"),
+            _string(value["role"], "role"),
+            _string(value["artifact_key"], "artifact_key"),
+            _string(value["artifact_sha256"], "artifact_sha256"),
+            _string(value["variant"], "variant"),
+        )
+        result.validate()
+        return result
+
+
+def processed_media_mapping_sha256(
+    ordered_mapping: tuple[ProcessedMediaMappingEntry, ...],
+) -> str:
+    """Return the frozen domain-separated mapping commitment."""
+
+    from ._json import canonical_json_bytes
+
+    payload = canonical_json_bytes([entry.to_dict() for entry in ordered_mapping])
+    return hashlib.sha256(
+        b"coin-analyzer.processed-media-mapping.v1\0" + payload
+    ).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedMediaCommitment:
+    """Immutable Schema 3 processed-media proof plan."""
+
+    commitment_schema_version: str
+    processed_snapshot_id_sha256: str
+    source_package_sha256: str
+    artifact_count: int
+    aggregate_byte_length: int
+    artifact_inventory_sha256: str
+    manifest_sha256: str
+    ordered_mapping: tuple[ProcessedMediaMappingEntry, ...]
+    persisted_mapping_sha256: str
+
+    FIELDS = frozenset(
+        {
+            "commitment_schema_version",
+            "processed_snapshot_id_sha256",
+            "source_package_sha256",
+            "artifact_count",
+            "aggregate_byte_length",
+            "artifact_inventory_sha256",
+            "manifest_sha256",
+            "ordered_mapping",
+            "persisted_mapping_sha256",
+        }
+    )
+
+    def validate(self) -> None:
+        if self.commitment_schema_version != PROCESSED_MEDIA_COMMITMENT_SCHEMA_VERSION:
+            raise ValueError("Processed-media commitment schema is unsupported.")
+        _sha(self.processed_snapshot_id_sha256, "processed_snapshot_id_sha256")
+        _sha(self.source_package_sha256, "source_package_sha256")
+        _integer(
+            self.artifact_count,
+            "artifact_count",
+            1,
+            MAX_PROCESSED_ARTIFACTS,
+        )
+        _integer(
+            self.aggregate_byte_length,
+            "aggregate_byte_length",
+            1,
+            MAX_PROCESSED_ARTIFACT_BYTES,
+        )
+        _sha(self.artifact_inventory_sha256, "artifact_inventory_sha256")
+        _sha(self.manifest_sha256, "manifest_sha256")
+        if (
+            not isinstance(self.ordered_mapping, tuple)
+            or not 1 <= len(self.ordered_mapping) <= self.artifact_count
+        ):
+            raise ValueError("Processed mapping is outside snapshot bounds.")
+        for entry in self.ordered_mapping:
+            entry.validate()
+        role_order = {"front": 0, "reverse": 1, "edge": 2}
+        variant_order = {"CROPPED": 0, "NORMALIZED": 1}
+        if tuple(
+            sorted(
+                self.ordered_mapping,
+                key=lambda entry: (
+                    entry.source_coin_id,
+                    role_order[entry.role],
+                    variant_order[entry.variant],
+                    entry.artifact_key,
+                ),
+            )
+        ) != self.ordered_mapping:
+            raise ValueError("Processed mapping is not in manifest descriptor order.")
+        if len(
+            {(entry.source_coin_id.casefold(), entry.role) for entry in self.ordered_mapping}
+        ) != len(self.ordered_mapping):
+            raise ValueError("Processed mapping source coin/role pairs collide.")
+        if len(
+            {entry.artifact_key.casefold() for entry in self.ordered_mapping}
+        ) != len(self.ordered_mapping):
+            raise ValueError("Processed mapping artifact keys collide.")
+        if self.persisted_mapping_sha256 != processed_media_mapping_sha256(
+            self.ordered_mapping
+        ):
+            raise ValueError("Processed mapping commitment is invalid.")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "commitment_schema_version": self.commitment_schema_version,
+            "processed_snapshot_id_sha256": self.processed_snapshot_id_sha256,
+            "source_package_sha256": self.source_package_sha256,
+            "artifact_count": self.artifact_count,
+            "aggregate_byte_length": self.aggregate_byte_length,
+            "artifact_inventory_sha256": self.artifact_inventory_sha256,
+            "manifest_sha256": self.manifest_sha256,
+            "ordered_mapping": [entry.to_dict() for entry in self.ordered_mapping],
+            "persisted_mapping_sha256": self.persisted_mapping_sha256,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ProcessedMediaCommitment":
+        _closed(value, cls.FIELDS, "ProcessedMediaCommitment")
+        if not isinstance(value["ordered_mapping"], list):
+            raise ValueError("ordered_mapping must be an array.")
+        result = cls(
+            _string(
+                value["commitment_schema_version"],
+                "commitment_schema_version",
+            ),
+            _string(
+                value["processed_snapshot_id_sha256"],
+                "processed_snapshot_id_sha256",
+            ),
+            _string(value["source_package_sha256"], "source_package_sha256"),
+            value["artifact_count"],
+            value["aggregate_byte_length"],
+            _string(
+                value["artifact_inventory_sha256"],
+                "artifact_inventory_sha256",
+            ),
+            _string(value["manifest_sha256"], "manifest_sha256"),
+            tuple(
+                ProcessedMediaMappingEntry.from_dict(item)
+                for item in value["ordered_mapping"]
+            ),
+            _string(
+                value["persisted_mapping_sha256"],
+                "persisted_mapping_sha256",
+            ),
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedImageV3(ExpectedImageEvidence):
+    source_kind: str
+    source_snapshot_id: str
+    source_coin_id: str
+    source_artifact_key: str
+    variant: str
+
+    def validate(self) -> None:
+        ExpectedImageEvidence.validate(self)
+        if self.width * self.height > MAX_IMAGE_PIXELS:
+            raise ValueError("Schema 3 image pixel count is outside bounds.")
+        if self.source_kind != "PROCESSED_SNAPSHOT":
+            raise ValueError("Schema 3 image source must be PROCESSED_SNAPSHOT.")
+        _uuid4(self.source_snapshot_id, "source_snapshot_id")
+        ProcessedMediaMappingEntry(
+            self.source_coin_id,
+            self.role,
+            self.source_artifact_key,
+            self.sha256,
+            self.variant,
+        ).validate()
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ExpectedImageV3":
+        _closed(value, frozenset(cls.__dataclass_fields__), "ExpectedImageV3")
+        result = cls(
+            **{
+                name: _string(value[name], name)
+                if name
+                in {
+                    "relative_path",
+                    "role",
+                    "sha256",
+                    "media_type",
+                    "source_kind",
+                    "source_snapshot_id",
+                    "source_coin_id",
+                    "source_artifact_key",
+                    "variant",
+                }
+                else value[name]
+                for name in cls.__dataclass_fields__
+            }
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedImageV3(ExpectedImageV3):
+    parent_identity: NativeObjectIdentity
+    object_identity: NativeObjectIdentity
+
+    def validate(self) -> None:
+        ExpectedImageV3.validate(self)
+        self.parent_identity.validate()
+        self.object_identity.validate()
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            **{
+                name: getattr(self, name)
+                for name in ExpectedImageV3.__dataclass_fields__
+            },
+            "parent_identity": self.parent_identity.to_dict(),
+            "object_identity": self.object_identity.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "VerifiedImageV3":
+        _closed(value, frozenset(cls.__dataclass_fields__), "VerifiedImageV3")
+        result = cls(
+            **{
+                name: (
+                    NativeObjectIdentity.from_dict(value[name])
+                    if name in {"parent_identity", "object_identity"}
+                    else _string(value[name], name)
+                    if name
+                    in {
+                        "relative_path",
+                        "role",
+                        "sha256",
+                        "media_type",
+                        "source_kind",
+                        "source_snapshot_id",
+                        "source_coin_id",
+                        "source_artifact_key",
+                        "variant",
+                    }
+                    else value[name]
+                )
+                for name in cls.__dataclass_fields__
+            }
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class OwnershipDescriptorV3(OwnershipDescriptor):
+    """Schema 3 ownership descriptor with processed-snapshot authority."""
+
+    def validate(self) -> None:
+        if self.root == "PROCESSED_SNAPSHOT":
+            if (
+                not isinstance(self.relative_path, str)
+                or not self.relative_path
+                or self.relative_path.startswith(("/", "\\"))
+                or ".." in self.relative_path.replace("\\", "/").split("/")
+            ):
+                raise ValueError("Ownership relative path is invalid.")
+            if self.object_kind not in {"FILE", "DIRECTORY"}:
+                raise ValueError("Ownership object kind is invalid.")
+            _uuid4(self.ownership_token, "ownership_token")
+            if self.object_kind == "DIRECTORY":
+                if (
+                    self.expected_byte_length is not None
+                    or self.expected_sha256 is not None
+                ):
+                    raise ValueError("Directory descriptor cannot contain byte proof.")
+            else:
+                if (
+                    self.expected_byte_length is None
+                    or self.expected_sha256 is None
+                ):
+                    raise ValueError("File descriptor requires byte proof.")
+                _integer(
+                    self.expected_byte_length,
+                    "expected_byte_length",
+                    0,
+                    (2**53) - 1,
+                )
+                _sha(self.expected_sha256, "expected_sha256")
+            self.parent_identity.validate()
+            self.object_identity.validate()
+            return
+        OwnershipDescriptor.validate(self)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "OwnershipDescriptorV3":
+        _closed(value, frozenset(cls.__dataclass_fields__), "OwnershipDescriptorV3")
+        result = cls(
+            _string(value["root"], "root"),
+            _string(value["relative_path"], "relative_path"),
+            _string(value["object_kind"], "object_kind"),
+            _string(value["ownership_token"], "ownership_token"),
+            value["expected_byte_length"],
+            value["expected_sha256"],
+            NativeObjectIdentity.from_dict(value["parent_identity"]),
+            NativeObjectIdentity.from_dict(value["object_identity"]),
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class CleanupOperationV3:
+    kind: str
+    intent_id: str
+    intent_generation: int
+    targets: tuple[OwnershipDescriptorV3, ...]
+    receipts: tuple[CleanupReceipt, ...]
+    status: CleanupStatus
+    completed_generation: int | None
+
+    FIELDS = frozenset(
+        {
+            "kind",
+            "intent_id",
+            "intent_generation",
+            "targets",
+            "receipts",
+            "status",
+            "completed_generation",
+        }
+    )
+
+    def validate(self) -> None:
+        if self.kind not in {
+            "BASELINE_BACKUP",
+            "SUCCESS_PROCESSED_SNAPSHOT",
+            "SUCCESS_SNAPSHOT",
+            "ROLLBACK_ALL",
+        }:
+            raise ValueError("Schema 3 cleanup operation kind is invalid.")
+        _uuid4(self.intent_id, "intent_id")
+        _integer(
+            self.intent_generation,
+            "intent_generation",
+            0,
+            MAX_JOURNAL_GENERATIONS - 1,
+        )
+        if not 1 <= len(self.targets) <= MAX_CLEANUP_TARGETS_V3:
+            raise ValueError("Schema 3 cleanup targets are outside bounds.")
+        for target in self.targets:
+            target.validate()
+        if len({target.relative_path for target in self.targets}) != len(self.targets):
+            raise ValueError("Cleanup targets must be unique.")
+        if self.kind == "SUCCESS_PROCESSED_SNAPSHOT" and any(
+            target.root != "PROCESSED_SNAPSHOT" for target in self.targets
+        ):
+            raise ValueError("Processed cleanup targets require the processed root.")
+        if len(self.receipts) > len(self.targets):
+            raise ValueError("Cleanup receipts cannot exceed targets.")
+        for index, receipt in enumerate(self.receipts):
+            receipt.validate()
+            if (
+                receipt.target_relative_path != self.targets[index].relative_path
+                or receipt.removal_generation <= self.intent_generation
+            ):
+                raise ValueError("Cleanup receipts must be a strict target prefix.")
+        if self.status is CleanupStatus.INTENT:
+            if self.completed_generation is not None:
+                raise ValueError("Cleanup intent cannot have a completion generation.")
+        elif self.status is CleanupStatus.COMPLETE:
+            if len(self.receipts) != len(self.targets) or self.completed_generation is None:
+                raise ValueError("Completed cleanup requires every receipt.")
+            _integer(
+                self.completed_generation,
+                "completed_generation",
+                self.receipts[-1].removal_generation,
+                MAX_JOURNAL_GENERATIONS - 1,
+            )
+        else:
+            raise ValueError("Cleanup status is invalid.")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "kind": self.kind,
+            "intent_id": self.intent_id,
+            "intent_generation": self.intent_generation,
+            "targets": [target.to_dict() for target in self.targets],
+            "receipts": [receipt.to_dict() for receipt in self.receipts],
+            "status": self.status.value,
+            "completed_generation": self.completed_generation,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "CleanupOperationV3":
+        _closed(value, cls.FIELDS, "CleanupOperationV3")
+        if not isinstance(value["targets"], list) or not isinstance(
+            value["receipts"], list
+        ):
+            raise ValueError("Cleanup targets and receipts must be arrays.")
+        result = cls(
+            _string(value["kind"], "kind"),
+            _string(value["intent_id"], "intent_id"),
+            value["intent_generation"],
+            tuple(OwnershipDescriptorV3.from_dict(item) for item in value["targets"]),
+            tuple(CleanupReceipt.from_dict(item) for item in value["receipts"]),
+            CleanupStatus(value["status"]),
+            value["completed_generation"],
         )
         result.validate()
         return result
@@ -1273,6 +1846,627 @@ class OperationalJournalGeneration:
             pending_terminal_audit=value["pending_terminal_audit"],
             compaction=None if value["compaction"] is None else TerminalCompaction.from_dict(value["compaction"]),
             error_category=value["error_category"], recovery_attempt_count=value["recovery_attempt_count"],
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class JournalOwnerRecordV2:
+    """Closed owner record committing one Schema 3 genesis."""
+
+    owner_schema_version: str
+    journal_schema_version: str
+    import_id: str
+    random_ownership_token: str
+    created_at: str
+    genesis_filename: str
+    genesis_sha256: str
+    genesis_temporary_token: str
+    genesis_temporary_name: str
+
+    FIELDS = frozenset(
+        {
+            "owner_schema_version",
+            "journal_schema_version",
+            "import_id",
+            "random_ownership_token",
+            "created_at",
+            "genesis_filename",
+            "genesis_sha256",
+            "genesis_temporary_token",
+            "genesis_temporary_name",
+        }
+    )
+
+    def validate(self) -> None:
+        if self.owner_schema_version != PROCESSED_JOURNAL_OWNER_SCHEMA_VERSION:
+            raise ValueError("Processed journal owner schema is unsupported.")
+        if self.journal_schema_version != PROCESSED_DURABLE_JOURNAL_SCHEMA_VERSION:
+            raise ValueError("Processed journal schema is unsupported.")
+        for value, name in (
+            (self.import_id, "import_id"),
+            (self.random_ownership_token, "random_ownership_token"),
+            (self.genesis_temporary_token, "genesis_temporary_token"),
+        ):
+            _uuid4(value, name)
+        _timestamp(self.created_at, "created_at")
+        _basename(self.genesis_filename, "genesis_filename")
+        _sha(self.genesis_sha256, "genesis_sha256")
+        _basename(self.genesis_temporary_name, "genesis_temporary_name")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "JournalOwnerRecordV2":
+        _closed(value, cls.FIELDS, "JournalOwnerRecordV2")
+        result = cls(
+            *(_string(value[name], name) for name in cls.__dataclass_fields__)
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class OperationalJournalGenerationV3:
+    """One immutable closed Schema 3 operational journal generation."""
+
+    journal_schema_version: str
+    import_id: str
+    random_ownership_token: str
+    generation: int
+    previous_generation_sha256: str | None
+    transition_id: str
+    next_generation_token: str | None
+    phase: ImportPhase
+    resume_phase: ImportPhase | None
+    created_at: str
+    updated_at: str
+    package_sha256: str
+    package_version: str
+    package_basename: str
+    snapshot_byte_length: int
+    package_snapshot_relative_path: str | None
+    processed_snapshot_reference: ProcessedSnapshotReference | None
+    processed_media_commitment: ProcessedMediaCommitment
+    collection_baseline_sha256_or_sentinel: str
+    collection_baseline_byte_length: int
+    prospective_collection_byte_length: int | None
+    prospective_collection_sha256: str | None
+    selected_source_coin_ids: tuple[str, ...]
+    desktop_item_ids: tuple[str, ...]
+    import_root_relative_path: str
+    expected_image_inventory: tuple[ExpectedImageV3, ...]
+    verified_image_inventory: tuple[VerifiedImageV3, ...]
+    committed_collection_item_ids: tuple[str, ...]
+    proposed_count: int
+    imported_count: int
+    skipped_count: int
+    collection_publication: str
+    collection_temporary_artifact: CollectionPublicationArtifact | None
+    collection_backup_artifact: CollectionPublicationArtifact | None
+    cleanup_operations: tuple[CleanupOperationV3, ...]
+    pending_terminal_audit: Mapping[str, Any] | None
+    compaction: TerminalCompaction | None
+    error_category: str | None
+    recovery_attempt_count: int
+
+    FIELDS = frozenset(
+        {
+            "journal_schema_version",
+            "import_id",
+            "random_ownership_token",
+            "generation",
+            "previous_generation_sha256",
+            "transition_id",
+            "next_generation_token",
+            "phase",
+            "resume_phase",
+            "created_at",
+            "updated_at",
+            "package_sha256",
+            "package_version",
+            "package_basename",
+            "snapshot_byte_length",
+            "package_snapshot_relative_path",
+            "processed_snapshot_reference",
+            "processed_media_commitment",
+            "collection_baseline_sha256_or_sentinel",
+            "collection_baseline_byte_length",
+            "prospective_collection_byte_length",
+            "prospective_collection_sha256",
+            "selected_source_coin_ids",
+            "desktop_item_ids",
+            "import_root_relative_path",
+            "expected_image_inventory",
+            "verified_image_inventory",
+            "committed_collection_item_ids",
+            "proposed_count",
+            "imported_count",
+            "skipped_count",
+            "collection_publication",
+            "collection_temporary_artifact",
+            "collection_backup_artifact",
+            "cleanup_operations",
+            "pending_terminal_audit",
+            "compaction",
+            "error_category",
+            "recovery_attempt_count",
+        }
+    )
+
+    @staticmethod
+    def _project_descriptor(value: OwnershipDescriptorV3) -> OwnershipDescriptor:
+        return OwnershipDescriptor(
+            root="SNAPSHOT" if value.root == "PROCESSED_SNAPSHOT" else value.root,
+            relative_path=value.relative_path,
+            object_kind=value.object_kind,
+            ownership_token=value.ownership_token,
+            expected_byte_length=value.expected_byte_length,
+            expected_sha256=value.expected_sha256,
+            parent_identity=value.parent_identity,
+            object_identity=value.object_identity,
+        )
+
+    @classmethod
+    def _project_cleanup(cls, value: CleanupOperationV3) -> CleanupOperation:
+        projected_targets = tuple(
+            cls._project_descriptor(item) for item in value.targets[:301]
+        )
+        projected_receipts = value.receipts[: len(projected_targets)]
+        completed_generation = value.completed_generation
+        if value.status is CleanupStatus.COMPLETE and projected_receipts:
+            completed_generation = max(
+                completed_generation or 0,
+                projected_receipts[-1].removal_generation,
+            )
+        return CleanupOperation(
+            kind=(
+                "SUCCESS_SNAPSHOT"
+                if value.kind == "SUCCESS_PROCESSED_SNAPSHOT"
+                else value.kind
+            ),
+            intent_id=value.intent_id,
+            intent_generation=value.intent_generation,
+            targets=projected_targets,
+            receipts=projected_receipts,
+            status=value.status,
+            completed_generation=completed_generation,
+        )
+
+    def schema2_projection(self) -> OperationalJournalGeneration:
+        """Project inherited fields solely to reuse frozen Schema 2 validation."""
+
+        return OperationalJournalGeneration(
+            journal_schema_version="2.0",
+            import_id=self.import_id,
+            random_ownership_token=self.random_ownership_token,
+            generation=self.generation,
+            previous_generation_sha256=self.previous_generation_sha256,
+            transition_id=self.transition_id,
+            next_generation_token=self.next_generation_token,
+            phase=self.phase,
+            resume_phase=self.resume_phase,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            package_sha256=self.package_sha256,
+            package_version=self.package_version,
+            package_basename=self.package_basename,
+            snapshot_byte_length=self.snapshot_byte_length,
+            snapshot_relative_path=self.package_snapshot_relative_path,
+            collection_baseline_sha256_or_sentinel=(
+                self.collection_baseline_sha256_or_sentinel
+            ),
+            collection_baseline_byte_length=self.collection_baseline_byte_length,
+            prospective_collection_byte_length=self.prospective_collection_byte_length,
+            prospective_collection_sha256=self.prospective_collection_sha256,
+            selected_source_coin_ids=self.selected_source_coin_ids,
+            desktop_item_ids=self.desktop_item_ids,
+            import_root_relative_path=self.import_root_relative_path,
+            expected_image_inventory=tuple(
+                ExpectedImageEvidence(
+                    item.relative_path,
+                    item.role,
+                    item.byte_length,
+                    item.sha256,
+                    item.media_type,
+                    item.width,
+                    item.height,
+                )
+                for item in self.expected_image_inventory
+            ),
+            verified_image_inventory=tuple(
+                VerifiedImageEvidence(
+                    item.relative_path,
+                    item.role,
+                    item.byte_length,
+                    item.sha256,
+                    item.media_type,
+                    item.width,
+                    item.height,
+                    item.parent_identity,
+                    item.object_identity,
+                )
+                for item in self.verified_image_inventory
+            ),
+            committed_collection_item_ids=self.committed_collection_item_ids,
+            proposed_count=self.proposed_count,
+            imported_count=self.imported_count,
+            skipped_count=self.skipped_count,
+            collection_publication=self.collection_publication,
+            collection_temporary_artifact=self.collection_temporary_artifact,
+            collection_backup_artifact=self.collection_backup_artifact,
+            cleanup_operations=tuple(
+                self._project_cleanup(item) for item in self.cleanup_operations[:3]
+            ),
+            pending_terminal_audit=self.pending_terminal_audit,
+            compaction=self.compaction,
+            error_category=self.error_category,
+            recovery_attempt_count=self.recovery_attempt_count,
+        )
+
+    def validate(self) -> None:
+        if self.journal_schema_version != PROCESSED_DURABLE_JOURNAL_SCHEMA_VERSION:
+            raise ValueError("Operational Schema 3 journal is unsupported.")
+        if len(self.cleanup_operations) > MAX_CLEANUP_OPERATIONS_V3:
+            raise ValueError("Too many Schema 3 cleanup operations.")
+        for operation in self.cleanup_operations:
+            operation.validate()
+            if (
+                operation.intent_generation > self.generation
+                or any(
+                    receipt.removal_generation > self.generation
+                    for receipt in operation.receipts
+                )
+                or (
+                    operation.completed_generation is not None
+                    and operation.completed_generation > self.generation
+                )
+            ):
+                raise ValueError("Cleanup evidence cannot reference a future generation.")
+        if any(
+            operation.status is not CleanupStatus.COMPLETE
+            for operation in self.cleanup_operations[:-1]
+        ):
+            raise ValueError("Only the final cleanup operation may be incomplete.")
+        cleanup_kinds = tuple(
+            operation.kind for operation in self.cleanup_operations
+        )
+        if len(set(cleanup_kinds)) != len(cleanup_kinds):
+            raise ValueError("Schema 3 cleanup operation kinds must be unique.")
+        if "ROLLBACK_ALL" in cleanup_kinds:
+            if cleanup_kinds != ("ROLLBACK_ALL",):
+                raise ValueError("Rollback cleanup cannot mix with success cleanup.")
+        else:
+            success_order = (
+                (
+                    "SUCCESS_PROCESSED_SNAPSHOT",
+                    "SUCCESS_SNAPSHOT",
+                )
+                if self.collection_baseline_sha256_or_sentinel
+                == "MISSING_COLLECTION_V1"
+                else (
+                    "BASELINE_BACKUP",
+                    "SUCCESS_PROCESSED_SNAPSHOT",
+                    "SUCCESS_SNAPSHOT",
+                )
+            )
+            if cleanup_kinds != success_order[: len(cleanup_kinds)]:
+                raise ValueError("Schema 3 success cleanup order is invalid.")
+        self.processed_media_commitment.validate()
+        reference = self.processed_snapshot_reference
+        if reference is not None:
+            reference.validate()
+            if (
+                self.processed_media_commitment.processed_snapshot_id_sha256
+                != hashlib.sha256(
+                    reference.processed_snapshot_id.encode("utf-8")
+                ).hexdigest()
+                or self.processed_media_commitment.artifact_count
+                != reference.artifact_count
+                or self.processed_media_commitment.aggregate_byte_length
+                != reference.aggregate_byte_length
+                or self.processed_media_commitment.artifact_inventory_sha256
+                != reference.artifact_inventory_sha256
+                or self.processed_media_commitment.manifest_sha256
+                != reference.manifest_sha256
+            ):
+                raise ValueError(
+                    "Processed commitment does not match its snapshot reference."
+                )
+        if self.processed_media_commitment.source_package_sha256 != self.package_sha256:
+            raise ValueError("Processed commitment package digest is inconsistent.")
+        if not self.selected_source_coin_ids or not self.expected_image_inventory:
+            raise ValueError("Actual Schema 3 genesis inventories must be non-empty.")
+        selected = set(self.selected_source_coin_ids)
+        mapping = {
+            (
+                item.source_coin_id,
+                item.role,
+                item.artifact_key,
+                item.artifact_sha256,
+                item.variant,
+            )
+            for item in self.processed_media_commitment.ordered_mapping
+        }
+        expected_mapping = set()
+        for image in self.expected_image_inventory:
+            image.validate()
+            source_snapshot_matches = (
+                image.source_snapshot_id == reference.processed_snapshot_id
+                if reference is not None
+                else hashlib.sha256(
+                    image.source_snapshot_id.encode("utf-8")
+                ).hexdigest()
+                == self.processed_media_commitment.processed_snapshot_id_sha256
+            )
+            if not source_snapshot_matches:
+                raise ValueError("Expected image snapshot source is inconsistent.")
+            if image.source_coin_id not in selected:
+                raise ValueError("Expected image source coin was not selected.")
+            expected_mapping.add(
+                (
+                    image.source_coin_id,
+                    image.role,
+                    image.source_artifact_key,
+                    image.sha256,
+                    image.variant,
+                )
+            )
+        if expected_mapping != mapping or len(expected_mapping) != len(
+            self.expected_image_inventory
+        ):
+            raise ValueError("Expected images do not exactly match processed mapping.")
+        for image in self.verified_image_inventory:
+            image.validate()
+        if self.verified_image_inventory != tuple(
+            VerifiedImageV3(
+                expected.relative_path,
+                expected.role,
+                expected.byte_length,
+                expected.sha256,
+                expected.media_type,
+                expected.width,
+                expected.height,
+                expected.source_kind,
+                expected.source_snapshot_id,
+                expected.source_coin_id,
+                expected.source_artifact_key,
+                expected.variant,
+                verified.parent_identity,
+                verified.object_identity,
+            )
+            for expected, verified in zip(
+                self.expected_image_inventory,
+                self.verified_image_inventory,
+            )
+        ):
+            raise ValueError("Verified Schema 3 images must be an ordered exact prefix.")
+        processed_cleanup = [
+            operation
+            for operation in self.cleanup_operations
+            if operation.kind == "SUCCESS_PROCESSED_SNAPSHOT"
+        ]
+        if len(processed_cleanup) > 1:
+            raise ValueError("Processed snapshot cleanup operation must be unique.")
+        cleanup_complete = any(
+            operation.status is CleanupStatus.COMPLETE
+            and operation.kind
+            in {"SUCCESS_PROCESSED_SNAPSHOT", "ROLLBACK_ALL"}
+            for operation in self.cleanup_operations
+        )
+        if reference is None and not cleanup_complete:
+            raise ValueError(
+                "Processed reference release requires completed processed cleanup."
+            )
+        if (
+            processed_cleanup
+            and processed_cleanup[0].status is CleanupStatus.INTENT
+            and reference is None
+        ):
+            raise ValueError("Processed cleanup intent requires its snapshot reference.")
+        if "SUCCESS_SNAPSHOT" in cleanup_kinds and reference is not None:
+            raise ValueError(
+                "Raw snapshot cleanup requires durable processed-reference release."
+            )
+        if self.phase is ImportPhase.COMPACTING and reference is not None:
+            raise ValueError("Schema 3 compaction must not retain a processed path.")
+        if self.error_category is not None:
+            try:
+                ErrorCategory(self.error_category)
+            except (TypeError, ValueError) as error:
+                raise ValueError("Schema 3 error category is unsupported.") from error
+        projection = self.schema2_projection()
+        projection.validate()
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            "journal_schema_version": self.journal_schema_version,
+            "import_id": self.import_id,
+            "random_ownership_token": self.random_ownership_token,
+            "generation": self.generation,
+            "previous_generation_sha256": self.previous_generation_sha256,
+            "transition_id": self.transition_id,
+            "next_generation_token": self.next_generation_token,
+            "phase": self.phase.value,
+            "resume_phase": (
+                None if self.resume_phase is None else self.resume_phase.value
+            ),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "package_sha256": self.package_sha256,
+            "package_version": self.package_version,
+            "package_basename": self.package_basename,
+            "snapshot_byte_length": self.snapshot_byte_length,
+            "package_snapshot_relative_path": self.package_snapshot_relative_path,
+            "processed_snapshot_reference": (
+                None
+                if self.processed_snapshot_reference is None
+                else self.processed_snapshot_reference.to_dict()
+            ),
+            "processed_media_commitment": self.processed_media_commitment.to_dict(),
+            "collection_baseline_sha256_or_sentinel": (
+                self.collection_baseline_sha256_or_sentinel
+            ),
+            "collection_baseline_byte_length": self.collection_baseline_byte_length,
+            "prospective_collection_byte_length": (
+                self.prospective_collection_byte_length
+            ),
+            "prospective_collection_sha256": self.prospective_collection_sha256,
+            "selected_source_coin_ids": list(self.selected_source_coin_ids),
+            "desktop_item_ids": list(self.desktop_item_ids),
+            "import_root_relative_path": self.import_root_relative_path,
+            "expected_image_inventory": [
+                item.to_dict() for item in self.expected_image_inventory
+            ],
+            "verified_image_inventory": [
+                item.to_dict() for item in self.verified_image_inventory
+            ],
+            "committed_collection_item_ids": list(
+                self.committed_collection_item_ids
+            ),
+            "proposed_count": self.proposed_count,
+            "imported_count": self.imported_count,
+            "skipped_count": self.skipped_count,
+            "collection_publication": self.collection_publication,
+            "collection_temporary_artifact": (
+                None
+                if self.collection_temporary_artifact is None
+                else self.collection_temporary_artifact.to_dict()
+            ),
+            "collection_backup_artifact": (
+                None
+                if self.collection_backup_artifact is None
+                else self.collection_backup_artifact.to_dict()
+            ),
+            "cleanup_operations": [
+                operation.to_dict() for operation in self.cleanup_operations
+            ],
+            "pending_terminal_audit": (
+                None
+                if self.pending_terminal_audit is None
+                else dict(self.pending_terminal_audit)
+            ),
+            "compaction": None if self.compaction is None else self.compaction.to_dict(),
+            "error_category": self.error_category,
+            "recovery_attempt_count": self.recovery_attempt_count,
+        }
+
+    @classmethod
+    def from_dict(
+        cls, value: Mapping[str, Any]
+    ) -> "OperationalJournalGenerationV3":
+        _closed(value, cls.FIELDS, "OperationalJournalGenerationV3")
+        array_fields = (
+            "selected_source_coin_ids",
+            "desktop_item_ids",
+            "expected_image_inventory",
+            "verified_image_inventory",
+            "committed_collection_item_ids",
+            "cleanup_operations",
+        )
+        for key in array_fields:
+            if not isinstance(value[key], list):
+                raise ValueError(f"{key} must be an array.")
+        result = cls(
+            journal_schema_version=_string(
+                value["journal_schema_version"], "journal_schema_version"
+            ),
+            import_id=_string(value["import_id"], "import_id"),
+            random_ownership_token=_string(
+                value["random_ownership_token"], "random_ownership_token"
+            ),
+            generation=value["generation"],
+            previous_generation_sha256=value["previous_generation_sha256"],
+            transition_id=_string(value["transition_id"], "transition_id"),
+            next_generation_token=value["next_generation_token"],
+            phase=ImportPhase(value["phase"]),
+            resume_phase=(
+                None
+                if value["resume_phase"] is None
+                else ImportPhase(value["resume_phase"])
+            ),
+            created_at=_string(value["created_at"], "created_at"),
+            updated_at=_string(value["updated_at"], "updated_at"),
+            package_sha256=_string(value["package_sha256"], "package_sha256"),
+            package_version=_string(value["package_version"], "package_version"),
+            package_basename=_string(
+                value["package_basename"], "package_basename"
+            ),
+            snapshot_byte_length=value["snapshot_byte_length"],
+            package_snapshot_relative_path=value["package_snapshot_relative_path"],
+            processed_snapshot_reference=(
+                None
+                if value["processed_snapshot_reference"] is None
+                else ProcessedSnapshotReference.from_dict(
+                    value["processed_snapshot_reference"]
+                )
+            ),
+            processed_media_commitment=ProcessedMediaCommitment.from_dict(
+                value["processed_media_commitment"]
+            ),
+            collection_baseline_sha256_or_sentinel=_string(
+                value["collection_baseline_sha256_or_sentinel"],
+                "collection_baseline_sha256_or_sentinel",
+            ),
+            collection_baseline_byte_length=value[
+                "collection_baseline_byte_length"
+            ],
+            prospective_collection_byte_length=value[
+                "prospective_collection_byte_length"
+            ],
+            prospective_collection_sha256=value["prospective_collection_sha256"],
+            selected_source_coin_ids=tuple(value["selected_source_coin_ids"]),
+            desktop_item_ids=tuple(value["desktop_item_ids"]),
+            import_root_relative_path=_string(
+                value["import_root_relative_path"], "import_root_relative_path"
+            ),
+            expected_image_inventory=tuple(
+                ExpectedImageV3.from_dict(item)
+                for item in value["expected_image_inventory"]
+            ),
+            verified_image_inventory=tuple(
+                VerifiedImageV3.from_dict(item)
+                for item in value["verified_image_inventory"]
+            ),
+            committed_collection_item_ids=tuple(
+                value["committed_collection_item_ids"]
+            ),
+            proposed_count=value["proposed_count"],
+            imported_count=value["imported_count"],
+            skipped_count=value["skipped_count"],
+            collection_publication=_string(
+                value["collection_publication"], "collection_publication"
+            ),
+            collection_temporary_artifact=(
+                None
+                if value["collection_temporary_artifact"] is None
+                else CollectionPublicationArtifact.from_dict(
+                    value["collection_temporary_artifact"]
+                )
+            ),
+            collection_backup_artifact=(
+                None
+                if value["collection_backup_artifact"] is None
+                else CollectionPublicationArtifact.from_dict(
+                    value["collection_backup_artifact"]
+                )
+            ),
+            cleanup_operations=tuple(
+                CleanupOperationV3.from_dict(item)
+                for item in value["cleanup_operations"]
+            ),
+            pending_terminal_audit=value["pending_terminal_audit"],
+            compaction=(
+                None
+                if value["compaction"] is None
+                else TerminalCompaction.from_dict(value["compaction"])
+            ),
+            error_category=value["error_category"],
+            recovery_attempt_count=value["recovery_attempt_count"],
         )
         result.validate()
         return result
