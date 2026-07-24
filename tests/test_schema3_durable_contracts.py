@@ -575,19 +575,34 @@ class Schema3RepositoryTests(unittest.TestCase):
                 repository.load(current.import_id, import_lock=lock)
             self.assertTrue(candidate.exists())
 
-    def test_schema_specific_repositories_reject_mixed_versions(self) -> None:
+    def test_pa_rm34_version_field_conflict_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             generation = _generation()
             lock = self._lock(generation.import_id)
             path = Path(root) / "journals"
             schema3 = Schema3PackageImportJournalRepository(path)
             schema3.create(generation, import_lock=lock)
-            with self.assertRaises(JournalCorrupt):
-                Schema2PackageImportJournalRepository(path).load(
-                    generation.import_id, import_lock=lock
+            directory = path / generation.import_id
+            before = {
+                item.name: item.read_bytes()
+                for item in directory.iterdir()
+                if item.is_file()
+            }
+            for _attempt in range(2):
+                with self.assertRaises(JournalCorrupt):
+                    Schema2PackageImportJournalRepository(path).load(
+                        generation.import_id, import_lock=lock
+                    )
+                self.assertEqual(
+                    {
+                        item.name: item.read_bytes()
+                        for item in directory.iterdir()
+                        if item.is_file()
+                    },
+                    before,
                 )
 
-    def test_versioned_dispatch_rejects_conflicting_owner_generation_identity(self) -> None:
+    def test_pa_rm35_mixed_version_identity_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             generation = _generation()
             lock = self._lock(generation.import_id)
@@ -599,8 +614,11 @@ class Schema3RepositoryTests(unittest.TestCase):
             owner["owner_schema_version"] = "1.0"
             owner["journal_schema_version"] = "2.0"
             owner_path.write_bytes(canonical_json_bytes(owner))
-            with self.assertRaises(JournalCorrupt):
-                repository.load(generation.import_id, import_lock=lock)
+            before = owner_path.read_bytes()
+            for _attempt in range(2):
+                with self.assertRaises(JournalCorrupt):
+                    repository.load(generation.import_id, import_lock=lock)
+                self.assertEqual(owner_path.read_bytes(), before)
 
     def test_versioned_dispatch_enumerates_distinct_schema2_and_schema3_ids(self) -> None:
         with tempfile.TemporaryDirectory() as root:

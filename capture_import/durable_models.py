@@ -7,7 +7,7 @@ mutation belongs to the repository and transaction services.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 import hashlib
 import re
@@ -15,6 +15,7 @@ from typing import Any, Mapping
 import unicodedata
 from uuid import UUID
 
+from ._json import canonical_json_bytes
 from .enums import (
     CleanupStatus,
     CollectionPublicationState,
@@ -2257,7 +2258,24 @@ class OperationalJournalGenerationV3:
             in {"SUCCESS_PROCESSED_SNAPSHOT", "ROLLBACK_ALL"}
             for operation in self.cleanup_operations
         )
-        if reference is None and not cleanup_complete:
+        rollback_processed_prefix_complete = any(
+            operation.kind == "ROLLBACK_ALL"
+            and any(
+                target.root == "PROCESSED_SNAPSHOT"
+                for target in operation.targets
+            )
+            and all(
+                index < len(operation.receipts)
+                for index, target in enumerate(operation.targets)
+                if target.root == "PROCESSED_SNAPSHOT"
+            )
+            for operation in self.cleanup_operations
+        )
+        if (
+            reference is None
+            and not cleanup_complete
+            and not rollback_processed_prefix_complete
+        ):
             raise ValueError(
                 "Processed reference release requires completed processed cleanup."
             )
@@ -2279,6 +2297,8 @@ class OperationalJournalGenerationV3:
             except (TypeError, ValueError) as error:
                 raise ValueError("Schema 3 error category is unsupported.") from error
         projection = self.schema2_projection()
+        if any(len(item.targets) > 301 for item in self.cleanup_operations):
+            projection = replace(projection, cleanup_operations=())
         projection.validate()
 
     def to_dict(self) -> dict[str, Any]:
@@ -2655,6 +2675,361 @@ class TerminalHistoryRecord:
             cleanup_summaries=tuple(
                 TerminalCleanupSummary.from_dict(item)
                 for item in value["cleanup_summaries"]
+            ),
+            outcome_payload_sha256=value["outcome_payload_sha256"],
+            operational_chain_proof=OperationalChainProof.from_dict(
+                value["operational_chain_proof"]
+            ),
+            audit=dict(value["audit"]),
+            error_category=value["error_category"],
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalProcessedMediaProof:
+    """Path-free terminal proof derived only from the immutable commitment."""
+
+    outcome: str
+    processed_snapshot_id_sha256: str
+    source_package_sha256: str
+    artifact_count: int
+    aggregate_byte_length: int
+    artifact_inventory_sha256: str
+    manifest_sha256: str
+    persisted_mapping_sha256: str
+
+    def validate(self) -> None:
+        if self.outcome not in {"RETAINED", "REMOVED"}:
+            raise ValueError("Processed terminal outcome is invalid.")
+        for value in (
+            self.processed_snapshot_id_sha256,
+            self.source_package_sha256,
+            self.artifact_inventory_sha256,
+            self.manifest_sha256,
+            self.persisted_mapping_sha256,
+        ):
+            _sha(value, "processed terminal digest")
+        _integer(self.artifact_count, "artifact_count", 1, MAX_PROCESSED_ARTIFACTS)
+        _integer(
+            self.aggregate_byte_length,
+            "aggregate_byte_length",
+            1,
+            MAX_PROCESSED_ARTIFACT_BYTES,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(
+        cls, value: Mapping[str, Any]
+    ) -> "TerminalProcessedMediaProof":
+        _closed(value, frozenset(cls.__dataclass_fields__), cls.__name__)
+        result = cls(**value)
+        result.validate()
+        return result
+
+    @classmethod
+    def from_commitment(
+        cls,
+        commitment: ProcessedMediaCommitment,
+        *,
+        outcome: str,
+    ) -> "TerminalProcessedMediaProof":
+        commitment.validate()
+        result = cls(
+            outcome=outcome,
+            processed_snapshot_id_sha256=(
+                commitment.processed_snapshot_id_sha256
+            ),
+            source_package_sha256=commitment.source_package_sha256,
+            artifact_count=commitment.artifact_count,
+            aggregate_byte_length=commitment.aggregate_byte_length,
+            artifact_inventory_sha256=commitment.artifact_inventory_sha256,
+            manifest_sha256=commitment.manifest_sha256,
+            persisted_mapping_sha256=commitment.persisted_mapping_sha256,
+        )
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalCleanupSummaryV2:
+    """Schema 3 terminal cleanup summary without paths or identities."""
+
+    category: str
+    result: str
+    target_count: int
+    receipt_count: int
+    intent_generation: int
+    completed_generation: int
+    aggregate_sha256: str
+
+    def validate(self) -> None:
+        if self.category not in {
+            "BASELINE_BACKUP",
+            "SUCCESS_PROCESSED_SNAPSHOT",
+            "SUCCESS_SNAPSHOT",
+            "ROLLBACK_ALL",
+        } or self.result != "COMPLETED":
+            raise ValueError("Schema 3 terminal cleanup summary is invalid.")
+        _integer(self.target_count, "target_count", 1, MAX_CLEANUP_TARGETS_V3)
+        if self.receipt_count != self.target_count:
+            raise ValueError("Completed cleanup summary must receipt every target.")
+        _integer(self.intent_generation, "intent_generation", 0, 4095)
+        _integer(
+            self.completed_generation,
+            "completed_generation",
+            self.intent_generation,
+            4095,
+        )
+        _sha(self.aggregate_sha256, "aggregate_sha256")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "TerminalCleanupSummaryV2":
+        _closed(value, frozenset(cls.__dataclass_fields__), cls.__name__)
+        result = cls(**value)
+        result.validate()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalHistoryRecordV2:
+    """Closed terminal history 2.0; Schema 1 parsing remains separate."""
+
+    terminal_schema_version: str
+    import_id: str
+    final_phase: ImportResult
+    result: ImportResult
+    transaction_created_at: str
+    completed_at: str
+    package_sha256: str
+    package_version: str
+    package_basename: str
+    proposed_count: int
+    imported_count: int
+    skipped_count: int
+    collection_proof: TerminalCollectionProof
+    managed_image_proof: TerminalManagedImageProof
+    cleanup_summaries: tuple[TerminalCleanupSummaryV2, ...]
+    processed_media_proof: TerminalProcessedMediaProof
+    outcome_payload_sha256: str
+    operational_chain_proof: OperationalChainProof
+    audit: Mapping[str, Any]
+    error_category: str | None
+
+    def outcome_payload(self) -> dict[str, Any]:
+        return {
+            "terminal_schema_version": self.terminal_schema_version,
+            "import_id": self.import_id,
+            "final_phase": self.final_phase.value,
+            "result": self.result.value,
+            "transaction_created_at": self.transaction_created_at,
+            "completed_at": self.completed_at,
+            "package_sha256": self.package_sha256,
+            "package_version": self.package_version,
+            "package_basename": self.package_basename,
+            "proposed_count": self.proposed_count,
+            "imported_count": self.imported_count,
+            "skipped_count": self.skipped_count,
+            "collection_proof": self.collection_proof.to_dict(),
+            "managed_image_proof": self.managed_image_proof.to_dict(),
+            "cleanup_summaries": [
+                summary.to_dict() for summary in self.cleanup_summaries
+            ],
+            "processed_media_proof": self.processed_media_proof.to_dict(),
+            "audit": dict(self.audit),
+            "error_category": self.error_category,
+        }
+
+    def validate(self) -> None:
+        if self.terminal_schema_version != "2.0":
+            raise ValueError("Processed terminal history schema is unsupported.")
+        _uuid4(self.import_id, "import_id")
+        if (
+            self.final_phase
+            not in {
+                ImportResult.SUCCEEDED,
+                ImportResult.ROLLED_BACK,
+                ImportResult.CANCELLED,
+            }
+            or self.result is not self.final_phase
+        ):
+            raise ValueError("Processed terminal history outcome is invalid.")
+        _timestamp(self.transaction_created_at, "transaction_created_at")
+        _timestamp(self.completed_at, "completed_at")
+        _sha(self.package_sha256, "package_sha256")
+        if self.package_version != "1.0":
+            raise ValueError("Terminal package version is unsupported.")
+        _basename(self.package_basename, "package_basename")
+        for value, name in (
+            (self.proposed_count, "proposed_count"),
+            (self.imported_count, "imported_count"),
+            (self.skipped_count, "skipped_count"),
+        ):
+            _integer(value, name, 0, 100)
+        if self.final_phase is ImportResult.SUCCEEDED:
+            if self.imported_count + self.skipped_count != self.proposed_count:
+                raise ValueError("Successful terminal counts are inconsistent.")
+        elif self.imported_count != 0 or self.skipped_count > self.proposed_count:
+            raise ValueError("Non-success terminal counts are inconsistent.")
+        self.collection_proof.validate()
+        self.managed_image_proof.validate()
+        if not 1 <= len(self.cleanup_summaries) <= MAX_CLEANUP_OPERATIONS_V3:
+            raise ValueError("Processed cleanup summaries are outside bounds.")
+        for summary in self.cleanup_summaries:
+            summary.validate()
+        self.processed_media_proof.validate()
+        expected_outcome = (
+            "RETAINED"
+            if self.final_phase is ImportResult.SUCCEEDED
+            else "REMOVED"
+        )
+        if self.processed_media_proof.outcome != expected_outcome:
+            raise ValueError("Processed proof outcome disagrees with terminal state.")
+        if self.processed_media_proof.source_package_sha256 != self.package_sha256:
+            raise ValueError("Processed proof package digest is inconsistent.")
+        self.operational_chain_proof.validate()
+        if not isinstance(self.audit, Mapping):
+            raise ValueError("Sanitized terminal audit must be an object.")
+        audit_keys = frozenset(
+            {
+                "audit_schema_version", "import_id", "started_at", "completed_at",
+                "package_filename_basename", "package_sha256", "schema",
+                "package_version", "created_by", "created_with", "exported_at",
+                "session_id", "session_name", "session_description", "session_date",
+                "session_created_at", "session_updated_at", "coin_provenance",
+                "proposed_count", "imported_count", "skipped_count", "phase",
+                "final_status", "error_category",
+            }
+        )
+        _closed(self.audit, audit_keys, "SanitizedTerminalAuditV2")
+        if (
+            self.audit["audit_schema_version"] != "2.0"
+            or self.audit["import_id"] != self.import_id
+            or self.audit["package_filename_basename"] != self.package_basename
+            or self.audit["package_sha256"] != self.package_sha256
+            or self.audit["package_version"] != self.package_version
+            or self.audit["proposed_count"] != self.proposed_count
+            or self.audit["imported_count"] != self.imported_count
+            or self.audit["skipped_count"] != self.skipped_count
+            or self.audit["phase"] != self.final_phase.value
+            or self.audit["final_status"] != self.result.value
+            or self.audit["error_category"] != self.error_category
+        ):
+            raise ValueError("Sanitized terminal audit does not match its record.")
+        _timestamp(self.audit["started_at"], "audit started_at")
+        _timestamp(self.audit["completed_at"], "audit completed_at")
+        provenance = self.audit["coin_provenance"]
+        if not isinstance(provenance, list) or len(provenance) != self.proposed_count:
+            raise ValueError("Sanitized coin provenance is inconsistent.")
+        coin_keys = frozenset(
+            {
+                "source_coin_id", "desktop_item_id", "decision", "source_position",
+                "mint", "composition", "is_bullion", "actual_silver_weight_oz",
+                "source_created_at", "source_updated_at", "source_quantity",
+                "image_role_hashes",
+            }
+        )
+        for position, coin in enumerate(provenance):
+            if not isinstance(coin, Mapping):
+                raise ValueError("Sanitized coin provenance must contain objects.")
+            _closed(coin, coin_keys, "SanitizedTerminalCoinV2")
+            if coin["source_position"] != position:
+                raise ValueError("Sanitized coin positions must be contiguous.")
+        prohibited = {
+            "managed_image_paths",
+            "snapshot_relative_path",
+            "package_snapshot_relative_path",
+            "processed_snapshot_reference",
+            "temporary_path",
+            "backup_path",
+            "recovery_path",
+            "ownership_token",
+            "random_ownership_token",
+            "lock_path",
+            "relative_path",
+            "parent_identity",
+            "object_identity",
+        }
+        stack: list[Any] = [self.audit]
+        while stack:
+            value = stack.pop()
+            if isinstance(value, Mapping):
+                if prohibited.intersection(value):
+                    raise ValueError(
+                        "Processed terminal history contains operational evidence."
+                    )
+                stack.extend(value.values())
+            elif isinstance(value, (list, tuple)):
+                stack.extend(value)
+        expected_payload = hashlib.sha256(
+            canonical_json_bytes(self.outcome_payload())
+        ).hexdigest()
+        if self.outcome_payload_sha256 != expected_payload:
+            raise ValueError("Processed terminal outcome commitment is invalid.")
+        if self.final_phase is ImportResult.SUCCEEDED:
+            if (
+                self.error_category is not None
+                or self.collection_proof.outcome != "PUBLISHED"
+                or self.managed_image_proof.outcome != "RETAINED"
+            ):
+                raise ValueError("Successful processed terminal proof is inconsistent.")
+        elif (
+            self.collection_proof.outcome != "UNCHANGED"
+            or self.managed_image_proof.outcome not in {"REMOVED", "NONE"}
+        ):
+            raise ValueError("Non-success processed terminal proof is inconsistent.")
+        if self.final_phase is ImportResult.CANCELLED and self.error_category is not None:
+            raise ValueError("Cancelled terminal history cannot contain an error.")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.validate()
+        return {
+            **self.outcome_payload(),
+            "outcome_payload_sha256": self.outcome_payload_sha256,
+            "operational_chain_proof": self.operational_chain_proof.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "TerminalHistoryRecordV2":
+        _closed(value, frozenset(cls.__dataclass_fields__), cls.__name__)
+        if not isinstance(value["cleanup_summaries"], list):
+            raise ValueError("Processed cleanup summaries must be an array.")
+        if not isinstance(value["audit"], Mapping):
+            raise ValueError("Sanitized terminal audit must be an object.")
+        result = cls(
+            terminal_schema_version=value["terminal_schema_version"],
+            import_id=value["import_id"],
+            final_phase=ImportResult(value["final_phase"]),
+            result=ImportResult(value["result"]),
+            transaction_created_at=value["transaction_created_at"],
+            completed_at=value["completed_at"],
+            package_sha256=value["package_sha256"],
+            package_version=value["package_version"],
+            package_basename=value["package_basename"],
+            proposed_count=value["proposed_count"],
+            imported_count=value["imported_count"],
+            skipped_count=value["skipped_count"],
+            collection_proof=TerminalCollectionProof.from_dict(
+                value["collection_proof"]
+            ),
+            managed_image_proof=TerminalManagedImageProof.from_dict(
+                value["managed_image_proof"]
+            ),
+            cleanup_summaries=tuple(
+                TerminalCleanupSummaryV2.from_dict(item)
+                for item in value["cleanup_summaries"]
+            ),
+            processed_media_proof=TerminalProcessedMediaProof.from_dict(
+                value["processed_media_proof"]
             ),
             outcome_payload_sha256=value["outcome_payload_sha256"],
             operational_chain_proof=OperationalChainProof.from_dict(

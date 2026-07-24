@@ -33,13 +33,25 @@ from .durable_models import (
     OperationalJournalGeneration,
     RetirementManifest,
     TerminalCleanupSummary,
+    TerminalCleanupSummaryV2,
     TerminalCollectionProof,
     TerminalCompaction,
     TerminalHistoryRecord,
+    TerminalHistoryRecordV2,
     TerminalManagedImageProof,
+    TerminalProcessedMediaProof,
+    OperationalJournalGenerationV3,
 )
-from .durable_repository import Schema2PackageImportJournalRepository
-from .enums import ImportPhase, ImportResult, TerminalCompactionStatus
+from .durable_repository import (
+    Schema2PackageImportJournalRepository,
+    Schema3PackageImportJournalRepository,
+)
+from .enums import (
+    CleanupStatus,
+    ImportPhase,
+    ImportResult,
+    TerminalCompactionStatus,
+)
 from .errors import JournalCorrupt, RecoveryRequired
 from .limits import MAX_JSON_BYTES
 from .lock import PackageImportLock, require_verified_import_lock
@@ -839,3 +851,669 @@ class TerminalPersistenceService:
         if not deleted or path.exists() or not directory.verify_path():
             raise RecoveryRequired()
         sync_directory(directory)
+
+
+class Schema3TerminalHistoryRepository:
+    """Separate closed terminal-history 2.0 publication and replay boundary."""
+
+    def __init__(self, history_root: str | os.PathLike[str]) -> None:
+        self._history = Path(history_root).absolute()
+
+    @property
+    def root(self) -> Path:
+        return self._history
+
+    @staticmethod
+    def build_record(
+        head: OperationalJournalGenerationV3,
+        *,
+        result: ImportResult,
+        completed_at: str,
+        collection_proof: TerminalCollectionProof,
+        managed_image_proof: TerminalManagedImageProof,
+        operational_chain_proof: OperationalChainProof,
+        audit: Mapping[str, Any],
+        error_category: str | None = None,
+    ) -> TerminalHistoryRecordV2:
+        """Derive the only processed proof from the immutable commitment."""
+
+        head.validate()
+        if head.processed_snapshot_reference is not None:
+            raise RecoveryRequired()
+        if not head.cleanup_operations or any(
+            operation.status.value != "COMPLETE"
+            for operation in head.cleanup_operations
+        ):
+            raise RecoveryRequired()
+        proof = TerminalProcessedMediaProof.from_commitment(
+            head.processed_media_commitment,
+            outcome=(
+                "RETAINED"
+                if result is ImportResult.SUCCEEDED
+                else "REMOVED"
+            ),
+        )
+        summaries = tuple(
+            TerminalCleanupSummaryV2(
+                category=operation.kind,
+                result="COMPLETED",
+                target_count=len(operation.targets),
+                receipt_count=len(operation.receipts),
+                intent_generation=operation.intent_generation,
+                completed_generation=operation.completed_generation,
+                aggregate_sha256=sha256(
+                    canonical_json_bytes(
+                        [target.to_dict() for target in operation.targets]
+                    )
+                ).hexdigest(),
+            )
+            for operation in head.cleanup_operations
+        )
+        record = TerminalHistoryRecordV2(
+            terminal_schema_version="2.0",
+            import_id=head.import_id,
+            final_phase=result,
+            result=result,
+            transaction_created_at=head.created_at,
+            completed_at=completed_at,
+            package_sha256=head.package_sha256,
+            package_version=head.package_version,
+            package_basename=head.package_basename,
+            proposed_count=head.proposed_count,
+            imported_count=(
+                head.imported_count if result is ImportResult.SUCCEEDED else 0
+            ),
+            skipped_count=head.skipped_count,
+            collection_proof=collection_proof,
+            managed_image_proof=managed_image_proof,
+            cleanup_summaries=summaries,
+            processed_media_proof=proof,
+            outcome_payload_sha256="0" * 64,
+            operational_chain_proof=operational_chain_proof,
+            audit=dict(audit),
+            error_category=error_category,
+        )
+        record = replace(
+            record,
+            outcome_payload_sha256=sha256(
+                canonical_json_bytes(record.outcome_payload())
+            ).hexdigest(),
+        )
+        record.validate()
+        return record
+
+    def publish_pending(
+        self,
+        record: TerminalHistoryRecordV2,
+        *,
+        import_lock: PackageImportLock,
+    ) -> TerminalHistoryRecordV2:
+        require_verified_import_lock(import_lock, import_id=record.import_id)
+        record.validate()
+        os.makedirs(self._history, exist_ok=True)
+        payload = canonical_json_bytes(record.to_dict())
+        path = self._history / f".pending-{record.import_id}.json"
+        try:
+            handle = open_exclusive_binary(path)
+        except FileExistsError:
+            existing = self._read(path)
+            if existing != record:
+                raise RecoveryRequired()
+            return existing
+        try:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        finally:
+            handle.close()
+        with open_plain_directory_handle(self._history) as directory:
+            sync_directory(directory)
+        if self._read(path) != record:
+            raise RecoveryRequired()
+        return record
+
+    def finalize(
+        self,
+        import_id: str,
+        *,
+        import_lock: PackageImportLock,
+        operational_remnants_absent: bool,
+    ) -> TerminalHistoryRecordV2:
+        """Publish final history only after the caller proves retirement."""
+
+        require_verified_import_lock(import_lock, import_id=import_id)
+        if not operational_remnants_absent:
+            raise RecoveryRequired()
+        os.makedirs(self._history, exist_ok=True)
+        pending = self._history / f".pending-{import_id}.json"
+        final = self._history / f"{import_id}.json"
+        if final.exists():
+            if pending.exists():
+                raise RecoveryRequired()
+            return self._read(final)
+        record = self._read(pending)
+        with open_plain_directory_handle(self._history) as directory:
+            rename_entry_no_replace_in_directory(
+                directory,
+                pending.name,
+                final.name,
+            )
+            sync_directory(directory)
+        return self._read(final)
+
+    def pending_import_ids(self) -> tuple[str, ...]:
+        if not self._history.exists():
+            return ()
+        result = []
+        for path in sorted(self._history.iterdir(), key=lambda item: item.name):
+            if path.name.startswith(".pending-") and path.suffix == ".json":
+                record = self._read(path)
+                if path.name != f".pending-{record.import_id}.json":
+                    raise RecoveryRequired()
+                result.append(record.import_id)
+        return tuple(result)
+
+    def load_pending(self, import_id: str) -> TerminalHistoryRecordV2:
+        return self._read(self._history / f".pending-{import_id}.json")
+
+    def list_final(self) -> tuple[TerminalHistoryRecordV2, ...]:
+        if not self._history.exists():
+            return ()
+        result = []
+        for path in sorted(self._history.iterdir(), key=lambda item: item.name):
+            if path.suffix != ".json" or path.name.startswith(".pending-"):
+                continue
+            record = self._read(path)
+            if path.name != f"{record.import_id}.json":
+                raise RecoveryRequired()
+            result.append(record)
+        return tuple(result)
+
+    @staticmethod
+    def _read(path: Path) -> TerminalHistoryRecordV2:
+        try:
+            raw = path.read_bytes()
+            if not 1 <= len(raw) <= MAX_JSON_BYTES:
+                raise RecoveryRequired()
+            return TerminalHistoryRecordV2.from_dict(
+                parse_bounded_json_object(raw, "processed terminal history")
+            )
+        except Exception as error:
+            if isinstance(error, RecoveryRequired):
+                raise
+            raise RecoveryRequired(error) from error
+
+
+class Schema3TerminalPersistenceService(TerminalPersistenceService):
+    """Schema 3 G/H publication, path-free history, and ordered retirement."""
+
+    def __init__(
+        self,
+        journals: Schema3PackageImportJournalRepository,
+        history_root: str | os.PathLike[str],
+        *,
+        clock: Clock,
+        token_factory: TokenFactory = lambda: str(uuid4()),
+    ) -> None:
+        super().__init__(
+            journals,
+            history_root,
+            clock=clock,
+            token_factory=token_factory,
+        )
+
+    def compact(
+        self,
+        head: OperationalJournalGenerationV3,
+        *,
+        result: ImportResult,
+        import_lock: PackageImportLock,
+        error_category: str | None = None,
+    ) -> TerminalHistoryRecordV2:
+        """Publish Schema 3 G/H and pending history, then retire in order."""
+
+        require_verified_import_lock(import_lock, import_id=head.import_id)
+        head.validate()
+        if result not in {
+            ImportResult.SUCCEEDED,
+            ImportResult.ROLLED_BACK,
+            ImportResult.CANCELLED,
+        }:
+            raise ValueError("Compaction requires a terminal audit outcome.")
+        if (
+            head.processed_snapshot_reference is not None
+            or head.package_snapshot_relative_path is not None
+            or head.pending_terminal_audit is None
+            or not head.cleanup_operations
+            or any(
+                operation.status is not CleanupStatus.COMPLETE
+                for operation in head.cleanup_operations
+            )
+        ):
+            raise RecoveryRequired()
+        if (
+            result is ImportResult.SUCCEEDED
+            and head.phase is not ImportPhase.COLLECTION_COMMITTED
+        ) or (
+            result is not ImportResult.SUCCEEDED
+            and head.phase is not ImportPhase.ROLLING_BACK
+        ):
+            raise RecoveryRequired()
+        os.makedirs(self._history, exist_ok=True)
+        with open_plain_directory_handle(
+            self._journals.root
+        ) as journal_parent, open_plain_directory_handle(
+            self._history
+        ) as history_parent, open_plain_directory_handle(
+            self._journals.root / head.import_id
+        ) as import_directory:
+            owner_raw = (import_directory.path / "owner.json").read_bytes()
+            completed_at = self._clock()
+            g_transition = self._token_factory()
+            h_transition = self._token_factory()
+            h_token = self._token_factory()
+            terminal_token = self._token_factory()
+            retirement_token = self._token_factory()
+            g_number = head.generation + 1
+            h_number = g_number + 1
+            if h_number > 4095:
+                raise RecoveryRequired()
+            planning = TerminalCompaction(
+                schema_version="1.0",
+                status=TerminalCompactionStatus.PLANNING_MANIFEST,
+                final_phase=result,
+                result=result,
+                completed_at=completed_at,
+                terminal_pending_name=f".pending-{head.import_id}.json",
+                terminal_temporary_name=(
+                    f".pending-{head.import_id}-{terminal_token}.tmp"
+                ),
+                terminal_token=terminal_token,
+                retirement_directory_name=f".retire-{head.import_id}",
+                retirement_manifest_name="retirement-manifest.json",
+                retirement_manifest_temporary_name=(
+                    f".retirement-manifest-{retirement_token}.tmp"
+                ),
+                retirement_token=retirement_token,
+                manifest_generation_first=0,
+                manifest_generation_last=g_number,
+                manifest_generation_count=g_number + 1,
+                compaction_commit_generation=h_number,
+                compaction_commit_transition_id=h_transition,
+                compaction_commit_filename=self._journals.generation_name(
+                    h_number, h_transition
+                ),
+                owner_record_sha256=sha256(owner_raw).hexdigest(),
+                history_parent_identity=_identity(history_parent.identity),
+                journal_parent_identity=_identity(journal_parent.identity),
+                operational_directory_identity=_identity(
+                    import_directory.identity
+                ),
+            )
+            g = replace(
+                head,
+                generation=g_number,
+                previous_generation_sha256=sha256(
+                    canonical_json_bytes(head.to_dict())
+                ).hexdigest(),
+                transition_id=g_transition,
+                next_generation_token=h_token,
+                phase=ImportPhase.COMPACTING,
+                resume_phase=None,
+                updated_at=completed_at,
+                package_snapshot_relative_path=None,
+                collection_temporary_artifact=None,
+                collection_backup_artifact=None,
+                compaction=planning,
+                error_category=None,
+            )
+            g = self._journals.append(head, g, import_lock=import_lock)
+            manifest = self._build_manifest(
+                g, planning, import_directory, import_lock=import_lock
+            )
+            manifest_payload = canonical_json_bytes(manifest.to_dict())
+            manifest_identity = self._write_manifest(
+                import_directory,
+                planning,
+                manifest_payload,
+                import_lock=import_lock,
+            )
+            outcome_payload = self._outcome_payload(g, result, error_category)
+            ready = replace(
+                planning,
+                status=TerminalCompactionStatus.READY_FOR_TERMINAL,
+                manifest_byte_length=len(manifest_payload),
+                manifest_sha256=sha256(manifest_payload).hexdigest(),
+                manifest_object_identity=manifest_identity,
+                outcome_payload_sha256=sha256(
+                    canonical_json_bytes(outcome_payload)
+                ).hexdigest(),
+            )
+            h = replace(
+                g,
+                generation=h_number,
+                previous_generation_sha256=sha256(
+                    canonical_json_bytes(g.to_dict())
+                ).hexdigest(),
+                transition_id=h_transition,
+                next_generation_token=None,
+                compaction=ready,
+            )
+            h = self._journals.append(g, h, import_lock=import_lock)
+            record = self._publish_pending(
+                h,
+                manifest,
+                manifest_payload,
+                outcome_payload,
+                history_parent,
+                import_lock=import_lock,
+            )
+            self._retire(
+                record,
+                manifest,
+                history_parent,
+                journal_parent,
+                import_lock=import_lock,
+            )
+            return record
+
+    def recover_compacting(
+        self,
+        head: OperationalJournalGenerationV3,
+        *,
+        import_lock: PackageImportLock,
+    ) -> TerminalHistoryRecordV2:
+        require_verified_import_lock(import_lock, import_id=head.import_id)
+        if head.phase is not ImportPhase.COMPACTING:
+            raise RecoveryRequired()
+        return self.resume_compaction(
+            head.import_id, import_lock=import_lock
+        )
+
+    def resume_pending(
+        self,
+        import_id: str,
+        *,
+        import_lock: PackageImportLock,
+    ) -> TerminalHistoryRecordV2:
+        """Resume both manifest-governed and late retirement boundaries."""
+
+        require_verified_import_lock(import_lock, import_id=import_id)
+        pending = self._history / f".pending-{import_id}.json"
+        final = self._history / f"{import_id}.json"
+        active = self._journals.root / import_id
+        retiring = self._journals.root / f".retire-{import_id}"
+        if final.exists():
+            if pending.exists() or active.exists() or retiring.exists():
+                raise RecoveryRequired()
+            return self._read_terminal_record(final)
+        record = self._read_terminal_record(pending)
+        if record.import_id != import_id:
+            raise RecoveryRequired()
+        if active.exists():
+            if retiring.exists():
+                raise RecoveryRequired()
+            return super().resume_pending(
+                import_id, import_lock=import_lock
+            )
+        if retiring.exists():
+            with open_plain_directory_handle(retiring) as directory:
+                members = set(
+                    os.listdir(directory.descriptor)
+                    if directory.descriptor is not None
+                    else os.listdir(directory.path)
+                )
+                if "retirement-manifest.json" in members:
+                    return super().resume_pending(
+                        import_id, import_lock=import_lock
+                    )
+                if (
+                    members
+                    or not directory.verify_path()
+                    or _identity_hash(_identity(directory.identity))
+                    != record.operational_chain_proof
+                    .operational_directory_identity_sha256
+                ):
+                    raise RecoveryRequired()
+            require_verified_import_lock(
+                import_lock, import_id=import_id
+            )
+            with open_plain_directory_handle(
+                self._journals.root
+            ) as journal_parent:
+                if (
+                    _identity_hash(_identity(path_object_identity(retiring)))
+                    != record.operational_chain_proof
+                    .operational_directory_identity_sha256
+                ):
+                    raise RecoveryRequired()
+                os.rmdir(retiring)
+                sync_directory(journal_parent)
+            if retiring.exists():
+                raise RecoveryRequired()
+        return self._finalize_late_pending(
+            record, import_lock=import_lock
+        )
+
+    def _finalize_late_pending(
+        self,
+        record: TerminalHistoryRecordV2,
+        *,
+        import_lock: PackageImportLock,
+    ) -> TerminalHistoryRecordV2:
+        """Publish final history after operational retirement is proven absent."""
+
+        require_verified_import_lock(
+            import_lock, import_id=record.import_id
+        )
+        active = self._journals.root / record.import_id
+        retiring = self._journals.root / f".retire-{record.import_id}"
+        if active.exists() or retiring.exists():
+            raise RecoveryRequired()
+        pending_name = f".pending-{record.import_id}.json"
+        final_name = f"{record.import_id}.json"
+        pending = self._history / pending_name
+        final = self._history / final_name
+        if final.exists():
+            if pending.exists():
+                raise RecoveryRequired()
+            loaded = self._read_terminal_record(final)
+            if loaded != record:
+                raise RecoveryRequired()
+            return loaded
+        if self._read_terminal_record(pending) != record:
+            raise RecoveryRequired()
+        with open_plain_directory_handle(self._history) as history_parent:
+            require_verified_import_lock(
+                import_lock, import_id=record.import_id
+            )
+            rename_entry_no_replace_in_directory(
+                history_parent, pending_name, final_name
+            )
+            sync_directory(history_parent)
+        loaded = self._read_terminal_record(final)
+        if pending.exists() or loaded != record:
+            raise RecoveryRequired()
+        return loaded
+
+    def load_pending(self, import_id: str) -> TerminalHistoryRecordV2:
+        return self._read_terminal_record(
+            self._history / f".pending-{import_id}.json"
+        )
+
+    def _outcome_payload(self, head, result, error_category) -> dict[str, Any]:
+        if error_category is None and head.pending_terminal_audit is not None:
+            error_category = head.pending_terminal_audit.get("error_category")
+        base = super()._outcome_payload(head, result, error_category)
+        base["terminal_schema_version"] = "2.0"
+        base["cleanup_summaries"] = [
+            self._cleanup_summary(operation).to_dict()
+            for operation in head.cleanup_operations
+        ]
+        base["processed_media_proof"] = (
+            TerminalProcessedMediaProof.from_commitment(
+                head.processed_media_commitment,
+                outcome=(
+                    "RETAINED"
+                    if result is ImportResult.SUCCEEDED
+                    else "REMOVED"
+                ),
+            ).to_dict()
+        )
+        return base
+
+    @staticmethod
+    def _cleanup_summary(operation) -> TerminalCleanupSummaryV2:
+        aggregate = sha256(
+            canonical_json_bytes(
+                [
+                    [
+                        target.root,
+                        target.object_kind,
+                        target.expected_byte_length,
+                        target.expected_sha256,
+                        _identity_hash(receipt.removed_object_identity),
+                    ]
+                    for target, receipt in zip(
+                        operation.targets, operation.receipts, strict=True
+                    )
+                ]
+            )
+        ).hexdigest()
+        return TerminalCleanupSummaryV2(
+            operation.kind,
+            "COMPLETED",
+            len(operation.targets),
+            len(operation.receipts),
+            operation.intent_generation,
+            operation.completed_generation,
+            aggregate,
+        )
+
+    def _publish_pending(
+        self,
+        h,
+        manifest,
+        manifest_payload,
+        outcome_payload,
+        history_parent,
+        *,
+        import_lock: PackageImportLock,
+    ) -> TerminalHistoryRecordV2:
+        require_verified_import_lock(import_lock, import_id=h.import_id)
+        h_path = (
+            self._journals.root
+            / h.import_id
+            / self._journals.generation_name(h.generation, h.transition_id)
+        )
+        h_raw = h_path.read_bytes()
+        temp_path = self._history / h.compaction.terminal_temporary_name
+        handle = open_exclusive_binary(temp_path)
+        try:
+            terminal_identity = _identity(handle_object_identity(handle))
+            proof = OperationalChainProof(
+                manifest_generation_count=h.compaction.manifest_generation_count,
+                manifest_head_sha256=h.previous_generation_sha256,
+                compaction_commit_generation=h.generation,
+                compaction_commit_transition_id=h.transition_id,
+                compaction_commit_byte_length=len(h_raw),
+                compaction_commit_sha256=sha256(h_raw).hexdigest(),
+                compaction_commit_object_identity_sha256=_identity_hash(
+                    _identity(path_object_identity(h_path))
+                ),
+                owner_record_sha256=h.compaction.owner_record_sha256,
+                owner_token_sha256=sha256(
+                    h.random_ownership_token.encode("ascii")
+                ).hexdigest(),
+                operational_directory_identity_sha256=_identity_hash(
+                    h.compaction.operational_directory_identity
+                ),
+                terminal_object_identity_sha256=_identity_hash(
+                    terminal_identity
+                ),
+                retirement_manifest_identity_sha256=_identity_hash(
+                    h.compaction.manifest_object_identity
+                ),
+                retirement_manifest_byte_length=len(manifest_payload),
+                retirement_manifest_sha256=sha256(
+                    manifest_payload
+                ).hexdigest(),
+            )
+            record = TerminalHistoryRecordV2(
+                terminal_schema_version="2.0",
+                import_id=h.import_id,
+                final_phase=ImportResult(outcome_payload["final_phase"]),
+                result=ImportResult(outcome_payload["result"]),
+                transaction_created_at=outcome_payload[
+                    "transaction_created_at"
+                ],
+                completed_at=outcome_payload["completed_at"],
+                package_sha256=h.package_sha256,
+                package_version=h.package_version,
+                package_basename=h.package_basename,
+                proposed_count=outcome_payload["proposed_count"],
+                imported_count=outcome_payload["imported_count"],
+                skipped_count=outcome_payload["skipped_count"],
+                collection_proof=TerminalCollectionProof(
+                    **outcome_payload["collection_proof"]
+                ),
+                managed_image_proof=TerminalManagedImageProof(
+                    **outcome_payload["managed_image_proof"]
+                ),
+                cleanup_summaries=tuple(
+                    TerminalCleanupSummaryV2(**value)
+                    for value in outcome_payload["cleanup_summaries"]
+                ),
+                processed_media_proof=TerminalProcessedMediaProof(
+                    **outcome_payload["processed_media_proof"]
+                ),
+                outcome_payload_sha256=h.compaction.outcome_payload_sha256,
+                operational_chain_proof=proof,
+                audit=outcome_payload["audit"],
+                error_category=outcome_payload["error_category"],
+            )
+            payload = canonical_json_bytes(record.to_dict())
+            if len(payload) > MAX_JSON_BYTES:
+                raise RecoveryRequired()
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+            handle.seek(0)
+            if (
+                handle.read(len(payload) + 1) != payload
+                or _identity(handle_object_identity(handle))
+                != terminal_identity
+            ):
+                raise RecoveryRequired()
+            require_verified_import_lock(
+                import_lock, import_id=h.import_id
+            )
+            publish_open_file_no_replace_in_directory(
+                handle,
+                history_parent,
+                h.compaction.terminal_temporary_name,
+                h.compaction.terminal_pending_name,
+            )
+            sync_directory(history_parent)
+        finally:
+            handle.close()
+        return record
+
+    def _read_terminal_record(
+        self, path: Path
+    ) -> TerminalHistoryRecordV2:
+        raw, identity_value = self._read_bound_file(path)
+        try:
+            record = TerminalHistoryRecordV2.from_dict(
+                parse_bounded_json_object(raw, "processed terminal history")
+            )
+            if (
+                _identity_hash(_identity(identity_value))
+                != record.operational_chain_proof.terminal_object_identity_sha256
+            ):
+                raise RecoveryRequired()
+            return record
+        except Exception as error:
+            if isinstance(error, RecoveryRequired):
+                raise
+            raise RecoveryRequired(error) from error

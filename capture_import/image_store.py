@@ -55,6 +55,7 @@ from .snapshot import SnapshotHandle
 OWNER_FILENAME = ".import-owner.json"
 OWNERSHIP_SCHEMA_VERSION = "1.0"
 CreatedCallback = Callable[[str], None]
+ProcessedVerifiedCallback = Callable[[VerifiedImageV3], None]
 
 _ROLE_FILENAMES = {
     ImageRole.FRONT: "front",
@@ -385,6 +386,7 @@ class ManagedCollectionImageStore:
         on_created: CreatedCallback,
         *,
         import_lock: PackageImportLock,
+        on_image_verified: ProcessedVerifiedCallback | None = None,
     ) -> dict[str, tuple[ItemPhoto, ...]]:
         """Persist exact processed bytes without opening raw archive media."""
 
@@ -478,6 +480,9 @@ class ManagedCollectionImageStore:
                 )
                 on_created(image.managed_relative_path)
                 processed_snapshot.validate()
+                evidence = self._verified_processed_image(image)
+                if on_image_verified is not None:
+                    on_image_verified(evidence)
                 by_source[image.source_coin_id].append(
                     ItemPhoto(
                         path=image.collection_path,
@@ -519,6 +524,98 @@ class ManagedCollectionImageStore:
             except Exception as validation_error:
                 raise ImageCopyFailed(validation_error) from error
             raise ImageCopyFailed(error) from error
+
+    def _verified_processed_image(
+        self, image: ProcessedManagedImage
+    ) -> VerifiedImageV3:
+        path = self._resolve(image.managed_relative_path)
+        payload = path.read_bytes()
+        if (
+            len(payload) != image.byte_length
+            or sha256(payload).hexdigest() != image.sha256
+        ):
+            raise ImageCopyFailed()
+        return VerifiedImageV3(
+            relative_path=image.managed_relative_path,
+            role=image.role.value,
+            byte_length=image.byte_length,
+            sha256=image.sha256,
+            media_type=image.media_type,
+            width=image.width,
+            height=image.height,
+            source_kind="PROCESSED_SNAPSHOT",
+            source_snapshot_id=image.source_snapshot_id,
+            source_coin_id=image.source_coin_id,
+            source_artifact_key=image.source_artifact_key,
+            variant=image.variant,
+            parent_identity=NativeObjectIdentity.from_native(
+                path_object_identity(path.parent), windows=os.name == "nt"
+            ),
+            object_identity=NativeObjectIdentity.from_native(
+                path_object_identity(path), windows=os.name == "nt"
+            ),
+        )
+
+    def reconcile_processed_copy(
+        self,
+        plan: ProcessedManagedImagePlan,
+        verified_prefix: tuple[VerifiedImageV3, ...],
+    ) -> tuple[VerifiedImageV3, ...]:
+        """Verify a durable prefix; never resume copying after restart."""
+
+        plan.validate()
+        expected = self.expected_evidence_processed(plan)
+        if len(verified_prefix) > len(expected):
+            raise RecoveryRequired()
+        for index, (expected_item, verified) in enumerate(
+            zip(expected, verified_prefix, strict=False)
+        ):
+            verified.validate()
+            if any(
+                getattr(verified, name) != getattr(expected_item, name)
+                for name in expected_item.__dataclass_fields__
+            ):
+                raise RecoveryRequired()
+            actual = self._verified_processed_image(plan.media[index])
+            if actual != verified:
+                raise RecoveryRequired()
+        root = self.root / plan.import_root_relative_path
+        if root.exists():
+            self._require_owned_tree(plan, require_complete=False)
+        return verified_prefix
+
+    def photos_from_processed_plan(
+        self, plan: ProcessedManagedImagePlan
+    ) -> dict[str, tuple[ItemPhoto, ...]]:
+        """Rebuild exact collection photo records from a fully verified plan."""
+
+        self.verify_processed(plan)
+        by_source: dict[str, list[ItemPhoto]] = {
+            source: [] for source, _desktop in plan.source_to_desktop
+        }
+        for image in plan.media:
+            photos = by_source[image.source_coin_id]
+            photos.append(
+                ItemPhoto(
+                    path=image.collection_path,
+                    role=_PHOTO_ROLES[image.role],
+                    is_primary=image.role is ImageRole.FRONT,
+                    display_order=len(photos),
+                    capture_import_media=CaptureImportMediaProvenance(
+                        "1.0",
+                        plan.import_id,
+                        "PROCESSED_SNAPSHOT",
+                        plan.package_sha256,
+                        plan.processed_snapshot_id,
+                        image.source_artifact_key,
+                        image.sha256,
+                        image.variant,
+                    ),
+                )
+            )
+        result = {source: tuple(items) for source, items in by_source.items()}
+        self.validate_processed_photos(plan, result)
+        return result
 
     def expected_evidence_processed(
         self, plan: ProcessedManagedImagePlan

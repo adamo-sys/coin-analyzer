@@ -7,10 +7,13 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from uuid import uuid4
 
 from coin_collection import CoinCollection, CoinItem
+
+if TYPE_CHECKING:
+    from .schema3_runtime import Schema3PackageImportRecoveryService
 
 from .audit import AuditCoin, AuditSession
 from .baseline import require_collection_baseline
@@ -715,6 +718,7 @@ class Schema3PackageImportTransactionService(PackageImportTransactionService):
         clock: Clock = _utc_now,
         identifier_factory: IdentifierFactory = _uuid,
         ownership_token_factory: IdentifierFactory = _uuid,
+        runtime: Schema3PackageImportRecoveryService,
     ) -> None:
         super().__init__(
             collection,
@@ -726,6 +730,7 @@ class Schema3PackageImportTransactionService(PackageImportTransactionService):
             ownership_token_factory=ownership_token_factory,
         )
         self._schema3_journals = journals
+        self._schema3_runtime = runtime
 
     @staticmethod
     def _validate_package_linkage(
@@ -895,8 +900,14 @@ class Schema3PackageImportTransactionService(PackageImportTransactionService):
                     genesis,
                     import_lock=import_lock,
                 )
-                self._preserve_after_publication_start(
-                    processed_snapshot, snapshot
+                current = self._schema3_runtime.progress_foreground_locked(
+                    current,
+                    snapshot,
+                    processed_snapshot,
+                    package,
+                    preview,
+                    decisions,
+                    import_lock,
                 )
                 return Schema3TransactionGenesisResult(current, plan)
             except Exception:

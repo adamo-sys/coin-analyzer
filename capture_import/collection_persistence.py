@@ -5,7 +5,7 @@ Durable Persistence §§987–1118 and platform §§1288–1427; RM-16–RM-18.
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
 import os
@@ -38,6 +38,15 @@ ExchangeCallback = Callable[[CollectionPublicationArtifact, CollectionPublicatio
 ArtifactCallback = Callable[[CollectionPublicationArtifact], None]
 
 
+@dataclass(frozen=True, slots=True)
+class CollectionPublicationObservation:
+    state: str
+    destination_matches_baseline: bool
+    destination_matches_prospective: bool
+    published_artifact: CollectionPublicationArtifact | None = None
+    retained_backup_artifact: CollectionPublicationArtifact | None = None
+
+
 def serialize_collection_items(items: Iterable[CoinItem]) -> bytes:
     """Return the exact deterministic bytes used for collection publication."""
 
@@ -55,6 +64,208 @@ class DurableCollectionPublisher:
 
     def __init__(self, collection_path: str | os.PathLike[str]) -> None:
         self._path = Path(collection_path).absolute()
+
+    def observe_planned(
+        self,
+        temporary: CollectionPublicationArtifact,
+        backup: CollectionPublicationArtifact | None,
+        *,
+        import_id: str,
+        baseline: CollectionBaseline,
+        prospective_byte_length: int,
+        prospective_sha256: str,
+        observation_generation: int,
+        import_lock: PackageImportLock,
+    ) -> CollectionPublicationObservation:
+        """Classify D using only the exact planned D/T/B names."""
+
+        require_verified_import_lock(import_lock, import_id=import_id)
+        parent = self._path.parent
+        parent_identity = NativeObjectIdentity.from_native(
+            path_object_identity(parent), windows=os.name == "nt"
+        )
+        if temporary.expected_parent_identity != parent_identity or (
+            backup is not None and backup.expected_parent_identity != parent_identity
+        ):
+            raise RecoveryRequired()
+
+        if (
+            temporary.expected_byte_length != prospective_byte_length
+            or temporary.expected_sha256 != prospective_sha256
+        ):
+            raise RecoveryRequired()
+
+        def inspect(
+            path: Path, length: int, digest: str
+        ) -> tuple[bool, NativeObjectIdentity | None]:
+            if not path.exists():
+                return False, None
+            try:
+                handle = open_existing_binary_for_delete(path)
+            except (OSError, ValueError):
+                return True, None
+            try:
+                identity = NativeObjectIdentity.from_native(
+                    handle_object_identity(handle), windows=os.name == "nt"
+                )
+                actual_digest = sha256()
+                actual_length = 0
+                while chunk := handle.read(1024 * 1024):
+                    actual_length += len(chunk)
+                    actual_digest.update(chunk)
+                if (
+                    actual_length != length
+                    or actual_digest.hexdigest() != digest
+                    or not handle_matches_path(handle, path)
+                    or NativeObjectIdentity.from_native(
+                        handle_object_identity(handle),
+                        windows=os.name == "nt",
+                    )
+                    != identity
+                ):
+                    return True, None
+                return True, identity
+            finally:
+                handle.close()
+
+        destination_present, prospective_identity = inspect(
+            self._path, prospective_byte_length, prospective_sha256
+        )
+        prospective = prospective_identity is not None
+        baseline_match = (
+            not destination_present
+            if baseline.sha256_or_sentinel == "MISSING_COLLECTION_V1"
+            else inspect(
+                self._path,
+                baseline.byte_length,
+                baseline.sha256_or_sentinel,
+            )[1]
+            is not None
+        )
+        temporary_path = parent / temporary.relative_name
+        backup_path = (
+            None
+            if backup is None
+            else parent / (backup.current_relative_name or backup.relative_name)
+        )
+        planned_conflict = False
+        published_artifact = None
+        retained_artifact = None
+        if prospective:
+            if (
+                temporary.object_identity is None
+                or temporary.object_identity != prospective_identity
+                or temporary.state
+                not in {
+                    CollectionPublicationState.VERIFIED,
+                    CollectionPublicationState.EXCHANGED,
+                    CollectionPublicationState.PUBLISHED,
+                }
+            ):
+                planned_conflict = True
+            if backup is None:
+                if temporary_path.exists():
+                    planned_conflict = True
+            else:
+                backup_present, backup_identity = inspect(
+                    backup_path,
+                    backup.expected_byte_length,
+                    backup.expected_sha256,
+                )
+                if (
+                    not backup_present
+                    or backup_identity is None
+                    or backup.object_identity is None
+                    or backup.object_identity != backup_identity
+                    or backup.state
+                    not in {
+                        CollectionPublicationState.VERIFIED,
+                        CollectionPublicationState.EXCHANGED,
+                        CollectionPublicationState.RETAINED,
+                    }
+                ):
+                    planned_conflict = True
+                if (
+                    temporary_path != backup_path
+                    and temporary_path.exists()
+                ):
+                    planned_conflict = True
+            if not planned_conflict:
+                published_artifact = replace(
+                    temporary,
+                    state=CollectionPublicationState.PUBLISHED,
+                    current_relative_name=self._path.name,
+                    published_relative_name=self._path.name,
+                    publication_generation=observation_generation,
+                )
+                published_artifact.validate()
+                if backup is not None:
+                    retained_artifact = replace(
+                        backup,
+                        state=CollectionPublicationState.RETAINED,
+                        current_relative_name=backup_path.name,
+                        publication_generation=observation_generation,
+                    )
+                    retained_artifact.validate()
+        elif baseline_match:
+            temporary_present, temporary_identity = inspect(
+                temporary_path,
+                temporary.expected_byte_length,
+                temporary.expected_sha256,
+            )
+            if temporary_present and (
+                temporary_identity is None
+                or temporary.object_identity is None
+                or temporary.object_identity != temporary_identity
+            ):
+                planned_conflict = True
+            if (
+                not temporary_present
+                and temporary.object_identity is not None
+                and temporary.state is not CollectionPublicationState.PLANNED
+            ):
+                planned_conflict = True
+            if (
+                backup_path is not None
+                and backup_path != temporary_path
+            ):
+                backup_present, backup_identity = inspect(
+                    backup_path,
+                    backup.expected_byte_length,
+                    backup.expected_sha256,
+                )
+                if backup_present and (
+                    backup_identity is None
+                    or backup.object_identity is None
+                    or backup.object_identity != backup_identity
+                ):
+                    planned_conflict = True
+                if (
+                    not backup_present
+                    and backup.object_identity is not None
+                    and backup.state
+                    is not CollectionPublicationState.PLANNED
+                ):
+                    planned_conflict = True
+        elif destination_present:
+            planned_conflict = True
+        state = (
+            "CONFLICTING"
+            if planned_conflict
+            else
+            "EXACT_BASELINE"
+            if baseline_match and not prospective
+            else "EXACT_PROSPECTIVE"
+            if prospective and not baseline_match
+            else "CONFLICTING"
+        )
+        return CollectionPublicationObservation(
+            state,
+            baseline_match,
+            prospective,
+            published_artifact,
+            retained_artifact,
+        )
 
     def plan(
         self,

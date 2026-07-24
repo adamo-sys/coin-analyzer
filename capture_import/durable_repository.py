@@ -884,18 +884,93 @@ class Schema3PackageImportJournalRepository(
                     ImportPhase.ROLLING_BACK,
                 }
                 or not any(
-                    operation.status.value == "COMPLETE"
-                    and operation.kind
-                    in {"SUCCESS_PROCESSED_SNAPSHOT", "ROLLBACK_ALL"}
+                    (
+                        operation.status.value == "COMPLETE"
+                        and operation.kind == "SUCCESS_PROCESSED_SNAPSHOT"
+                    )
+                    or (
+                        operation.kind == "ROLLBACK_ALL"
+                        and any(
+                            target.root == "PROCESSED_SNAPSHOT"
+                            for target in operation.targets
+                        )
+                        and all(
+                            index < len(operation.receipts)
+                            for index, target in enumerate(operation.targets)
+                            if target.root == "PROCESSED_SNAPSHOT"
+                        )
+                    )
                     for operation in current.cleanup_operations
                 )
             ):
                 raise JournalCorrupt()
             return
+        if any(
+            len(operation.targets) > 301
+            for operation in (
+                *previous.cleanup_operations,
+                *current.cleanup_operations,
+            )
+        ):
+            Schema3PackageImportJournalRepository._validate_wide_cleanup_transition(
+                previous, current
+            )
+            return
         Schema2PackageImportJournalRepository._validate_transition(
             previous.schema2_projection(),
             current.schema2_projection(),
         )
+
+    @staticmethod
+    def _validate_wide_cleanup_transition(previous, current) -> None:
+        envelope = {
+            "generation",
+            "previous_generation_sha256",
+            "transition_id",
+            "next_generation_token",
+            "updated_at",
+        }
+        changed = {
+            name
+            for name in previous.__dataclass_fields__
+            if name not in envelope
+            and getattr(previous, name) != getattr(current, name)
+        }
+        if not changed <= {
+            "cleanup_operations",
+            "package_snapshot_relative_path",
+        } or "cleanup_operations" not in changed:
+            raise JournalCorrupt()
+        if len(current.cleanup_operations) == len(previous.cleanup_operations) + 1:
+            if current.cleanup_operations[:-1] != previous.cleanup_operations:
+                raise JournalCorrupt()
+            operation = current.cleanup_operations[-1]
+            if operation.status.value != "INTENT" or operation.receipts:
+                raise JournalCorrupt()
+            return
+        if len(current.cleanup_operations) != len(previous.cleanup_operations):
+            raise JournalCorrupt()
+        if current.cleanup_operations[:-1] != previous.cleanup_operations[:-1]:
+            raise JournalCorrupt()
+        before = previous.cleanup_operations[-1]
+        after = current.cleanup_operations[-1]
+        if before.targets != after.targets or before.intent_id != after.intent_id:
+            raise JournalCorrupt()
+        if (
+            before.status.value == "INTENT"
+            and after.status.value == "INTENT"
+            and len(after.receipts) == len(before.receipts) + 1
+            and after.receipts[:-1] == before.receipts
+        ):
+            return
+        if (
+            before.status.value == "INTENT"
+            and after.status.value == "COMPLETE"
+            and before.receipts == after.receipts
+            and len(after.receipts) == len(after.targets)
+        ):
+            return
+        raise JournalCorrupt()
 
 
 class VersionedPackageImportJournalRepository:

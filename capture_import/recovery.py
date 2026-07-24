@@ -28,6 +28,20 @@ from .lock import PackageImportLock
 from .package import CapturePackageValidator, ValidatedCapturePackage
 from .snapshot import CapturePackageSnapshotService, SnapshotHandle
 
+from .durable_models import (
+    OperationalJournalGeneration,
+    OperationalJournalGenerationV3,
+    TerminalProcessedMediaProof,
+)
+from .durable_repository import VersionedPackageImportJournalRepository
+from .lock import require_verified_import_lock
+from .processed_snapshot import ProcessedArtifactSnapshotService
+from .terminal_persistence import (
+    Schema3TerminalPersistenceService,
+    TerminalPersistenceService,
+)
+from .schema3_runtime import Schema3PackageImportRecoveryService
+
 Clock = Callable[[], str]
 
 
@@ -272,7 +286,6 @@ class PackageImportRecoveryService:
                 final_phase="SUCCEEDED",
             )
         return result
-
     def _finish_rollback(
         self,
         journal,
@@ -491,3 +504,163 @@ class PackageImportRecoveryService:
         )
         audit.validate()
         return audit
+
+
+LockedRecovery = Callable[
+    [OperationalJournalGeneration, PackageImportLock],
+    object,
+]
+
+
+class UnifiedPackageImportRecoveryService:
+    """Build one versioned recovery/orphan view under one global lock."""
+
+    def __init__(
+        self,
+        *,
+        lock_path: str | Path,
+        journals: VersionedPackageImportJournalRepository,
+        schema1_terminal: TerminalPersistenceService,
+        schema2_snapshots: CapturePackageSnapshotService,
+        schema3_snapshots: ProcessedArtifactSnapshotService,
+        schema3_terminal: Schema3TerminalPersistenceService,
+        recover_schema2_locked: LockedRecovery,
+        schema3_runtime: Schema3PackageImportRecoveryService,
+    ) -> None:
+        self._lock_path = Path(lock_path)
+        self._journals = journals
+        self._schema1_terminal = schema1_terminal
+        self._schema2_snapshots = schema2_snapshots
+        self._schema3_snapshots = schema3_snapshots
+        self._schema3_terminal = schema3_terminal
+        self._recover_schema2_locked = recover_schema2_locked
+        self._schema3_runtime = schema3_runtime
+
+    def reconcile_pending_imports(self) -> tuple[object, ...]:
+        results: list[object] = []
+        with PackageImportLock.acquire(self._lock_path) as import_lock:
+            require_verified_import_lock(import_lock)
+            schema1_final = self._schema1_terminal.list_final()
+            schema3_final = self._schema3_terminal.list_final()
+            schema1_ids = {record.import_id for record in schema1_final}
+            schema3_ids = {record.import_id for record in schema3_final}
+            if schema1_ids.intersection(schema3_ids):
+                raise RecoveryRequired()
+            schema1_pending = set(self._schema1_terminal.pending_import_ids())
+            schema3_pending = set(self._schema3_terminal.pending_import_ids())
+            if (
+                schema1_pending.intersection(schema3_pending)
+                or schema1_pending.intersection(schema3_ids)
+                or schema3_pending.intersection(schema1_ids)
+            ):
+                raise RecoveryRequired()
+            for import_id in sorted(schema1_pending):
+                results.append(
+                    self._schema1_terminal.resume_pending(
+                        import_id,
+                        import_lock=import_lock,
+                    )
+                )
+            heads = self._journals.list_heads(import_lock=import_lock)
+            head_ids = [head.import_id for head in heads]
+            if (
+                len(set(head_ids)) != len(head_ids)
+                or set(head_ids).intersection(schema1_ids | schema3_ids)
+            ):
+                raise RecoveryRequired()
+            by_id = {head.import_id: head for head in heads}
+            for import_id in schema3_pending:
+                head = by_id.get(import_id)
+                if not isinstance(head, OperationalJournalGenerationV3):
+                    raise RecoveryRequired()
+                pending = self._schema3_terminal.load_pending(import_id)
+                expected = TerminalProcessedMediaProof.from_commitment(
+                    head.processed_media_commitment,
+                    outcome=(
+                        "RETAINED"
+                        if pending.result is ImportResult.SUCCEEDED
+                        else "REMOVED"
+                    ),
+                )
+                if pending.processed_media_proof != expected:
+                    raise RecoveryRequired()
+            for import_id in sorted(schema3_pending):
+                results.append(
+                    self._schema3_terminal.resume_pending(
+                        import_id,
+                        import_lock=import_lock,
+                    )
+                )
+            heads = tuple(
+                head
+                for head in heads
+                if head.import_id not in schema3_pending
+            )
+            raw_references = tuple(
+                (
+                    head.package_snapshot_relative_path
+                    if isinstance(head, OperationalJournalGenerationV3)
+                    else head.snapshot_relative_path
+                )
+                for head in heads
+                if (
+                    head.package_snapshot_relative_path
+                    if isinstance(head, OperationalJournalGenerationV3)
+                    else head.snapshot_relative_path
+                )
+                is not None
+            )
+            processed_references = tuple(
+                head.processed_snapshot_reference.processed_snapshot_id
+                for head in heads
+                if isinstance(head, OperationalJournalGenerationV3)
+                and head.processed_snapshot_reference is not None
+            )
+            for head in heads:
+                if (
+                    not isinstance(head, OperationalJournalGenerationV3)
+                    or head.processed_snapshot_reference is None
+                ):
+                    continue
+                if head.cleanup_operations:
+                    # Once durable deletion authority exists, the full sealed
+                    # inventory is intentionally no longer reopenable.  The
+                    # Schema 3 cleanup-prefix verifier owns all later reads.
+                    continue
+                handle = self._schema3_snapshots.open_snapshot(
+                    head.processed_snapshot_reference.processed_snapshot_id,
+                    import_lock=import_lock,
+                )
+                try:
+                    if (
+                        handle.journal_reference()
+                        != head.processed_snapshot_reference
+                        or handle.media_commitment(
+                            head.selected_source_coin_ids
+                        )
+                        != head.processed_media_commitment
+                    ):
+                        raise RecoveryRequired()
+                finally:
+                    handle.close()
+            self._schema2_snapshots.cleanup_orphaned_snapshots(
+                raw_references,
+                import_lock=import_lock,
+            )
+            self._schema3_snapshots.cleanup_orphaned_snapshots(
+                processed_references,
+                import_lock=import_lock,
+            )
+            for head in heads:
+                require_verified_import_lock(
+                    import_lock, import_id=head.import_id
+                )
+                if isinstance(head, OperationalJournalGenerationV3):
+                    results.append(
+                        self._schema3_runtime.recover_locked(head, import_lock)
+                    )
+                else:
+                    results.append(
+                        self._recover_schema2_locked(head, import_lock)
+                    )
+        return tuple(results)

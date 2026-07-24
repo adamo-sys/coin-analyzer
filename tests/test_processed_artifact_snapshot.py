@@ -600,6 +600,93 @@ class ProcessedSnapshotLifecycleTests(unittest.TestCase):
         self.assertEqual(self._cleanup_orphans(), (snapshot_id,))
         self.assertFalse(snapshot.exists())
 
+    def test_pa_rm27_referenced_processed_snapshot_not_orphaned(self) -> None:
+        handle, _ = self._seal()
+        snapshot_id = handle.manifest.processed_snapshot_id
+        snapshot = self._snapshot_path(handle)
+        handle.close()
+        before = {
+            path.relative_to(snapshot).as_posix(): path.read_bytes()
+            for path in snapshot.rglob("*")
+            if path.is_file()
+        }
+        lock = PackageImportLock.acquire(self.base / "import.lock")
+        try:
+            self.assertEqual(
+                self.service.cleanup_orphaned_snapshots(
+                    (snapshot_id,), import_lock=lock
+                ),
+                (),
+            )
+            self.assertEqual(
+                self.service.cleanup_orphaned_snapshots(
+                    (snapshot_id,), import_lock=lock
+                ),
+                (),
+            )
+        finally:
+            lock.release()
+        after = {
+            path.relative_to(snapshot).as_posix(): path.read_bytes()
+            for path in snapshot.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_pa_rm28_uncertain_processed_orphan_preserved(self) -> None:
+        handle, payload = self._seal()
+        snapshot = self._snapshot_path(handle)
+        artifact = handle.manifest.artifacts[0].relative_path
+        expected = {
+            "owner.json": canonical_json_bytes(handle.owner.to_dict()),
+            "lease.lock": b"",
+            artifact: payload,
+            "manifest.json": canonical_json_bytes(handle.manifest.to_dict()),
+            "complete.json": canonical_json_bytes(handle.completion.to_dict()),
+        }
+        lock = PackageImportLock.acquire(self.base / "import.lock")
+        try:
+            for _attempt in range(2):
+                with self.assertRaises(SnapshotRecoveryRequired):
+                    self.service.cleanup_orphaned_snapshots(
+                        (), import_lock=lock, wait_seconds=0
+                    )
+        finally:
+            lock.release()
+        handle.close()
+        after = {
+            path.relative_to(snapshot).as_posix(): path.read_bytes()
+            for path in snapshot.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, expected)
+        self.assertEqual(self._cleanup_orphans(), (handle.manifest.processed_snapshot_id,))
+
+    def test_pa_rm36_processed_root_capability_failure(self) -> None:
+        payload = _jpeg()
+        lock = PackageImportLock.acquire(self.base / "import.lock")
+        try:
+            for attempt in range(2):
+                workspace = self.base / f"unsupported-{attempt}"
+                workspace.mkdir()
+                prepared = _prepared(workspace, payload)
+                with mock.patch.object(
+                    processed_snapshot_module,
+                    "ensure_plain_directory",
+                    side_effect=OSError("unsupported processed root"),
+                ):
+                    with self.assertRaises(SnapshotFailed):
+                        self.service.seal(
+                            prepared,
+                            _package(payload),
+                            import_lock=lock,
+                        )
+                self.assertFalse(
+                    self.root.exists() and any(self.root.iterdir())
+                )
+        finally:
+            lock.release()
+
     def test_pa_rm37_processed_lease_is_bounded(self) -> None:
         handle, _ = self._seal()
         snapshot_id = handle.manifest.processed_snapshot_id
@@ -619,6 +706,12 @@ class ProcessedSnapshotLifecycleTests(unittest.TestCase):
                     import_lock=lock,
                     wait_seconds=0,
                 )
+            with self.assertRaises(SnapshotRecoveryRequired):
+                self.service.open_snapshot(
+                    snapshot_id,
+                    import_lock=lock,
+                    wait_seconds=0,
+                )
         finally:
             lock.release()
         handle.cleanup()
@@ -629,10 +722,24 @@ class ProcessedSnapshotLifecycleTests(unittest.TestCase):
         handle.close()
         extra = snapshot / "unexpected.bin"
         extra.write_bytes(b"preserve")
-        with self.assertRaises(SnapshotRecoveryRequired) as caught:
-            self._cleanup_orphans()
+        before = {
+            path.relative_to(snapshot).as_posix(): path.read_bytes()
+            for path in snapshot.rglob("*")
+            if path.is_file()
+        }
+        for _attempt in range(2):
+            with self.assertRaises(SnapshotRecoveryRequired) as caught:
+                self._cleanup_orphans()
         self.assertEqual(extra.read_bytes(), b"preserve")
         self.assertNotIn(str(snapshot), str(caught.exception))
+        self.assertEqual(
+            {
+                path.relative_to(snapshot).as_posix(): path.read_bytes()
+                for path in snapshot.rglob("*")
+                if path.is_file()
+            },
+            before,
+        )
 
     @unittest.skipIf(
         os.name == "nt",
@@ -648,6 +755,36 @@ class ProcessedSnapshotLifecycleTests(unittest.TestCase):
         with self.assertRaises(SnapshotRecoveryRequired):
             self._cleanup_orphans()
         self.assertTrue(duplicate.is_symlink())
+
+    def test_pa_rm41_owner_then_lease_crash_is_cleanup_only(self) -> None:
+        payload = _jpeg()
+        prepared = _prepared(self.workspace, payload)
+        lock = PackageImportLock.acquire(self.base / "import.lock")
+        try:
+            with mock.patch.object(
+                self.service,
+                "_acquire_zero_byte_lease",
+                side_effect=RuntimeError("crash after lease publication"),
+            ):
+                with self.assertRaises(SnapshotFailed):
+                    self.service.seal(
+                        prepared, _package(payload), import_lock=lock
+                    )
+            self.assertFalse(self.root.exists() and any(self.root.iterdir()))
+            self.assertEqual(
+                self.service.cleanup_orphaned_snapshots(
+                    (), import_lock=lock
+                ),
+                (),
+            )
+            self.assertEqual(
+                self.service.cleanup_orphaned_snapshots(
+                    (), import_lock=lock
+                ),
+                (),
+            )
+        finally:
+            lock.release()
 
     def test_snapshot_parent_sync_brackets_root_lifecycle(self) -> None:
         original = processed_snapshot_module.sync_directory

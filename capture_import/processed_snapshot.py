@@ -41,6 +41,7 @@ from ._filesystem import (
 from ._json import canonical_json_bytes, parse_bounded_json_object
 from .durable_models import (
     NativeObjectIdentity,
+    OwnershipDescriptorV3,
     ProcessedMediaCommitment,
     ProcessedMediaMappingEntry,
     ProcessedSnapshotReference,
@@ -938,6 +939,119 @@ class ProcessedSnapshotHandle:
             persisted_mapping_sha256=processed_media_mapping_sha256(mapping),
         )
         result.validate()
+        self.validate()
+        return result
+
+    def cleanup_targets(
+        self,
+        ownership_token: str,
+    ) -> tuple[OwnershipDescriptorV3, ...]:
+        """Commit the frozen processed cleanup order from held identities."""
+
+        self.validate()
+        _uuid4(ownership_token, "ownership_token")
+        snapshot_id = self.manifest.processed_snapshot_id
+        root_prefix = snapshot_id
+
+        def file_target(
+            relative_path: str,
+            handle: BinaryIO,
+            parent: PlainDirectoryHandle,
+        ) -> OwnershipDescriptorV3:
+            position = handle.tell()
+            try:
+                handle.seek(0)
+                digest = hashlib.sha256()
+                length = 0
+                while True:
+                    chunk = handle.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    length += len(chunk)
+                    digest.update(chunk)
+            finally:
+                handle.seek(position)
+            result = OwnershipDescriptorV3(
+                root="PROCESSED_SNAPSHOT",
+                relative_path=relative_path,
+                object_kind="FILE",
+                ownership_token=ownership_token,
+                expected_byte_length=length,
+                expected_sha256=digest.hexdigest(),
+                parent_identity=_native(parent.identity),
+                object_identity=_native(handle_object_identity(handle)),
+            )
+            result.validate()
+            return result
+
+        targets: list[OwnershipDescriptorV3] = []
+        by_relative = {
+            descriptor.relative_path: handle
+            for descriptor, handle in zip(
+                self.manifest.artifacts,
+                self._artifact_handles,
+                strict=True,
+            )
+        }
+        for descriptor in reversed(self.manifest.artifacts):
+            targets.append(
+                file_target(
+                    f"{root_prefix}/{descriptor.relative_path}",
+                    by_relative[descriptor.relative_path],
+                    self._artifacts_handle,
+                )
+            )
+        targets.append(
+            file_target(
+                f"{root_prefix}/manifest.json",
+                self._manifest_handle,
+                self._root_handle,
+            )
+        )
+        targets.append(
+            OwnershipDescriptorV3(
+                root="PROCESSED_SNAPSHOT",
+                relative_path=f"{root_prefix}/artifacts",
+                object_kind="DIRECTORY",
+                ownership_token=ownership_token,
+                expected_byte_length=None,
+                expected_sha256=None,
+                parent_identity=_native(self._root_handle.identity),
+                object_identity=_native(self._artifacts_handle.identity),
+            )
+        )
+        targets.extend(
+            (
+                file_target(
+                    f"{root_prefix}/owner.json",
+                    self._owner_handle,
+                    self._root_handle,
+                ),
+                file_target(
+                    f"{root_prefix}/complete.json",
+                    self._completion_handle,
+                    self._root_handle,
+                ),
+                file_target(
+                    f"{root_prefix}/lease.lock",
+                    self._lease_handle,
+                    self._root_handle,
+                ),
+                OwnershipDescriptorV3(
+                    root="PROCESSED_SNAPSHOT",
+                    relative_path=root_prefix,
+                    object_kind="DIRECTORY",
+                    ownership_token=ownership_token,
+                    expected_byte_length=None,
+                    expected_sha256=None,
+                    parent_identity=_native(self._snapshots_parent_handle.identity),
+                    object_identity=_native(self._root_handle.identity),
+                ),
+            )
+        )
+        result = tuple(targets)
+        for target in result:
+            target.validate()
         self.validate()
         return result
 

@@ -450,6 +450,14 @@ class Schema3GenesisTests(unittest.TestCase):
 
     def _service(self) -> Schema3PackageImportTransactionService:
         identifiers = iter((_uuid(), _uuid(), _uuid(), _uuid()))
+        runtime = Mock()
+
+        def finish_foreground(journal, raw, processed, *_args):
+            raw.preserve_for_recovery()
+            processed.close()
+            return journal
+
+        runtime.progress_foreground_locked.side_effect = finish_foreground
         return Schema3PackageImportTransactionService(
             self.collection,
             lock_path=self.root / "global.lock",
@@ -458,6 +466,7 @@ class Schema3GenesisTests(unittest.TestCase):
             clock=lambda: "2026-07-23T12:00:00Z",
             identifier_factory=lambda: next(identifiers),
             ownership_token_factory=_uuid,
+            runtime=runtime,
         )
 
     @staticmethod
