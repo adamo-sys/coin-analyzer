@@ -678,13 +678,13 @@ class ImportWorkflow:
         # third architecture cancellation boundary immediately before the
         # delegate is invoked exactly once.
         prepared = assemble_prepared_import(request, outcome, workspace, artifact_stages)
-        self._raise_if_cancelled(import_id, None, None)
-        if self._event_bus is not None:
-            self._event_bus.record_pipeline_completed(
-                import_id=import_id,
-                stage_count=stage_count,
-            )
         try:
+            self._raise_if_cancelled(import_id, None, None)
+            if self._event_bus is not None:
+                self._event_bus.record_pipeline_completed(
+                    import_id=import_id,
+                    stage_count=stage_count,
+                )
             return transaction(prepared)
         finally:
             if prepared.processed_artifacts is not None:

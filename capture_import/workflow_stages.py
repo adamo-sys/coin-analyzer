@@ -46,7 +46,12 @@ from ._filesystem import handle_matches_path, require_plain_regular_file
 from .errors import PackageChanged
 from .manifest import CapturePackageManifestParser
 from .package import CapturePackageValidator
+from .workflow_crop_detection import CropDetectionStage
+from .workflow_image_duplicates import ImageDuplicateDetectionStage
+from .workflow_image_normalization import ImageNormalizationStage
+from .workflow_image_quality import ImageQualityScoringStage
 from .workflow_models import StageArtifact, StageInput, StageResult
+from .workflow_obverse_reverse_pairing import ObverseReversePairingStage
 from .workflow_pipeline import ProcessingPipeline, StageContractError
 
 if TYPE_CHECKING:
@@ -221,5 +226,25 @@ def build_reference_pipeline(
         stages=(
             PackageValidationStage(validator=validator),
             ManifestPreparationStage(parser=parser),
+        )
+    )
+
+
+def build_image_processing_pipeline(
+    *,
+    validator: CapturePackageValidator | None = None,
+    parser: CapturePackageManifestParser | None = None,
+) -> ProcessingPipeline:
+    """Build the deterministic Sprint 8 seven-stage processing pipeline."""
+
+    return ProcessingPipeline(
+        stages=(
+            PackageValidationStage(validator=validator),
+            ManifestPreparationStage(parser=parser),
+            ImageNormalizationStage(),
+            ImageQualityScoringStage(),
+            CropDetectionStage(),
+            ObverseReversePairingStage(),
+            ImageDuplicateDetectionStage(),
         )
     )

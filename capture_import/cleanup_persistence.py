@@ -36,6 +36,7 @@ from .durable_repository import Schema3PackageImportJournalRepository
 from .enums import CleanupStatus, CollectionPublicationState
 from .errors import RecoveryRequired
 from .lock import PackageImportLock, require_verified_import_lock
+from .processed_snapshot import ProcessedArtifactSnapshotService
 
 
 class DurableCleanupExecutor:
@@ -316,9 +317,14 @@ class DurableCleanupExecutor:
             )
             if actual != target.object_identity or not handle_matches_path(handle, path):
                 raise RecoveryRequired()
-            if path.name == "snapshot.lease" or (
-                schema3 and path.name == "lease.lock"
-            ):
+            if schema3 and path.name == "lease.lock":
+                try:
+                    ProcessedArtifactSnapshotService._acquire_zero_byte_lease(
+                        handle
+                    )
+                except BlockingIOError as error:
+                    raise RecoveryRequired(error) from error
+            elif path.name == "snapshot.lease":
                 try:
                     acquire_advisory_lock(handle)
                     advisory = True
@@ -346,6 +352,8 @@ class DurableCleanupExecutor:
                     release_advisory_lock(handle)
                 except OSError:
                     pass
+            # Closing the handle releases the immutable processed lease on
+            # both Windows and POSIX without changing its zero-byte payload.
             handle.close()
 
 
@@ -495,7 +503,11 @@ class Schema3CleanupProtocol:
                 state=CollectionPublicationState.CLEANED,
                 cleanup_operation_id=operation.intent_id,
             )
-        if target.root == "SNAPSHOT":
+        target_index = len(operation.receipts)
+        if target.root == "SNAPSHOT" and not any(
+            remaining.root == "SNAPSHOT"
+            for remaining in operation.targets[target_index + 1 :]
+        ):
             changes["package_snapshot_relative_path"] = None
         return self._append(head, import_lock, **changes)
 

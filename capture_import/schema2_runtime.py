@@ -51,14 +51,21 @@ from .package import CapturePackageValidator, ValidatedCapturePackage
 from .preview import PackageImportPreview, PreviewDecisionSet
 from .preview import PackageImportPreviewBuilder
 from .models import ImportDecision
+from .processed_snapshot import (
+    ProcessedArtifactSnapshotService,
+    ProcessedSnapshotHandle,
+)
 from .snapshot import CapturePackageSnapshotService, SnapshotHandle
 from .terminal_persistence import TerminalPersistenceService
 from .journal_repository import PackageImportJournalRepository
 from .transaction import (
     PackageImportExecutionResult,
     PackageImportTransactionService,
+    Schema3PackageImportTransactionService,
+    Schema3TransactionGenesisResult,
     _utc_now,
 )
+from .workflow_models import PreparedArtifactSet
 
 Clock = Callable[[], str]
 IdentifierFactory = Callable[[], str]
@@ -556,6 +563,8 @@ class Schema2PackageImportCoordinator(PackageImportCoordinator):
         journals: Schema2PackageImportJournalRepository,
         terminal: TerminalPersistenceService,
         transaction: Schema2PackageImportTransactionService,
+        processed_snapshots: ProcessedArtifactSnapshotService | None = None,
+        processed_transaction: Schema3PackageImportTransactionService | None = None,
         identifier_factory: IdentifierFactory = lambda: str(uuid4()),
     ) -> None:
         self._collection_path = Path(collection_path)
@@ -564,14 +573,22 @@ class Schema2PackageImportCoordinator(PackageImportCoordinator):
         self._journals = journals
         self._terminal = terminal
         self._transaction = transaction
+        self._processed_snapshots = processed_snapshots
+        self._processed_transaction = processed_transaction
         self._identifier_factory = identifier_factory
         self._validator = CapturePackageValidator()
         self._preview_builder = PackageImportPreviewBuilder()
 
-    def prepare(self, source_path: str | os.PathLike[str]) -> PreparedPackageImport:
+    def prepare(
+        self,
+        source_path: str | os.PathLike[str],
+        *,
+        processed_artifacts: PreparedArtifactSet | None = None,
+    ) -> PreparedPackageImport:
         source = Path(source_path)
         digest = self._source_digest(source)
         snapshot = self._snapshots.create_snapshot(source, digest)
+        processed_handle: ProcessedSnapshotHandle | None = None
         try:
             package = self._validator.validate_snapshot(snapshot, source.name)
             preview = self._preview_builder.build(
@@ -581,8 +598,27 @@ class Schema2PackageImportCoordinator(PackageImportCoordinator):
                     record.audit for record in self._terminal.list_final()
                 ),
             )
-            return PreparedPackageImport(snapshot, package, preview)
+            if processed_artifacts is not None:
+                if self._processed_snapshots is None:
+                    raise ValueError(
+                        "processed_artifacts provided but processed_snapshots "
+                        "service not configured"
+                    )
+                with PackageImportLock.acquire(self._lock_path) as import_lock:
+                    processed_handle = self._processed_snapshots.seal(
+                        processed_artifacts,
+                        package,
+                        import_lock=import_lock,
+                    )
+            return PreparedPackageImport(
+                snapshot,
+                package,
+                preview,
+                processed_handle,
+            )
         except Exception:
+            if processed_handle is not None:
+                processed_handle.cleanup()
             snapshot.cleanup()
             raise
 
@@ -590,9 +626,22 @@ class Schema2PackageImportCoordinator(PackageImportCoordinator):
         self,
         prepared: PreparedPackageImport,
         decisions: PreviewDecisionSet,
-    ) -> PackageImportExecutionResult:
+    ) -> PackageImportExecutionResult | Schema3TransactionGenesisResult:
         if not isinstance(prepared, PreparedPackageImport) or prepared.closed:
             raise PackageChanged()
+        if prepared.processed_snapshot is not None:
+            if self._processed_transaction is None:
+                raise ValueError(
+                    "processed preparation requires a Schema 3 transaction service"
+                )
+            prepared.closed = True
+            return self._processed_transaction.execute_genesis(
+                prepared.snapshot,
+                prepared.processed_snapshot,
+                prepared.package,
+                prepared.preview,
+                decisions,
+            )
         import_id = self._identifier_factory()
         try:
             with PackageImportLock.acquire(
@@ -657,27 +706,34 @@ class Schema2PackageImportRecoveryService:
                 import_lock=import_lock,
             )
             for head in heads:
-                if head.phase is ImportPhase.COMPACTING:
-                    results.append(
-                        self._terminal.resume_compaction(
-                            head.import_id,
-                            import_lock=import_lock,
-                        )
-                    )
-                elif head.phase is ImportPhase.COLLECTION_COMMITTED:
-                    results.append(self._finish_success(head, import_lock))
-                elif head.phase in {
-                    ImportPhase.PREPARED,
-                    ImportPhase.COPYING_IMAGES,
-                    ImportPhase.FILES_READY,
-                    ImportPhase.ROLLING_BACK,
-                }:
-                    results.append(self._finish_rollback(head, import_lock))
-                elif head.phase is ImportPhase.COMMITTING_COLLECTION:
-                    results.append(self._recover_committing(head, import_lock))
-                else:
-                    raise RecoveryRequired()
+                results.append(self.recover_locked(head, import_lock))
         return tuple(results)
+
+    def recover_locked(
+        self,
+        head: OperationalJournalGeneration,
+        import_lock: PackageImportLock,
+    ) -> object:
+        """Advance one Schema 2 head while a unified caller owns the lock."""
+
+        require_verified_import_lock(import_lock, import_id=head.import_id)
+        if head.phase is ImportPhase.COMPACTING:
+            return self._terminal.resume_compaction(
+                head.import_id,
+                import_lock=import_lock,
+            )
+        if head.phase is ImportPhase.COLLECTION_COMMITTED:
+            return self._finish_success(head, import_lock)
+        if head.phase in {
+            ImportPhase.PREPARED,
+            ImportPhase.COPYING_IMAGES,
+            ImportPhase.FILES_READY,
+            ImportPhase.ROLLING_BACK,
+        }:
+            return self._finish_rollback(head, import_lock)
+        if head.phase is ImportPhase.COMMITTING_COLLECTION:
+            return self._recover_committing(head, import_lock)
+        raise RecoveryRequired()
 
     def _validated_legacy_terminal_names(self) -> frozenset[str]:
         if not self._journals.root.exists():
@@ -695,6 +751,11 @@ class Schema2PackageImportRecoveryService:
             if entry.phase not in HISTORY_PHASES:
                 raise RecoveryRequired()
         return names
+
+    def validated_legacy_journal_names(self) -> frozenset[str]:
+        """Return legacy flat names already validated under the caller's lock."""
+
+        return self._validated_legacy_terminal_names()
 
     def _reopen(self, head):
         if head.snapshot_relative_path is None:

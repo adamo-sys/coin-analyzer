@@ -638,7 +638,12 @@ class DurabilityBoundaryAuditTests(unittest.TestCase):
                 "capture_import.errors",
                 "capture_import.manifest",
                 "capture_import.package",
+                "capture_import.workflow_crop_detection",
+                "capture_import.workflow_image_duplicates",
+                "capture_import.workflow_image_normalization",
+                "capture_import.workflow_image_quality",
                 "capture_import.workflow_models",
+                "capture_import.workflow_obverse_reverse_pairing",
                 "capture_import.workflow_pipeline",
             },
         )

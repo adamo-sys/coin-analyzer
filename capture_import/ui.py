@@ -5,31 +5,51 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Callable
 
 from coin_collection import CoinCollection
 
 from .coordinator import PreparedPackageImport
+from .cleanup_persistence import DurableCleanupExecutor, Schema3CleanupProtocol
+from .collection_persistence import DurableCollectionPublisher
 from .decisions import ImportDecisionModel
 from .enums import DuplicateDecision
 from .errors import CaptureImportError, RecoveryRequired, RollbackFailed
 from .image_store import ManagedCollectionImageStore
-from .durable_repository import Schema2PackageImportJournalRepository
+from .durable_repository import (
+    Schema2PackageImportJournalRepository,
+    Schema3PackageImportJournalRepository,
+    VersionedPackageImportJournalRepository,
+)
+from .processed_snapshot import ProcessedArtifactSnapshotService
+from .recovery import UnifiedPackageImportRecoveryService
 from .schema2_runtime import (
     Schema2PackageImportCoordinator,
     Schema2PackageImportRecoveryService,
     Schema2PackageImportTransactionService,
 )
+from .schema3_runtime import Schema3PackageImportRecoveryService
 from .snapshot import CapturePackageSnapshotService
-from .terminal_persistence import TerminalPersistenceService
+from .terminal_persistence import (
+    Schema3TerminalPersistenceService,
+    TerminalPersistenceService,
+)
+from .transaction import Schema3PackageImportTransactionService
 
 
 def build_default_import_services(collection: CoinCollection):
     """Build the normative local-only importer services for the desktop app."""
 
     snapshots = CapturePackageSnapshotService("data/imports/snapshots")
-    journals = Schema2PackageImportJournalRepository("data/imports/journals")
+    processed_snapshots = ProcessedArtifactSnapshotService(
+        "data/imports/processed-snapshots"
+    )
+    journal_root = "data/imports/journals"
+    journals = Schema2PackageImportJournalRepository(journal_root)
+    schema3_journals = Schema3PackageImportJournalRepository(journal_root)
+    versioned_journals = VersionedPackageImportJournalRepository(journal_root)
     images = ManagedCollectionImageStore("coin_photos/collection")
     lock_path = "data/imports/package_import.lock"
     history_root = "data/imports/history"
@@ -46,12 +66,60 @@ def build_default_import_services(collection: CoinCollection):
         history_root,
         clock=transaction._clock,
     )
-    recovery = Schema2PackageImportRecoveryService(
+    schema2_recovery = Schema2PackageImportRecoveryService(
         lock_path=lock_path,
         journals=journals,
         terminal=terminal,
         snapshots=snapshots,
         transaction=transaction,
+    )
+    schema3_terminal = Schema3TerminalPersistenceService(
+        schema3_journals,
+        "data/imports/processed-history",
+        clock=transaction._clock,
+    )
+    schema3_cleanup = Schema3CleanupProtocol(
+        schema3_journals,
+        DurableCleanupExecutor(
+            {
+                "COLLECTION": Path(collection.storage_path).absolute().parent,
+                "MANAGED_IMAGE": images.root,
+                "PROCESSED_SNAPSHOT": processed_snapshots.root,
+                "SNAPSHOT": snapshots.root,
+            }
+        ),
+        clock=transaction._clock,
+    )
+    schema3_runtime = Schema3PackageImportRecoveryService(
+        collection=collection,
+        journals=schema3_journals,
+        snapshots=snapshots,
+        processed_snapshots=processed_snapshots,
+        images=images,
+        publisher=DurableCollectionPublisher(collection.storage_path),
+        cleanup=schema3_cleanup,
+        terminal=schema3_terminal,
+        clock=transaction._clock,
+        token_factory=transaction._identifier_factory,
+    )
+    schema3_transaction = Schema3PackageImportTransactionService(
+        collection,
+        lock_path=lock_path,
+        journals=schema3_journals,
+        image_store=images,
+        clock=transaction._clock,
+        runtime=schema3_runtime,
+    )
+    recovery = UnifiedPackageImportRecoveryService(
+        lock_path=lock_path,
+        journals=versioned_journals,
+        schema1_terminal=terminal,
+        schema2_snapshots=snapshots,
+        schema3_snapshots=processed_snapshots,
+        schema3_terminal=schema3_terminal,
+        recover_schema2_locked=schema2_recovery.recover_locked,
+        schema3_runtime=schema3_runtime,
+        validated_legacy_names=schema2_recovery.validated_legacy_journal_names,
     )
     coordinator = Schema2PackageImportCoordinator(
         collection_path=collection.storage_path,
@@ -60,6 +128,8 @@ def build_default_import_services(collection: CoinCollection):
         journals=journals,
         terminal=terminal,
         transaction=transaction,
+        processed_snapshots=processed_snapshots,
+        processed_transaction=schema3_transaction,
     )
     return recovery, coordinator
 

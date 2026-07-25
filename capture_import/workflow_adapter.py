@@ -44,9 +44,9 @@ def commit_prepared_import(
     """Drive the existing prepare/commit seam for one ``PreparedImport``.
 
     Args:
-        prepared: The validated workflow boundary object.  Only
-            ``prepared.request.source`` is read; artifact contents are
-            never inspected here.
+        prepared: The validated workflow boundary object.  Its source and
+            optional processed-artifact ownership object are routed unchanged;
+            artifact contents are never inspected here.
         decisions: The externally supplied preview decisions, passed to
             ``PackageImportCoordinator.commit`` unchanged.
         coordinator: The existing application coordinator.  Its public
@@ -69,5 +69,11 @@ def commit_prepared_import(
             f"decisions must be a PreviewDecisionSet, not "
             f"{type(decisions).__name__}."
         )
-    staged = coordinator.prepare(prepared.request.source)
+    if prepared.processed_artifacts is None:
+        staged = coordinator.prepare(prepared.request.source)
+    else:
+        staged = coordinator.prepare(
+            prepared.request.source,
+            processed_artifacts=prepared.processed_artifacts,
+        )
     return coordinator.commit(staged, decisions)

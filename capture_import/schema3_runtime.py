@@ -598,7 +598,12 @@ class Schema3PackageImportRecoveryService:
                 index < len(operation.receipts) and target.root == "SNAPSHOT"
                 for index, target in enumerate(operation.targets)
             )
-            if processed_done and not raw_started and current.processed_snapshot_reference is not None:
+            if (
+                operation.kind == "ROLLBACK_ALL"
+                and processed_done
+                and not raw_started
+                and current.processed_snapshot_reference is not None
+            ):
                 current = self._cleanup.release_processed_reference(
                     current, import_lock=import_lock
                 )

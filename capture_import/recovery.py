@@ -510,6 +510,7 @@ LockedRecovery = Callable[
     [OperationalJournalGeneration, PackageImportLock],
     object,
 ]
+LegacyJournalNames = Callable[[], frozenset[str]]
 
 
 class UnifiedPackageImportRecoveryService:
@@ -526,6 +527,7 @@ class UnifiedPackageImportRecoveryService:
         schema3_terminal: Schema3TerminalPersistenceService,
         recover_schema2_locked: LockedRecovery,
         schema3_runtime: Schema3PackageImportRecoveryService,
+        validated_legacy_names: LegacyJournalNames = frozenset,
     ) -> None:
         self._lock_path = Path(lock_path)
         self._journals = journals
@@ -535,6 +537,7 @@ class UnifiedPackageImportRecoveryService:
         self._schema3_terminal = schema3_terminal
         self._recover_schema2_locked = recover_schema2_locked
         self._schema3_runtime = schema3_runtime
+        self._validated_legacy_names = validated_legacy_names
 
     def reconcile_pending_imports(self) -> tuple[object, ...]:
         results: list[object] = []
@@ -561,7 +564,10 @@ class UnifiedPackageImportRecoveryService:
                         import_lock=import_lock,
                     )
                 )
-            heads = self._journals.list_heads(import_lock=import_lock)
+            heads = self._journals.list_heads(
+                import_lock=import_lock,
+                validated_legacy_names=self._validated_legacy_names(),
+            )
             head_ids = [head.import_id for head in heads]
             if (
                 len(set(head_ids)) != len(head_ids)
