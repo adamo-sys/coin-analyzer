@@ -1,14 +1,16 @@
-"""Focused Sprint 8 Unit 7E routing, ownership, and composition tests."""
+"""Focused Sprint 8 Unit 7E/7F routing, ownership, and composition tests."""
 
 from __future__ import annotations
 
 import json
+import queue
 import tempfile
 import unittest
 import zipfile
 from contextlib import chdir
 from hashlib import sha256
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from coin_collection import CoinCollection
@@ -26,8 +28,12 @@ from capture_import.workflow_models import (
     ImportConfiguration,
     ImportRequest,
     PreparedArtifactSet,
+    StageArtifact,
 )
-from capture_import.workflow_pipeline import WorkflowCancelledError
+from capture_import.workflow_pipeline import (
+    StageContractError,
+    WorkflowCancelledError,
+)
 from capture_import.workflow_stages import (
     build_image_processing_pipeline,
     build_reference_pipeline,
@@ -85,6 +91,66 @@ class _CancelAt:
     def __call__(self) -> bool:
         self.calls += 1
         return self.calls == self.call_number
+
+
+class _ImmediateThread:
+    instances = []
+
+    def __init__(self, *, target, daemon):
+        self.target = target
+        self.daemon = daemon
+        self.started = False
+        self.__class__.instances.append(self)
+
+    def start(self):
+        self.started = True
+        self.target()
+
+
+class _WindowSpy:
+    def __init__(self):
+        self.after_calls = []
+
+    def after(self, milliseconds, callback):
+        self.after_calls.append((milliseconds, callback))
+
+
+class _RecoverySpy:
+    def __init__(self):
+        self.calls = 0
+
+    def reconcile_pending_imports(self):
+        self.calls += 1
+
+
+class _PreparedResult:
+    def __init__(self):
+        self.cancel_calls = 0
+
+    def cancel(self):
+        self.cancel_calls += 1
+
+
+class _PreparationCoordinatorSpy:
+    def __init__(self, *, fail_before_claim=False, fail_after_claim=False):
+        self.fail_before_claim = fail_before_claim
+        self.fail_after_claim = fail_after_claim
+        self.prepare_calls = []
+        self.claim_calls = 0
+        self.artifacts = None
+        self.result = _PreparedResult()
+
+    def prepare(self, source, **kwargs):
+        self.prepare_calls.append((source, kwargs))
+        self.artifacts = kwargs["processed_artifacts"]
+        if self.fail_before_claim:
+            raise PackageChanged()
+        claimed = self.artifacts.claim()
+        self.claim_calls += 1
+        claimed.close()
+        if self.fail_after_claim:
+            raise PackageChanged()
+        return self.result
 
 
 class WorkflowImageIntegrationTests(unittest.TestCase):
@@ -198,6 +264,167 @@ class WorkflowImageIntegrationTests(unittest.TestCase):
                     ),
                 )
         self.assertEqual(states, [True, False])
+
+
+class DesktopPreparationIntegrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.source = self.root / "test.ca-package"
+        self.source.write_bytes(package_bytes())
+        _ImmediateThread.instances = []
+
+    def dialog(self, coordinator):
+        from capture_import.ui import CapturePackageImportDialog
+
+        dialog = CapturePackageImportDialog.__new__(CapturePackageImportDialog)
+        dialog._source_path = str(self.source)
+        dialog._collection = SimpleNamespace(
+            storage_path=str(self.root / "collection.json")
+        )
+        dialog._recovery = _RecoverySpy()
+        dialog._coordinator = coordinator
+        dialog._closed = False
+        dialog._request_id = object()
+        dialog._queue = queue.Queue()
+        dialog._workspace = None
+        dialog.window = _WindowSpy()
+        return dialog
+
+    def start(self, dialog):
+        workspace_root = self.root / "workspaces"
+        with (
+            patch(
+                "capture_import.ui.WORKSPACE_ROOT",
+                str(workspace_root),
+            ),
+            patch("capture_import.ui.threading.Thread", _ImmediateThread),
+        ):
+            dialog._start_prepare()
+        return workspace_root
+
+    def test_desktop_prepare_runs_pipeline_then_hands_off_once(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+
+        workspace_root = self.start(dialog)
+
+        request, kind, payload = dialog._queue.get_nowait()
+        self.assertIs(request, dialog._request_id)
+        self.assertEqual(kind, "prepared")
+        self.assertIs(payload, coordinator.result)
+        self.assertEqual(dialog._recovery.calls, 1)
+        self.assertEqual(len(coordinator.prepare_calls), 1)
+        source, kwargs = coordinator.prepare_calls[0]
+        self.assertEqual(source, str(self.source))
+        self.assertIs(kwargs["processed_artifacts"], coordinator.artifacts)
+        self.assertEqual(coordinator.claim_calls, 1)
+        self.assertTrue(coordinator.artifacts.is_claimed)
+        self.assertFalse(coordinator.artifacts.is_active)
+        self.assertIsNotNone(dialog._workspace)
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+        self.assertTrue(workspace_root.exists())
+        self.assertEqual(len(_ImmediateThread.instances), 1)
+        self.assertTrue(_ImmediateThread.instances[0].daemon)
+        self.assertTrue(_ImmediateThread.instances[0].started)
+        self.assertEqual(dialog.window.after_calls[0][0], 50)
+
+    def test_desktop_prepare_failure_before_claim_closes_once(self) -> None:
+        coordinator = _PreparationCoordinatorSpy(fail_before_claim=True)
+        dialog = self.dialog(coordinator)
+
+        self.start(dialog)
+
+        _request, kind, payload = dialog._queue.get_nowait()
+        self.assertEqual(kind, "error")
+        self.assertIsInstance(payload, PackageChanged)
+        self.assertEqual(len(coordinator.prepare_calls), 1)
+        self.assertEqual(coordinator.claim_calls, 0)
+        self.assertFalse(coordinator.artifacts.is_claimed)
+        self.assertFalse(coordinator.artifacts.is_active)
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+
+    def test_desktop_prepare_failure_after_claim_does_not_reclaim(self) -> None:
+        coordinator = _PreparationCoordinatorSpy(fail_after_claim=True)
+        dialog = self.dialog(coordinator)
+
+        self.start(dialog)
+
+        _request, kind, payload = dialog._queue.get_nowait()
+        self.assertEqual(kind, "error")
+        self.assertIsInstance(payload, PackageChanged)
+        self.assertEqual(len(coordinator.prepare_calls), 1)
+        self.assertEqual(coordinator.claim_calls, 1)
+        self.assertTrue(coordinator.artifacts.is_claimed)
+        self.assertFalse(coordinator.artifacts.is_active)
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+
+    def test_desktop_cancellation_stops_before_coordinator(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+        dialog._closed = True
+
+        self.start(dialog)
+
+        _request, kind, payload = dialog._queue.get_nowait()
+        self.assertEqual(kind, "error")
+        self.assertIsInstance(payload, WorkflowCancelledError)
+        self.assertEqual(coordinator.prepare_calls, [])
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+
+    def test_desktop_post_pipeline_cancellation_stops_before_handoff(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+        execute = ImportWorkflow.execute
+
+        def execute_then_cancel(workflow, *args, **kwargs):
+            outcome = execute(workflow, *args, **kwargs)
+            dialog._closed = True
+            return outcome
+
+        with patch.object(
+            ImportWorkflow,
+            "execute",
+            autospec=True,
+            side_effect=execute_then_cancel,
+        ):
+            self.start(dialog)
+
+        self.assertTrue(dialog._queue.empty())
+        self.assertEqual(coordinator.prepare_calls, [])
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+
+    def test_desktop_image_failure_has_no_raw_fallback(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+        self.source.write_bytes(b"not a capture package")
+
+        self.start(dialog)
+
+        _request, kind, payload = dialog._queue.get_nowait()
+        self.assertEqual(kind, "error")
+        self.assertIsInstance(payload, Exception)
+        self.assertEqual(coordinator.prepare_calls, [])
+        self.assertTrue(dialog._workspace.is_closed)
+        self.assertFalse(dialog._workspace.path.exists())
+
+    def test_fixed_pipeline_rejects_unknown_artifact_provenance(self) -> None:
+        from capture_import.ui import _artifact_stages
+        from capture_import.workflow_execution import PipelineOutcome
+
+        outcome = PipelineOutcome(
+            artifacts={"unknown": StageArtifact("unknown.bin")},
+            metadata={},
+        )
+
+        with self.assertRaises(StageContractError):
+            _artifact_stages(outcome)
 
 
 class DefaultCompositionIntegrationTests(unittest.TestCase):

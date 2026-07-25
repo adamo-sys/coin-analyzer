@@ -37,6 +37,36 @@ from .terminal_persistence import (
     TerminalPersistenceService,
 )
 from .transaction import Schema3PackageImportTransactionService
+from .workflow_execution import (
+    ImportWorkflow,
+    PipelineOutcome,
+    assemble_prepared_import,
+)
+from .workflow_models import ImportConfiguration, ImportRequest
+from .workflow_pipeline import StageContractError
+from .workflow_stages import build_image_processing_pipeline
+from .workflow_workspace import WorkflowWorkspace
+
+WORKSPACE_ROOT = "data/imports/workspaces"
+
+
+def _artifact_stages(outcome: PipelineOutcome) -> dict[str, str]:
+    """Recover provenance for the fixed image pipeline's file-producing stages."""
+
+    stages: dict[str, str] = {}
+    for key in outcome.artifacts:
+        if key == "prepared-manifest":
+            stages[key] = "manifest-preparation"
+        elif key.startswith("normalized-"):
+            stages[key] = "image-normalization"
+        elif key.startswith("cropped-"):
+            stages[key] = "crop-detection"
+        else:
+            raise StageContractError(
+                "<pipeline>",
+                f"unexpected artifact {key!r} from the fixed image pipeline.",
+            )
+    return stages
 
 
 def build_default_import_services(collection: CoinCollection):
@@ -158,6 +188,7 @@ class CapturePackageImportDialog:
         self._preserve_for_recovery = False
         self._request_id = object()
         self._queue: queue.Queue = queue.Queue()
+        self._workspace: WorkflowWorkspace | None = None
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -197,18 +228,63 @@ class CapturePackageImportDialog:
         self.window.grab_set()
         self._start_prepare()
 
+    def _is_cancelled(self) -> bool:
+        return self._closed
+
     def _start_prepare(self) -> None:
         request = self._request_id
 
         def worker() -> None:
+            result: PreparedPackageImport | None = None
+            result_needs_cleanup = False
             try:
                 self._recovery.reconcile_pending_imports()
-                result = self._coordinator.prepare(self._source_path)
-                if self._closed:
-                    result.cancel()
-                    return
+                workspace = WorkflowWorkspace(Path(WORKSPACE_ROOT).absolute())
+                self._workspace = workspace
+                with workspace:
+                    workflow = ImportWorkflow(
+                        build_image_processing_pipeline(),
+                        is_cancelled=self._is_cancelled,
+                    )
+                    import_request = ImportRequest(
+                        source=Path(self._source_path).absolute(),
+                        collection_id=self._collection.storage_path,
+                        configuration=ImportConfiguration(),
+                    )
+                    outcome = workflow.execute(import_request, workspace.path)
+                    if self._closed:
+                        return
+                    prepared = assemble_prepared_import(
+                        import_request,
+                        outcome,
+                        workspace.path,
+                        _artifact_stages(outcome),
+                    )
+                    try:
+                        if self._closed:
+                            return
+                        result = self._coordinator.prepare(
+                            self._source_path,
+                            processed_artifacts=prepared.processed_artifacts,
+                        )
+                        result_needs_cleanup = True
+                    finally:
+                        if prepared.processed_artifacts is not None:
+                            prepared.processed_artifacts.close_if_unclaimed()
+                    if self._closed:
+                        result_needs_cleanup = False
+                        result.cancel()
+                        return
                 self._queue.put((request, "prepared", result))
             except Exception as error:
+                if result_needs_cleanup and result is not None:
+                    result_needs_cleanup = False
+                    try:
+                        result.cancel()
+                    except Exception as cleanup_error:
+                        error.add_note(
+                            f"prepared import cleanup also failed: {cleanup_error}"
+                        )
                 self._queue.put((request, "error", error))
 
         threading.Thread(target=worker, daemon=True).start()
