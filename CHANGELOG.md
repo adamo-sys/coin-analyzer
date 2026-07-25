@@ -1,5 +1,46 @@
 # Changelog
 
+<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
+## Sprint 8 - Deterministic Image Processing and Desktop Import Integration
+
+**Completion date:** 2026-07-25
+
+### Completed
+
+- Image normalization with deterministic output contracts.
+- Image-quality scoring and fail-closed quality validation.
+- Crop detection with bounded, workspace-contained artifacts.
+- Obverse/reverse pairing.
+- Duplicate-image signals.
+- Processed-artifact snapshot, durability, transaction, cleanup, and recovery integration.
+- Pipeline integration through the existing import workflow.
+- Desktop production import migration to the seven-stage image-processing workflow.
+- Preview-before-confirmation behavior remains unchanged.
+- Processed-artifact ownership transfers to the coordinator exactly once.
+- The dialog retains ownership of its temporary workflow workspace and closes it on success, failure, or cancellation.
+- Image-processing failure does not silently fall back to raw-source import.
+
+### Final implementation commits
+
+- `94495f3` - `feat: integrate processed image pipeline`
+- `a356810` - `feat: integrate image workflow into desktop import`
+
+### Validation
+
+- Focused Unit 7F suite: **15 tests passed**.
+- Authoritative regression:
+  `python -m unittest discover -s . -p "test_*.py"`
+- Result: **2,389 tests passed, 22 skipped, 0 failures, 0 errors**.
+
+### Remaining technical debt
+
+- Artifact-stage provenance mapping currently resides in the desktop UI integration layer.
+- `WORKSPACE_ROOT` remains represented as a string before conversion to `Path`.
+- Full real-coordinator desktop integration coverage can be strengthened later.
+
+---
+
+
 ## Sprint 5 — Schema-2 Durable Persistence & Recovery Replay
 
 **Commit:** `55817fd`  

@@ -1,5 +1,19 @@
 # Project State
 
+<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
+## Current Development State - 2026-07-25
+
+- **Sprint 8:** complete through Unit 8 documentation closeout.
+- **Current branch:** `main`
+- **Implementation baseline:** `a356810`
+- **Production behavior:** desktop capture-package import now runs the deterministic seven-stage image-processing workflow before coordinator preparation.
+- **Review contract:** preview remains before user confirmation; no transaction delegate runs inside `ImportWorkflow`; processing failures fail closed without raw-source fallback.
+- **Ownership contract:** the dialog owns and closes the temporary workflow workspace; the coordinator claims and owns the processed-artifact set after handoff.
+- **Authoritative regression:** 2,389 passed, 22 skipped, 0 failures, 0 errors.
+- **Push status:** local commits exist beyond `origin/main`; no push was performed during Units 7E-7F.
+- **Next implementation sprint:** requires explicit planning and approval.
+
+
 ## Current Version
 
 * Current release version: `v8.8.0`

@@ -1,5 +1,38 @@
 # Task Queue
 
+<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
+## Completed - Sprint 8 Image Processing and Desktop Import
+
+### `[x]` Complete Sprint 8 image-processing pipeline
+
+- Date completed: 2026-07-25
+- Major capabilities:
+  - image normalization;
+  - image-quality scoring;
+  - crop detection;
+  - obverse/reverse pairing;
+  - duplicate-image signals;
+  - processed-artifact durability and recovery;
+  - pipeline and desktop production-call-site integration.
+- Final implementation commits:
+  - `94495f3`
+  - `a356810`
+- Validation:
+  - focused Unit 7F tests: 15 passed;
+  - authoritative regression: 2,389 passed, 22 skipped.
+- Governance:
+  - independent architecture review passed;
+  - no push performed;
+  - no tags changed.
+
+### `[x]` Complete Sprint 8 documentation closeout
+
+- Date completed: 2026-07-25
+- Documentation-only scope.
+- No production behavior changed.
+- Updated current-state, task, changelog, and roadmap records.
+
+
 ## v8.6 Collector Intelligence & Workflow
 
 Status: Complete - v8.6 Released

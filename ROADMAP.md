@@ -31,32 +31,27 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 
 ## Next
 
-1. **Sprint 6 — Import Execution Engine & Observability**
-   - Transactional import coordinator with multi-stage pipeline
-   - Structured event system (`ImportStarted`, `PackageValidated`, `ImagesImported`, `OCRStarted`, `OCRComplete`, `RecoveryTriggered`, `RollbackStarted`, `RollbackComplete`, `ImportComplete`)
-   - Progress persistence and resume from any durable boundary
-   - Cancellation support with deterministic rollback
-   - Execution metrics (per-stage timing, retry counts, failure rates)
-   - Depends on Sprint 5 baseline (`55817fd`) and frozen architecture hash `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`
+<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
+1. **Sprint 9 - OCR + Metadata Extraction**
+   - OCR orchestration and metadata reconciliation.
+   - Collector review remains mandatory before authoritative collection mutation.
+   - Requires an approved architecture and implementation plan.
 
-2. **Sprint 7 — Image Processing Pipeline**
-   - Image normalization, crop detection, obverse/reverse pairing
-   - Duplicate detection improvements, image quality scoring
+2. **Sprint 10 - Grading Engine**
+   - Wear estimation, cleaning detection, rim damage, strike quality, and luster estimation.
+   - Advisory-only until explicitly approved otherwise.
 
-3. **Sprint 8 — OCR + Metadata Extraction**
-   - OCR orchestration, metadata reconciliation
+3. **Sprint 11 - Dealer Tools**
+   - Valuation workflow, market lookup contracts, ROI analysis, duplicate inventory, and export.
+   - Live data or external providers require separate architecture approval.
 
-4. **Sprint 9 — Grading Engine**
-   - Wear estimation, cleaning detection, rim damage, strike quality, luster estimation
+4. **Recruiter-focused README audit**
+   - Improve the repository front door without overstating unsupported AI capabilities.
 
-5. **Sprint 10 — Dealer Tools**
-   - Valuation, market lookup, ROI, duplicate inventory, export
+5. **ADR index**
+   - Add lightweight navigation for accepted architecture decisions.
 
-1. Recruiter-focused README audit
-   - Review the repository front door after the grounded assistant milestone without overstating unsupported AI capabilities.
-2. ADR index
-   - Add a lightweight navigation page for accepted architecture decisions.
-3. Portfolio-focused release milestone
+6. **Portfolio-focused release milestone**
    - Prepare validated release notes, screenshots, setup guidance, and migration notes where required.
 
 ## Later Candidates
