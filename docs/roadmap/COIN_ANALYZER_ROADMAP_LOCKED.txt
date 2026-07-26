@@ -1,0 +1,285 @@
+COIN ANALYZER DEVELOPMENT ROADMAP
+Locked sequence after Sprint 10
+Current baseline: Sprint 10 closed at commit 1238617
+
+PHASE 1 — SPRINT 11: DESKTOP OCR REVIEW EXPERIENCE
+
+Sprint 11A — Presentation models
+- Create immutable UI-facing models for OCR candidates, decisions, conflicts,
+  provenance, final projection status, and unresolved fields.
+- No Tkinter logic in domain services.
+- No persistence.
+- No collection mutation.
+- No direct binding to mutable legacy OCR models.
+
+Sprint 11B — Review-session controller
+- Coordinate OCR report -> human decisions -> Sprint 10 review session -> display state.
+- Delegate all business rules to Sprint 10 services.
+
+Sprint 11C — Opt-in desktop composition
+- Add an explicit OCR review feature flag or factory.
+- Default desktop workflow remains OCR-free.
+- No hidden registration or auto-enablement.
+
+Sprint 11D — Candidate-review UI
+- Approve, correct, reject, defer.
+- Next/previous candidate.
+- Source-image preview.
+- Provenance display.
+
+Sprint 11E — Conflict-resolution UI
+- Select existing value.
+- Enter corrected value.
+- Defer.
+- Compare source provenance.
+
+Sprint 11F — Desktop integration tests
+- Exercise the real composition path, not only controller spies.
+
+Sprint 11 exit gate
+- OCR review works interactively.
+- No collection data is changed.
+- Closing the app may discard the review session.
+- Default desktop behavior remains OCR-free.
+- Full regression passes.
+
+PHASE 2 — SPRINT 12: REVIEW-SESSION PERSISTENCE
+
+Sprint 12A — Persistence architecture
+- Repository interface.
+- Storage schema.
+- DTO schema version.
+- Migration policy.
+- Session identity.
+- Reviewer identity handling.
+- Incomplete-session lifecycle.
+- No writes yet.
+
+Sprint 12B — Serialized session envelope
+Persist:
+- Source-report identity.
+- Human field decisions.
+- Conflict resolutions.
+- Provenance.
+- Schema version.
+- Deterministic state.
+
+Sprint 12C — Local repository implementation
+- Add local storage for review sessions.
+- Prefer a dedicated store rather than mixing review state into collection CSV.
+
+Sprint 12D — Resume and recovery
+- Save incomplete review.
+- Resume review.
+- Abandon review.
+- Detect stale or mismatched source reports.
+- Reject incompatible schema versions safely.
+
+Sprint 12E — Desktop save/resume integration
+- Save review.
+- Resume review.
+- Discard review.
+- Recover after interrupted shutdown.
+
+Sprint 12 exit gate
+- Review sessions survive restarts.
+- Persistence is versioned.
+- Corrupt or incompatible data fails safely.
+- Collection remains untouched.
+
+PHASE 3 — SPRINT 13: CONFIRMED METADATA BOUNDARY
+
+Sprint 13A — Confirmed observation contracts
+- Define immutable, collection-independent contracts for metadata explicitly confirmed by a human.
+
+Sprint 13B — Final projection mapper
+- Map only complete, resolved final projections into confirmed observations.
+- Reject unresolved fields, deferred fields, incomplete sessions, grade, and unknown fields.
+
+Sprint 13C — Field-specific validators
+Add validators for:
+- Year.
+- Denomination.
+- Country.
+- Monarch.
+- Mintmark.
+- Series/type.
+- Banknote prefix.
+- Certification number.
+- Silver indicator.
+- Variety keyword.
+
+Sprint 13D — Semantic normalization
+- Handle equivalent values such as Canada / CANADA / canada.
+- Preserve both submitted and canonical values.
+
+Sprint 13E — Confirmed-observation tests
+- Provenance.
+- Normalization.
+- Invalid values.
+- Incomplete review rejection.
+
+Sprint 13 exit gate
+- Human-approved OCR data can become confirmed observations.
+- Confirmed observations remain collection-independent.
+- Grade remains excluded.
+- No collection mutation yet.
+
+PHASE 4 — SPRINT 14: COLLECTION CHANGE PLANNING
+
+Sprint 14A — Collection mapping design
+Document:
+- Supported mappings.
+- Unsupported mappings.
+- Overwrite behavior.
+- Blank-field behavior.
+- Conflicting existing values.
+
+Sprint 14B — Proposed-change contracts
+Create immutable change-plan DTOs containing:
+- Existing value.
+- Proposed value.
+- Source provenance.
+- Change type.
+- Reason.
+
+Possible change types:
+- Populate blank.
+- Replace existing.
+- No change.
+- Unsupported.
+- Conflict.
+
+Sprint 14C — Dry-run planner
+- Generate a collection change plan without mutation.
+
+Sprint 14D — Change preview UI
+Show:
+- What will change.
+- What will remain unchanged.
+- Where each value came from.
+- Whether existing data will be overwritten.
+
+Sprint 14E — Explicit approval command
+- Require a second explicit approval after OCR review.
+- Human review approval and collection-change approval remain separate acts.
+
+Sprint 14 exit gate
+- The app can produce a complete mutation preview.
+- Nothing is written automatically.
+- Every proposed change is auditable.
+- Existing collection values are protected by policy.
+
+PHASE 5 — SPRINT 15: CONTROLLED COLLECTION MUTATION
+
+Sprint 15A — Mutation command
+Accept only an approved change plan.
+Reject:
+- Incomplete plans.
+- Unresolved conflicts.
+- Unsupported fields.
+- Grade.
+- Stale collection state.
+- Already-applied operations.
+
+Sprint 15B — Atomic persistence
+Safe-write flow:
+validate -> write temporary file -> fsync where supported -> atomic replace -> verify
+
+Sprint 15C — Rollback and backup
+- Create a recoverable backup before mutation.
+
+Sprint 15D — Audit record
+Record:
+- Approved changes.
+- Source review-session identity.
+- Previous values.
+- New values.
+- Result.
+- Schema version.
+
+Sprint 15E — Desktop apply workflow
+review OCR -> resolve conflicts -> confirm metadata -> preview changes ->
+approve changes -> apply atomically
+
+Sprint 15F — End-to-end tests
+Cover:
+- Clean success.
+- Interrupted write.
+- Stale collection.
+- Invalid projection.
+- Rejected overwrite.
+- Rollback.
+- Repeated command.
+- Partial failure protection.
+
+Sprint 15 exit gate
+- Human-reviewed OCR can safely update the collection.
+- No silent mutation is possible.
+- Every write is previewed, approved, atomic, and auditable.
+
+LATER ROADMAP
+
+Sprint 16 — OCR quality and provider architecture
+- Provider-specific exceptions.
+- Multiple OCR providers.
+- Ensemble comparison.
+- Deterministic provider selection.
+- Confidence calibration.
+- Artifact cleanup diagnostics.
+- Provider capability reporting.
+
+Sprint 17 — Field intelligence
+- Coin-specific year validation.
+- Denomination-country compatibility.
+- Monarch-year compatibility.
+- Mintmark validation.
+- Certification-number parsing.
+- Canadian variety vocabulary.
+- Newfoundland and banknote-specific fields.
+
+Sprint 18 — Image and OCR UX refinement
+- Side-by-side obverse/reverse review.
+- Crop adjustment.
+- Zoom and contrast controls.
+- Candidate highlighting.
+- Keyboard shortcuts.
+- Batch review.
+- Accessibility pass.
+
+Sprint 19 — Schema stabilization
+- Shared candidate/provenance identity object.
+- DTO schema versioning.
+- Migration suite.
+- Reusable test builders.
+- Split oversized test modules.
+- Formal domain package boundaries.
+
+Sprint 20 — Production hardening
+- Performance profiling.
+- Large-batch imports.
+- Crash recovery.
+- Structured logging.
+- Diagnostics export.
+- Installer/runtime dependency handling.
+- User documentation.
+- Release candidate testing.
+
+LOCKED ARCHITECTURAL RULES
+
+1. OCR never writes directly to the collection.
+2. Human review and collection-change approval are separate steps.
+3. Grade remains excluded from OCR-derived updates.
+4. Unresolved or deferred values never silently receive a winner.
+5. Default desktop import remains OCR-free until explicitly enabled.
+6. Persistence is versioned before review sessions are stored.
+7. Collection writes are previewed, approved, atomic, and recoverable.
+8. Domain rules remain outside GUI controllers.
+9. No legacy mutable OCR model crosses into the hardened workflow domain.
+10. Every sprint closes with focused tests, full regression, architecture review,
+    documentation, and a clean working tree.
+
+IMMEDIATE NEXT UNIT
+
+Sprint 11 Unit 1A:
+Desktop OCR review presentation models
