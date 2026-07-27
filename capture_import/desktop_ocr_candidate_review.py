@@ -53,6 +53,17 @@ def _candidate_identity(
     )
 
 
+def _review_identity(review: OCRFieldReview) -> CandidateIdentity:
+    return (
+        review.source_coin_id,
+        review.field_name,
+        review.image_role,
+        review.provider_id,
+        review.artifact_key,
+        review.original_value,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class OCRCandidatePreview:
     """Injected preview result without filesystem or image-loading behavior."""
@@ -99,6 +110,7 @@ class OCRCandidateReviewModel:
         "_report",
         "_controller",
         "_reviewer_id",
+        "_mode",
         "_preview_resolver",
         "_state",
         "_index",
@@ -111,6 +123,8 @@ class OCRCandidateReviewModel:
         report: OCRMetadataReport,
         review_controller: OCRReviewSessionController,
         reviewer_id: str,
+        reviews: tuple[OCRFieldReview, ...] = (),
+        mode: OCRReviewMode = OCRReviewMode.PARTIAL,
         preview_resolver: PreviewResolver | None = None,
     ) -> None:
         if not isinstance(
@@ -123,20 +137,57 @@ class OCRCandidateReviewModel:
             )
         if not isinstance(reviewer_id, str):
             raise TypeError("reviewer_id must be a string.")
+        if not isinstance(reviews, tuple):
+            raise TypeError("reviews must be a tuple.")
+        if not isinstance(mode, OCRReviewMode):
+            raise TypeError("mode must be an OCRReviewMode.")
         if preview_resolver is not None and not callable(preview_resolver):
             raise TypeError("preview_resolver must be callable or None.")
 
         state = review_controller.present_initial(report=report)
-        self._report = report
-        self._controller = review_controller
-        self._reviewer_id = reviewer_id
-        self._preview_resolver = preview_resolver
-        self._state = state
-        self._index = 0
-        self._reviews_by_identity: dict[
+        reviews_by_identity: dict[
             CandidateIdentity,
             OCRFieldReview,
         ] = {}
+        if reviews:
+            report_review = OCRReportReview(
+                reviewer_id=reviewer_id,
+                field_reviews=reviews,
+            )
+            report_review.validate()
+            candidate_identities = {
+                _candidate_identity(candidate)
+                for candidate in state.candidates
+            }
+            for review in reviews:
+                identity = _review_identity(review)
+                if identity not in candidate_identities:
+                    raise ValueError(
+                        "Persisted review does not target a presented "
+                        "OCR candidate."
+                    )
+                reviews_by_identity[identity] = review
+            ordered_reviews = tuple(
+                reviews_by_identity[key]
+                for key in sorted(reviews_by_identity)
+            )
+            state = review_controller.apply_field_reviews(
+                report=report,
+                review=OCRReportReview(
+                    reviewer_id=reviewer_id,
+                    field_reviews=ordered_reviews,
+                ),
+                mode=mode,
+            )
+
+        self._report = report
+        self._controller = review_controller
+        self._reviewer_id = reviewer_id
+        self._mode = mode
+        self._preview_resolver = preview_resolver
+        self._state = state
+        self._index = 0
+        self._reviews_by_identity = reviews_by_identity
 
     @property
     def candidate_count(self) -> int:
@@ -297,7 +348,7 @@ class OCRCandidateReviewModel:
         state = self._controller.apply_field_reviews(
             report=self._report,
             review=report_review,
-            mode=OCRReviewMode.PARTIAL,
+            mode=self._mode,
         )
 
         self._reviews_by_identity = proposed
@@ -696,6 +747,8 @@ def create_ocr_candidate_review_dialog(
     report: OCRMetadataReport,
     review_controller: OCRReviewSessionController,
     reviewer_id: str,
+    reviews: tuple[OCRFieldReview, ...] = (),
+    mode: OCRReviewMode = OCRReviewMode.PARTIAL,
     preview_resolver: PreviewResolver | None = None,
     on_close: ReviewCallback | None = None,
 ) -> OCRCandidateReviewDialog:
@@ -705,6 +758,8 @@ def create_ocr_candidate_review_dialog(
         report=report,
         review_controller=review_controller,
         reviewer_id=reviewer_id,
+        reviews=reviews,
+        mode=mode,
         preview_resolver=preview_resolver,
     )
     return OCRCandidateReviewDialog(
