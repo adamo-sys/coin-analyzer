@@ -17,6 +17,17 @@ import cv2
 import numpy as np
 
 from atomic_json import write_json_atomically
+from collection_management.collection_mutation_repository import (
+    CONDITIONAL_COLLECTION_MUTATION_FIELDS,
+    ConditionalCollectionFieldChange,
+    ConditionalCollectionMutationError,
+    ConditionalCollectionMutationResult,
+    ConditionalCollectionRecordNotFoundError,
+    ConditionalCollectionRepositoryError,
+    ConditionalCollectionStateConflictError,
+    ConditionalCollectionVerificationError,
+    InvalidConditionalCollectionMutationError,
+)
 
 
 ACQUISITION_MONEY_FIELDS = (
@@ -631,6 +642,170 @@ class CoinCollection:
             if replacement_completed:
                 raise
             return False
+
+    def mutate_fields_conditionally(
+        self,
+        record_id: str,
+        changes: tuple[ConditionalCollectionFieldChange, ...],
+    ) -> ConditionalCollectionMutationResult:
+        """Compare and atomically mutate exact raw JSON field states.
+
+        The global collection/import lease serializes cooperating application
+        writers from authoritative read through final verification.  Raw JSON
+        is intentional: ``CoinItem.from_dict`` normalizes a missing mapped
+        field to an empty string and therefore cannot preserve the distinction
+        required by conditional mutation.
+        """
+
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise InvalidConditionalCollectionMutationError(
+                "record_id must be a nonblank string."
+            )
+        if not isinstance(changes, tuple) or not changes:
+            raise InvalidConditionalCollectionMutationError(
+                "changes must be a nonempty tuple."
+            )
+        if any(
+            not isinstance(change, ConditionalCollectionFieldChange)
+            for change in changes
+        ):
+            raise InvalidConditionalCollectionMutationError(
+                "changes must contain ConditionalCollectionFieldChange values."
+            )
+        seen_fields: set[str] = set()
+        for change in changes:
+            change.validate()
+            if change.field_name in seen_fields:
+                raise InvalidConditionalCollectionMutationError(
+                    "changes contain a duplicate field."
+                )
+            seen_fields.add(change.field_name)
+
+        from capture_import.lock import PackageImportLock
+
+        lock_path = os.path.join(
+            os.path.dirname(os.path.abspath(self.storage_path)),
+            "imports",
+            "package_import.lock",
+        )
+        try:
+            with PackageImportLock.acquire(lock_path) as mutation_lock:
+                mutation_lock.verify_ownership()
+                payload, target = self._load_raw_record_for_conditional_mutation(
+                    record_id
+                )
+                applied: list[str] = []
+                already_applied: list[str] = []
+                conflicted: list[str] = []
+                for change in changes:
+                    current = self._raw_conditional_field_value(
+                        target, change.field_name
+                    )
+                    if current == change.desired_value:
+                        already_applied.append(change.field_name)
+                    elif current == change.expected_value:
+                        applied.append(change.field_name)
+                    else:
+                        conflicted.append(change.field_name)
+                if conflicted:
+                    raise ConditionalCollectionStateConflictError(
+                        tuple(conflicted)
+                    )
+
+                if applied:
+                    for change in changes:
+                        if change.field_name not in applied:
+                            continue
+                        if change.desired_value is None:
+                            target.pop(change.field_name, None)
+                        else:
+                            target[change.field_name] = change.desired_value
+
+                    prospective_items = [
+                        CoinItem.from_dict(row) for row in payload
+                    ]
+                    mutation_lock.verify_ownership()
+                    write_json_atomically(
+                        self.storage_path,
+                        payload,
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                    try:
+                        mutation_lock.verify_ownership()
+                        _, verified_target = (
+                            self._load_raw_record_for_conditional_mutation(
+                                record_id
+                            )
+                        )
+                        for change in changes:
+                            if self._raw_conditional_field_value(
+                                verified_target, change.field_name
+                            ) != change.desired_value:
+                                raise ConditionalCollectionVerificationError(
+                                    "Committed collection did not preserve the "
+                                    f"desired {change.field_name!r} value."
+                                )
+                    except ConditionalCollectionVerificationError:
+                        raise
+                    except Exception as error:
+                        raise ConditionalCollectionVerificationError(
+                            "The committed collection could not be verified."
+                        ) from error
+                    self.items = prospective_items
+
+                result = ConditionalCollectionMutationResult(
+                    applied_fields=tuple(applied),
+                    already_applied_fields=tuple(already_applied),
+                )
+                result.validate()
+                self.last_save_error = ""
+                return result
+        except ConditionalCollectionMutationError:
+            raise
+        except Exception as error:
+            self.last_save_error = str(error)
+            raise ConditionalCollectionRepositoryError(
+                "The collection repository could not complete the conditional "
+                "mutation."
+            ) from error
+
+    def _load_raw_record_for_conditional_mutation(
+        self,
+        record_id: str,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        if not os.path.exists(self.storage_path):
+            raise ConditionalCollectionRecordNotFoundError(record_id)
+        with open(self.storage_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if not isinstance(payload, list) or any(
+            not isinstance(row, dict) for row in payload
+        ):
+            raise ConditionalCollectionRepositoryError(
+                "Collection JSON must be an array of record objects."
+            )
+        matches = [row for row in payload if row.get("id") == record_id]
+        if not matches:
+            raise ConditionalCollectionRecordNotFoundError(record_id)
+        if len(matches) != 1:
+            raise ConditionalCollectionRepositoryError(
+                "Collection JSON contains a duplicate target record ID."
+            )
+        return payload, matches[0]
+
+    @staticmethod
+    def _raw_conditional_field_value(
+        target: dict[str, Any],
+        field_name: str,
+    ) -> str | None:
+        if field_name not in target:
+            return None
+        value = target[field_name]
+        if not isinstance(value, str):
+            raise ConditionalCollectionRepositoryError(
+                f"Collection field {field_name!r} must contain a string when present."
+            )
+        return value
     
     def add_item(self, item: CoinItem) -> bool:
         """Add item to collection."""
