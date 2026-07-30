@@ -22,6 +22,13 @@ from typing import Optional
 from PIL import Image, UnidentifiedImageError
 
 from capture_import.workflow_ocr_models import OCRMetadataReport
+from capture_import.workflow_ocr_cleanup_diagnostics import (
+    OCRProviderCleanupDiagnostic,
+    OCRProviderCleanupDiagnosticSeverity,
+)
+from capture_import.workflow_ocr_provider_contracts import (
+    OCRProviderCapabilities,
+)
 from capture_import.workflow_pipeline import StageContractError
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
@@ -29,6 +36,7 @@ from ocr_workflow_adapter import OCRWorkflowAdapter
 
 
 RawTextResolver = Callable[[str, str, str, bytes], Optional[str]]
+CleanupDiagnosticSink = Callable[[OCRProviderCleanupDiagnostic], None]
 
 
 class LegacyOCRWorkflowProvider:
@@ -41,13 +49,42 @@ class LegacyOCRWorkflowProvider:
         validation_engine: OCRValidationEngine | None = None,
         adapter: OCRWorkflowAdapter | None = None,
         raw_text_resolver: RawTextResolver | None = None,
+        cleanup_capabilities: OCRProviderCapabilities | None = None,
+        cleanup_diagnostic_sink: CleanupDiagnosticSink | None = None,
     ) -> None:
+        if (cleanup_capabilities is None) != (
+            cleanup_diagnostic_sink is None
+        ):
+            raise ValueError(
+                "cleanup_capabilities and cleanup_diagnostic_sink "
+                "must be supplied together."
+            )
+        if cleanup_capabilities is not None:
+            if not isinstance(
+                cleanup_capabilities,
+                OCRProviderCapabilities,
+            ):
+                raise TypeError(
+                    "cleanup_capabilities must be OCRProviderCapabilities."
+                )
+            cleanup_capabilities.validate()
+            if cleanup_capabilities.provider_id != self.provider_id:
+                raise ValueError(
+                    "cleanup capabilities must describe legacy-ocr."
+                )
+        if (
+            cleanup_diagnostic_sink is not None
+            and not callable(cleanup_diagnostic_sink)
+        ):
+            raise TypeError("cleanup_diagnostic_sink must be callable.")
         self._experiment = experiment or OCRExperiment()
         self._validation_engine = (
             validation_engine or OCRValidationEngine()
         )
         self._adapter = adapter or OCRWorkflowAdapter()
         self._raw_text_resolver = raw_text_resolver
+        self._cleanup_capabilities = cleanup_capabilities
+        self._cleanup_diagnostic_sink = cleanup_diagnostic_sink
 
     @property
     def provider_id(self) -> str:
@@ -84,7 +121,10 @@ class LegacyOCRWorkflowProvider:
                 engine=self.provider_id,
             )
         else:
-            suggestion = self._run_with_temporary_image(image_bytes)
+            suggestion = self._run_with_temporary_image(
+                image_bytes,
+                artifact_key=artifact_key,
+            )
 
         validation = self._validation_engine.validate(
             suggestion_report=suggestion
@@ -103,6 +143,8 @@ class LegacyOCRWorkflowProvider:
     def _run_with_temporary_image(
         self,
         image_bytes: bytes,
+        *,
+        artifact_key: str,
     ):
         temporary_path: Path | None = None
 
@@ -125,7 +167,27 @@ class LegacyOCRWorkflowProvider:
                 try:
                     temporary_path.unlink(missing_ok=True)
                 except OSError:
-                    pass
+                    if self._cleanup_diagnostic_sink is not None:
+                        self._publish_cleanup_diagnostic(
+                            artifact_key=artifact_key,
+                        )
+
+    def _publish_cleanup_diagnostic(self, *, artifact_key: str) -> None:
+        """Publish one advisory warning without endangering valid OCR output."""
+
+        try:
+            self._cleanup_diagnostic_sink(
+                OCRProviderCleanupDiagnostic(
+                    provider=self._cleanup_capabilities,
+                    severity=OCRProviderCleanupDiagnosticSeverity.WARNING,
+                    diagnostic_code="TEMPORARY_IMAGE_DELETE_FAILED",
+                    artifact_key=artifact_key,
+                )
+            )
+        except Exception:
+            # The sink is advisory.  Its failure must not replace valid OCR
+            # evidence or expose arbitrary callback exception text.
+            pass
 
     @staticmethod
     def _validate_image_bytes(image_bytes: bytes) -> None:
