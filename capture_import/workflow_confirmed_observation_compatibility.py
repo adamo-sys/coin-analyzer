@@ -111,60 +111,74 @@ class ConfirmedObservationCompatibilityValidator:
     def _validate_monarch_year(
         observations: dict[str, ConfirmedFieldObservation],
     ) -> ConfirmedObservationCompatibilityResult:
-        monarch_observation = observations.get("monarch")
-        year_observation = observations.get("year")
-        if monarch_observation is None or year_observation is None:
-            return ConfirmedObservationCompatibilityResult(
-                rule_id=_MONARCH_YEAR_RULE_ID,
-                fields=_MONARCH_YEAR_FIELDS,
-                status=(
-                    ConfirmedObservationCompatibilityStatus.NOT_EVALUATED
-                ),
-                message=(
-                    "Monarch/year compatibility requires both confirmed "
-                    "fields."
-                ),
-            )
+        return _assess_monarch_year_compatibility(observations)
 
-        monarch = monarch_observation.submitted_value
-        year_text = year_observation.submitted_value
-        bounds = _MONARCH_YEAR_RANGES.get(monarch)
-        if bounds is None:
-            return ConfirmedObservationCompatibilityResult(
-                rule_id=_MONARCH_YEAR_RULE_ID,
-                fields=_MONARCH_YEAR_FIELDS,
-                status=(
-                    ConfirmedObservationCompatibilityStatus.NOT_EVALUATED
-                ),
-                message=(
-                    "Monarch/year compatibility is not defined for the "
-                    "exact submitted monarch."
-                ),
-            )
 
-        year = int(year_text)
-        minimum, maximum = bounds
-        if not minimum <= year <= maximum:
-            raise IncompatibleConfirmedObservationError(
-                rule_id=_MONARCH_YEAR_RULE_ID,
-                field_values=(
-                    ("monarch", monarch),
-                    ("year", year_text),
-                ),
-                message=(
-                    f"Monarch {monarch!r} is incompatible with year "
-                    f"{year_text!r} under the bounded reign rule."
-                ),
-            )
+def _assess_monarch_year_compatibility(
+    observations: dict[str, ConfirmedFieldObservation],
+) -> ConfirmedObservationCompatibilityResult:
+    """Private shared helper for monarch/year compatibility evaluation.
 
+    This helper carries the authoritative bounded reign rule and is intentionally
+    private so the existing public validator API remains unchanged while Sprint
+    17 field-intelligence code can reuse the same implementation without
+    duplicating the rule or its deterministic behavior.
+    """
+
+    monarch_observation = observations.get("monarch")
+    year_observation = observations.get("year")
+    if monarch_observation is None or year_observation is None:
         return ConfirmedObservationCompatibilityResult(
             rule_id=_MONARCH_YEAR_RULE_ID,
             fields=_MONARCH_YEAR_FIELDS,
-            status=ConfirmedObservationCompatibilityStatus.COMPATIBLE,
+            status=(
+                ConfirmedObservationCompatibilityStatus.NOT_EVALUATED
+            ),
             message=(
-                "Monarch and year satisfy the inclusive bounded reign rule."
+                "Monarch/year compatibility requires both confirmed "
+                "fields."
             ),
         )
+
+    monarch = monarch_observation.submitted_value
+    year_text = year_observation.submitted_value
+    bounds = _MONARCH_YEAR_RANGES.get(monarch)
+    if bounds is None:
+        return ConfirmedObservationCompatibilityResult(
+            rule_id=_MONARCH_YEAR_RULE_ID,
+            fields=_MONARCH_YEAR_FIELDS,
+            status=(
+                ConfirmedObservationCompatibilityStatus.NOT_EVALUATED
+            ),
+            message=(
+                "Monarch/year compatibility is not defined for the "
+                "exact submitted monarch."
+            ),
+        )
+
+    year = int(year_text)
+    minimum, maximum = bounds
+    if not minimum <= year <= maximum:
+        raise IncompatibleConfirmedObservationError(
+            rule_id=_MONARCH_YEAR_RULE_ID,
+            field_values=(
+                ("monarch", monarch),
+                ("year", year_text),
+            ),
+            message=(
+                f"Monarch {monarch!r} is incompatible with year "
+                f"{year_text!r} under the bounded reign rule."
+            ),
+        )
+
+    return ConfirmedObservationCompatibilityResult(
+        rule_id=_MONARCH_YEAR_RULE_ID,
+        fields=_MONARCH_YEAR_FIELDS,
+        status=ConfirmedObservationCompatibilityStatus.COMPATIBLE,
+        message=(
+            "Monarch and year satisfy the inclusive bounded reign rule."
+        ),
+    )
 
 
 def validate_confirmed_observation_compatibility(
