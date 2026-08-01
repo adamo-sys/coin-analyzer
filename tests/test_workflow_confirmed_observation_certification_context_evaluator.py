@@ -10,7 +10,7 @@ import unittest
 import capture_import.workflow_confirmed_observation_certification_context_evaluator as module
 from capture_import.workflow_confirmed_observation_certification_context_evaluator import (
     CertificationContextEvaluationError,
-    InvalidCertificationContextEvaluationContextError,
+    InvalidCertificationContextEvaluationError,
     assess_certification_context,
 )
 from capture_import.workflow_confirmed_observation_certification_context_rules import (
@@ -32,7 +32,7 @@ from capture_import.workflow_confirmed_observation_models import (
 
 PUBLIC_API = {
     "CertificationContextEvaluationError",
-    "InvalidCertificationContextEvaluationContextError",
+    "InvalidCertificationContextEvaluationError",
     "assess_certification_context",
 }
 RELEVANT_VALUES = {
@@ -165,12 +165,12 @@ class ErrorContractTests(unittest.TestCase):
     def test_exact_error_hierarchy(self) -> None:
         self.assertIs(CertificationContextEvaluationError.__base__, ValueError)
         self.assertIs(
-            InvalidCertificationContextEvaluationContextError.__base__,
+            InvalidCertificationContextEvaluationError.__base__,
             CertificationContextEvaluationError,
         )
 
     def test_errors_are_immutable(self) -> None:
-        error = InvalidCertificationContextEvaluationContextError("bounded")
+        error = InvalidCertificationContextEvaluationError("bounded")
         with self.assertRaises(AttributeError):
             error.detail = "changed"  # type: ignore[attr-defined]
         with self.assertRaises(AttributeError):
@@ -178,21 +178,21 @@ class ErrorContractTests(unittest.TestCase):
 
     def test_wrong_source_type_is_typed(self) -> None:
         with self.assertRaisesRegex(
-            InvalidCertificationContextEvaluationContextError,
+            InvalidCertificationContextEvaluationError,
             "ConfirmedObservationSet",
         ):
             assess_certification_context(object(), generic_catalog())
 
     def test_wrong_catalog_type_is_typed(self) -> None:
         with self.assertRaisesRegex(
-            InvalidCertificationContextEvaluationContextError,
+            InvalidCertificationContextEvaluationError,
             "CertificationContextRuleCatalog",
         ):
             assess_certification_context(source(), object())
 
     def test_wrong_evaluation_context_type_is_typed(self) -> None:
         with self.assertRaisesRegex(
-            InvalidCertificationContextEvaluationContextError,
+            InvalidCertificationContextEvaluationError,
             "CertificationEvaluationContext",
         ):
             assess_certification_context(source(), generic_catalog(), object())
@@ -200,7 +200,7 @@ class ErrorContractTests(unittest.TestCase):
     def test_source_validation_precedes_catalog_validation(self) -> None:
         malformed = source({"certification_number": "private-invalid-value"})
         with self.assertRaisesRegex(
-            InvalidCertificationContextEvaluationContextError,
+            InvalidCertificationContextEvaluationError,
             "confirmed-observation validation",
         ):
             assess_certification_context(malformed, object())
@@ -208,7 +208,7 @@ class ErrorContractTests(unittest.TestCase):
     def test_nested_validation_text_does_not_leak(self) -> None:
         malformed = source({"certification_number": "private-invalid-value"})
         with self.assertRaises(
-            InvalidCertificationContextEvaluationContextError
+            InvalidCertificationContextEvaluationError
         ) as captured:
             assess_certification_context(malformed, generic_catalog())
         self.assertNotIn("private-invalid-value", str(captured.exception))
@@ -226,7 +226,7 @@ class ErrorContractTests(unittest.TestCase):
                 selected = dict(RELEVANT_VALUES)
                 selected.update(values)
                 with self.assertRaises(
-                    InvalidCertificationContextEvaluationContextError
+                    InvalidCertificationContextEvaluationError
                 ):
                     assess_certification_context(
                         source(selected),
@@ -237,13 +237,13 @@ class ErrorContractTests(unittest.TestCase):
     def test_forged_empty_source_is_typed(self) -> None:
         malformed = source()
         object.__setattr__(malformed, "observations", ())
-        with self.assertRaises(InvalidCertificationContextEvaluationContextError):
+        with self.assertRaises(InvalidCertificationContextEvaluationError):
             assess_certification_context(malformed, generic_catalog())
 
     def test_forged_nested_source_is_typed_without_attribute_error(self) -> None:
         malformed = source()
         object.__setattr__(malformed, "observations", (object(),))
-        with self.assertRaises(InvalidCertificationContextEvaluationContextError):
+        with self.assertRaises(InvalidCertificationContextEvaluationError):
             assess_certification_context(malformed, generic_catalog())
 
 

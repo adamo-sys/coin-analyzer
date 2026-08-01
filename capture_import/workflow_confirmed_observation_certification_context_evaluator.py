@@ -28,7 +28,7 @@ from .workflow_confirmed_observation_validators import (
 
 __all__ = [
     "CertificationContextEvaluationError",
-    "InvalidCertificationContextEvaluationContextError",
+    "InvalidCertificationContextEvaluationError",
     "assess_certification_context",
 ]
 
@@ -51,10 +51,16 @@ class CertificationContextEvaluationError(ValueError):
         )
 
 
-class InvalidCertificationContextEvaluationContextError(
+class InvalidCertificationContextEvaluationError(
     CertificationContextEvaluationError
 ):
     """The source, catalog, or evaluation context cannot be safely evaluated."""
+
+
+def __getattr__(name: str) -> object:
+    if name == "InvalidCertificationContextEvaluationContextError":
+        return InvalidCertificationContextEvaluationError
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def assess_certification_context(
@@ -174,13 +180,13 @@ def assess_certification_context(
 
 def _require_valid_source(value: object) -> _ConfirmedObservationSet:
     if not isinstance(value, _ConfirmedObservationSet):
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "source must be a valid ConfirmedObservationSet."
         )
     try:
         _validate_confirmed_observation_set(value)
     except Exception:
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "source must pass confirmed-observation validation."
         ) from None
     return value
@@ -188,13 +194,13 @@ def _require_valid_source(value: object) -> _ConfirmedObservationSet:
 
 def _require_valid_catalog(value: object) -> _CertificationContextRuleCatalog:
     if not isinstance(value, _CertificationContextRuleCatalog):
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "catalog must be a valid CertificationContextRuleCatalog."
         )
     try:
         value.validate()
     except Exception:
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "catalog must pass certification-context rule validation."
         ) from None
     return value
@@ -204,13 +210,13 @@ def _require_valid_evaluation_context(
     value: object,
 ) -> _CertificationEvaluationContext:
     if not isinstance(value, _CertificationEvaluationContext):
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "evaluation_context must be a valid CertificationEvaluationContext."
         )
     try:
         value.validate()
     except Exception:
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "evaluation_context must pass certification-context evaluation validation."
         ) from None
     return value
@@ -240,7 +246,7 @@ def _matched_finding(
     try:
         rule_id = rule.rule_id
     except AttributeError:
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "validated certification-context evaluation state is malformed."
         ) from None
     return _finding(
@@ -267,7 +273,7 @@ def _finding(
         )
         result.validate()
     except Exception:
-        raise InvalidCertificationContextEvaluationContextError(
+        raise InvalidCertificationContextEvaluationError(
             "validated certification-context finding state is malformed."
         ) from None
     return result
