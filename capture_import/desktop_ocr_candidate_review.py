@@ -37,7 +37,9 @@ PreviewResolver = Callable[
     [OCRReviewCandidateView],
     "OCRCandidatePreview | None",
 ]
+AdjustedPreviewRenderer = Callable[[float, float], object]
 ReviewCallback = Callable[[tuple[OCRFieldReview, ...]], None]
+_PreviewIdentity = tuple[str, str, str]
 
 _REVIEW_IMAGE_ROLES = ("front", "reverse")
 _REVIEW_IMAGE_LABELS = {
@@ -45,6 +47,14 @@ _REVIEW_IMAGE_LABELS = {
     "reverse": "Reverse image",
 }
 _NARROW_PREVIEW_WIDTH = 620
+_ZOOM_MINIMUM = 0.5
+_ZOOM_DEFAULT = 1.0
+_ZOOM_MAXIMUM = 3.0
+_ZOOM_STEP = 0.25
+_CONTRAST_MINIMUM = 0.5
+_CONTRAST_DEFAULT = 1.0
+_CONTRAST_MAXIMUM = 2.0
+_CONTRAST_STEP = 0.1
 
 
 def _candidate_identity(
@@ -78,6 +88,7 @@ class OCRCandidatePreview:
     reference: str
     image: object | None = None
     unavailable_reason: str | None = None
+    adjusted_image_renderer: AdjustedPreviewRenderer | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.reference, str):
@@ -90,6 +101,13 @@ class OCRCandidatePreview:
         ):
             raise TypeError(
                 "unavailable_reason must be a string or None."
+            )
+        if (
+            self.adjusted_image_renderer is not None
+            and not callable(self.adjusted_image_renderer)
+        ):
+            raise TypeError(
+                "adjusted_image_renderer must be callable or None."
             )
 
 
@@ -117,7 +135,137 @@ class _OCRReviewSidePreview:
     role: str
     label: str
     alt_text: str
+    identity: _PreviewIdentity
     preview: OCRCandidatePreview
+
+
+@dataclass(frozen=True, slots=True)
+class _ImageReviewAdjustment:
+    zoom: float = _ZOOM_DEFAULT
+    contrast: float = _CONTRAST_DEFAULT
+
+    @property
+    def label(self) -> str:
+        return f"Zoom {self.zoom:.2f}×; contrast {self.contrast:.2f}×"
+
+
+class _ImageReviewAdjustmentStore:
+    """Dialog-local adjustment values and rendered-image references."""
+
+    __slots__ = ("_adjustments", "_rendered_images")
+
+    def __init__(self) -> None:
+        self._adjustments: dict[_PreviewIdentity, _ImageReviewAdjustment] = {}
+        self._rendered_images: dict[_PreviewIdentity, object] = {}
+
+    def adjustment(
+        self,
+        identity: _PreviewIdentity,
+    ) -> _ImageReviewAdjustment:
+        return self._adjustments.get(identity, _ImageReviewAdjustment())
+
+    def displayed_image(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+    ) -> object | None:
+        return self._rendered_images.get(identity, preview.image)
+
+    @staticmethod
+    def is_adjustable(preview: OCRCandidatePreview) -> bool:
+        return (
+            preview.image is not None
+            and preview.adjusted_image_renderer is not None
+        )
+
+    def change_zoom(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+        steps: int,
+    ) -> object:
+        current = self.adjustment(identity)
+        proposed = _ImageReviewAdjustment(
+            zoom=_bounded_value(
+                current.zoom + _require_steps(steps) * _ZOOM_STEP,
+                _ZOOM_MINIMUM,
+                _ZOOM_MAXIMUM,
+            ),
+            contrast=current.contrast,
+        )
+        return self._render(identity, preview, current, proposed)
+
+    def change_contrast(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+        steps: int,
+    ) -> object:
+        current = self.adjustment(identity)
+        proposed = _ImageReviewAdjustment(
+            zoom=current.zoom,
+            contrast=_bounded_value(
+                current.contrast + _require_steps(steps) * _CONTRAST_STEP,
+                _CONTRAST_MINIMUM,
+                _CONTRAST_MAXIMUM,
+            ),
+        )
+        return self._render(identity, preview, current, proposed)
+
+    def reset(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+    ) -> object | None:
+        self._adjustments.pop(identity, None)
+        self._rendered_images.pop(identity, None)
+        return preview.image
+
+    def _render(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+        current: _ImageReviewAdjustment,
+        proposed: _ImageReviewAdjustment,
+    ) -> object:
+        renderer = preview.adjusted_image_renderer
+        if preview.image is None or renderer is None:
+            raise ValueError(
+                "Image adjustments are unavailable for this preview."
+            )
+        if proposed == current:
+            displayed = self.displayed_image(identity, preview)
+            if displayed is None:
+                raise ValueError(
+                    "Image adjustments are unavailable for this preview."
+                )
+            return displayed
+        try:
+            rendered = renderer(proposed.zoom, proposed.contrast)
+        except Exception:
+            raise ValueError("Image adjustment could not be rendered.") from None
+        if rendered is None:
+            raise ValueError("Image adjustment could not be rendered.")
+        self._adjustments[identity] = proposed
+        self._rendered_images[identity] = rendered
+        return rendered
+
+
+@dataclass(frozen=True, slots=True)
+class _OCRReviewSideWidgets:
+    side: _OCRReviewSidePreview
+    image_label: ttk.Label
+    adjustment_var: tk.StringVar
+
+
+def _require_steps(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("adjustment steps must be an integer.")
+    return value
+
+
+def _bounded_value(value: float, minimum: float, maximum: float) -> float:
+    return round(min(maximum, max(minimum, value)), 2)
 
 
 def _preview_column_count(width: int) -> int:
@@ -444,6 +592,11 @@ class OCRCandidateReviewModel:
                     alt_text=(
                         f"{label} for coin {candidate.source_coin_id}"
                     ),
+                    identity=(
+                        candidate.source_coin_id,
+                        role,
+                        preview.reference,
+                    ),
                     preview=preview,
                 )
             )
@@ -459,6 +612,11 @@ class OCRCandidateReviewModel:
                 role=current.image_role,
                 label="Source image",
                 alt_text=f"Source image for coin {current.source_coin_id}",
+                identity=(
+                    current.source_coin_id,
+                    current.image_role,
+                    preview.reference,
+                ),
                 preview=preview,
             ),
         )
@@ -481,8 +639,16 @@ class OCRCandidateReviewDialog:
 
         self._model = model
         self._on_close = on_close
-        self._preview_images: tuple[object, ...] = ()
+        self._adjustments = _ImageReviewAdjustmentStore()
+        self._preview_images: dict[
+            _PreviewIdentity,
+            tuple[object, ...],
+        ] = {}
         self._preview_panels: tuple[ttk.LabelFrame, ...] = ()
+        self._preview_widgets: dict[
+            _PreviewIdentity,
+            _OCRReviewSideWidgets,
+        ] = {}
 
         self.window = tk.Toplevel(parent)
         self.window.title("OCR Candidate Review")
@@ -748,12 +914,14 @@ class OCRCandidateReviewDialog:
                 anchor=tk.CENTER,
                 takefocus=True,
             ).grid(row=0, column=0, sticky="nsew", padx=4, pady=8)
-            self._preview_images = ()
+            self._preview_images = {}
             self._preview_panels = ()
+            self._preview_widgets = {}
             return
 
         panels = []
-        images = []
+        images: dict[_PreviewIdentity, tuple[object, ...]] = {}
+        widgets: dict[_PreviewIdentity, _OCRReviewSideWidgets] = {}
         for side in sides:
             panel = ttk.LabelFrame(
                 self._preview_grid,
@@ -761,7 +929,11 @@ class OCRCandidateReviewDialog:
                 padding="6",
             )
             preview = side.preview
-            if preview.image is None:
+            displayed_image = self._adjustments.displayed_image(
+                side.identity,
+                preview,
+            )
+            if displayed_image is None:
                 image_label = ttk.Label(
                     panel,
                     text=(
@@ -772,26 +944,158 @@ class OCRCandidateReviewDialog:
                     takefocus=True,
                 )
             else:
-                images.append(preview.image)
                 image_label = ttk.Label(
                     panel,
-                    image=preview.image,
+                    image=displayed_image,
                     text=side.alt_text,
                     compound=tk.BOTTOM,
                     anchor=tk.CENTER,
                     takefocus=True,
                 )
+                retained = [displayed_image]
+                if preview.image is not displayed_image:
+                    retained.append(preview.image)
+                images[side.identity] = tuple(retained)
             image_label.pack(fill=tk.BOTH, expand=True)
             ttk.Label(
                 panel,
                 text=f"Reference: {preview.reference}",
                 wraplength=320,
             ).pack(fill=tk.X, pady=(6, 0))
+            adjustment = self._adjustments.adjustment(side.identity)
+            adjustment_var = tk.StringVar(value=adjustment.label)
+            ttk.Label(
+                panel,
+                textvariable=adjustment_var,
+                takefocus=True,
+            ).pack(fill=tk.X, pady=(6, 0))
+            controls = ttk.Frame(panel)
+            controls.pack(fill=tk.X, pady=(4, 0))
+            control_state = (
+                tk.NORMAL
+                if self._adjustments.is_adjustable(preview)
+                else tk.DISABLED
+            )
+            control_specs = (
+                (
+                    "Zoom out",
+                    lambda identity=side.identity: self._change_zoom(
+                        identity,
+                        -1,
+                    ),
+                ),
+                (
+                    "Zoom in",
+                    lambda identity=side.identity: self._change_zoom(
+                        identity,
+                        1,
+                    ),
+                ),
+                (
+                    "Contrast down",
+                    lambda identity=side.identity: self._change_contrast(
+                        identity,
+                        -1,
+                    ),
+                ),
+                (
+                    "Contrast up",
+                    lambda identity=side.identity: self._change_contrast(
+                        identity,
+                        1,
+                    ),
+                ),
+                (
+                    "Reset view",
+                    lambda identity=side.identity: self._reset_adjustment(
+                        identity
+                    ),
+                ),
+            )
+            for index, (text, command) in enumerate(control_specs):
+                ttk.Button(
+                    controls,
+                    text=text,
+                    command=command,
+                    state=control_state,
+                    takefocus=True,
+                ).grid(
+                    row=index // 3,
+                    column=index % 3,
+                    padx=(0, 4),
+                    pady=(0, 4),
+                    sticky=tk.W,
+                )
+            widgets[side.identity] = _OCRReviewSideWidgets(
+                side=side,
+                image_label=image_label,
+                adjustment_var=adjustment_var,
+            )
             panels.append(panel)
 
-        self._preview_images = tuple(images)
+        self._preview_images = images
         self._preview_panels = tuple(panels)
+        self._preview_widgets = widgets
         self._layout_preview_panels(self._preview_frame.winfo_width())
+
+    def _change_zoom(self, identity: _PreviewIdentity, steps: int) -> None:
+        self._change_adjustment(identity, "zoom", steps)
+
+    def _change_contrast(
+        self,
+        identity: _PreviewIdentity,
+        steps: int,
+    ) -> None:
+        self._change_adjustment(identity, "contrast", steps)
+
+    def _change_adjustment(
+        self,
+        identity: _PreviewIdentity,
+        adjustment_name: str,
+        steps: int,
+    ) -> None:
+        widgets = self._preview_widgets[identity]
+        try:
+            if adjustment_name == "zoom":
+                image = self._adjustments.change_zoom(
+                    identity,
+                    widgets.side.preview,
+                    steps,
+                )
+            else:
+                image = self._adjustments.change_contrast(
+                    identity,
+                    widgets.side.preview,
+                    steps,
+                )
+        except (TypeError, ValueError) as exc:
+            self._error_var.set(str(exc))
+            return
+        self._error_var.set("")
+        widgets.image_label.config(image=image)
+        original = widgets.side.preview.image
+        retained = [image]
+        if original is not None and original is not image:
+            retained.append(original)
+        self._preview_images[identity] = tuple(retained)
+        widgets.adjustment_var.set(
+            self._adjustments.adjustment(identity).label
+        )
+
+    def _reset_adjustment(self, identity: _PreviewIdentity) -> None:
+        widgets = self._preview_widgets[identity]
+        image = self._adjustments.reset(identity, widgets.side.preview)
+        if image is None:
+            self._error_var.set(
+                "Image adjustments are unavailable for this preview."
+            )
+            return
+        self._error_var.set("")
+        widgets.image_label.config(image=image)
+        self._preview_images[identity] = (image,)
+        widgets.adjustment_var.set(
+            self._adjustments.adjustment(identity).label
+        )
 
     def _layout_preview_panels(self, width: int) -> None:
         columns = _preview_column_count(width)

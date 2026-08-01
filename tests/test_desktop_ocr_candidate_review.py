@@ -11,10 +11,16 @@ import unittest
 from unittest.mock import patch
 
 from capture_import.desktop_ocr_candidate_review import (
+    AdjustedPreviewRenderer,
     OCRCandidatePreview,
     OCRCandidateReviewDialog,
     OCRCandidateReviewDisplay,
     OCRCandidateReviewModel,
+    _CONTRAST_MAXIMUM,
+    _CONTRAST_MINIMUM,
+    _ImageReviewAdjustmentStore,
+    _ZOOM_MAXIMUM,
+    _ZOOM_MINIMUM,
     _preview_column_count,
     create_ocr_candidate_review_dialog,
 )
@@ -368,6 +374,223 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertEqual(display.preview.reference, "existing-reference")
         self.assertIs(display.preview.image, image)
 
+    def test_adjusted_preview_renderer_contract_is_optional(self) -> None:
+        image = object()
+
+        legacy = OCRCandidatePreview(reference="legacy", image=image)
+        renderer: AdjustedPreviewRenderer = lambda _zoom, _contrast: object()
+        adjustable = OCRCandidatePreview(
+            reference="adjustable",
+            image=image,
+            adjusted_image_renderer=renderer,
+        )
+
+        self.assertIsNone(legacy.adjusted_image_renderer)
+        self.assertIs(adjustable.adjusted_image_renderer, renderer)
+        with self.assertRaisesRegex(TypeError, "must be callable"):
+            OCRCandidatePreview(
+                reference="invalid",
+                adjusted_image_renderer=object(),  # type: ignore[arg-type]
+            )
+
+    def test_adjustment_defaults_and_callback_argument_forwarding(self) -> None:
+        calls = []
+        rendered = object()
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=object(),
+            adjusted_image_renderer=lambda zoom, contrast: (
+                calls.append((zoom, contrast)) or rendered
+            ),
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+
+        self.assertEqual(store.adjustment(identity).zoom, 1.0)
+        self.assertEqual(store.adjustment(identity).contrast, 1.0)
+        self.assertIs(store.change_zoom(identity, preview, 1), rendered)
+        self.assertEqual(calls, [(1.25, 1.0)])
+
+    def test_zoom_steps_and_boundaries_are_enforced(self) -> None:
+        calls = []
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=object(),
+            adjusted_image_renderer=lambda zoom, contrast: (
+                calls.append((zoom, contrast)) or object()
+            ),
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+
+        store.change_zoom(identity, preview, 100)
+        self.assertEqual(store.adjustment(identity).zoom, _ZOOM_MAXIMUM)
+        store.change_zoom(identity, preview, 1)
+        self.assertEqual(calls[-1], (_ZOOM_MAXIMUM, 1.0))
+        store.change_zoom(identity, preview, -100)
+        self.assertEqual(store.adjustment(identity).zoom, _ZOOM_MINIMUM)
+        with self.assertRaisesRegex(TypeError, "steps"):
+            store.change_zoom(identity, preview, True)  # type: ignore[arg-type]
+
+    def test_contrast_steps_and_boundaries_are_enforced(self) -> None:
+        calls = []
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=object(),
+            adjusted_image_renderer=lambda zoom, contrast: (
+                calls.append((zoom, contrast)) or object()
+            ),
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+
+        store.change_contrast(identity, preview, 1)
+        self.assertEqual(calls[-1], (1.0, 1.1))
+        store.change_contrast(identity, preview, 100)
+        self.assertEqual(
+            store.adjustment(identity).contrast,
+            _CONTRAST_MAXIMUM,
+        )
+        store.change_contrast(identity, preview, -100)
+        self.assertEqual(
+            store.adjustment(identity).contrast,
+            _CONTRAST_MINIMUM,
+        )
+
+    def test_reset_restores_original_without_callback(self) -> None:
+        original = object()
+        calls = []
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=original,
+            adjusted_image_renderer=lambda zoom, contrast: (
+                calls.append((zoom, contrast)) or object()
+            ),
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+        store.change_zoom(identity, preview, 1)
+
+        reset_image = store.reset(identity, preview)
+
+        self.assertIs(reset_image, original)
+        self.assertEqual(calls, [(1.25, 1.0)])
+        self.assertEqual(store.adjustment(identity).zoom, 1.0)
+        self.assertEqual(store.adjustment(identity).contrast, 1.0)
+
+    def test_adjustment_state_is_independent_by_side_and_reference(self) -> None:
+        preview = OCRCandidatePreview(
+            reference="shared",
+            image=object(),
+            adjusted_image_renderer=lambda _zoom, _contrast: object(),
+        )
+        store = _ImageReviewAdjustmentStore()
+        front = ("coin-1", "front", "front-a")
+        reverse = ("coin-1", "reverse", "reverse-a")
+        next_front = ("coin-1", "front", "front-b")
+
+        store.change_zoom(front, preview, 1)
+        store.change_contrast(reverse, preview, 1)
+
+        self.assertEqual(store.adjustment(front).zoom, 1.25)
+        self.assertEqual(store.adjustment(front).contrast, 1.0)
+        self.assertEqual(store.adjustment(reverse).zoom, 1.0)
+        self.assertEqual(store.adjustment(reverse).contrast, 1.1)
+        self.assertEqual(store.adjustment(next_front).zoom, 1.0)
+
+    def test_legacy_and_missing_previews_are_not_adjustable(self) -> None:
+        store = _ImageReviewAdjustmentStore()
+        legacy = OCRCandidatePreview(reference="legacy", image=object())
+        missing = OCRCandidatePreview(
+            reference="missing",
+            adjusted_image_renderer=lambda _zoom, _contrast: object(),
+        )
+
+        self.assertFalse(store.is_adjustable(legacy))
+        self.assertFalse(store.is_adjustable(missing))
+        with self.assertRaisesRegex(ValueError, "unavailable"):
+            store.change_zoom(("coin-1", "front", "legacy"), legacy, 1)
+
+    def test_render_failure_preserves_prior_valid_state_and_image(self) -> None:
+        original = object()
+        valid = object()
+        calls = 0
+
+        def render(_zoom, _contrast):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return valid
+            raise RuntimeError("decoder detail must not leak")
+
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=original,
+            adjusted_image_renderer=render,
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+        store.change_zoom(identity, preview, 1)
+
+        with self.assertRaisesRegex(ValueError, "could not be rendered") as ctx:
+            store.change_contrast(identity, preview, 1)
+
+        self.assertNotIn("decoder", str(ctx.exception))
+        self.assertEqual(store.adjustment(identity).zoom, 1.25)
+        self.assertEqual(store.adjustment(identity).contrast, 1.0)
+        self.assertIs(store.displayed_image(identity, preview), valid)
+
+    def test_rendered_image_is_retained_until_reset(self) -> None:
+        rendered = object()
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=object(),
+            adjusted_image_renderer=lambda _zoom, _contrast: rendered,
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+
+        store.change_zoom(identity, preview, 1)
+
+        self.assertIs(store.displayed_image(identity, preview), rendered)
+        self.assertIs(store.reset(identity, preview), preview.image)
+        self.assertIs(store.displayed_image(identity, preview), preview.image)
+
+    def test_none_render_result_preserves_default_state(self) -> None:
+        original = object()
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=original,
+            adjusted_image_renderer=lambda _zoom, _contrast: None,
+        )
+        store = _ImageReviewAdjustmentStore()
+        identity = ("coin-1", "front", "front")
+
+        with self.assertRaisesRegex(ValueError, "could not be rendered"):
+            store.change_zoom(identity, preview, 1)
+
+        self.assertEqual(store.adjustment(identity).zoom, 1.0)
+        self.assertIs(store.displayed_image(identity, preview), original)
+
+    def test_visual_adjustment_does_not_mutate_report_or_evidence(self) -> None:
+        candidate = _candidate(evidence=("date glyphs",))
+        report = _report(candidate)
+        before = report.to_dict()
+        preview = OCRCandidatePreview(
+            reference="front",
+            image=object(),
+            adjusted_image_renderer=lambda _zoom, _contrast: object(),
+        )
+        store = _ImageReviewAdjustmentStore()
+
+        store.change_contrast(
+            ("coin-1", "front", "front"),
+            preview,
+            1,
+        )
+
+        self.assertEqual(report.to_dict(), before)
+
     def test_approve_creates_existing_review_decision(self) -> None:
         controller = RecordingController()
         model = self.model(_candidate(), controller=controller)
@@ -653,6 +876,16 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         )
         self.assertIn('"<Configure>"', source)
         self.assertIn("takefocus=True", source)
+        for accessible_name in (
+            "Zoom out",
+            "Zoom in",
+            "Contrast down",
+            "Contrast up",
+            "Reset view",
+        ):
+            self.assertIn(accessible_name, source)
+        self.assertIn("state=control_state", source)
+        self.assertIn("row=index // 3", source)
 
 
 if __name__ == "__main__":
