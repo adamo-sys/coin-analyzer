@@ -389,8 +389,10 @@ class OwnershipTests(WorkspaceTestCase):
     def test_cleanup_rejects_substituted_directory_identity(self) -> None:
         workspace = self.make_workspace()
         original = workspace.path
+        impostor = self.root / "impostor"
+        impostor.mkdir()
         original.rmdir()  # remove the genuine owned directory (it is empty)
-        original.mkdir()  # impostor with the same name but a new identity
+        impostor.rename(original)
         with self.assertRaises(WorkspaceCleanupError):
             workspace.close()
         # The impostor directory must NOT be deleted by this instance.
