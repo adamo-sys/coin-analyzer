@@ -234,8 +234,11 @@ class AllocationTests(WorkspaceTestCase):
                 os.symlink(outside, link, target_is_directory=True)
             except (OSError, NotImplementedError) as error:
                 self.skipTest(f"symlink creation unavailable on this platform: {error}")
-            with self.assertRaises(WorkspacePathError):
-                workspace.allocate_path("linkdir/escape.bin")
+            try:
+                with self.assertRaises(WorkspacePathError):
+                    workspace.allocate_path("linkdir/escape.bin")
+            finally:
+                link.unlink()
 
 
 class CleanupTests(WorkspaceTestCase):
