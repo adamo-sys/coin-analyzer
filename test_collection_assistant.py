@@ -10,6 +10,7 @@ from datetime import datetime
 import os
 import tempfile
 import shutil
+from unittest.mock import patch
 
 from collection_assistant import (
     CollectionAssistantEngine,
@@ -349,11 +350,19 @@ class TestCollectionAssistantEngine(unittest.TestCase):
     def test_complete_session(self):
         """Test completing a session."""
         self._create_candidate_with_ocr("CANADA 10 CENTS 1880")
-        completed = self.engine.complete_session("test_session")
+        started_at = datetime(2026, 8, 1, 12, 0, 0)
+        completed_at = datetime(2026, 8, 1, 12, 0, 5)
+        self.session.start_time = started_at
+
+        with patch("collection_assistant.datetime") as clock:
+            clock.now.return_value = completed_at
+            completed = self.engine.complete_session("test_session")
+
         self.assertIsNotNone(completed)
         self.assertEqual(completed.status, "completed")
-        self.assertIsNotNone(completed.end_time)
-        self.assertGreater(completed.duration.total_seconds(), 0)
+        self.assertEqual(completed.end_time, completed_at)
+        self.assertEqual(completed.duration.total_seconds(), 5.0)
+        self.assertEqual(completed.metrics.total_session_time, 5.0)
 
     def test_export_session_markdown(self):
         """Test session Markdown export."""
