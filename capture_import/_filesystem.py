@@ -461,9 +461,11 @@ def open_existing_binary_for_delete(path: Path) -> BinaryIO:
 
     require_plain_regular_file(path)
     if os.name != "nt":
-        flags = os.O_RDWR | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(
+            os, "O_NOFOLLOW", 0
+        )
         descriptor = os.open(path, flags)
-        handle = os.fdopen(descriptor, "r+b", buffering=0)
+        handle = os.fdopen(descriptor, "rb", buffering=0)
     else:
         handle = _open_windows_binary(path, create_new=False)
     if not handle_matches_path(handle, path):

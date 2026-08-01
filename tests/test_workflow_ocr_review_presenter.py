@@ -9,6 +9,10 @@ import inspect
 import json
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_conflict_resolution import (
     OCRConflictResolutionDecision,
     OCRConflictResolutionRequest,
@@ -420,7 +424,7 @@ class OCRReviewPresenterTests(unittest.TestCase):
 
         with self.assertRaises(FrozenInstanceError):
             view.field_name = "country"  # type: ignore[misc]
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, view):
             view.extra = "no"  # type: ignore[attr-defined]
 
     def test_inputs_remain_unchanged(self) -> None:

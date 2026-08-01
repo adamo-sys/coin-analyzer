@@ -10,6 +10,10 @@ from types import MappingProxyType
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
     ConfirmedFieldObservation,
@@ -829,7 +833,7 @@ class ImmutabilityAndArchitectureTests(unittest.TestCase):
         for value in (result.findings[0], result):
             with self.subTest(value=value):
                 self.assertFalse(hasattr(value, "__dict__"))
-                with self.assertRaises(FrozenInstanceError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.extra = True  # type: ignore[attr-defined]
                 self.assertFalse(hasattr(type(value), "to_dict"))
                 self.assertFalse(hasattr(type(value), "from_dict"))

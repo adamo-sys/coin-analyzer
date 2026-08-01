@@ -11,6 +11,10 @@ import json
 from pathlib import Path
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
     ConfirmedFieldObservation,
@@ -733,7 +737,7 @@ class ImmutabilityAndArchitectureTests(unittest.TestCase):
                 field_name = next(iter(value.__dataclass_fields__))
                 with self.assertRaises(FrozenInstanceError):
                     setattr(value, field_name, object())
-                with self.assertRaises(AttributeError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.unexpected = object()
 
     def test_public_api_is_bounded_to_contracts_and_enums(self) -> None:

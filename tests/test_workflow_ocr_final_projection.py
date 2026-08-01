@@ -6,6 +6,10 @@ import json
 import unittest
 from dataclasses import FrozenInstanceError, replace
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_conflict_resolution import (
     OCRConflictResolutionDecision,
     OCRResolvedConsolidatedField,
@@ -332,7 +336,7 @@ class OCRFinalMetadataProjectionServiceTests(unittest.TestCase):
             projected.final_value = "Other"  # type: ignore[misc]
         with self.assertRaises(FrozenInstanceError):
             result.final_fields = ()  # type: ignore[misc]
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, projected):
             projected.extra = "no"  # type: ignore[attr-defined]
 
     def test_serialization_is_json_safe_and_deterministic(self) -> None:

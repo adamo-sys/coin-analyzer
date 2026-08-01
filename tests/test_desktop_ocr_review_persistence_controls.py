@@ -11,6 +11,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.desktop_ocr_candidate_review import (
     OCRCandidateReviewModel,
 )
@@ -412,7 +416,7 @@ class PersistenceControlContractTests(unittest.TestCase):
             with self.subTest(value=type(value).__name__):
                 with self.assertRaises(FrozenInstanceError):
                     setattr(value, name, object())
-                with self.assertRaises(AttributeError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.unexpected = object()
 
     def test_model_holds_only_explicit_ephemeral_state(self) -> None:

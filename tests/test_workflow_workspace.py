@@ -234,8 +234,11 @@ class AllocationTests(WorkspaceTestCase):
                 os.symlink(outside, link, target_is_directory=True)
             except (OSError, NotImplementedError) as error:
                 self.skipTest(f"symlink creation unavailable on this platform: {error}")
-            with self.assertRaises(WorkspacePathError):
-                workspace.allocate_path("linkdir/escape.bin")
+            try:
+                with self.assertRaises(WorkspacePathError):
+                    workspace.allocate_path("linkdir/escape.bin")
+            finally:
+                link.unlink()
 
 
 class CleanupTests(WorkspaceTestCase):
@@ -386,8 +389,10 @@ class OwnershipTests(WorkspaceTestCase):
     def test_cleanup_rejects_substituted_directory_identity(self) -> None:
         workspace = self.make_workspace()
         original = workspace.path
+        impostor = self.root / "impostor"
+        impostor.mkdir()
         original.rmdir()  # remove the genuine owned directory (it is empty)
-        original.mkdir()  # impostor with the same name but a new identity
+        impostor.rename(original)
         with self.assertRaises(WorkspaceCleanupError):
             workspace.close()
         # The impostor directory must NOT be deleted by this instance.

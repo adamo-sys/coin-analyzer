@@ -176,8 +176,9 @@ def _execute_opt_in_handoff(
         runtime_factory=runtime_factory,
     )
     workflow = ImportWorkflow(composition.pipeline)
+    fixture_root = Path.cwd() / "unit-1f"
     request = ImportRequest(
-        source=Path("C:/unit-1f/source.ca-package"),
+        source=fixture_root / "source.ca-package",
         collection_id="collection-not-used",
         configuration=ImportConfiguration(),
     )
@@ -187,7 +188,7 @@ def _execute_opt_in_handoff(
     ) as reader:
         outcome = workflow.execute(
             request,
-            Path("C:/unit-1f/workspace"),
+            fixture_root / "workspace",
         )
     if reader.call_count != 2:
         raise AssertionError("Expected one injected read per image role.")

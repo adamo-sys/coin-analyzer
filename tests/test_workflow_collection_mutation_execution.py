@@ -11,6 +11,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from coin_collection import CoinCollection
 from collection_management.collection_mutation_repository import (
     CONDITIONAL_COLLECTION_MUTATION_FIELDS,
@@ -211,7 +215,7 @@ class PublicContractTests(unittest.TestCase):
         result.validate()
         for value in (change, result):
             self.assertFalse(hasattr(value, "__dict__"))
-            with self.assertRaises(FrozenInstanceError):
+            with assert_frozen_slotted_assignment_rejected(self, value):
                 value.extra = "forbidden"  # type: ignore[attr-defined]
         for invalid in (
             ConditionalCollectionFieldChange("grade", "MS65", "MS66"),

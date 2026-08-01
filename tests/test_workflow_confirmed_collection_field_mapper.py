@@ -11,6 +11,10 @@ from types import MappingProxyType
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from coin_collection import CoinItem
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
@@ -602,7 +606,7 @@ class ImmutabilityAndArchitectureTests(unittest.TestCase):
                 field_name = next(iter(value.__dataclass_fields__))
                 with self.assertRaises(FrozenInstanceError):
                     setattr(value, field_name, object())
-                with self.assertRaises(AttributeError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.unexpected = object()
 
     def test_mapper_is_stateless(self) -> None:

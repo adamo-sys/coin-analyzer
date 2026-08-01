@@ -10,6 +10,10 @@ import inspect
 import json
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_conflict_resolution import (
     OCRConflictResolutionDecision,
 )
@@ -213,7 +217,7 @@ class OCRReviewSessionEnvelopeConstructionTests(unittest.TestCase):
 
         with self.assertRaises(FrozenInstanceError):
             envelope.session_id = "changed"
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, envelope):
             envelope.extra = "value"
 
     def test_blank_session_id_is_rejected(self) -> None:

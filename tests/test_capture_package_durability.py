@@ -17,6 +17,7 @@ from coin_collection import CoinCollection
 from capture_import._advisory import release_advisory_lock
 from capture_import.baseline import capture_collection_baseline
 from capture_import._filesystem import (
+    delete_open_file,
     open_existing_binary_for_delete,
     path_object_identity,
 )
@@ -528,6 +529,18 @@ class CapturePackageDurabilityTests(unittest.TestCase):
                 open_existing_binary_for_delete(target)
         self.assertTrue(swapped)
         self.assertTrue(target.is_symlink())
+
+    @unittest.skipIf(os.name == "nt", "POSIX read-only delete-open policy")
+    def test_posix_delete_open_accepts_read_only_regular_file(self) -> None:
+        target = self.root / "read-only-delete.bin"
+        target.write_bytes(b"verified bytes")
+        target.chmod(0o400)
+
+        with open_existing_binary_for_delete(target) as handle:
+            self.assertEqual(handle.read(), b"verified bytes")
+            delete_open_file(handle, target)
+
+        self.assertFalse(target.exists())
 
     def test_preterminal_missing_snapshot_fails_recovery_deterministically(self) -> None:
         original_update = self.journals.update

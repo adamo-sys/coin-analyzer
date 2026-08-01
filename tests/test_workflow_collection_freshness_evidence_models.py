@@ -10,6 +10,10 @@ import json
 import unicodedata
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from collection_management.workflow_collection_change_plan_models import (
     CollectionRecordReference,
 )
@@ -714,7 +718,7 @@ class ImmutabilityAndArchitectureTests(unittest.TestCase):
         for value in (field, evidence):
             with self.subTest(value=value):
                 self.assertFalse(hasattr(value, "__dict__"))
-                with self.assertRaises(FrozenInstanceError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.extra = True  # type: ignore[attr-defined]
         with self.assertRaises(FrozenInstanceError):
             field.value = "changed"  # type: ignore[misc]
