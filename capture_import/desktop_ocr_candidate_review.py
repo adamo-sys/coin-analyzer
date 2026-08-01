@@ -39,6 +39,13 @@ PreviewResolver = Callable[
 ]
 ReviewCallback = Callable[[tuple[OCRFieldReview, ...]], None]
 
+_REVIEW_IMAGE_ROLES = ("front", "reverse")
+_REVIEW_IMAGE_LABELS = {
+    "front": "Obverse image",
+    "reverse": "Reverse image",
+}
+_NARROW_PREVIEW_WIDTH = 620
+
 
 def _candidate_identity(
     candidate: OCRReviewCandidateView,
@@ -101,6 +108,22 @@ class OCRCandidateReviewDisplay:
     @property
     def has_candidate(self) -> bool:
         return self.candidate is not None
+
+
+@dataclass(frozen=True, slots=True)
+class _OCRReviewSidePreview:
+    """Private render state for one side of the current coin."""
+
+    role: str
+    label: str
+    alt_text: str
+    preview: OCRCandidatePreview
+
+
+def _preview_column_count(width: int) -> int:
+    """Return the responsive preview column count for a dialog width."""
+
+    return 1 if width < _NARROW_PREVIEW_WIDTH else 2
 
 
 class OCRCandidateReviewModel:
@@ -383,6 +406,63 @@ class OCRCandidateReviewModel:
             )
         return preview
 
+    def _side_previews(
+        self,
+        display: OCRCandidateReviewDisplay,
+    ) -> tuple[_OCRReviewSidePreview, ...]:
+        """Resolve available obverse/reverse evidence without changing APIs."""
+
+        current = display.candidate
+        if current is None:
+            return ()
+
+        candidates_by_role: dict[str, OCRReviewCandidateView] = {}
+        for candidate in self._state.candidates:
+            if candidate.source_coin_id != current.source_coin_id:
+                continue
+            if candidate.image_role not in _REVIEW_IMAGE_ROLES:
+                continue
+            candidates_by_role.setdefault(candidate.image_role, candidate)
+        if current.image_role in _REVIEW_IMAGE_ROLES:
+            candidates_by_role[current.image_role] = current
+
+        sides = []
+        for role in _REVIEW_IMAGE_ROLES:
+            candidate = candidates_by_role.get(role)
+            if candidate is None:
+                continue
+            preview = (
+                display.preview
+                if candidate is current and display.preview is not None
+                else self._resolve_preview(candidate)
+            )
+            label = _REVIEW_IMAGE_LABELS[role]
+            sides.append(
+                _OCRReviewSidePreview(
+                    role=role,
+                    label=label,
+                    alt_text=(
+                        f"{label} for coin {candidate.source_coin_id}"
+                    ),
+                    preview=preview,
+                )
+            )
+
+        if sides:
+            return tuple(sides)
+
+        preview = display.preview
+        if preview is None:
+            return ()
+        return (
+            _OCRReviewSidePreview(
+                role=current.image_role,
+                label="Source image",
+                alt_text=f"Source image for coin {current.source_coin_id}",
+                preview=preview,
+            ),
+        )
+
 
 class OCRCandidateReviewDialog:
     """Concrete Tkinter dialog backed entirely by the headless model."""
@@ -401,7 +481,8 @@ class OCRCandidateReviewDialog:
 
         self._model = model
         self._on_close = on_close
-        self._preview_image: object | None = None
+        self._preview_images: tuple[object, ...] = ()
+        self._preview_panels: tuple[ttk.LabelFrame, ...] = ()
 
         self.window = tk.Toplevel(parent)
         self.window.title("OCR Candidate Review")
@@ -419,7 +500,6 @@ class OCRCandidateReviewDialog:
         self._confidence_var = tk.StringVar()
         self._evidence_var = tk.StringVar()
         self._human_state_var = tk.StringVar()
-        self._preview_reference_var = tk.StringVar()
         self._correction_var = tk.StringVar()
         self._reason_var = tk.StringVar()
         self._error_var = tk.StringVar()
@@ -463,29 +543,24 @@ class OCRCandidateReviewDialog:
                 wraplength=540,
             ).grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        preview_frame = ttk.LabelFrame(
+        self._preview_frame = ttk.LabelFrame(
             content,
-            text="Source preview",
+            text="Coin image review",
             padding="8",
         )
-        preview_frame.grid(
+        self._preview_frame.grid(
             row=10,
             column=0,
             columnspan=2,
-            sticky=(tk.W, tk.E),
+            sticky=(tk.W, tk.E, tk.N, tk.S),
             pady=(12, 8),
         )
-        self._preview_label = ttk.Label(
-            preview_frame,
-            text="Preview unavailable",
-            anchor=tk.CENTER,
+        self._preview_grid = ttk.Frame(self._preview_frame)
+        self._preview_grid.pack(fill=tk.BOTH, expand=True)
+        self._preview_frame.bind(
+            "<Configure>",
+            lambda event: self._layout_preview_panels(event.width),
         )
-        self._preview_label.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(
-            preview_frame,
-            textvariable=self._preview_reference_var,
-            wraplength=680,
-        ).pack(fill=tk.X, pady=(6, 0))
 
         decision_frame = ttk.LabelFrame(
             content,
@@ -616,12 +691,7 @@ class OCRCandidateReviewDialog:
                 variable.set("")
             self._confidence_var.set(display.confidence_label)
             self._evidence_var.set(display.evidence_label)
-            self._preview_reference_var.set("")
-            self._preview_image = None
-            self._preview_label.config(
-                image="",
-                text="No OCR candidates",
-            )
+            self._render_side_previews(())
             for button in self._action_buttons:
                 button.config(state=tk.DISABLED)
         else:
@@ -636,7 +706,7 @@ class OCRCandidateReviewDialog:
             self._human_state_var.set(candidate.human_review_label)
             for button in self._action_buttons:
                 button.config(state=tk.NORMAL)
-            self._render_preview(display.preview)
+            self._render_side_previews(self._model._side_previews(display))
 
         review = self._model.current_review
         self._correction_var.set(
@@ -664,33 +734,80 @@ class OCRCandidateReviewDialog:
             )
         )
 
-    def _render_preview(
+    def _render_side_previews(
         self,
-        preview: OCRCandidatePreview | None,
+        sides: tuple[_OCRReviewSidePreview, ...],
     ) -> None:
-        if preview is None:
-            self._preview_image = None
-            self._preview_reference_var.set("")
-            self._preview_label.config(
-                image="",
-                text="Preview unavailable",
-            )
+        for child in self._preview_grid.winfo_children():
+            child.destroy()
+
+        if not sides:
+            ttk.Label(
+                self._preview_grid,
+                text="No obverse or reverse images are available for review.",
+                anchor=tk.CENTER,
+                takefocus=True,
+            ).grid(row=0, column=0, sticky="nsew", padx=4, pady=8)
+            self._preview_images = ()
+            self._preview_panels = ()
             return
 
-        self._preview_reference_var.set(
-            f"Reference: {preview.reference}"
+        panels = []
+        images = []
+        for side in sides:
+            panel = ttk.LabelFrame(
+                self._preview_grid,
+                text=side.label,
+                padding="6",
+            )
+            preview = side.preview
+            if preview.image is None:
+                image_label = ttk.Label(
+                    panel,
+                    text=(
+                        preview.unavailable_reason
+                        or f"{side.label} unavailable"
+                    ),
+                    anchor=tk.CENTER,
+                    takefocus=True,
+                )
+            else:
+                images.append(preview.image)
+                image_label = ttk.Label(
+                    panel,
+                    image=preview.image,
+                    text=side.alt_text,
+                    compound=tk.BOTTOM,
+                    anchor=tk.CENTER,
+                    takefocus=True,
+                )
+            image_label.pack(fill=tk.BOTH, expand=True)
+            ttk.Label(
+                panel,
+                text=f"Reference: {preview.reference}",
+                wraplength=320,
+            ).pack(fill=tk.X, pady=(6, 0))
+            panels.append(panel)
+
+        self._preview_images = tuple(images)
+        self._preview_panels = tuple(panels)
+        self._layout_preview_panels(self._preview_frame.winfo_width())
+
+    def _layout_preview_panels(self, width: int) -> None:
+        columns = _preview_column_count(width)
+        self._preview_grid.columnconfigure(0, weight=1)
+        self._preview_grid.columnconfigure(
+            1,
+            weight=1 if columns == 2 else 0,
         )
-        if preview.image is not None:
-            self._preview_image = preview.image
-            self._preview_label.config(image=preview.image, text="")
-        else:
-            self._preview_image = None
-            self._preview_label.config(
-                image="",
-                text=(
-                    preview.unavailable_reason
-                    or "Preview unavailable"
-                ),
+        for index, panel in enumerate(self._preview_panels):
+            panel.grid_forget()
+            panel.grid(
+                row=index // columns,
+                column=index % columns,
+                sticky="nsew",
+                padx=4,
+                pady=4,
             )
 
     def _run_action(self, action: Callable[[], object]) -> None:
