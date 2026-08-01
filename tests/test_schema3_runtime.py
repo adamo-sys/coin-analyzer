@@ -544,8 +544,8 @@ class CollectionObservationTests(unittest.TestCase):
         self.temporary = self._verified(
             self.temporary, temporary_path
         )
-        temporary_path.unlink()
         (self.root / "collection.json").write_bytes(self.payload)
+        temporary_path.unlink()
         self.assertEqual(self._observe().state, "CONFLICTING")
 
 
