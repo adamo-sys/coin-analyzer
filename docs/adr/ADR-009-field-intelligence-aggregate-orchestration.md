@@ -1,6 +1,6 @@
 # ADR-009: Field-Intelligence Aggregate Orchestration
 
-- Status: Proposed
+- Status: Accepted (implemented and verified)
 - Date: 2026-08-01
 - Scope: Separately named post-Sprint-17 architecture amendment
 
@@ -356,6 +356,28 @@ This architecture does not authorize:
 9. No durable state, readiness authority, collection authority, or runtime default is introduced.
 10. Every existing leaf evaluator remains independently callable and behaviorally unchanged.
 11. The locked roadmap and its Sprint 18 scope remain unchanged.
+
+## Implementation verification
+
+The approved design was implemented in commit `7a7c1ed` with exactly these new
+files:
+
+- `capture_import/workflow_confirmed_observation_field_intelligence_orchestrator.py`;
+- `tests/test_workflow_confirmed_observation_field_intelligence_orchestrator.py`.
+
+Verification on 2026-08-01 completed with:
+
+- focused aggregate orchestration: 25 tests passed;
+- existing assessment and five leaf evaluators: 178 tests passed;
+- authoritative root discovery: 4,270 tests run, 23 skipped, zero failures,
+  and zero errors;
+- `git diff --check`: passed.
+
+Independent review confirmed that the implementation invokes every leaf exactly
+once on successful calls, filters only exact `None`, validates and retains exact
+finding objects, orders findings lexically by `rule_id`, preserves the exact
+source, and adds no persistence, readiness, collection, default-catalog, built-in
+knowledge, normalization, inference, registry, DTO, or runtime-wiring behavior.
 
 ## Reconsider when
 
