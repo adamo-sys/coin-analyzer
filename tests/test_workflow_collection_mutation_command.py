@@ -8,6 +8,10 @@ import inspect
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
     ConfirmedFieldObservation,
@@ -752,7 +756,7 @@ class ImmutabilityDeterminismAndArchitectureTests(unittest.TestCase):
             command.items = ()  # type: ignore[misc]
         with self.assertRaises(FrozenInstanceError):
             item.eligibility_finding = object()  # type: ignore[misc]
-        with self.assertRaises((AttributeError, FrozenInstanceError)):
+        with assert_frozen_slotted_assignment_rejected(self, item):
             item.desired_value = "changed"  # type: ignore[misc]
         self.assertFalse(hasattr(command, "__dict__"))
         self.assertFalse(hasattr(item, "__dict__"))

@@ -8,6 +8,10 @@ from unittest.mock import patch
 
 from PIL import Image
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_cleanup_diagnostics import (
     InvalidOCRProviderCleanupDiagnosticContextError,
     OCRProviderCleanupDiagnostic,
@@ -215,7 +219,7 @@ class TestCleanupDiagnosticContract(unittest.TestCase):
         item = warning(self.batch)
         with self.assertRaises((FrozenInstanceError, AttributeError)):
             item.diagnostic_code = "CHANGED"  # type: ignore[misc]
-        with self.assertRaises((FrozenInstanceError, AttributeError)):
+        with assert_frozen_slotted_assignment_rejected(self, item):
             item.extra = object()  # type: ignore[attr-defined]
 
 
@@ -381,7 +385,7 @@ class TestCleanupWrapper(unittest.TestCase):
         wrapped = OCRProviderExecutionWithCleanup(batch, (warning(batch),))
         with self.assertRaises((FrozenInstanceError, AttributeError)):
             wrapped.batch = batch  # type: ignore[misc]
-        with self.assertRaises((FrozenInstanceError, AttributeError)):
+        with assert_frozen_slotted_assignment_rejected(self, wrapped):
             wrapped.extra = object()  # type: ignore[attr-defined]
 
 

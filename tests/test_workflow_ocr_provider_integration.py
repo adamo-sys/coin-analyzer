@@ -5,6 +5,10 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.enums import ImageRole
 from capture_import.workflow_ocr_provider_contracts import (
     OCRProviderAvailability,
@@ -269,7 +273,7 @@ class TestIntegrationAggregate(unittest.TestCase):
         )
         with self.assertRaises((FrozenInstanceError, AttributeError)):
             integration.bindings = None  # type: ignore[misc]
-        with self.assertRaises((FrozenInstanceError, AttributeError)):
+        with assert_frozen_slotted_assignment_rejected(self, integration):
             integration.extra = object()  # type: ignore[attr-defined]
 
 

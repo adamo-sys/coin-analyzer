@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import replace
 import importlib
 import inspect
 import json
 import unittest
+
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
 
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
@@ -740,7 +744,7 @@ class ImmutabilityAndAtomicityTests(unittest.TestCase):
         for value in values:
             with self.subTest(contract=type(value).__name__):
                 self.assertFalse(hasattr(value, "__dict__"))
-                with self.assertRaises(FrozenInstanceError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.extra = True  # type: ignore[attr-defined]
 
     def test_source_plan_and_proposal_remain_unchanged(self) -> None:

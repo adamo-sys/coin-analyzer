@@ -10,6 +10,10 @@ import inspect
 import json
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
     ConfirmedFieldObservation,
@@ -511,7 +515,7 @@ class ConfirmedObservationImmutabilityAndArchitectureTests(
                 field_name = next(iter(value.__dataclass_fields__))
                 with self.assertRaises(FrozenInstanceError):
                     setattr(value, field_name, object())
-                with self.assertRaises(AttributeError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.unexpected = object()
 
     def test_caller_owned_inputs_are_not_mutated(self) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import replace
 from hashlib import sha256
+import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -174,12 +175,24 @@ class DurableCollectionPublisherTests(unittest.TestCase):
                 generation=2,
                 import_lock=import_lock,
             )
-            if __import__("os").name == "nt":
+            if os.name == "nt":
                 backup = publisher.create_windows_backup(
                     backup,
                     generation=3,
                     import_lock=import_lock,
                 )
+            recorded_exchanges: list[
+                tuple[CollectionPublicationArtifact, CollectionPublicationArtifact]
+            ] = []
+
+            def record_exchange(
+                exchanged_temporary: CollectionPublicationArtifact,
+                exchanged_backup: CollectionPublicationArtifact,
+            ) -> None:
+                recorded_exchanges.append(
+                    (exchanged_temporary, exchanged_backup)
+                )
+
             published, retained = publisher.publish(
                 verified,
                 backup,
@@ -187,7 +200,21 @@ class DurableCollectionPublisherTests(unittest.TestCase):
                 exchange_generation=4,
                 publication_generation=5,
                 import_lock=import_lock,
+                on_exchanged=record_exchange,
             )
+            if os.name == "nt":
+                self.assertEqual(recorded_exchanges, [])
+            else:
+                self.assertEqual(len(recorded_exchanges), 1)
+                exchanged_temporary, exchanged_backup = recorded_exchanges[0]
+                self.assertEqual(
+                    exchanged_temporary.state,
+                    CollectionPublicationState.EXCHANGED,
+                )
+                self.assertEqual(
+                    exchanged_backup.state,
+                    CollectionPublicationState.EXCHANGED,
+                )
             self.assertEqual(collection.read_bytes(), prospective_payload)
             self.assertIsNotNone(retained)
             retained_path = collection.parent / retained.current_relative_name
