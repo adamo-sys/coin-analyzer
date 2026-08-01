@@ -1,6 +1,6 @@
 # Sprint 17 Progress
 
-This maintenance update reflects the current repository state for the Sprint 17 field-intelligence workstream. The completed unit list below is taken from the repository history; the remaining unit list reflects the current working tree and the architecture sequence already established in the codebase.
+This closure update records the completed contract and leaf-evaluator scope of the Sprint 17 field-intelligence workstream. Aggregate orchestration and production integration are outside this closure and remain explicitly deferred.
 
 ## 1. Completed Units
 
@@ -18,6 +18,7 @@ The following Sprint 17 units are completed in the existing Git history, in chro
 | 1H | Mintmark rule catalog contracts for deterministic mintmark rule scope and ordering. | `2a692b3` | Complete |
 | 1I | Mintmark compatibility evaluator for exact caller-supplied mintmark evidence evaluation. | `2764942` | Complete |
 | 1J | Certification context rule contracts for caller-supplied grading-company context and exact certification scope records. | `eb74314` | Complete |
+| 1K | Certification-context evaluator for exact caller-supplied grading-company and certification evidence evaluation. | `c7148eb`, refined by `7740f8e` | Complete |
 
 ## 2. Current Architecture
 
@@ -67,7 +68,13 @@ The current evaluator surface is:
 - `capture_import/workflow_confirmed_observation_mintmark_evaluator.py`
   - `assess_mintmark`
 - `capture_import/workflow_confirmed_observation_certification_context_evaluator.py`
-  - `assess_certification_context` (current working-tree implementation; not yet part of repository history)
+  - `assess_certification_context`
+
+All five leaf evaluators are complete and present in repository history. Each
+returns at most one transient `FieldIntelligenceFinding`, or `None` when its
+relevant fields are wholly absent. No public aggregate evaluator currently
+exists to invoke or combine these leaf results into
+`ConfirmedObservationFieldIntelligenceAssessment`.
 
 ### Interaction with `ConfirmedObservationSet`
 
@@ -93,28 +100,36 @@ The current field-intelligence architecture intentionally keeps these boundaries
 - Caller-owned rule catalogs only
 - Advisory outcomes only; no readiness or collection-authority claims
 
-## 3. Remaining Sprint 17 Units
+## 3. Sprint 17 Closure Scope
 
-The remaining planned work is tracked against the current architecture sequence.
+Sprint 17 closes only the field-intelligence contract and leaf-evaluator
+scope. The completed scope consists of the immutable assessment and finding
+contracts, the caller-owned rule-catalog contracts, the shared monarch-year
+compatibility helper, and the five independent leaf evaluators listed above.
 
-| Unit identifier | Planned unit | Status |
-| --- | --- | --- |
-| 1F-B | Certification context evaluator implementation (`assess_certification_context`) | In Progress |
-| Follow-on certification-context integration | End-to-end field-intelligence assessment wiring for certification-context evaluation | Not Started |
-| Follow-on Sprint 17 closure documentation | Final documentation alignment and architecture closure | Deferred |
+Aggregate orchestration is not part of the completed scope. No aggregate
+orchestration function or public aggregate evaluator currently exists, and
+none of the five leaf evaluators is wired into an aggregate production flow.
+Production integration is therefore deferred, not complete.
 
-## 4. Deferred Architecture Decisions
+## 4. Deferred Aggregate Orchestration
 
-The following design questions remain intentionally unresolved or explicitly deferred pending the next controlled implementation unit.
+Aggregate orchestration requires a separately designed architectural unit and
+explicit approval before implementation. That design and approval must cover:
 
-- Certification context evaluator design
-  - Whether the evaluator should treat `grading_company` strictly as caller-supplied evaluation context, or whether future evidence-level observation of grading-company text should override or conflict with the caller context.
-- Evaluation-context handling
-  - Whether conflicting observed certification evidence and explicit caller-supplied evaluation context should remain advisory-only with a deterministic conflict diagnostic, or whether later layers need a more specific policy object.
-- Rule-catalog ownership
-  - The catalog remains caller-owned and deterministic; no default or built-in registration mechanism is defined.
-- Historical numbering knowledge
-  - The architecture explicitly excludes any built-in historical numbering or issuer-format knowledge from the field-intelligence layer.
+1. ownership and module boundary;
+2. the public callable and its signature;
+3. catalog and context inputs;
+4. deterministic evaluator ordering;
+5. handling of `None` findings;
+6. `ConfirmedObservationFieldIntelligenceAssessment` construction and validation;
+7. backward compatibility; and
+8. preservation of transient, advisory-only behaviour.
+
+Until that unit is designed and approved, the leaf evaluators remain
+independent, caller-invoked functions. No documentation in this closure should
+be read as claiming aggregate evaluation, production wiring, persistence,
+readiness authority, or collection-mutation authority.
 
 ## 5. Repository Status
 
@@ -122,12 +137,14 @@ The following design questions remain intentionally unresolved or explicitly def
 
 - Command: `python -m unittest discover -s . -p "test_*.py"`
 - Result: `Ran 4241 tests in 128.602s`
-- Status: `OK (skipped=22)`
+- Status: `OK (skipped=22)`; zero failures and zero errors
 
 ### Current test count
 
-- Current authoritative regression count: 4241 tests
-- Current skipped count: 22
+- Tests run: 4,241
+- Skipped: 22
+- Failures: 0
+- Errors: 0
 
 ### Current architecture baseline
 
@@ -135,11 +152,12 @@ The following design questions remain intentionally unresolved or explicitly def
 - Rule catalogs remain deterministic and caller-supplied.
 - Evaluators remain advisory and non-authoritative.
 - No persistence, readiness, or default-catalog behavior is wired into the layer.
+- No aggregate orchestration or production integration is wired into the layer.
 
-### Known technical debt
+## Closure Decision
 
-None.
+**PASS for the bounded contract and leaf-evaluator scope.**
 
-## Next
-
-The next planned unit is the certification-context evaluator completion and closure of the current working-tree implementation into the repository’s normal Sprint 17 sequence.
+Sprint 17 is closed only for its contracts and five leaf evaluators. Aggregate
+orchestration and production integration remain deferred pending the separate
+architecture design and approval described above.
