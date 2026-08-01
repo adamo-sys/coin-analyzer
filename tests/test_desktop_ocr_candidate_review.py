@@ -15,6 +15,7 @@ from capture_import.desktop_ocr_candidate_review import (
     OCRCandidateReviewDialog,
     OCRCandidateReviewDisplay,
     OCRCandidateReviewModel,
+    _preview_column_count,
     create_ocr_candidate_review_dialog,
 )
 from capture_import.workflow_ocr_models import (
@@ -263,6 +264,109 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             display.preview.unavailable_reason,
             "Preview unavailable: image lease closed",
         )
+
+    def test_two_sided_review_resolves_obverse_and_reverse_together(
+        self,
+    ) -> None:
+        images = {"front": object(), "reverse": object()}
+
+        def resolve(candidate):
+            return OCRCandidatePreview(
+                reference=candidate.artifact_key,
+                image=images[candidate.image_role],
+            )
+
+        model = self.model(
+            _candidate(image_role="front", artifact_key="obverse-crop"),
+            _candidate(
+                field_name="country",
+                value="Canada",
+                image_role="reverse",
+                artifact_key="reverse-crop",
+            ),
+            preview_resolver=resolve,
+        )
+
+        sides = model._side_previews(model.display)
+
+        self.assertEqual(
+            tuple(side.role for side in sides),
+            ("front", "reverse"),
+        )
+        self.assertEqual(
+            tuple(side.label for side in sides),
+            ("Obverse image", "Reverse image"),
+        )
+        self.assertIs(sides[0].preview.image, images["front"])
+        self.assertIs(sides[1].preview.image, images["reverse"])
+
+    def test_one_sided_review_has_clear_obverse_state(self) -> None:
+        model = self.model(_candidate(image_role="front"))
+
+        sides = model._side_previews(model.display)
+
+        self.assertEqual(len(sides), 1)
+        self.assertEqual(sides[0].label, "Obverse image")
+        self.assertEqual(
+            sides[0].alt_text,
+            "Obverse image for coin coin-1",
+        )
+        self.assertEqual(
+            sides[0].preview.unavailable_reason,
+            "Preview unavailable",
+        )
+
+    def test_empty_review_has_no_side_previews(self) -> None:
+        model = self.model()
+
+        self.assertEqual(model._side_previews(model.display), ())
+
+    def test_side_previews_are_scoped_to_current_coin(self) -> None:
+        model = self.model(
+            _candidate(source_coin_id="coin-1", image_role="front"),
+            _candidate(
+                source_coin_id="coin-2",
+                field_name="country",
+                value="Canada",
+                image_role="reverse",
+            ),
+        )
+
+        sides = model._side_previews(model.display)
+
+        self.assertEqual(tuple(side.role for side in sides), ("front",))
+
+    def test_preview_layout_stacks_at_narrow_widths(self) -> None:
+        self.assertEqual(_preview_column_count(619), 1)
+        self.assertEqual(_preview_column_count(620), 2)
+
+    def test_side_preview_accessibility_metadata_is_meaningful(self) -> None:
+        model = self.model(
+            _candidate(image_role="reverse", artifact_key="reverse-crop")
+        )
+
+        side = model._side_previews(model.display)[0]
+
+        self.assertEqual(side.label, "Reverse image")
+        self.assertEqual(
+            side.alt_text,
+            "Reverse image for coin coin-1",
+        )
+
+    def test_existing_current_preview_contract_is_preserved(self) -> None:
+        image = object()
+        model = self.model(
+            _candidate(),
+            preview_resolver=lambda _candidate: OCRCandidatePreview(
+                reference="existing-reference",
+                image=image,
+            ),
+        )
+
+        display = model.display
+
+        self.assertEqual(display.preview.reference, "existing-reference")
+        self.assertIs(display.preview.image, image)
 
     def test_approve_creates_existing_review_decision(self) -> None:
         controller = RecordingController()
@@ -547,6 +651,8 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             "desktop_ocr_candidate_review",
             composition_source,
         )
+        self.assertIn('"<Configure>"', source)
+        self.assertIn("takefocus=True", source)
 
 
 if __name__ == "__main__":

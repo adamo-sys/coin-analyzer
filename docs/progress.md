@@ -197,3 +197,43 @@ Verification completed on 2026-08-01:
 - authoritative root discovery: 4,270 tests run, 23 skipped, zero failures,
   and zero errors;
 - independent ADR-009 and `AGENTS.md` review: PASS.
+
+## Sprint 18 — Image and OCR UX Refinement
+
+**Status: IN PROGRESS**
+
+### Side-by-side obverse/reverse review
+
+The first bounded Sprint 18 slice is complete in commit `a2e5b62`.
+
+- The opt-in OCR candidate-review dialog now presents available obverse and
+  reverse previews together for the current coin.
+- A one-sided review retains a clearly labelled obverse or reverse panel, and
+  an empty review presents an explicit no-images state.
+- Preview panels use the existing injected resolver and immutable OCR review
+  state. Existing candidate-review APIs and the current-preview contract are
+  unchanged.
+- The layout uses two columns when space permits and stacks at narrow widths.
+- Image panels include meaningful side labels, focusable image or fallback
+  content, and descriptive text for available images.
+- No crop, zoom, contrast, candidate-highlighting, keyboard, batch-review, or
+  persistence behavior was added in this slice.
+
+Focused verification on 2026-08-01:
+
+- candidate-review tests: 32 passed;
+- candidate-review plus related desktop review/integration tests: 126 passed;
+- authoritative root discovery: 4,277 tests run, 4,253 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- `git diff --check`: passed;
+- independent `AGENTS.md` and Sprint 18 scope review: PASS.
+
+### Remaining implementation sequence
+
+1. Zoom and contrast controls on the established two-panel review surface.
+2. Explicit crop adjustment with bounded, non-destructive crop state.
+3. OCR candidate highlighting over the stable image-panel presentation.
+4. Keyboard shortcuts after review and image actions are stable.
+5. Batch review using the proven single-coin review flow.
+6. Final end-to-end accessibility pass, while retaining accessibility checks
+   in each preceding slice.
