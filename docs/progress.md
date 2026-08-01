@@ -1,6 +1,6 @@
 # Sprint 17 Progress
 
-This closure update records the completed contract and leaf-evaluator scope of the Sprint 17 field-intelligence workstream. Aggregate orchestration and production integration are outside this closure and remain explicitly deferred.
+This closure update records the completed contract and leaf-evaluator scope of the Sprint 17 field-intelligence workstream. Aggregate orchestration and production integration were outside this closure and were explicitly deferred at that point.
 
 ## 1. Completed Units
 
@@ -112,10 +112,11 @@ orchestration function or public aggregate evaluator currently exists, and
 none of the five leaf evaluators is wired into an aggregate production flow.
 Production integration is therefore deferred, not complete.
 
-## 4. Deferred Aggregate Orchestration
+## 4. Aggregate Orchestration Gate at Sprint 17 Closure
 
-Aggregate orchestration requires a separately designed architectural unit and
-explicit approval before implementation. That design and approval must cover:
+At Sprint 17 closure, aggregate orchestration required a separately designed
+architectural unit and explicit approval before implementation. That design and
+approval had to cover:
 
 1. ownership and module boundary;
 2. the public callable and its signature;
@@ -126,29 +127,29 @@ explicit approval before implementation. That design and approval must cover:
 7. backward compatibility; and
 8. preservation of transient, advisory-only behaviour.
 
-Until that unit is designed and approved, the leaf evaluators remain
-independent, caller-invoked functions. No documentation in this closure should
-be read as claiming aggregate evaluation, production wiring, persistence,
-readiness authority, or collection-mutation authority.
+Until that separate gate was satisfied, the leaf evaluators remained independent,
+caller-invoked functions. No documentation in the Sprint 17 closure should be read
+as claiming aggregate evaluation, production wiring, persistence, readiness
+authority, or collection-mutation authority.
 
-## 5. Repository Status
+## 5. Sprint 17 Closure Repository Status
 
-### Current authoritative regression baseline
+### Closure authoritative regression baseline
 
 - Command: `python -m unittest discover -s . -p "test_*.py"`
 - Result: `Ran 4241 tests in 128.602s`
 - Status: `OK (skipped=22)`; zero failures and zero errors
 
-### Current test count
+### Closure test count
 
 - Tests run: 4,241
 - Skipped: 22
 - Failures: 0
 - Errors: 0
 
-### Current architecture baseline
+### Closure architecture baseline
 
-- Current architecture baseline: a pure, immutable, caller-owned field-intelligence layer over `ConfirmedObservationSet`.
+- Closure architecture baseline: a pure, immutable, caller-owned field-intelligence layer over `ConfirmedObservationSet`.
 - Rule catalogs remain deterministic and caller-supplied.
 - Evaluators remain advisory and non-authoritative.
 - No persistence, readiness, or default-catalog behavior is wired into the layer.
@@ -159,5 +160,40 @@ readiness authority, or collection-mutation authority.
 **PASS for the bounded contract and leaf-evaluator scope.**
 
 Sprint 17 is closed only for its contracts and five leaf evaluators. Aggregate
-orchestration and production integration remain deferred pending the separate
-architecture design and approval described above.
+orchestration remained outside Sprint 17 and is recorded separately below;
+production integration remains deferred.
+
+## Post-Sprint-17 Field-Intelligence Aggregate Orchestration
+
+**Status: VERIFIED**
+
+The separately approved post-Sprint-17 architecture unit is now complete. It is
+not Sprint 18 and does not amend, renumber, reinterpret, or unlock the roadmap.
+Sprint 18 remains "Image and OCR UX refinement."
+
+- Architecture: `docs/adr/ADR-009-field-intelligence-aggregate-orchestration.md`
+- Architecture commit: `4516925`
+- Implementation commit: `7a7c1ed`
+- Public callable:
+  `assess_confirmed_observation_field_intelligence`
+- Owning module:
+  `capture_import/workflow_confirmed_observation_field_intelligence_orchestrator.py`
+
+The aggregate is pure, transient, and advisory. It invokes each of the five
+existing leaf evaluators exactly once on successful calls, passes through the
+exact caller-owned source, catalogs, and certification evaluation context,
+discards only exact `None` results, validates every retained finding, preserves
+finding identity, orders findings lexically by `rule_id`, and returns
+`ConfirmedObservationFieldIntelligenceAssessment` with the exact source.
+
+No leaf API changed. No persistence, readiness authority, collection mutation,
+default catalog, built-in historical knowledge, normalization, inference, DTO,
+registry, package-root export, or default runtime wiring was introduced.
+
+Verification completed on 2026-08-01:
+
+- focused aggregate orchestration: 25 tests passed;
+- existing assessment and five leaf evaluators: 178 tests passed;
+- authoritative root discovery: 4,270 tests run, 23 skipped, zero failures,
+  and zero errors;
+- independent ADR-009 and `AGENTS.md` review: PASS.
