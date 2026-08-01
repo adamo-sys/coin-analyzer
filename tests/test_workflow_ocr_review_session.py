@@ -9,6 +9,10 @@ import json
 import unittest
 from dataclasses import FrozenInstanceError, replace
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_conflict_resolution import (
     OCRConflictResolutionDecision,
     OCRConflictResolutionRequest,
@@ -526,7 +530,7 @@ class OCRReviewSessionServiceTests(unittest.TestCase):
             request.mode = OCRReviewMode.PARTIAL  # type: ignore[misc]
         with self.assertRaises(FrozenInstanceError):
             result.consolidation = object()  # type: ignore[misc]
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, request):
             request.extra = "no"  # type: ignore[attr-defined]
 
     def test_inputs_are_not_mutated(self) -> None:

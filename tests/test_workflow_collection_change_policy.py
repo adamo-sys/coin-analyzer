@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import replace
 import importlib
 import inspect
 from types import MappingProxyType
 import unittest
 from unittest.mock import patch
+
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
 
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
@@ -677,7 +681,7 @@ class TraceabilityAndImmutabilityTests(unittest.TestCase):
         for value in (result, result.assessments[0]):
             with self.subTest(contract=type(value).__name__):
                 self.assertFalse(hasattr(value, "__dict__"))
-                with self.assertRaises(FrozenInstanceError):
+                with assert_frozen_slotted_assignment_rejected(self, value):
                     value.extra = "mutation"  # type: ignore[attr-defined]
 
     def test_assessor_is_stateless_and_slotted(self) -> None:

@@ -10,6 +10,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.workflow_ocr_conflict_resolution import (
     OCRConflictResolutionDecision,
 )
@@ -272,7 +276,7 @@ class OCRReviewSessionPersistenceConstructionTests(unittest.TestCase):
 
         with self.assertRaises(FrozenInstanceError):
             service._repository = RecordingRepository()
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, service):
             service.current_session = "session"
 
     def test_construction_performs_no_repository_operations(self) -> None:

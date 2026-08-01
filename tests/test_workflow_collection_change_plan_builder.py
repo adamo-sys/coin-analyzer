@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import replace
 import importlib
 import inspect
 import json
 import unittest
+
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
 
 from capture_import.workflow_confirmed_observation_models import (
     CURRENT_CONFIRMED_OBSERVATION_SCHEMA_VERSION,
@@ -623,7 +627,7 @@ class ImmutabilityAndBoundaryTests(unittest.TestCase):
     def test_returned_plan_is_frozen_and_slotted(self) -> None:
         plan = build_collection_change_plan(_proposal_result())
         self.assertFalse(hasattr(plan, "__dict__"))
-        with self.assertRaises(FrozenInstanceError):
+        with assert_frozen_slotted_assignment_rejected(self, plan):
             plan.extra = "mutation"  # type: ignore[attr-defined]
 
     def test_no_unit_1e_serializer_or_wrapper_exists(self) -> None:

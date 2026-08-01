@@ -10,6 +10,10 @@ import sys
 import unittest
 from unittest.mock import patch
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.desktop_ocr_review_composition import (
     DesktopOCRReviewComposition,
     create_desktop_ocr_review_composition,
@@ -111,7 +115,7 @@ class DesktopOCRReviewCompositionTests(unittest.TestCase):
         )
         with self.assertRaises(FrozenInstanceError):
             composition.pipeline = object()  # type: ignore[misc]
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, composition):
             composition.extra = "no"  # type: ignore[attr-defined]
 
     def test_repeated_construction_returns_independent_controllers(self) -> None:

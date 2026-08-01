@@ -10,6 +10,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from tests.frozen_dataclass_compat import (
+    assert_frozen_slotted_assignment_rejected,
+)
+
 from capture_import.desktop_ocr_candidate_review import (
     OCRCandidateReviewModel,
     create_ocr_candidate_review_dialog,
@@ -447,7 +451,7 @@ class DesktopOCRReviewPersistenceConstructionTests(unittest.TestCase):
 
         with self.assertRaises(FrozenInstanceError):
             coordinator.persistence_service = object()
-        with self.assertRaises(AttributeError):
+        with assert_frozen_slotted_assignment_rejected(self, coordinator):
             coordinator.current_session = object()
 
     def test_construction_performs_no_repository_or_filesystem_work(
