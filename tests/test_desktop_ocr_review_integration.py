@@ -177,7 +177,7 @@ def _execute_opt_in_handoff(
     )
     workflow = ImportWorkflow(composition.pipeline)
     request = ImportRequest(
-        source=Path("C:/unit-1f/source.ca-package"),
+        source=Path.cwd() / "unit-1f" / "source.ca-package",
         collection_id="collection-not-used",
         configuration=ImportConfiguration(),
     )
