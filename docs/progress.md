@@ -228,12 +228,42 @@ Focused verification on 2026-08-01:
 - `git diff --check`: passed;
 - independent `AGENTS.md` and Sprint 18 scope review: PASS.
 
+### Zoom and contrast controls
+
+The second bounded Sprint 18 slice is complete in commit `6270141`, following
+the callback contract recorded in `docs/SPRINT_18_IMAGE_OCR_UX_REFINEMENT.md`
+and commit `001f06a`.
+
+- `OCRCandidatePreview` accepts an optional `AdjustedPreviewRenderer` callback
+  with signature `Callable[[float, float], object]`.
+- Existing resolvers remain valid. Legacy previews continue to display their
+  original image with visibly disabled adjustment controls.
+- Zoom is bounded from 0.50× through 3.00× in 0.25× steps. Contrast is bounded
+  from 0.50× through 2.00× in 0.10× steps. Both default to 1.00×.
+- Adjustment state is transient and independent by exact coin, side, and
+  preview reference. Reset restores the exact original image without invoking
+  the callback.
+- Rendering failures retain the prior valid values and displayed image while
+  surfacing a bounded dialog error.
+- Controls are focusable, communicate current values, wrap at narrow widths,
+  and preserve paired, single-side, and empty review states.
+- Pixel decoding, transformation, Tk-image creation, and source-image ownership
+  remain with the injected resolver. No transformed image is persisted.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 43 passed;
+- related desktop review/integration tests: 94 passed;
+- authoritative root discovery: 4,288 tests run, 4,264 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent contract, `AGENTS.md`, and Sprint 18 scope review: PASS.
+
 ### Remaining implementation sequence
 
-1. Zoom and contrast controls on the established two-panel review surface.
-2. Explicit crop adjustment with bounded, non-destructive crop state.
-3. OCR candidate highlighting over the stable image-panel presentation.
-4. Keyboard shortcuts after review and image actions are stable.
-5. Batch review using the proven single-coin review flow.
-6. Final end-to-end accessibility pass, while retaining accessibility checks
+1. Explicit crop adjustment with bounded, non-destructive crop state.
+2. OCR candidate highlighting over the stable image-panel presentation.
+3. Keyboard shortcuts after review and image actions are stable.
+4. Batch review using the proven single-coin review flow.
+5. Final end-to-end accessibility pass, while retaining accessibility checks
    in each preceding slice.
