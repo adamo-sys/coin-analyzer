@@ -297,10 +297,43 @@ Verification completed on 2026-08-01:
 - independent contract, backward-compatibility, `AGENTS.md`, and Sprint 18
   scope review: PASS.
 
+### Candidate highlighting
+
+The fourth bounded Sprint 18 slice is complete in commit `2d8450c`.
+
+- Selection remains owned exclusively by the existing current-candidate
+  navigation index; the dialog adds no second selection model or persisted
+  highlight state.
+- The exact preview panel representing the current candidate uses a stronger
+  border, bold panel label, and explicit "Selected candidate reference" text.
+- Other visible same-coin side panels are identified as "Related image
+  evidence (not selected)." This keeps selection understandable without color
+  and without implying approval, rejection, ranking, or confidence.
+- Native focus remains on the existing focusable image, status, and adjustment
+  widgets, so keyboard focus and candidate selection remain distinct.
+- Navigation rebuilds the panels from the new current candidate and moves the
+  selected marker immediately. Multiple references for one side continue to
+  show the current candidate's exact reference.
+- Paired, single-side, unavailable, legacy-preview, narrow-layout, and empty
+  states remain intact.
+- Crop, zoom, and contrast state remains transient and independently keyed by
+  exact coin, side, and preview reference, including across navigation.
+- No public API, renderer callback, source model, candidate order, OCR
+  evidence, review decision, or collection data changed.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 62 passed;
+- related desktop review/integration tests: 94 passed;
+- authoritative root discovery: 4,307 tests run, 4,283 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent selection-ownership, accessibility, `AGENTS.md`, and Sprint 18
+  scope review: PASS.
+
 ### Remaining implementation sequence
 
-1. OCR candidate highlighting over the stable image-panel presentation.
-2. Keyboard shortcuts after review and image actions are stable.
-3. Batch review using the proven single-coin review flow.
-4. Final end-to-end accessibility pass, while retaining accessibility checks
+1. Keyboard shortcuts after review and image actions are stable.
+2. Batch review using the proven single-coin review flow.
+3. Final end-to-end accessibility pass, while retaining accessibility checks
    in each preceding slice.
