@@ -165,3 +165,50 @@ side panel.
 This unit adds no drag canvas, automatic crop inference, destructive editing,
 OCR rerun, image normalization, persistence, candidate highlighting, workflow
 shortcut, batch review, or image-processing dependency inside the dialog.
+
+## Candidate Highlighting
+
+### Selection ownership
+
+Candidate selection remains owned exclusively by
+`OCRCandidateReviewModel.current_candidate`, which derives from the model's
+existing navigation index. The dialog does not introduce a second selection
+value, selectable image state, or persisted highlight state.
+
+The candidate detail fields describe the current candidate. Its exact preview
+reference is the selected visual unit. Other same-coin side previews may remain
+visible as related image evidence, but they are not independently selectable.
+When multiple candidate references exist for one image role, the existing
+side-preview resolver continues to place the current candidate's reference in
+that role's panel.
+
+### Presentation behavior
+
+- Exactly the preview panel representing the current candidate uses the
+  selected-candidate style and the explicit text "Selected candidate
+  reference."
+- Other visible side panels use the text "Related image evidence (not
+  selected)."
+- Selection uses a stronger border, bold panel label, and explicit status text
+  so it does not depend on color alone.
+- Selection styling is persistent presentation state and is distinct from the
+  native focus indication on focusable image, status, and adjustment widgets.
+- Navigation rebuilds the visible panels from the new current candidate, so
+  the highlight moves immediately without duplicating selection ownership.
+- Empty review state exposes no selected candidate. An unavailable preview may
+  still be identified as selected because selection describes the candidate,
+  not image availability.
+- Selection never implies approval, rejection, correction, deferral, ranking,
+  or confidence. Human-review state remains communicated separately.
+
+### Compatibility and ownership
+
+Highlighting does not change preview resolution, crop, zoom, contrast, or
+display-image retention. Existing presentation adjustments remain keyed by
+exact coin, side, and preview reference and survive navigation as before.
+Paired, single-side, legacy-preview, unavailable-preview, narrow-layout, and
+empty-state behavior remains intact.
+
+This unit adds no public API, candidate or preview contract, renderer callback,
+pixel processing, persistence, candidate reranking, evidence mutation, review
+decision change, source-model mutation, or collection-data change.
