@@ -409,7 +409,80 @@ Verification completed on 2026-08-01:
 - independent lifecycle, immutability, persistence-boundary, accessibility,
   `AGENTS.md`, and Sprint 18 scope review: PASS.
 
-### Remaining implementation sequence
+### Sprint 18 implementation status
 
-1. Final end-to-end accessibility pass, while retaining the accessibility
-   checks delivered in each preceding slice.
+No Sprint 18 implementation slice remains. The final accessibility pass is
+complete in commit `248865c`, following the contract recorded in
+`docs/SPRINT_18_IMAGE_OCR_UX_REFINEMENT.md` and commit `c065626`.
+
+### Final OCR candidate-review accessibility pass
+
+- Initial focus is scheduled after idle layout: Reason for a populated queue
+  and Close for an empty queue.
+- Previous and Next return focus to Reason after rebuilding the candidate
+  preview. Successful decisions focus their corresponding visible action;
+  missing correction focuses Correction, and other validation failures focus
+  Reason.
+- Passive summary, status, image, adjustment, crop, validation, and shortcut
+  labels remain readable but no longer add noninteractive Tab stops. Disabled
+  entries, decisions, navigation, and preview adjustments are excluded from
+  traversal.
+- Escape uses the existing Close path from Correction, Reason, and ordinary
+  buttons while workflow shortcuts continue to yield to protected native
+  editing and adjustment controls.
+- Every preview explicitly describes its adjustment capabilities. The reset
+  action is labelled "Reset crop, zoom, and contrast."
+- Dialog content now uses a local Canvas and keyboard-operable vertical ttk
+  Scrollbar. Focus entering an off-screen content descendant scrolls it into
+  view, and readable wrap widths follow the viewport.
+- The paired layout remains at normal widths and stacks below 620 pixels. A
+  minimum window size supplements rather than replaces vertical overflow.
+- Candidate selection, focus, decisions, confidence, conflicts, navigation,
+  callbacks, crop, zoom, contrast, reference matching, persistence, and source
+  ownership remain separate and unchanged.
+- No public API, renderer callback, domain model, application-wide binding,
+  custom theme, external accessibility dependency, persistence call, or
+  collection mutation was added.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 99 passed;
+- related desktop review, session, reconciliation, consolidation, conflict,
+  and persistence-boundary tests: 249 passed;
+- authoritative root discovery: 4,344 tests run, 4,320 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent focus-lifecycle, traversal, responsive-layout, immutability,
+  callback, persistence-boundary, `AGENTS.md`, and Sprint 18 scope review:
+  PASS WITH NOTES.
+
+Headless tests do not prove native Windows assistive-technology behavior. The
+following manual Windows checklist remains pending at 100% and 200% scaling in
+normal and narrow or short layouts:
+
+1. Confirm populated initial focus targets Reason.
+2. Confirm empty initial focus targets Close.
+3. Traverse with Tab and Shift+Tab.
+4. Confirm passive labels are absent from traversal.
+5. Confirm every enabled control is reachable.
+6. Confirm disabled controls are skipped.
+7. Navigate while focus is inside a preview panel.
+8. Exercise each decision and decision replacement.
+9. Trigger missing-correction and missing-reason failures.
+10. Confirm focused descendants remain visible while scrolling.
+11. Inspect paired, single-side, multiple-reference, legacy, and unavailable
+    previews.
+12. Exercise crop, zoom, contrast, and the full reset.
+13. Confirm Escape from Correction and Reason.
+14. Confirm workflow shortcuts preserve native text editing.
+15. Inspect native focus in normal and Windows high-contrast modes.
+16. Inspect narrow or short layout at 200% scaling.
+17. Use Narrator to inspect the title, visible control names, status text, and
+    disabled controls.
+18. Record observations without claiming unsupported live announcements or
+    toolkit guarantees.
+
+Sprint 18 implementation is complete. Native Narrator announcements,
+high-contrast rendering, focus-ring appearance, exact platform traversal, and
+high-DPI presentation remain manual-verification notes rather than automated
+guarantees.
