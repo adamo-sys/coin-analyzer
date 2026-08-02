@@ -212,3 +212,64 @@ empty-state behavior remains intact.
 This unit adds no public API, candidate or preview contract, renderer callback,
 pixel processing, persistence, candidate reranking, evidence mutation, review
 decision change, source-model mutation, or collection-data change.
+
+## Batch Review Queue and Progress
+
+### Batch boundary and action unit
+
+The batch is the complete deterministic candidate queue from the aggregated
+`OCRMetadataReport`. The existing presenter order remains authoritative and
+`source_coin_id` provides coin-aware grouping within that queue. The dialog
+does not create, filter, reorder, or own a second queue.
+
+One current OCR field candidate remains the only action unit. Its existing
+identity, the `OCRCandidateReviewModel` navigation index, and the exact preview
+reference selected for that candidate remain unchanged. Batch presentation
+does not introduce multi-selection, candidate membership, or a coin-level
+decision.
+
+### Derived progress and decision state
+
+Queue progress is derived from the authoritative candidate tuple and complete
+review mapping. It reports total, reviewed, remaining, approved, corrected,
+rejected, and deferred candidate counts, plus the current overall position and
+the current candidate's position within its `source_coin_id` group. Replacing
+a decision changes its category count without changing the reviewed count.
+Navigation changes only current-position presentation.
+
+Unresolved conflict count comes from the existing pure review-session
+controller and consolidation behavior. Equal accepted values remain agreed;
+different accepted values for the same coin and field remain an unresolved
+conflict until the separate conflict-review workflow resolves them. The batch
+presentation does not infer, suppress, or resolve conflicts itself.
+
+Queue-reviewed and domain-complete are distinct states:
+
+- **Queue reviewed** means every candidate has a review, including `DEFER`.
+- **Domain complete** means the queue is reviewed, no review is deferred, and
+  the existing session projection has no unresolved conflict.
+
+An empty queue reports zero counts and no current coin. Reaching either state
+does not navigate, close, persist, complete, abandon, or invoke another
+workflow command.
+
+### Presentation, accessibility, and compatibility
+
+The dialog presents a compact focusable text summary with explicit counts and
+readable queue/domain-state language. It remains wrapping and readable at
+narrow widths, does not rely on color, and does not replace native focus or
+current-candidate highlighting.
+
+Approve, Correct, Reject, Defer, close-callback, and keyboard-shortcut paths
+remain unchanged. Crop, zoom, and contrast state remains keyed by exact coin,
+side, and preview reference. Paired, single-side, multiple-reference, legacy,
+unavailable, and empty preview states remain compatible.
+
+### Exclusions
+
+This unit adds no bulk action, multi-selection, checkbox, select-all,
+automatic advancement, automatic close, Finish/Cancel staging, baseline
+snapshot, transaction, confirmation dialog, persistence integration,
+collection mutation, conflict resolution, candidate filtering or reranking,
+coin-level action, new shortcut, OCR rerun, source-image mutation, evidence
+editing, confidence change, renderer contract, or pixel processing.

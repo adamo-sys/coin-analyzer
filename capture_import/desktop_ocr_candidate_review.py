@@ -210,6 +210,61 @@ class OCRCandidateReviewDisplay:
 
 
 @dataclass(frozen=True, slots=True)
+class _OCRCandidateBatchProgress:
+    """Immutable presentation derived from the current review aggregate."""
+
+    total: int
+    reviewed: int
+    remaining: int
+    approved: int
+    corrected: int
+    rejected: int
+    deferred: int
+    unresolved_conflicts: int
+    overall_position: int | None
+    current_coin_id: str | None
+    coin_position: int | None
+    coin_total: int
+    queue_reviewed: bool
+    domain_complete: bool
+
+    @property
+    def counts_label(self) -> str:
+        return (
+            f"Batch queue: {self.total} total; {self.reviewed} reviewed; "
+            f"{self.remaining} remaining; {self.approved} approved; "
+            f"{self.corrected} corrected; {self.rejected} rejected; "
+            f"{self.deferred} deferred; "
+            f"{self.unresolved_conflicts} unresolved conflicts."
+        )
+
+    @property
+    def position_label(self) -> str:
+        if self.current_coin_id is None:
+            return "No current candidate or coin."
+        return (
+            f"Overall candidate {self.overall_position} of {self.total}; "
+            f"coin {self.current_coin_id}; candidate "
+            f"{self.coin_position} of {self.coin_total} for this coin."
+        )
+
+    @property
+    def state_label(self) -> str:
+        if self.total == 0:
+            return "Batch queue is empty. Domain session is not complete."
+        if not self.queue_reviewed:
+            return (
+                "Queue is not fully reviewed. Domain session is not complete."
+            )
+        if self.domain_complete:
+            return "Queue reviewed. Domain session complete."
+        return (
+            "Queue reviewed. Domain session is not complete because deferred "
+            "decisions or unresolved conflicts remain."
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class _OCRReviewSidePreview:
     """Private render state for one side of the current coin."""
 
@@ -551,6 +606,54 @@ class OCRCandidateReviewModel:
             for key in sorted(self._reviews_by_identity)
         )
 
+    def _batch_progress(self) -> _OCRCandidateBatchProgress:
+        candidates = self._state.candidates
+        reviews = self.reviews
+        total = len(candidates)
+        reviewed = len(reviews)
+        decisions = tuple(review.decision for review in reviews)
+        current = self.current_candidate
+        if current is None:
+            current_coin_id = None
+            overall_position = None
+            coin_position = None
+            coin_total = 0
+        else:
+            current_coin_id = current.source_coin_id
+            overall_position = self._index + 1
+            coin_indices = tuple(
+                index
+                for index, candidate in enumerate(candidates)
+                if candidate.source_coin_id == current_coin_id
+            )
+            coin_position = coin_indices.index(self._index) + 1
+            coin_total = len(coin_indices)
+
+        session = self._state.session
+        queue_reviewed = total > 0 and reviewed == total
+        return _OCRCandidateBatchProgress(
+            total=total,
+            reviewed=reviewed,
+            remaining=total - reviewed,
+            approved=decisions.count(OCRReviewDecision.APPROVE),
+            corrected=decisions.count(OCRReviewDecision.CORRECT),
+            rejected=decisions.count(OCRReviewDecision.REJECT),
+            deferred=decisions.count(OCRReviewDecision.DEFER),
+            unresolved_conflicts=(
+                0 if session is None else session.unresolved_field_count
+            ),
+            overall_position=overall_position,
+            current_coin_id=current_coin_id,
+            coin_position=coin_position,
+            coin_total=coin_total,
+            queue_reviewed=queue_reviewed,
+            domain_complete=(
+                queue_reviewed
+                and session is not None
+                and session.is_complete
+            ),
+        )
+
     @property
     def display(self) -> OCRCandidateReviewDisplay:
         candidate = self.current_candidate
@@ -846,6 +949,9 @@ class OCRCandidateReviewDialog:
         self._correction_var = tk.StringVar()
         self._reason_var = tk.StringVar()
         self._error_var = tk.StringVar()
+        self._batch_counts_var = tk.StringVar()
+        self._batch_position_var = tk.StringVar()
+        self._batch_state_var = tk.StringVar()
 
         self._build_widgets()
         self._bind_shortcuts()
@@ -873,11 +979,37 @@ class OCRCandidateReviewDialog:
         content.pack(fill=tk.BOTH, expand=True)
         content.columnconfigure(1, weight=1)
 
+        batch_summary = ttk.LabelFrame(
+            content,
+            text="Batch review progress",
+            padding="8",
+        )
+        batch_summary.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky=(tk.W, tk.E),
+            pady=(0, 10),
+        )
+        for row, variable in enumerate(
+            (
+                self._batch_counts_var,
+                self._batch_position_var,
+                self._batch_state_var,
+            )
+        ):
+            ttk.Label(
+                batch_summary,
+                textvariable=variable,
+                wraplength=680,
+                takefocus=True,
+            ).grid(row=row, column=0, sticky=tk.W, pady=2)
+
         ttk.Label(
             content,
             textvariable=self._position_var,
             font=("TkDefaultFont", 11, "bold"),
-        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+        ).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
 
         rows = (
             ("Source coin", self._coin_var),
@@ -890,7 +1022,7 @@ class OCRCandidateReviewDialog:
             ("Evidence", self._evidence_var),
             ("Human review", self._human_state_var),
         )
-        for row, (label, variable) in enumerate(rows, start=1):
+        for row, (label, variable) in enumerate(rows, start=2):
             ttk.Label(content, text=f"{label}:").grid(
                 row=row,
                 column=0,
@@ -910,7 +1042,7 @@ class OCRCandidateReviewDialog:
             padding="8",
         )
         self._preview_frame.grid(
-            row=10,
+            row=11,
             column=0,
             columnspan=2,
             sticky=(tk.W, tk.E, tk.N, tk.S),
@@ -929,7 +1061,7 @@ class OCRCandidateReviewDialog:
             padding="8",
         )
         decision_frame.grid(
-            row=11,
+            row=12,
             column=0,
             columnspan=2,
             sticky=(tk.W, tk.E),
@@ -1001,7 +1133,7 @@ class OCRCandidateReviewDialog:
             foreground="red",
             wraplength=680,
         ).grid(
-            row=12,
+            row=13,
             column=0,
             columnspan=2,
             sticky=tk.W,
@@ -1014,7 +1146,7 @@ class OCRCandidateReviewDialog:
             wraplength=680,
             takefocus=True,
         ).grid(
-            row=13,
+            row=14,
             column=0,
             columnspan=2,
             sticky=tk.W,
@@ -1023,7 +1155,7 @@ class OCRCandidateReviewDialog:
 
         navigation = ttk.Frame(content)
         navigation.grid(
-            row=14,
+            row=15,
             column=0,
             columnspan=2,
             sticky=(tk.W, tk.E),
@@ -1115,8 +1247,12 @@ class OCRCandidateReviewDialog:
 
     def _render(self) -> None:
         display = self._model.display
+        batch = self._model._batch_progress()
         candidate = display.candidate
         self._position_var.set(display.position_label)
+        self._batch_counts_var.set(batch.counts_label)
+        self._batch_position_var.set(batch.position_label)
+        self._batch_state_var.set(batch.state_label)
 
         if candidate is None:
             for variable in (
