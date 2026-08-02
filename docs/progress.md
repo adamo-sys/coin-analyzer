@@ -331,9 +331,44 @@ Verification completed on 2026-08-01:
 - independent selection-ownership, accessibility, `AGENTS.md`, and Sprint 18
   scope review: PASS.
 
+### Keyboard shortcuts
+
+The fifth bounded Sprint 18 slice is complete in commit `e0abaf9`.
+
+- The candidate-review dialog installs five dialog-local bindings exactly
+  once: Alt+Left for Previous, Alt+Right for Next, Ctrl+Enter for Approve,
+  Ctrl+Backspace for Reject, and Escape for Close.
+- Every shortcut routes through the same dialog command used by its visible
+  button. The existing review model remains the sole owner of navigation and
+  decision state, including its existing boundary and empty-state behavior.
+- A focusable help label makes the shortcuts discoverable using readable
+  Windows/Linux names. Visible buttons remain available for every action, and
+  native focus indicators and Tab/Shift+Tab traversal remain unchanged.
+- Workflow shortcuts yield to editable text, spinbox, combobox, and scale
+  controls. No unmodified arrow, Space, Enter, Tab, or Shift+Tab binding was
+  added.
+- Key-down tracking prevents auto-repeat from invoking an action twice. The
+  bindings are owned by the dialog Toplevel, are not recreated during review
+  rerenders, and are discarded automatically when that window is destroyed.
+- Shortcut navigation immediately refreshes selected-candidate highlighting
+  while preserving transient crop, zoom, and contrast state by exact coin,
+  side, and preview reference.
+- No public API, persisted shortcut configuration, review semantics, candidate
+  ranking, OCR evidence, source image, collection data, or global application
+  binding changed.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 74 passed;
+- related desktop review/integration tests: 139 passed;
+- authoritative root discovery: 4,319 tests run, 4,295 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent binding-lifecycle, focus-safety, accessibility, `AGENTS.md`, and
+  Sprint 18 scope review: PASS.
+
 ### Remaining implementation sequence
 
-1. Keyboard shortcuts after review and image actions are stable.
-2. Batch review using the proven single-coin review flow.
-3. Final end-to-end accessibility pass, while retaining accessibility checks
+1. Batch review using the proven single-coin review flow.
+2. Final end-to-end accessibility pass, while retaining accessibility checks
    in each preceding slice.
