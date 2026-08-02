@@ -58,6 +58,8 @@ _CONTRAST_MAXIMUM = 2.0
 _CONTRAST_STEP = 0.1
 _CROP_MINIMUM_SIZE = 0.20
 _CROP_STEP = 0.05
+_SELECTED_PREVIEW_STYLE = "SelectedCandidate.TLabelframe"
+_RELATED_PREVIEW_STYLE = "RelatedCandidate.TLabelframe"
 
 
 def _candidate_identity(
@@ -187,6 +189,20 @@ class _OCRReviewSidePreview:
     alt_text: str
     identity: _PreviewIdentity
     preview: OCRCandidatePreview
+    is_selected: bool
+
+    @property
+    def selection_label(self) -> str:
+        return (
+            "Selected candidate reference"
+            if self.is_selected
+            else "Related image evidence (not selected)"
+        )
+
+    @property
+    def panel_title(self) -> str:
+        state = "Selected" if self.is_selected else "Related evidence"
+        return f"{self.label} - {state}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -691,6 +707,7 @@ class OCRCandidateReviewModel:
             candidates_by_role[current.image_role] = current
 
         sides = []
+        current_identity = _candidate_identity(current)
         for role in _REVIEW_IMAGE_ROLES:
             candidate = candidates_by_role.get(role)
             if candidate is None:
@@ -701,12 +718,19 @@ class OCRCandidateReviewModel:
                 else self._resolve_preview(candidate)
             )
             label = _REVIEW_IMAGE_LABELS[role]
+            is_selected = _candidate_identity(candidate) == current_identity
+            selection_description = (
+                "selected candidate reference"
+                if is_selected
+                else "related image evidence"
+            )
             sides.append(
                 _OCRReviewSidePreview(
                     role=role,
                     label=label,
                     alt_text=(
-                        f"{label} for coin {candidate.source_coin_id}"
+                        f"{label} for coin {candidate.source_coin_id}; "
+                        f"{selection_description}"
                     ),
                     identity=(
                         candidate.source_coin_id,
@@ -714,6 +738,7 @@ class OCRCandidateReviewModel:
                         preview.reference,
                     ),
                     preview=preview,
+                    is_selected=is_selected,
                 )
             )
 
@@ -727,13 +752,17 @@ class OCRCandidateReviewModel:
             _OCRReviewSidePreview(
                 role=current.image_role,
                 label="Source image",
-                alt_text=f"Source image for coin {current.source_coin_id}",
+                alt_text=(
+                    f"Source image for coin {current.source_coin_id}; "
+                    "selected candidate reference"
+                ),
                 identity=(
                     current.source_coin_id,
                     current.image_role,
                     preview.reference,
                 ),
                 preview=preview,
+                is_selected=True,
             ),
         )
 
@@ -772,6 +801,8 @@ class OCRCandidateReviewDialog:
         self.window.transient(parent)
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
+        self._configure_candidate_highlight_styles()
+
         self._position_var = tk.StringVar()
         self._coin_var = tk.StringVar()
         self._field_var = tk.StringVar()
@@ -788,6 +819,23 @@ class OCRCandidateReviewDialog:
 
         self._build_widgets()
         self._render()
+
+    def _configure_candidate_highlight_styles(self) -> None:
+        style = ttk.Style(self.window)
+        style.configure(
+            _SELECTED_PREVIEW_STYLE,
+            borderwidth=3,
+            relief=tk.SOLID,
+        )
+        style.configure(
+            f"{_SELECTED_PREVIEW_STYLE}.Label",
+            font=("TkDefaultFont", 10, "bold"),
+        )
+        style.configure(
+            _RELATED_PREVIEW_STYLE,
+            borderwidth=1,
+            relief=tk.GROOVE,
+        )
 
     def _build_widgets(self) -> None:
         content = ttk.Frame(self.window, padding="12")
@@ -1041,9 +1089,24 @@ class OCRCandidateReviewDialog:
         for side in sides:
             panel = ttk.LabelFrame(
                 self._preview_grid,
-                text=side.label,
+                text=side.panel_title,
                 padding="6",
+                style=(
+                    _SELECTED_PREVIEW_STYLE
+                    if side.is_selected
+                    else _RELATED_PREVIEW_STYLE
+                ),
             )
+            ttk.Label(
+                panel,
+                text=side.selection_label,
+                font=(
+                    ("TkDefaultFont", 10, "bold")
+                    if side.is_selected
+                    else "TkDefaultFont"
+                ),
+                takefocus=True,
+            ).pack(fill=tk.X, pady=(0, 6))
             preview = side.preview
             displayed_image = self._adjustments.displayed_image(
                 side.identity,

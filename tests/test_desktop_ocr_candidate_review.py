@@ -309,6 +309,137 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         )
         self.assertIs(sides[0].preview.image, images["front"])
         self.assertIs(sides[1].preview.image, images["reverse"])
+        selected = tuple(side for side in sides if side.is_selected)
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(
+            selected[0].preview.reference,
+            model.current_candidate.artifact_key,
+        )
+        related = tuple(side for side in sides if not side.is_selected)
+        self.assertEqual(len(related), 1)
+        self.assertEqual(
+            related[0].selection_label,
+            "Related image evidence (not selected)",
+        )
+        self.assertIn("related image evidence", related[0].alt_text)
+
+    def test_initial_candidate_reference_is_explicitly_selected(self) -> None:
+        model = self.model(
+            _candidate(image_role="front", artifact_key="front-reference")
+        )
+
+        side = model._side_previews(model.display)[0]
+
+        self.assertTrue(side.is_selected)
+        self.assertEqual(side.selection_label, "Selected candidate reference")
+        self.assertEqual(side.panel_title, "Obverse image - Selected")
+        self.assertIn("selected candidate reference", side.alt_text)
+
+    def test_candidate_navigation_moves_selection_to_exact_reference(self) -> None:
+        model = self.model(
+            _candidate(
+                field_name="country",
+                value="Canada",
+                image_role="front",
+                artifact_key="front-country",
+            ),
+            _candidate(
+                field_name="year",
+                value="1967",
+                image_role="front",
+                artifact_key="front-year",
+            ),
+        )
+        first = model._side_previews(model.display)[0]
+
+        self.assertTrue(model.next_candidate())
+        second = model._side_previews(model.display)[0]
+
+        self.assertTrue(first.is_selected)
+        self.assertTrue(second.is_selected)
+        self.assertNotEqual(first.preview.reference, second.preview.reference)
+        self.assertEqual(
+            second.preview.reference,
+            model.current_candidate.artifact_key,
+        )
+
+    def test_selection_is_distinct_from_human_review_decision(self) -> None:
+        model = self.model(_candidate())
+
+        before = model._side_previews(model.display)[0]
+        model.approve(reason="Confirmed visually.")
+        after = model._side_previews(model.display)[0]
+
+        self.assertEqual(before.selection_label, after.selection_label)
+        self.assertEqual(after.selection_label, "Selected candidate reference")
+        self.assertNotIn("approve", after.selection_label.lower())
+        self.assertNotIn("reject", after.selection_label.lower())
+        self.assertEqual(model.current_candidate.human_review_state, "APPROVE")
+
+    def test_selection_navigation_preserves_crop_zoom_and_contrast_state(
+        self,
+    ) -> None:
+        def resolve(candidate):
+            return OCRCandidatePreview(
+                reference=candidate.artifact_key,
+                image=object(),
+                crop_adjusted_image_renderer=(
+                    lambda _zoom, _contrast, _crop: object()
+                ),
+            )
+
+        model = self.model(
+            _candidate(
+                field_name="country",
+                value="Canada",
+                artifact_key="front-country",
+            ),
+            _candidate(field_name="year", artifact_key="front-year"),
+            preview_resolver=resolve,
+        )
+        store = _ImageReviewAdjustmentStore()
+        original_side = model._side_previews(model.display)[0]
+        store.change_zoom(original_side.identity, original_side.preview, 1)
+        store.change_contrast(original_side.identity, original_side.preview, 1)
+        store.change_crop(
+            original_side.identity,
+            original_side.preview,
+            "left",
+            1,
+        )
+
+        self.assertTrue(model.next_candidate())
+        self.assertTrue(model.previous_candidate())
+        restored_side = model._side_previews(model.display)[0]
+        restored = store.adjustment(restored_side.identity)
+
+        self.assertEqual(restored_side.identity, original_side.identity)
+        self.assertEqual(restored.zoom, 1.25)
+        self.assertEqual(restored.contrast, 1.1)
+        self.assertEqual(restored.crop.left, 0.05)
+
+    def test_highlighting_does_not_mutate_report_ranking_or_evidence(self) -> None:
+        candidates = (
+            _candidate(
+                field_name="country",
+                value="Canada",
+                evidence=("country glyphs",),
+            ),
+            _candidate(evidence=("date glyphs",)),
+        )
+        report = _report(*candidates)
+        before = report.to_dict()
+        model = OCRCandidateReviewModel(
+            report=report,
+            review_controller=OCRReviewSessionController(),
+            reviewer_id="reviewer-1",
+        )
+
+        model._side_previews(model.display)
+        model.next_candidate()
+        model._side_previews(model.display)
+
+        self.assertEqual(report.to_dict(), before)
 
     def test_one_sided_review_has_clear_obverse_state(self) -> None:
         model = self.model(_candidate(image_role="front"))
@@ -319,8 +450,9 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertEqual(sides[0].label, "Obverse image")
         self.assertEqual(
             sides[0].alt_text,
-            "Obverse image for coin coin-1",
+            "Obverse image for coin coin-1; selected candidate reference",
         )
+        self.assertTrue(sides[0].is_selected)
         self.assertEqual(
             sides[0].preview.unavailable_reason,
             "Preview unavailable",
@@ -360,8 +492,9 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertEqual(side.label, "Reverse image")
         self.assertEqual(
             side.alt_text,
-            "Reverse image for coin coin-1",
+            "Reverse image for coin coin-1; selected candidate reference",
         )
+        self.assertEqual(side.selection_label, "Selected candidate reference")
 
     def test_existing_current_preview_contract_is_preserved(self) -> None:
         image = object()
@@ -1161,6 +1294,8 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertIn('"<Configure>"', source)
         self.assertIn("takefocus=True", source)
         for accessible_name in (
+            "Selected candidate reference",
+            "Related image evidence (not selected)",
             "Zoom out",
             "Zoom in",
             "Contrast down",
@@ -1181,6 +1316,10 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertIn("state=crop_state", source)
         self.assertIn("row=index // 3", source)
         self.assertIn("row=index // 2", source)
+        self.assertIn('"SelectedCandidate.TLabelframe"', source)
+        self.assertIn('"RelatedCandidate.TLabelframe"', source)
+        self.assertIn("borderwidth=3", source)
+        self.assertIn('font=("TkDefaultFont", 10, "bold")', source)
 
 
 if __name__ == "__main__":
