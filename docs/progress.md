@@ -367,8 +367,49 @@ Verification completed on 2026-08-01:
 - independent binding-lifecycle, focus-safety, accessibility, `AGENTS.md`, and
   Sprint 18 scope review: PASS.
 
+### Batch review queue and progress
+
+The sixth bounded Sprint 18 slice is complete in commit `c239029`, following
+the queue-only batch-review contract recorded in
+`docs/SPRINT_18_IMAGE_OCR_UX_REFINEMENT.md` and commit `a4073fd`.
+
+- The batch boundary is the complete deterministic candidate queue from the
+  aggregated OCR report. The action unit remains one current OCR field
+  candidate; no second queue or selection owner was introduced.
+- A compact, focusable summary presents total, reviewed, remaining, approved,
+  corrected, rejected, deferred, and unresolved-conflict counts as readable
+  text, together with the overall position and the current coin's position.
+- Coin-aware progress is derived by exact `source_coin_id` while preserving
+  the authoritative full-report queue order.
+- Reviewed means that an exact candidate identity has any existing decision,
+  including Defer. Replacing a decision updates category counts without
+  increasing the reviewed count.
+- Unresolved-conflict counts reuse the existing authoritative review-session
+  consolidation projection; no parallel conflict definition was added.
+- Queue-reviewed and domain-complete are reported separately. Deferred
+  decisions and unresolved conflicts prevent domain completion even when all
+  candidates have been reviewed.
+- Navigation changes only position presentation. Decisions refresh the
+  summary without automatic advancement, closing, persistence, or collection
+  mutation, and failed decisions retain the previous valid summary.
+- Existing highlighting, focus, shortcuts, paired and single-side previews,
+  legacy behavior, and independently keyed crop, zoom, and contrast state are
+  unchanged.
+- Public APIs, callbacks, persistence modules, source reports, OCR evidence,
+  ranking, confidence, images, and collection data remain unchanged.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 88 passed;
+- related review, session, consolidation, conflict, and persistence-boundary
+  tests: 192 passed;
+- authoritative root discovery: 4,333 tests run, 4,309 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent lifecycle, immutability, persistence-boundary, accessibility,
+  `AGENTS.md`, and Sprint 18 scope review: PASS.
+
 ### Remaining implementation sequence
 
-1. Batch review using the proven single-coin review flow.
-2. Final end-to-end accessibility pass, while retaining accessibility checks
-   in each preceding slice.
+1. Final end-to-end accessibility pass, while retaining the accessibility
+   checks delivered in each preceding slice.
