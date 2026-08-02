@@ -273,3 +273,88 @@ snapshot, transaction, confirmation dialog, persistence integration,
 collection mutation, conflict resolution, candidate filtering or reranking,
 coin-level action, new shortcut, OCR rerun, source-image mutation, evidence
 editing, confidence change, renderer contract, or pixel processing.
+
+## Final OCR Candidate Review Accessibility Pass
+
+### Focus ownership and lifecycle
+
+Keyboard focus remains dialog-local presentation state and never becomes a
+second candidate, preview, decision, confidence, or conflict selection. When a
+candidate exists, the dialog schedules initial focus on Reason after idle
+layout. An empty queue schedules initial focus on Close.
+
+Previous and Next render the new current candidate and then focus Reason, so a
+destroyed preview descendant cannot retain focus. A successful decision keeps
+the current candidate and focuses its corresponding visible Approve, Correct,
+Reject, or Defer button. A failed Correct action with a missing correction
+focuses Correction; other decision-validation failures focus Reason. Image
+adjustment operations do not rebuild their panel and retain the invoking
+control's native focus.
+
+The dialog remains transient and non-modal. It does not force focus to the
+parent or application root, navigate after a decision, or add another current
+selection owner.
+
+### Traversal and shortcuts
+
+Only enabled interactive controls participate in normal Tab and Shift+Tab
+traversal. Passive summary, status, image, adjustment-value, crop-value,
+validation, and shortcut-help labels remain visible readable text but are not
+Tab stops. Disabled entries, decision controls, and preview-adjustment controls
+are excluded from traversal. Native ttk focus styling remains authoritative;
+the dialog adds no custom focus theme.
+
+Shortcut help remains permanently visible passive text and has no popup
+lifecycle. The existing shortcut mapping, availability checks, key-repeat
+protection, and dialog-local binding lifetime remain unchanged. Workflow
+shortcuts continue to yield to editable or natively adjustable widgets. Escape
+is the narrow exception for the dialog's Correction and Reason entries and
+ordinary buttons: it follows the existing Close path exactly once. A native
+widget with its own meaningful Escape operation retains that operation.
+
+### Readable capability and reset state
+
+Every preview states whether zoom and contrast adjustments are available and
+whether crop adjustment is available. Unsupported legacy or unavailable
+previews include a readable explanation instead of relying only on disabled
+button styling. Reset is labelled "Reset crop, zoom, and contrast" and retains
+the established exact-original-image behavior.
+
+Existing candidate, coin, field, reference, evidence, confidence, review,
+queue, completion, deferment, conflict, crop, zoom, and contrast text remains
+authoritative. The dialog does not claim live-region announcements or
+guaranteed screen-reader narration.
+
+### Scrollable and responsive layout
+
+The existing dialog content is hosted in a dialog-local `Canvas` with a
+keyboard-operable vertical `ttk.Scrollbar`, following the repository's current
+desktop convention. No global mouse-wheel or application-wide event binding is
+introduced. A private focus-visibility helper scrolls an off-screen focused
+descendant into view.
+
+Readable wrap widths derive deterministically from the current viewport. The
+existing two-column preview presentation remains at normal widths and stacks
+below 620 pixels. A reasonable minimum window size supplements, but does not
+replace, vertical overflow access. Scrolling changes no widget ownership,
+candidate order, focus order, preview rendering, or source state.
+
+### Manual Windows verification boundary
+
+Headless tests may verify focus-target selection, widget configuration,
+bindings, readable labels, scroll helpers, and unchanged domain behavior. They
+do not prove Windows Narrator announcements, Windows high-contrast rendering,
+native focus-ring appearance, exact platform traversal, or high-DPI layout.
+Those behaviors require later manual verification at 100% and 200% scaling in
+normal and narrow or short layouts. Manual observations must not be described
+as toolkit guarantees.
+
+### Preserved boundaries
+
+This pass changes no public API, callback, renderer contract, image pixels,
+crop, zoom, contrast, preview-reference matching, OCR source model, candidate
+ranking, review decision, conflict rule, persistence timing, collection data,
+or application-wide event routing. It adds no bulk action, multi-selection,
+automatic advancement, automatic close, save, completion, external
+accessibility dependency, custom theme, or application-wide accessibility
+framework.
