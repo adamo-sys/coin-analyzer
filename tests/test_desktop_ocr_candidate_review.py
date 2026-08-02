@@ -1160,6 +1160,231 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertEqual(model.current_review, country)
         self.assertEqual(set(model.reviews), {country, year})
 
+    def test_batch_progress_counts_deterministic_full_report_queue(self) -> None:
+        model = self.model(
+            _candidate(source_coin_id="coin-2"),
+            _candidate(source_coin_id="coin-1"),
+            _candidate(
+                source_coin_id="coin-1",
+                field_name="country",
+                value="Canada",
+                artifact_key="country",
+            ),
+        )
+
+        progress = model._batch_progress()
+
+        self.assertEqual((progress.total, progress.reviewed, progress.remaining), (3, 0, 3))
+        self.assertEqual(progress.current_coin_id, "coin-1")
+        self.assertEqual(
+            (progress.overall_position, progress.coin_position, progress.coin_total),
+            (1, 1, 2),
+        )
+
+    def test_batch_progress_counts_each_review_decision(self) -> None:
+        model = self.model(
+            _candidate(field_name="country", value="Canada", artifact_key="country"),
+            _candidate(field_name="denomination", value="1 cent", artifact_key="denomination"),
+            _candidate(field_name="mintmark", value="P", artifact_key="mintmark"),
+            _candidate(),
+        )
+
+        model.approve(reason="Approved.")
+        model.next_candidate()
+        model.correct(corrected_value="One cent", reason="Corrected.")
+        model.next_candidate()
+        model.reject(reason="Rejected.")
+        model.next_candidate()
+        model.defer(reason="Deferred.")
+        progress = model._batch_progress()
+
+        self.assertEqual((progress.reviewed, progress.remaining), (4, 0))
+        self.assertEqual(
+            (progress.approved, progress.corrected, progress.rejected, progress.deferred),
+            (1, 1, 1, 1),
+        )
+        self.assertTrue(progress.queue_reviewed)
+        self.assertFalse(progress.domain_complete)
+
+    def test_replacing_decision_updates_category_not_reviewed_count(self) -> None:
+        model = self.model(_candidate())
+        model.approve(reason="Initially approved.")
+        before = model._batch_progress()
+
+        model.reject(reason="Reconsidered.")
+        after = model._batch_progress()
+
+        self.assertEqual((before.reviewed, after.reviewed), (1, 1))
+        self.assertEqual((before.approved, before.rejected), (1, 0))
+        self.assertEqual((after.approved, after.rejected), (0, 1))
+
+    def test_equal_approvals_are_agreed_without_conflict(self) -> None:
+        model = self.model(
+            _candidate(artifact_key="front-year"),
+            _candidate(image_role="reverse", artifact_key="reverse-year"),
+        )
+
+        model.approve(reason="Front agrees.")
+        model.next_candidate()
+        model.approve(reason="Reverse agrees.")
+        progress = model._batch_progress()
+
+        self.assertEqual(progress.unresolved_conflicts, 0)
+        self.assertTrue(progress.queue_reviewed)
+        self.assertTrue(progress.domain_complete)
+
+    def test_different_approvals_expose_unresolved_conflict(self) -> None:
+        model = self.model(
+            _candidate(artifact_key="front-year"),
+            _candidate(
+                image_role="reverse",
+                artifact_key="reverse-year",
+                value="1968",
+            ),
+        )
+
+        model.approve(reason="Front reading.")
+        model.next_candidate()
+        model.approve(reason="Reverse reading.")
+        progress = model._batch_progress()
+
+        self.assertEqual(progress.unresolved_conflicts, 1)
+        self.assertTrue(progress.queue_reviewed)
+        self.assertFalse(progress.domain_complete)
+        self.assertIn("unresolved conflicts", progress.state_label)
+
+    def test_navigation_updates_only_batch_position(self) -> None:
+        model = self.model(
+            _candidate(source_coin_id="coin-1", field_name="country", value="Canada"),
+            _candidate(source_coin_id="coin-1"),
+            _candidate(source_coin_id="coin-2"),
+        )
+        before = model._batch_progress()
+
+        self.assertTrue(model.next_candidate())
+        after = model._batch_progress()
+
+        self.assertEqual(
+            (
+                before.total,
+                before.reviewed,
+                before.remaining,
+                before.approved,
+                before.corrected,
+                before.rejected,
+                before.deferred,
+                before.unresolved_conflicts,
+            ),
+            (
+                after.total,
+                after.reviewed,
+                after.remaining,
+                after.approved,
+                after.corrected,
+                after.rejected,
+                after.deferred,
+                after.unresolved_conflicts,
+            ),
+        )
+        self.assertEqual((before.overall_position, after.overall_position), (1, 2))
+        self.assertEqual((before.coin_position, after.coin_position), (1, 2))
+
+    def test_coin_progress_changes_at_existing_queue_boundary(self) -> None:
+        model = self.model(
+            _candidate(source_coin_id="coin-1", field_name="country", value="Canada"),
+            _candidate(source_coin_id="coin-1"),
+            _candidate(source_coin_id="coin-2"),
+        )
+        model.next_candidate()
+        model.next_candidate()
+
+        progress = model._batch_progress()
+
+        self.assertEqual(progress.current_coin_id, "coin-2")
+        self.assertEqual(
+            (progress.overall_position, progress.coin_position, progress.coin_total),
+            (3, 1, 1),
+        )
+
+    def test_empty_batch_progress_is_explicit_and_safe(self) -> None:
+        progress = self.model()._batch_progress()
+
+        self.assertEqual((progress.total, progress.reviewed, progress.remaining), (0, 0, 0))
+        self.assertIsNone(progress.current_coin_id)
+        self.assertIsNone(progress.overall_position)
+        self.assertFalse(progress.queue_reviewed)
+        self.assertFalse(progress.domain_complete)
+        self.assertEqual(progress.position_label, "No current candidate or coin.")
+        self.assertIn("Batch queue is empty", progress.state_label)
+
+    def test_fully_reviewed_rejected_queue_is_domain_complete(self) -> None:
+        model = self.model(_candidate(), _candidate(field_name="country", value="Canada"))
+        model.reject(reason="Rejected year.")
+        model.next_candidate()
+        model.reject(reason="Rejected country.")
+
+        progress = model._batch_progress()
+
+        self.assertTrue(progress.queue_reviewed)
+        self.assertTrue(progress.domain_complete)
+        self.assertEqual(progress.remaining, 0)
+        self.assertEqual(progress.state_label, "Queue reviewed. Domain session complete.")
+
+    def test_fully_reviewed_deferred_queue_is_not_domain_complete(self) -> None:
+        model = self.model(_candidate())
+        model.defer(reason="Needs more evidence.")
+
+        progress = model._batch_progress()
+
+        self.assertTrue(progress.queue_reviewed)
+        self.assertFalse(progress.domain_complete)
+        self.assertEqual(progress.deferred, 1)
+
+    def test_partial_queue_wording_distinguishes_domain_completion(self) -> None:
+        model = self.model(_candidate(), _candidate(field_name="country", value="Canada"))
+        model.approve(reason="Year confirmed.")
+
+        progress = model._batch_progress()
+
+        self.assertFalse(progress.queue_reviewed)
+        self.assertFalse(progress.domain_complete)
+        self.assertIn("not fully reviewed", progress.state_label)
+        self.assertIn("Domain session is not complete", progress.state_label)
+
+    def test_failed_decision_preserves_batch_progress(self) -> None:
+        model = self.model(_candidate())
+        model.reject(reason="Prior decision.")
+        before = model._batch_progress()
+
+        with self.assertRaises(ValueError):
+            model.approve(reason="")
+
+        self.assertEqual(model._batch_progress(), before)
+
+    def test_decision_does_not_automatically_advance_batch_position(self) -> None:
+        model = self.model(_candidate(), _candidate(field_name="country", value="Canada"))
+
+        model.approve(reason="Approved current candidate.")
+
+        self.assertEqual(model.candidate_index, 0)
+        self.assertEqual(model._batch_progress().overall_position, 1)
+
+    def test_batch_summary_is_readable_non_color_text(self) -> None:
+        progress = self.model(_candidate())._batch_progress()
+
+        for text in (
+            "1 total",
+            "0 reviewed",
+            "1 remaining",
+            "0 approved",
+            "0 corrected",
+            "0 rejected",
+            "0 deferred",
+            "0 unresolved conflicts",
+        ):
+            self.assertIn(text, progress.counts_label)
+        self.assertIn("coin coin-1", progress.position_label)
+
     def test_empty_report_is_safe(self) -> None:
         model = self.model()
 
