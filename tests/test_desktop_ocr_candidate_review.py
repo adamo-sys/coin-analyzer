@@ -434,8 +434,11 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         )
         with self.assertRaises(FrozenInstanceError):
             crop.left = 0.1  # type: ignore[misc]
-        with self.assertRaises(AttributeError):
+        # Frozen, slotted dataclasses raise either exception across supported
+        # Python runtimes; the invariant is that no new attribute is created.
+        with self.assertRaises((AttributeError, TypeError)):
             crop.extra = True  # type: ignore[attr-defined]
+        self.assertFalse(hasattr(crop, "extra"))
 
     def test_normalized_crop_accepts_valid_edges_and_minimum_dimensions(self) -> None:
         crop = NormalizedCrop(0.15, 0.25, 0.80, 0.45)
