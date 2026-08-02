@@ -259,11 +259,48 @@ Verification completed on 2026-08-01:
 - syntax compilation and `git diff --check`: passed;
 - independent contract, `AGENTS.md`, and Sprint 18 scope review: PASS.
 
+### Crop adjustment
+
+The third bounded Sprint 18 slice is complete in commit `daf7d6d`, following
+the supplemental crop-renderer contract recorded in
+`docs/SPRINT_18_IMAGE_OCR_UX_REFINEMENT.md` and commit `ce7a6b7`.
+
+- `NormalizedCrop` represents the retained visible rectangle with exact,
+  finite normalized `left`, `top`, `right`, and `bottom` coordinates.
+- The full image is the default. Each edge moves in 0.05 steps, remains inside
+  0.0 through 1.0, and preserves a minimum retained width and height of 0.20.
+- The existing two-argument `AdjustedPreviewRenderer` remains unchanged.
+  Crop-capable previews may optionally supply a
+  `CropAdjustedPreviewRenderer` with signature
+  `Callable[[float, float, NormalizedCrop], object]`.
+- Crop, zoom, and contrast compose through the resolver-owned renderer.
+  Legacy and zoom/contrast-only previews remain compatible and show disabled
+  crop controls.
+- Crop state is transient and independent by exact coin, side, and preview
+  reference. Reset restores the full crop, default zoom and contrast, and the
+  exact original image without invoking a callback.
+- Rendering failures preserve the prior valid crop, adjustment values, and
+  displayed-image reference while surfacing the existing bounded dialog error.
+- Focusable native edge controls and a coordinate status label preserve the
+  responsive paired, single-side, and empty review states.
+- Pixel decoding, cropping, transformation, Tk-image creation, and image
+  lifecycle remain resolver-owned. No source image or OCR evidence is mutated,
+  and no crop or transformed image is persisted.
+
+Verification completed on 2026-08-01:
+
+- candidate-review tests: 57 passed;
+- related desktop review/integration tests: 94 passed;
+- authoritative root discovery: 4,302 tests run, 4,278 passed, 23 skipped,
+  one known unrelated local-only melt-value cache failure, and zero errors;
+- syntax compilation and `git diff --check`: passed;
+- independent contract, backward-compatibility, `AGENTS.md`, and Sprint 18
+  scope review: PASS.
+
 ### Remaining implementation sequence
 
-1. Explicit crop adjustment with bounded, non-destructive crop state.
-2. OCR candidate highlighting over the stable image-panel presentation.
-3. Keyboard shortcuts after review and image actions are stable.
-4. Batch review using the proven single-coin review flow.
-5. Final end-to-end accessibility pass, while retaining accessibility checks
+1. OCR candidate highlighting over the stable image-panel presentation.
+2. Keyboard shortcuts after review and image actions are stable.
+3. Batch review using the proven single-coin review flow.
+4. Final end-to-end accessibility pass, while retaining accessibility checks
    in each preceding slice.

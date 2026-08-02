@@ -12,6 +12,7 @@ unavailable result for the current Unit 1A candidate view.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
@@ -55,6 +56,8 @@ _CONTRAST_MINIMUM = 0.5
 _CONTRAST_DEFAULT = 1.0
 _CONTRAST_MAXIMUM = 2.0
 _CONTRAST_STEP = 0.1
+_CROP_MINIMUM_SIZE = 0.20
+_CROP_STEP = 0.05
 
 
 def _candidate_identity(
@@ -82,6 +85,45 @@ def _review_identity(review: OCRFieldReview) -> CandidateIdentity:
 
 
 @dataclass(frozen=True, slots=True)
+class NormalizedCrop:
+    """Immutable normalized rectangle retained for visual image review."""
+
+    left: float = 0.0
+    top: float = 0.0
+    right: float = 1.0
+    bottom: float = 1.0
+
+    def __post_init__(self) -> None:
+        coordinates = (self.left, self.top, self.right, self.bottom)
+        if any(type(value) is not float for value in coordinates):
+            raise TypeError("crop coordinates must be floats.")
+        if any(not math.isfinite(value) for value in coordinates):
+            raise ValueError("crop coordinates must be finite.")
+        if any(value < 0.0 or value > 1.0 for value in coordinates):
+            raise ValueError("crop coordinates must be between 0.0 and 1.0.")
+        if self.left >= self.right or self.top >= self.bottom:
+            raise ValueError("crop edges must define a non-empty rectangle.")
+        if (
+            self.right - self.left + 1e-9 < _CROP_MINIMUM_SIZE
+            or self.bottom - self.top + 1e-9 < _CROP_MINIMUM_SIZE
+        ):
+            raise ValueError(
+                "crop width and height must each be at least 0.20."
+            )
+
+    @property
+    def label(self) -> str:
+        return (
+            f"Crop left {self.left:.2f}, top {self.top:.2f}, "
+            f"right {self.right:.2f}, bottom {self.bottom:.2f}"
+        )
+
+
+CropAdjustedPreviewRenderer = Callable[[float, float, NormalizedCrop], object]
+_FULL_IMAGE_CROP = NormalizedCrop()
+
+
+@dataclass(frozen=True, slots=True)
 class OCRCandidatePreview:
     """Injected preview result without filesystem or image-loading behavior."""
 
@@ -89,6 +131,7 @@ class OCRCandidatePreview:
     image: object | None = None
     unavailable_reason: str | None = None
     adjusted_image_renderer: AdjustedPreviewRenderer | None = None
+    crop_adjusted_image_renderer: CropAdjustedPreviewRenderer | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.reference, str):
@@ -108,6 +151,13 @@ class OCRCandidatePreview:
         ):
             raise TypeError(
                 "adjusted_image_renderer must be callable or None."
+            )
+        if (
+            self.crop_adjusted_image_renderer is not None
+            and not callable(self.crop_adjusted_image_renderer)
+        ):
+            raise TypeError(
+                "crop_adjusted_image_renderer must be callable or None."
             )
 
 
@@ -143,6 +193,7 @@ class _OCRReviewSidePreview:
 class _ImageReviewAdjustment:
     zoom: float = _ZOOM_DEFAULT
     contrast: float = _CONTRAST_DEFAULT
+    crop: NormalizedCrop = _FULL_IMAGE_CROP
 
     @property
     def label(self) -> str:
@@ -175,7 +226,17 @@ class _ImageReviewAdjustmentStore:
     def is_adjustable(preview: OCRCandidatePreview) -> bool:
         return (
             preview.image is not None
-            and preview.adjusted_image_renderer is not None
+            and (
+                preview.adjusted_image_renderer is not None
+                or preview.crop_adjusted_image_renderer is not None
+            )
+        )
+
+    @staticmethod
+    def is_crop_adjustable(preview: OCRCandidatePreview) -> bool:
+        return (
+            preview.image is not None
+            and preview.crop_adjusted_image_renderer is not None
         )
 
     def change_zoom(
@@ -192,6 +253,7 @@ class _ImageReviewAdjustmentStore:
                 _ZOOM_MAXIMUM,
             ),
             contrast=current.contrast,
+            crop=current.crop,
         )
         return self._render(identity, preview, current, proposed)
 
@@ -209,6 +271,44 @@ class _ImageReviewAdjustmentStore:
                 _CONTRAST_MINIMUM,
                 _CONTRAST_MAXIMUM,
             ),
+            crop=current.crop,
+        )
+        return self._render(identity, preview, current, proposed)
+
+    def change_crop(
+        self,
+        identity: _PreviewIdentity,
+        preview: OCRCandidatePreview,
+        edge: str,
+        steps: int,
+    ) -> object:
+        if edge not in {"left", "top", "right", "bottom"}:
+            raise ValueError("crop edge must be left, top, right, or bottom.")
+        if not self.is_crop_adjustable(preview):
+            raise ValueError(
+                "Crop adjustments are unavailable for this preview."
+            )
+        current = self.adjustment(identity)
+        crop = current.crop
+        delta = _require_steps(steps) * _CROP_STEP
+        values = {
+            "left": crop.left,
+            "top": crop.top,
+            "right": crop.right,
+            "bottom": crop.bottom,
+        }
+        limits = {
+            "left": (0.0, crop.right - _CROP_MINIMUM_SIZE),
+            "top": (0.0, crop.bottom - _CROP_MINIMUM_SIZE),
+            "right": (crop.left + _CROP_MINIMUM_SIZE, 1.0),
+            "bottom": (crop.top + _CROP_MINIMUM_SIZE, 1.0),
+        }
+        minimum, maximum = limits[edge]
+        values[edge] = _bounded_value(values[edge] + delta, minimum, maximum)
+        proposed = _ImageReviewAdjustment(
+            zoom=current.zoom,
+            contrast=current.contrast,
+            crop=NormalizedCrop(**values),
         )
         return self._render(identity, preview, current, proposed)
 
@@ -229,7 +329,11 @@ class _ImageReviewAdjustmentStore:
         proposed: _ImageReviewAdjustment,
     ) -> object:
         renderer = preview.adjusted_image_renderer
-        if preview.image is None or renderer is None:
+        crop_renderer = preview.crop_adjusted_image_renderer
+        if (
+            preview.image is None
+            or (renderer is None and crop_renderer is None)
+        ):
             raise ValueError(
                 "Image adjustments are unavailable for this preview."
             )
@@ -241,7 +345,18 @@ class _ImageReviewAdjustmentStore:
                 )
             return displayed
         try:
-            rendered = renderer(proposed.zoom, proposed.contrast)
+            if crop_renderer is not None:
+                rendered = crop_renderer(
+                    proposed.zoom,
+                    proposed.contrast,
+                    proposed.crop,
+                )
+            else:
+                if renderer is None:
+                    raise ValueError(
+                        "Image adjustments are unavailable for this preview."
+                    )
+                rendered = renderer(proposed.zoom, proposed.contrast)
         except Exception:
             raise ValueError("Image adjustment could not be rendered.") from None
         if rendered is None:
@@ -256,6 +371,7 @@ class _OCRReviewSideWidgets:
     side: _OCRReviewSidePreview
     image_label: ttk.Label
     adjustment_var: tk.StringVar
+    crop_var: tk.StringVar
 
 
 def _require_steps(value: int) -> int:
@@ -969,6 +1085,12 @@ class OCRCandidateReviewDialog:
                 textvariable=adjustment_var,
                 takefocus=True,
             ).pack(fill=tk.X, pady=(6, 0))
+            crop_var = tk.StringVar(value=adjustment.crop.label)
+            ttk.Label(
+                panel,
+                textvariable=crop_var,
+                takefocus=True,
+            ).pack(fill=tk.X, pady=(2, 0))
             controls = ttk.Frame(panel)
             controls.pack(fill=tk.X, pady=(4, 0))
             control_state = (
@@ -1026,10 +1148,49 @@ class OCRCandidateReviewDialog:
                     pady=(0, 4),
                     sticky=tk.W,
                 )
+            crop_controls = ttk.LabelFrame(
+                panel,
+                text="Crop visible area",
+                padding="4",
+            )
+            crop_controls.pack(fill=tk.X, pady=(2, 0))
+            crop_state = (
+                tk.NORMAL
+                if self._adjustments.is_crop_adjustable(preview)
+                else tk.DISABLED
+            )
+            crop_specs = (
+                ("Left outward", "left", -1),
+                ("Left inward", "left", 1),
+                ("Top outward", "top", -1),
+                ("Top inward", "top", 1),
+                ("Right inward", "right", -1),
+                ("Right outward", "right", 1),
+                ("Bottom inward", "bottom", -1),
+                ("Bottom outward", "bottom", 1),
+            )
+            for index, (text, edge, steps) in enumerate(crop_specs):
+                ttk.Button(
+                    crop_controls,
+                    text=text,
+                    command=(
+                        lambda identity=side.identity, edge=edge, steps=steps:
+                        self._change_crop(identity, edge, steps)
+                    ),
+                    state=crop_state,
+                    takefocus=True,
+                ).grid(
+                    row=index // 2,
+                    column=index % 2,
+                    padx=(0, 4),
+                    pady=(0, 4),
+                    sticky=tk.W,
+                )
             widgets[side.identity] = _OCRReviewSideWidgets(
                 side=side,
                 image_label=image_label,
                 adjustment_var=adjustment_var,
+                crop_var=crop_var,
             )
             panels.append(panel)
 
@@ -1047,6 +1208,26 @@ class OCRCandidateReviewDialog:
         steps: int,
     ) -> None:
         self._change_adjustment(identity, "contrast", steps)
+
+    def _change_crop(
+        self,
+        identity: _PreviewIdentity,
+        edge: str,
+        steps: int,
+    ) -> None:
+        widgets = self._preview_widgets[identity]
+        try:
+            image = self._adjustments.change_crop(
+                identity,
+                widgets.side.preview,
+                edge,
+                steps,
+            )
+        except (TypeError, ValueError) as exc:
+            self._error_var.set(str(exc))
+            return
+        self._error_var.set("")
+        self._display_adjusted_image(identity, widgets, image)
 
     def _change_adjustment(
         self,
@@ -1072,6 +1253,14 @@ class OCRCandidateReviewDialog:
             self._error_var.set(str(exc))
             return
         self._error_var.set("")
+        self._display_adjusted_image(identity, widgets, image)
+
+    def _display_adjusted_image(
+        self,
+        identity: _PreviewIdentity,
+        widgets: _OCRReviewSideWidgets,
+        image: object,
+    ) -> None:
         widgets.image_label.config(image=image)
         original = widgets.side.preview.image
         retained = [image]
@@ -1080,6 +1269,9 @@ class OCRCandidateReviewDialog:
         self._preview_images[identity] = tuple(retained)
         widgets.adjustment_var.set(
             self._adjustments.adjustment(identity).label
+        )
+        widgets.crop_var.set(
+            self._adjustments.adjustment(identity).crop.label
         )
 
     def _reset_adjustment(self, identity: _PreviewIdentity) -> None:
@@ -1095,6 +1287,9 @@ class OCRCandidateReviewDialog:
         self._preview_images[identity] = (image,)
         widgets.adjustment_var.set(
             self._adjustments.adjustment(identity).label
+        )
+        widgets.crop_var.set(
+            self._adjustments.adjustment(identity).crop.label
         )
 
     def _layout_preview_panels(self, width: int) -> None:

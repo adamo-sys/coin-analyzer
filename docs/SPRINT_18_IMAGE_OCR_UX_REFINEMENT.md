@@ -80,3 +80,88 @@ This unit adds no crop adjustment, candidate highlighting, workflow keyboard
 shortcuts, batch review, OCR rerun, image normalization, persistence, global
 preference, file decoding, Pillow dependency in the dialog, source mutation,
 or collection-data change.
+
+## Crop Adjustment
+
+### Normalized crop contract
+
+Crop adjustment uses an immutable normalized rectangle:
+
+```python
+@dataclass(frozen=True, slots=True)
+class NormalizedCrop:
+    left: float
+    top: float
+    right: float
+    bottom: float
+```
+
+Every coordinate must be an exact finite `float` inside the closed interval
+`0.0` through `1.0`. The rectangle must satisfy `left < right` and
+`top < bottom`, with a minimum retained width and height of `0.20`. The default
+is the complete image: `NormalizedCrop(0.0, 0.0, 1.0, 1.0)`.
+
+User edge controls move in normalized `0.05` steps. They clamp at the image
+boundary and at the minimum retained dimensions, so an invalid crop is never
+submitted to a renderer. Direct reconstruction still rejects wrong types,
+booleans, NaN, infinity, out-of-range coordinates, inverted rectangles, empty
+rectangles, and undersized rectangles.
+
+### Supplemental renderer contract
+
+The existing two-argument renderer remains unchanged:
+
+```python
+AdjustedPreviewRenderer = Callable[[float, float], object]
+```
+
+Crop-capable previews may additionally provide:
+
+```python
+CropAdjustedPreviewRenderer = Callable[
+    [float, float, NormalizedCrop],
+    object,
+]
+```
+
+`OCRCandidatePreview.crop_adjusted_image_renderer` defaults to `None`, so
+legacy previews and zoom/contrast-only resolvers remain source-compatible.
+When the crop-capable renderer is present, it receives validated zoom,
+contrast, and crop values for every visual adjustment. This makes the crop
+compose deterministically with zoom and contrast without overloading or
+changing the existing callback.
+
+Previews without the crop-capable renderer retain their existing zoom and
+contrast behavior and show disabled crop controls. A crop-capable renderer may
+also provide zoom and contrast rendering without the older callback.
+
+### State, rendering, and reset
+
+- Crop state is dialog-local and keyed by exact coin, image role, and preview
+  reference alongside zoom and contrast state.
+- Obverse, reverse, and distinct references remain independent.
+- Pixel decoding, cropping, transformation, Tk-image construction, and source
+  image lifecycle stay with the resolver.
+- A successful callback commits all proposed presentation values and retains
+  the returned image reference.
+- A callback exception or `None` result keeps the prior crop, zoom, contrast,
+  and displayed image unchanged.
+- Reset restores the full-image crop, 1.00× zoom, 1.00× contrast, and the exact
+  original image without invoking either callback.
+- No crop values, adjusted images, or display preferences are persisted.
+- Source images, OCR evidence, review candidates, and collection data are never
+  mutated.
+
+### Interaction and accessibility
+
+Each crop-capable side exposes native focusable buttons to move the left, top,
+right, and bottom edges inward or outward. A focusable value label communicates
+all four normalized coordinates. The crop controls use native disabled state
+when unsupported and use a compact two-column layout inside each responsive
+side panel.
+
+### Exclusions
+
+This unit adds no drag canvas, automatic crop inference, destructive editing,
+OCR rerun, image normalization, persistence, candidate highlighting, workflow
+shortcut, batch review, or image-processing dependency inside the dialog.
