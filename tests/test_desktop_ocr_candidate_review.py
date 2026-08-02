@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError, replace
 import importlib
 import inspect
 import json
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -23,6 +24,8 @@ from capture_import.desktop_ocr_candidate_review import (
     _CROP_MINIMUM_SIZE,
     _CROP_STEP,
     _ImageReviewAdjustmentStore,
+    _SHORTCUT_BINDINGS,
+    _SHORTCUT_HELP_TEXT,
     _ZOOM_MAXIMUM,
     _ZOOM_MINIMUM,
     _preview_column_count,
@@ -40,6 +43,31 @@ from capture_import.workflow_ocr_review_controller import (
 from capture_import.workflow_ocr_review_models import OCRReviewDecision
 from capture_import.workflow_ocr_review_presenter import OCRReviewPresenter
 from capture_import.workflow_stages import build_image_processing_pipeline
+
+
+class _ShortcutTestWindow:
+    def __init__(self) -> None:
+        self.exists = True
+        self.focused_widget = object()
+        self.bindings = []
+        self.destroy_count = 0
+
+    def bind(self, sequence, callback, add=None):
+        self.bindings.append((sequence, callback, add))
+
+    def winfo_exists(self):
+        return self.exists
+
+    def focus_get(self):
+        return self.focused_widget
+
+    def destroy(self):
+        self.exists = False
+        self.destroy_count += 1
+
+
+def _shortcut_event(keysym: str):
+    return SimpleNamespace(keysym=keysym)
 
 
 def _candidate(
@@ -1222,6 +1250,268 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             ["reviewed_value must not be empty."],
         )
         self.assertEqual(renders, [])
+
+    def _shortcut_dialog(
+        self,
+        *candidates: OCRFieldCandidate,
+    ) -> OCRCandidateReviewDialog:
+        dialog = OCRCandidateReviewDialog.__new__(OCRCandidateReviewDialog)
+        dialog._model = self.model(*candidates)
+        dialog.window = _ShortcutTestWindow()  # type: ignore[assignment]
+        dialog._pressed_shortcut_keys = set()
+        return dialog
+
+    def test_dialog_binds_documented_shortcuts_once_outside_render(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+
+        dialog._bind_shortcuts()
+
+        self.assertEqual(
+            tuple(binding[0] for binding in dialog.window.bindings),
+            tuple(sequence for sequence, _action in _SHORTCUT_BINDINGS)
+            + ("<KeyRelease>",),
+        )
+        self.assertTrue(
+            all(binding[2] == "+" for binding in dialog.window.bindings)
+        )
+        self.assertNotIn("_bind_shortcuts", inspect.getsource(dialog._render))
+
+    def test_each_shortcut_routes_to_the_existing_dialog_command_once(
+        self,
+    ) -> None:
+        dialog = self._shortcut_dialog(
+            _candidate(field_name="country", value="Canada"),
+            _candidate(),
+            _candidate(field_name="denomination", value="1 cent"),
+        )
+        dialog._model.next_candidate()
+        calls = []
+        for method_name in ("_previous", "_next", "_approve", "_reject", "close"):
+            setattr(
+                dialog,
+                method_name,
+                lambda name=method_name: calls.append(name),
+            )
+
+        cases = (
+            ("previous", "Left", "_previous"),
+            ("next", "Right", "_next"),
+            ("approve", "Return", "_approve"),
+            ("reject", "BackSpace", "_reject"),
+            ("close", "Escape", "close"),
+        )
+        for action, keysym, expected in cases:
+            with self.subTest(action=action):
+                result = dialog._handle_shortcut(
+                    _shortcut_event(keysym),
+                    action,
+                )
+                dialog._release_shortcut_key(_shortcut_event(keysym))
+                self.assertEqual(result, "break")
+                self.assertEqual(calls[-1], expected)
+
+        self.assertEqual(len(calls), len(cases))
+
+    def test_key_repeat_is_consumed_without_duplicate_invocation(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        calls = []
+        dialog._approve = lambda: calls.append("approve")
+        event = _shortcut_event("Return")
+
+        self.assertEqual(dialog._handle_shortcut(event, "approve"), "break")
+        self.assertEqual(dialog._handle_shortcut(event, "approve"), "break")
+        self.assertEqual(calls, ["approve"])
+
+        dialog._release_shortcut_key(event)
+        self.assertEqual(dialog._handle_shortcut(event, "approve"), "break")
+        self.assertEqual(calls, ["approve", "approve"])
+
+    def test_unavailable_navigation_and_decisions_are_not_consumed(self) -> None:
+        dialog = self._shortcut_dialog()
+        calls = []
+        dialog._previous = lambda: calls.append("previous")
+        dialog._next = lambda: calls.append("next")
+        dialog._approve = lambda: calls.append("approve")
+        dialog._reject = lambda: calls.append("reject")
+
+        for action, keysym in (
+            ("previous", "Left"),
+            ("next", "Right"),
+            ("approve", "Return"),
+            ("reject", "BackSpace"),
+        ):
+            with self.subTest(action=action):
+                self.assertIsNone(
+                    dialog._handle_shortcut(_shortcut_event(keysym), action)
+                )
+
+        self.assertEqual(calls, [])
+
+    def test_navigation_shortcuts_respect_existing_boundaries(self) -> None:
+        dialog = self._shortcut_dialog(
+            _candidate(),
+            _candidate(field_name="country"),
+        )
+        dialog._error_var = SimpleNamespace(set=lambda _value: None)
+        dialog._render = lambda: None
+
+        self.assertIsNone(
+            dialog._handle_shortcut(_shortcut_event("Left"), "previous")
+        )
+        self.assertEqual(
+            dialog._handle_shortcut(_shortcut_event("Right"), "next"),
+            "break",
+        )
+        dialog._release_shortcut_key(_shortcut_event("Right"))
+        self.assertEqual(dialog._model.candidate_index, 1)
+        self.assertIsNone(
+            dialog._handle_shortcut(_shortcut_event("Right"), "next")
+        )
+
+    def test_shortcuts_are_suppressed_for_editable_and_native_controls(
+        self,
+    ) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        calls = []
+        dialog._approve = lambda: calls.append("approve")
+
+        with patch(
+            "capture_import.desktop_ocr_candidate_review."
+            "_is_editable_or_native_key_widget",
+            return_value=True,
+        ):
+            result = dialog._handle_shortcut(
+                _shortcut_event("Return"),
+                "approve",
+            )
+
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_unmodified_native_keys_have_no_dialog_binding(self) -> None:
+        sequences = tuple(sequence for sequence, _action in _SHORTCUT_BINDINGS)
+
+        for unmodified in (
+            "<Left>",
+            "<Right>",
+            "<space>",
+            "<Return>",
+            "<Tab>",
+            "<Shift-Tab>",
+        ):
+            self.assertNotIn(unmodified, sequences)
+
+    def test_shortcuts_do_not_run_after_dialog_destruction(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        calls = []
+        dialog._approve = lambda: calls.append("approve")
+        dialog.window.exists = False
+
+        result = dialog._handle_shortcut(
+            _shortcut_event("Return"),
+            "approve",
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_shortcut_navigation_updates_selection_without_losing_adjustments(
+        self,
+    ) -> None:
+        def resolve(candidate):
+            return OCRCandidatePreview(
+                reference=candidate.artifact_key,
+                image=object(),
+                crop_adjusted_image_renderer=(
+                    lambda _zoom, _contrast, _crop: object()
+                ),
+            )
+
+        dialog = self._shortcut_dialog(
+            _candidate(
+                field_name="country",
+                value="Canada",
+                artifact_key="country",
+            ),
+            _candidate(artifact_key="year"),
+        )
+        dialog._model = self.model(
+            _candidate(
+                field_name="country",
+                value="Canada",
+                artifact_key="country",
+            ),
+            _candidate(artifact_key="year"),
+            preview_resolver=resolve,
+        )
+        dialog._adjustments = _ImageReviewAdjustmentStore()
+        first = dialog._model._side_previews(dialog._model.display)[0]
+        dialog._adjustments.change_zoom(first.identity, first.preview, 1)
+        dialog._adjustments.change_contrast(first.identity, first.preview, 1)
+        dialog._error_var = SimpleNamespace(set=lambda _value: None)
+        dialog._render = lambda: None
+
+        result = dialog._handle_shortcut(_shortcut_event("Right"), "next")
+        second = dialog._model._side_previews(dialog._model.display)[0]
+
+        self.assertEqual(result, "break")
+        self.assertTrue(second.is_selected)
+        self.assertNotEqual(first.identity, second.identity)
+        retained = dialog._adjustments.adjustment(first.identity)
+        self.assertEqual((retained.zoom, retained.contrast), (1.25, 1.1))
+
+    def test_decision_shortcuts_use_existing_review_semantics(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        dialog._reason_var = SimpleNamespace(get=lambda: "Keyboard review.")
+        dialog._error_var = SimpleNamespace(set=lambda _value: None)
+        dialog._render = lambda: None
+
+        self.assertEqual(
+            dialog._handle_shortcut(_shortcut_event("Return"), "approve"),
+            "break",
+        )
+        self.assertEqual(
+            dialog._model.current_review.decision,
+            OCRReviewDecision.APPROVE,
+        )
+        dialog._release_shortcut_key(_shortcut_event("Return"))
+        self.assertEqual(
+            dialog._handle_shortcut(_shortcut_event("BackSpace"), "reject"),
+            "break",
+        )
+        self.assertEqual(
+            dialog._model.current_review.decision,
+            OCRReviewDecision.REJECT,
+        )
+
+    def test_escape_uses_existing_close_callback_and_destroy_path(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        closed_reviews = []
+        dialog._on_close = lambda reviews: closed_reviews.append(reviews)
+
+        result = dialog._handle_shortcut(_shortcut_event("Escape"), "close")
+
+        self.assertEqual(result, "break")
+        self.assertEqual(closed_reviews, [dialog._model.reviews])
+        self.assertEqual(dialog.window.destroy_count, 1)
+        self.assertFalse(dialog.window.exists)
+
+    def test_shortcut_help_is_readable_and_matches_bindings(self) -> None:
+        self.assertEqual(
+            _SHORTCUT_HELP_TEXT,
+            "Keyboard shortcuts: Alt+Left Previous | Alt+Right Next | "
+            "Ctrl+Enter Approve | Ctrl+Backspace Reject | Esc Close",
+        )
+        self.assertEqual(
+            _SHORTCUT_BINDINGS,
+            (
+                ("<Alt-Left>", "previous"),
+                ("<Alt-Right>", "next"),
+                ("<Control-Return>", "approve"),
+                ("<Control-BackSpace>", "reject"),
+                ("<Escape>", "close"),
+            ),
+        )
 
     def test_architecture_and_opt_in_boundaries(self) -> None:
         module = importlib.import_module(

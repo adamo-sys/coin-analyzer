@@ -60,6 +60,35 @@ _CROP_MINIMUM_SIZE = 0.20
 _CROP_STEP = 0.05
 _SELECTED_PREVIEW_STYLE = "SelectedCandidate.TLabelframe"
 _RELATED_PREVIEW_STYLE = "RelatedCandidate.TLabelframe"
+_SHORTCUT_HELP_TEXT = (
+    "Keyboard shortcuts: Alt+Left Previous | Alt+Right Next | "
+    "Ctrl+Enter Approve | Ctrl+Backspace Reject | Esc Close"
+)
+_SHORTCUT_BINDINGS = (
+    ("<Alt-Left>", "previous"),
+    ("<Alt-Right>", "next"),
+    ("<Control-Return>", "approve"),
+    ("<Control-BackSpace>", "reject"),
+    ("<Escape>", "close"),
+)
+
+
+def _is_editable_or_native_key_widget(widget: object) -> bool:
+    """Return whether dialog workflow shortcuts must yield to the widget."""
+
+    return isinstance(
+        widget,
+        (
+            tk.Entry,
+            tk.Text,
+            tk.Spinbox,
+            tk.Scale,
+            ttk.Entry,
+            ttk.Combobox,
+            ttk.Spinbox,
+            ttk.Scale,
+        ),
+    )
 
 
 def _candidate_identity(
@@ -794,6 +823,7 @@ class OCRCandidateReviewDialog:
             _PreviewIdentity,
             _OCRReviewSideWidgets,
         ] = {}
+        self._pressed_shortcut_keys: set[str] = set()
 
         self.window = tk.Toplevel(parent)
         self.window.title("OCR Candidate Review")
@@ -818,6 +848,7 @@ class OCRCandidateReviewDialog:
         self._error_var = tk.StringVar()
 
         self._build_widgets()
+        self._bind_shortcuts()
         self._render()
 
     def _configure_candidate_highlight_styles(self) -> None:
@@ -977,9 +1008,22 @@ class OCRCandidateReviewDialog:
             pady=(8, 0),
         )
 
+        ttk.Label(
+            content,
+            text=_SHORTCUT_HELP_TEXT,
+            wraplength=680,
+            takefocus=True,
+        ).grid(
+            row=13,
+            column=0,
+            columnspan=2,
+            sticky=tk.W,
+            pady=(12, 0),
+        )
+
         navigation = ttk.Frame(content)
         navigation.grid(
-            row=13,
+            row=14,
             column=0,
             columnspan=2,
             sticky=(tk.W, tk.E),
@@ -1002,6 +1046,72 @@ class OCRCandidateReviewDialog:
             text="Close",
             command=self.close,
         ).pack(side=tk.RIGHT)
+
+    def _bind_shortcuts(self) -> None:
+        for sequence, action_name in _SHORTCUT_BINDINGS:
+            self.window.bind(
+                sequence,
+                lambda event, action=action_name: self._handle_shortcut(
+                    event,
+                    action,
+                ),
+                add="+",
+            )
+        self.window.bind(
+            "<KeyRelease>",
+            self._release_shortcut_key,
+            add="+",
+        )
+
+    def _handle_shortcut(
+        self,
+        event: tk.Event,
+        action_name: str,
+    ) -> str | None:
+        try:
+            if not self.window.winfo_exists():
+                return None
+            focused_widget = self.window.focus_get()
+        except tk.TclError:
+            return None
+        if _is_editable_or_native_key_widget(focused_widget):
+            return None
+        if not self._shortcut_is_available(action_name):
+            return None
+
+        key = str(getattr(event, "keysym", "")).lower()
+        if key in self._pressed_shortcut_keys:
+            return "break"
+        self._pressed_shortcut_keys.add(key)
+
+        commands = {
+            "previous": self._previous,
+            "next": self._next,
+            "approve": self._approve,
+            "reject": self._reject,
+            "close": self.close,
+        }
+        commands[action_name]()
+        return "break"
+
+    def _release_shortcut_key(self, event: tk.Event) -> None:
+        key = str(getattr(event, "keysym", "")).lower()
+        self._pressed_shortcut_keys.discard(key)
+
+    def _shortcut_is_available(self, action_name: str) -> bool:
+        display = self._model.display
+        if action_name == "previous":
+            return display.has_candidate and display.candidate_index > 0
+        if action_name == "next":
+            return (
+                display.has_candidate
+                and display.candidate_index + 1 < display.candidate_count
+            )
+        if action_name in ("approve", "reject"):
+            return display.has_candidate
+        if action_name == "close":
+            return True
+        return False
 
     def _render(self) -> None:
         display = self._model.display
