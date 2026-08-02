@@ -23,12 +23,24 @@ from capture_import.desktop_ocr_candidate_review import (
     _CONTRAST_MINIMUM,
     _CROP_MINIMUM_SIZE,
     _CROP_STEP,
+    _FOCUS_APPROVE,
+    _FOCUS_CLOSE,
+    _FOCUS_CORRECT,
+    _FOCUS_CORRECTION,
+    _FOCUS_DEFER,
+    _FOCUS_REASON,
+    _FOCUS_REJECT,
     _ImageReviewAdjustmentStore,
     _SHORTCUT_BINDINGS,
     _SHORTCUT_HELP_TEXT,
     _ZOOM_MAXIMUM,
     _ZOOM_MINIMUM,
+    _adjustment_capability_label,
+    _initial_focus_role,
     _preview_column_count,
+    _preview_wrap_width,
+    _responsive_wrap_width,
+    _scroll_fraction_for_visibility,
     create_ocr_candidate_review_dialog,
 )
 from capture_import.workflow_ocr_models import (
@@ -50,6 +62,7 @@ class _ShortcutTestWindow:
         self.exists = True
         self.focused_widget = object()
         self.bindings = []
+        self.idle_callbacks = []
         self.destroy_count = 0
 
     def bind(self, sequence, callback, add=None):
@@ -60,6 +73,9 @@ class _ShortcutTestWindow:
 
     def focus_get(self):
         return self.focused_widget
+
+    def after_idle(self, callback):
+        self.idle_callbacks.append(callback)
 
     def destroy(self):
         self.exists = False
@@ -1463,11 +1479,15 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
 
         dialog._error_var = ErrorVar()
         dialog._render = lambda: renders.append(True)
+        focus_roles = []
+        dialog._schedule_focus = focus_roles.append
 
         dialog._run_action(
             lambda: (_ for _ in ()).throw(
                 ValueError("reviewed_value must not be empty.")
-            )
+            ),
+            success_focus_role=_FOCUS_CORRECT,
+            failure_focus_role=_FOCUS_CORRECTION,
         )
 
         self.assertEqual(
@@ -1475,6 +1495,7 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             ["reviewed_value must not be empty."],
         )
         self.assertEqual(renders, [])
+        self.assertEqual(focus_roles, [_FOCUS_CORRECTION])
 
     def _shortcut_dialog(
         self,
@@ -1738,6 +1759,293 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             ),
         )
 
+    def test_initial_focus_role_is_reason_or_close(self) -> None:
+        self.assertEqual(_initial_focus_role(True), _FOCUS_REASON)
+        self.assertEqual(_initial_focus_role(False), _FOCUS_CLOSE)
+
+    def test_focus_scheduling_runs_after_idle_and_skips_disabled_widgets(
+        self,
+    ) -> None:
+        callbacks = []
+
+        class FocusWidget:
+            def __init__(self, state="normal"):
+                self.state = state
+                self.focus_count = 0
+
+            def cget(self, name):
+                self.assert_name = name
+                return self.state
+
+            def focus_set(self):
+                self.focus_count += 1
+
+        enabled = FocusWidget()
+        disabled = FocusWidget("disabled")
+        dialog = OCRCandidateReviewDialog.__new__(OCRCandidateReviewDialog)
+        dialog.window = SimpleNamespace(after_idle=callbacks.append)
+        dialog._focus_widgets = {
+            _FOCUS_REASON: enabled,
+            _FOCUS_CORRECTION: disabled,
+        }
+
+        dialog._schedule_focus(_FOCUS_REASON)
+        self.assertEqual(enabled.focus_count, 0)
+        callbacks.pop()()
+        self.assertEqual(enabled.focus_count, 1)
+
+        dialog._schedule_focus(_FOCUS_CORRECTION)
+        callbacks.pop()()
+        self.assertEqual(disabled.focus_count, 0)
+
+    def test_navigation_rerender_restores_reason_focus(self) -> None:
+        dialog = self._shortcut_dialog(
+            _candidate(field_name="country", value="Canada"),
+            _candidate(),
+        )
+        dialog._error_var = SimpleNamespace(set=lambda _value: None)
+        renders = []
+        focus_roles = []
+        dialog._render = lambda: renders.append(True)
+        dialog._schedule_focus = focus_roles.append
+
+        dialog._next()
+        dialog._previous()
+
+        self.assertEqual(renders, [True, True])
+        self.assertEqual(focus_roles, [_FOCUS_REASON, _FOCUS_REASON])
+        self.assertEqual(dialog._model.candidate_index, 0)
+        self.assertEqual(dialog._model.reviews, ())
+
+    def test_successful_decisions_focus_corresponding_visible_button(self) -> None:
+        cases = (
+            ("_approve", OCRReviewDecision.APPROVE, _FOCUS_APPROVE),
+            ("_correct", OCRReviewDecision.CORRECT, _FOCUS_CORRECT),
+            ("_reject", OCRReviewDecision.REJECT, _FOCUS_REJECT),
+            ("_defer", OCRReviewDecision.DEFER, _FOCUS_DEFER),
+        )
+        for method_name, decision, focus_role in cases:
+            with self.subTest(method_name=method_name):
+                dialog = OCRCandidateReviewDialog.__new__(
+                    OCRCandidateReviewDialog
+                )
+                dialog._model = self.model(_candidate())
+                dialog._reason_var = SimpleNamespace(
+                    get=lambda: "Reviewed accessibly."
+                )
+                dialog._correction_var = SimpleNamespace(
+                    get=lambda: "1968"
+                )
+                dialog._error_var = SimpleNamespace(set=lambda _value: None)
+                dialog._render = lambda: None
+                focus_roles = []
+                dialog._schedule_focus = focus_roles.append
+
+                getattr(dialog, method_name)()
+
+                self.assertEqual(dialog._model.candidate_index, 0)
+                self.assertEqual(
+                    dialog._model.current_review.decision,
+                    decision,
+                )
+                self.assertEqual(focus_roles, [focus_role])
+
+    def test_validation_failure_focuses_correction_or_reason(self) -> None:
+        dialog = OCRCandidateReviewDialog.__new__(OCRCandidateReviewDialog)
+        dialog._model = self.model(_candidate())
+        dialog._error_var = SimpleNamespace(set=lambda _value: None)
+        dialog._render = lambda: self.fail("failed action must not rerender")
+        focus_roles = []
+        dialog._schedule_focus = focus_roles.append
+        dialog._reason_var = SimpleNamespace(get=lambda: "Valid reason.")
+        dialog._correction_var = SimpleNamespace(get=lambda: "")
+
+        dialog._correct()
+        self.assertEqual(focus_roles, [_FOCUS_CORRECTION])
+        self.assertIsNone(dialog._model.current_review)
+
+        focus_roles.clear()
+        dialog._reason_var = SimpleNamespace(get=lambda: "")
+        dialog._approve()
+        self.assertEqual(focus_roles, [_FOCUS_REASON])
+        self.assertIsNone(dialog._model.current_review)
+
+    def test_escape_from_entry_uses_close_path_exactly_once(self) -> None:
+        dialog = self._shortcut_dialog(_candidate())
+        calls = []
+        dialog.close = lambda: calls.append("close")
+        event = _shortcut_event("Escape")
+
+        with (
+            patch(
+                "capture_import.desktop_ocr_candidate_review."
+                "_is_editable_or_native_key_widget",
+                return_value=True,
+            ),
+            patch(
+                "capture_import.desktop_ocr_candidate_review."
+                "_escape_closes_from_widget",
+                return_value=True,
+            ),
+        ):
+            self.assertEqual(
+                dialog._handle_shortcut(event, "close"),
+                "break",
+            )
+            self.assertEqual(
+                dialog._handle_shortcut(event, "close"),
+                "break",
+            )
+
+        self.assertEqual(calls, ["close"])
+
+    def test_adjustment_capability_text_is_explicit(self) -> None:
+        legacy = OCRCandidatePreview(reference="legacy", image=object())
+        zoom_only = OCRCandidatePreview(
+            reference="zoom-only",
+            image=object(),
+            adjusted_image_renderer=lambda _zoom, _contrast: object(),
+        )
+        crop = OCRCandidatePreview(
+            reference="crop",
+            image=object(),
+            crop_adjusted_image_renderer=(
+                lambda _zoom, _contrast, _crop: object()
+            ),
+        )
+        missing = OCRCandidatePreview(reference="missing")
+
+        self.assertIn("legacy or unsupported", _adjustment_capability_label(legacy))
+        self.assertIn("crop adjustment is unavailable", _adjustment_capability_label(zoom_only))
+        self.assertIn("crop adjustments are available", _adjustment_capability_label(crop))
+        self.assertIn("no preview image", _adjustment_capability_label(missing))
+
+    def test_responsive_wrap_widths_are_bounded_and_deterministic(self) -> None:
+        self.assertEqual(
+            _responsive_wrap_width(760, inset=40, maximum=680),
+            680,
+        )
+        self.assertEqual(
+            _responsive_wrap_width(200, inset=80, maximum=680),
+            160,
+        )
+        self.assertEqual(_preview_wrap_width(619), 320)
+        self.assertEqual(_preview_wrap_width(620), 262)
+        for invalid in (-1, True, 1.5):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    _responsive_wrap_width(  # type: ignore[arg-type]
+                        invalid,
+                        inset=40,
+                        maximum=680,
+                    )
+
+    def test_scroll_fraction_exposes_above_and_below_focus(self) -> None:
+        self.assertEqual(
+            _scroll_fraction_for_visibility(
+                focus_top=50,
+                focus_bottom=70,
+                viewport_top=100,
+                viewport_height=200,
+                content_height=1000,
+            ),
+            0.05,
+        )
+        self.assertEqual(
+            _scroll_fraction_for_visibility(
+                focus_top=350,
+                focus_bottom=400,
+                viewport_top=100,
+                viewport_height=200,
+                content_height=1000,
+            ),
+            0.2,
+        )
+        self.assertIsNone(
+            _scroll_fraction_for_visibility(
+                focus_top=150,
+                focus_bottom=200,
+                viewport_top=100,
+                viewport_height=200,
+                content_height=1000,
+            )
+        )
+
+    def test_focus_visibility_scrolls_only_content_descendants(self) -> None:
+        class Widget:
+            def __init__(self, master=None, top=0, height=20, requested=1000):
+                self.master = master
+                self.top = top
+                self.height = height
+                self.requested = requested
+
+            def winfo_rooty(self):
+                return self.top
+
+            def winfo_height(self):
+                return self.height
+
+            def winfo_reqheight(self):
+                return self.requested
+
+        class Canvas:
+            def __init__(self):
+                self.moves = []
+
+            def canvasy(self, _value):
+                return 100
+
+            def winfo_height(self):
+                return 200
+
+            def yview_moveto(self, fraction):
+                self.moves.append(fraction)
+
+        dialog = OCRCandidateReviewDialog.__new__(OCRCandidateReviewDialog)
+        dialog._content = Widget(top=0)
+        dialog._scroll_canvas = Canvas()
+        descendant = Widget(master=dialog._content, top=350, height=50)
+
+        dialog._ensure_focused_widget_visible(
+            SimpleNamespace(widget=descendant)
+        )
+        dialog._ensure_focused_widget_visible(
+            SimpleNamespace(widget=Widget(top=500))
+        )
+
+        self.assertEqual(dialog._scroll_canvas.moves, [0.2])
+
+    def test_accessibility_widget_contract_is_dialog_local_and_passive(
+        self,
+    ) -> None:
+        build_source = inspect.getsource(OCRCandidateReviewDialog._build_widgets)
+        render_source = inspect.getsource(OCRCandidateReviewDialog._render)
+        preview_source = inspect.getsource(
+            OCRCandidateReviewDialog._render_side_previews
+        )
+        full_source = inspect.getsource(OCRCandidateReviewDialog)
+
+        self.assertIn("tk.Canvas", build_source)
+        self.assertIn("ttk.Scrollbar", build_source)
+        self.assertIn("takefocus=True", build_source)
+        self.assertGreaterEqual(full_source.count("takefocus=False"), 8)
+        self.assertIn(
+            "self._correction_entry.config(state=tk.DISABLED, takefocus=False)",
+            render_source,
+        )
+        self.assertIn(
+            "self._reason_entry.config(state=tk.DISABLED, takefocus=False)",
+            render_source,
+        )
+        self.assertIn("takefocus=(control_state == tk.NORMAL)", preview_source)
+        self.assertIn("takefocus=(crop_state == tk.NORMAL)", preview_source)
+        self.assertIn(
+            '"Reset crop, zoom, and contrast"',
+            preview_source,
+        )
+        self.assertNotIn("bind_all", full_source)
+        self.assertNotIn("focus_force", full_source)
+
     def test_architecture_and_opt_in_boundaries(self) -> None:
         module = importlib.import_module(
             "capture_import.desktop_ocr_candidate_review"
@@ -1815,7 +2123,7 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             "Zoom in",
             "Contrast down",
             "Contrast up",
-            "Reset view",
+            "Reset crop, zoom, and contrast",
             "Crop visible area",
             "Left outward",
             "Left inward",

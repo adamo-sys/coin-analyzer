@@ -71,6 +71,14 @@ _SHORTCUT_BINDINGS = (
     ("<Control-BackSpace>", "reject"),
     ("<Escape>", "close"),
 )
+_FOCUS_REASON = "reason"
+_FOCUS_CORRECTION = "correction"
+_FOCUS_APPROVE = "approve"
+_FOCUS_CORRECT = "correct"
+_FOCUS_REJECT = "reject"
+_FOCUS_DEFER = "defer"
+_FOCUS_CLOSE = "close"
+_MINIMUM_WRAP_WIDTH = 160
 
 
 def _is_editable_or_native_key_widget(widget: object) -> bool:
@@ -88,6 +96,86 @@ def _is_editable_or_native_key_widget(widget: object) -> bool:
             ttk.Spinbox,
             ttk.Scale,
         ),
+    )
+
+
+def _escape_closes_from_widget(widget: object) -> bool:
+    """Return whether Escape may follow the dialog Close path."""
+
+    return isinstance(widget, (tk.Entry, ttk.Entry))
+
+
+def _initial_focus_role(has_candidate: bool) -> str:
+    return _FOCUS_REASON if has_candidate else _FOCUS_CLOSE
+
+
+def _responsive_wrap_width(
+    viewport_width: int,
+    *,
+    inset: int,
+    maximum: int,
+) -> int:
+    """Return a deterministic readable wrap width for the viewport."""
+
+    if type(viewport_width) is not int or viewport_width < 0:
+        raise ValueError("viewport_width must be a nonnegative integer.")
+    if type(inset) is not int or inset < 0:
+        raise ValueError("inset must be a nonnegative integer.")
+    if type(maximum) is not int or maximum < _MINIMUM_WRAP_WIDTH:
+        raise ValueError("maximum must support the minimum wrap width.")
+    return max(
+        _MINIMUM_WRAP_WIDTH,
+        min(maximum, viewport_width - inset),
+    )
+
+
+def _preview_wrap_width(viewport_width: int) -> int:
+    panel_width = (
+        viewport_width
+        if _preview_column_count(viewport_width) == 1
+        else viewport_width // 2
+    )
+    return _responsive_wrap_width(panel_width, inset=48, maximum=320)
+
+
+def _scroll_fraction_for_visibility(
+    *,
+    focus_top: int,
+    focus_bottom: int,
+    viewport_top: float,
+    viewport_height: int,
+    content_height: int,
+) -> float | None:
+    """Return the vertical view fraction needed to expose a focused widget."""
+
+    if viewport_height <= 0 or content_height <= 0:
+        return None
+    if focus_top < viewport_top:
+        target = focus_top
+    elif focus_bottom > viewport_top + viewport_height:
+        target = focus_bottom - viewport_height
+    else:
+        return None
+    maximum_top = max(content_height - viewport_height, 0)
+    bounded = min(max(float(target), 0.0), float(maximum_top))
+    return bounded / float(content_height)
+
+
+def _adjustment_capability_label(preview: "OCRCandidatePreview") -> str:
+    if preview.image is None:
+        return "Image adjustments unavailable: no preview image is available."
+    adjustable = _ImageReviewAdjustmentStore.is_adjustable(preview)
+    crop_adjustable = _ImageReviewAdjustmentStore.is_crop_adjustable(preview)
+    if crop_adjustable:
+        return "Zoom, contrast, and crop adjustments are available."
+    if adjustable:
+        return (
+            "Zoom and contrast adjustments are available; crop adjustment "
+            "is unavailable for this preview."
+        )
+    return (
+        "Image adjustments unavailable: this legacy or unsupported preview "
+        "has no adjustment renderer."
     )
 
 
@@ -927,10 +1015,15 @@ class OCRCandidateReviewDialog:
             _OCRReviewSideWidgets,
         ] = {}
         self._pressed_shortcut_keys: set[str] = set()
+        self._wide_wrapped_labels: list[ttk.Label] = []
+        self._detail_wrapped_labels: list[ttk.Label] = []
+        self._preview_wrapped_labels: list[ttk.Label] = []
+        self._focus_widgets: dict[str, tk.Misc] = {}
 
         self.window = tk.Toplevel(parent)
         self.window.title("OCR Candidate Review")
         self.window.geometry("760x620")
+        self.window.minsize(480, 420)
         self.window.transient(parent)
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -956,6 +1049,9 @@ class OCRCandidateReviewDialog:
         self._build_widgets()
         self._bind_shortcuts()
         self._render()
+        self._schedule_focus(
+            _initial_focus_role(self._model.current_candidate is not None)
+        )
 
     def _configure_candidate_highlight_styles(self) -> None:
         style = ttk.Style(self.window)
@@ -975,8 +1071,40 @@ class OCRCandidateReviewDialog:
         )
 
     def _build_widgets(self) -> None:
-        content = ttk.Frame(self.window, padding="12")
-        content.pack(fill=tk.BOTH, expand=True)
+        viewport = ttk.Frame(self.window)
+        viewport.pack(fill=tk.BOTH, expand=True)
+        viewport.columnconfigure(0, weight=1)
+        viewport.rowconfigure(0, weight=1)
+
+        self._scroll_canvas = tk.Canvas(
+            viewport,
+            highlightthickness=0,
+            takefocus=False,
+        )
+        self._scrollbar = ttk.Scrollbar(
+            viewport,
+            orient=tk.VERTICAL,
+            command=self._scroll_canvas.yview,
+            takefocus=True,
+        )
+        self._scroll_canvas.configure(yscrollcommand=self._scrollbar.set)
+        self._scroll_canvas.grid(row=0, column=0, sticky="nsew")
+        self._scrollbar.grid(row=0, column=1, sticky="ns")
+
+        content = ttk.Frame(self._scroll_canvas, padding="12")
+        self._content = content
+        self._content_window = self._scroll_canvas.create_window(
+            (0, 0),
+            window=content,
+            anchor="nw",
+        )
+        content.bind("<Configure>", self._update_scroll_region)
+        self._scroll_canvas.bind("<Configure>", self._resize_content)
+        self.window.bind(
+            "<FocusIn>",
+            self._ensure_focused_widget_visible,
+            add="+",
+        )
         content.columnconfigure(1, weight=1)
 
         batch_summary = ttk.LabelFrame(
@@ -998,12 +1126,14 @@ class OCRCandidateReviewDialog:
                 self._batch_state_var,
             )
         ):
-            ttk.Label(
+            label = ttk.Label(
                 batch_summary,
                 textvariable=variable,
                 wraplength=680,
-                takefocus=True,
-            ).grid(row=row, column=0, sticky=tk.W, pady=2)
+                takefocus=False,
+            )
+            label.grid(row=row, column=0, sticky=tk.W, pady=2)
+            self._wide_wrapped_labels.append(label)
 
         ttk.Label(
             content,
@@ -1030,11 +1160,14 @@ class OCRCandidateReviewDialog:
                 padx=(0, 10),
                 pady=2,
             )
-            ttk.Label(
+            value_label = ttk.Label(
                 content,
                 textvariable=variable,
                 wraplength=540,
-            ).grid(row=row, column=1, sticky=tk.W, pady=2)
+                takefocus=False,
+            )
+            value_label.grid(row=row, column=1, sticky=tk.W, pady=2)
+            self._detail_wrapped_labels.append(value_label)
 
         self._preview_frame = ttk.LabelFrame(
             content,
@@ -1073,20 +1206,27 @@ class OCRCandidateReviewDialog:
             column=0,
             sticky=tk.W,
         )
-        ttk.Entry(
+        self._correction_entry = ttk.Entry(
             decision_frame,
             textvariable=self._correction_var,
-        ).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(8, 0))
+        )
+        self._correction_entry.grid(
+            row=0,
+            column=1,
+            sticky=(tk.W, tk.E),
+            padx=(8, 0),
+        )
         ttk.Label(decision_frame, text="Reason:").grid(
             row=1,
             column=0,
             sticky=tk.W,
             pady=(6, 0),
         )
-        ttk.Entry(
+        self._reason_entry = ttk.Entry(
             decision_frame,
             textvariable=self._reason_var,
-        ).grid(
+        )
+        self._reason_entry.grid(
             row=1,
             column=1,
             sticky=(tk.W, tk.E),
@@ -1127,31 +1267,36 @@ class OCRCandidateReviewDialog:
         for column, button in enumerate(self._action_buttons):
             button.grid(row=0, column=column, padx=(0, 6))
 
-        ttk.Label(
+        error_label = ttk.Label(
             content,
             textvariable=self._error_var,
             foreground="red",
             wraplength=680,
-        ).grid(
+            takefocus=False,
+        )
+        error_label.grid(
             row=13,
             column=0,
             columnspan=2,
             sticky=tk.W,
             pady=(8, 0),
         )
+        self._wide_wrapped_labels.append(error_label)
 
-        ttk.Label(
+        shortcut_label = ttk.Label(
             content,
             text=_SHORTCUT_HELP_TEXT,
             wraplength=680,
-            takefocus=True,
-        ).grid(
+            takefocus=False,
+        )
+        shortcut_label.grid(
             row=14,
             column=0,
             columnspan=2,
             sticky=tk.W,
             pady=(12, 0),
         )
+        self._wide_wrapped_labels.append(shortcut_label)
 
         navigation = ttk.Frame(content)
         navigation.grid(
@@ -1173,11 +1318,100 @@ class OCRCandidateReviewDialog:
             command=self._next,
         )
         self._next_button.pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(
+        self._close_button = ttk.Button(
             navigation,
             text="Close",
             command=self.close,
-        ).pack(side=tk.RIGHT)
+        )
+        self._close_button.pack(side=tk.RIGHT)
+
+        self._focus_widgets = {
+            _FOCUS_REASON: self._reason_entry,
+            _FOCUS_CORRECTION: self._correction_entry,
+            _FOCUS_APPROVE: self._action_buttons[0],
+            _FOCUS_CORRECT: self._action_buttons[1],
+            _FOCUS_REJECT: self._action_buttons[2],
+            _FOCUS_DEFER: self._action_buttons[3],
+            _FOCUS_CLOSE: self._close_button,
+        }
+
+    def _update_scroll_region(self, _event: tk.Event | None = None) -> None:
+        bounds = self._scroll_canvas.bbox("all")
+        if bounds is not None:
+            self._scroll_canvas.configure(scrollregion=bounds)
+
+    def _resize_content(self, event: tk.Event) -> None:
+        width = max(int(event.width), 0)
+        self._scroll_canvas.itemconfigure(
+            self._content_window,
+            width=width,
+        )
+        wide_width = _responsive_wrap_width(
+            width,
+            inset=40,
+            maximum=680,
+        )
+        detail_width = _responsive_wrap_width(
+            width,
+            inset=180,
+            maximum=540,
+        )
+        preview_width = _preview_wrap_width(width)
+        for label in self._wide_wrapped_labels:
+            label.configure(wraplength=wide_width)
+        for label in self._detail_wrapped_labels:
+            label.configure(wraplength=detail_width)
+        for label in self._preview_wrapped_labels:
+            try:
+                label.configure(wraplength=preview_width)
+            except tk.TclError:
+                continue
+        self._layout_preview_panels(width)
+
+    @staticmethod
+    def _is_content_descendant(widget: object, ancestor: object) -> bool:
+        current = widget
+        while current is not None:
+            if current is ancestor:
+                return True
+            current = getattr(current, "master", None)
+        return False
+
+    def _ensure_focused_widget_visible(self, event: tk.Event) -> None:
+        widget = getattr(event, "widget", None)
+        if not self._is_content_descendant(widget, self._content):
+            return
+        try:
+            focus_top = widget.winfo_rooty() - self._content.winfo_rooty()
+            focus_bottom = focus_top + widget.winfo_height()
+            viewport_top = self._scroll_canvas.canvasy(0)
+            viewport_height = self._scroll_canvas.winfo_height()
+            content_height = max(self._content.winfo_reqheight(), 1)
+            fraction = _scroll_fraction_for_visibility(
+                focus_top=focus_top,
+                focus_bottom=focus_bottom,
+                viewport_top=viewport_top,
+                viewport_height=viewport_height,
+                content_height=content_height,
+            )
+            if fraction is not None:
+                self._scroll_canvas.yview_moveto(fraction)
+        except (AttributeError, tk.TclError):
+            return
+
+    def _schedule_focus(self, role: str) -> None:
+        self.window.after_idle(lambda: self._focus_widget(role))
+
+    def _focus_widget(self, role: str) -> None:
+        widget = self._focus_widgets.get(role)
+        if widget is None:
+            return
+        try:
+            if str(widget.cget("state")) == tk.DISABLED:
+                return
+            widget.focus_set()
+        except tk.TclError:
+            return
 
     def _bind_shortcuts(self) -> None:
         for sequence, action_name in _SHORTCUT_BINDINGS:
@@ -1206,7 +1440,13 @@ class OCRCandidateReviewDialog:
             focused_widget = self.window.focus_get()
         except tk.TclError:
             return None
-        if _is_editable_or_native_key_widget(focused_widget):
+        if (
+            _is_editable_or_native_key_widget(focused_widget)
+            and not (
+                action_name == "close"
+                and _escape_closes_from_widget(focused_widget)
+            )
+        ):
             return None
         if not self._shortcut_is_available(action_name):
             return None
@@ -1269,7 +1509,9 @@ class OCRCandidateReviewDialog:
             self._evidence_var.set(display.evidence_label)
             self._render_side_previews(())
             for button in self._action_buttons:
-                button.config(state=tk.DISABLED)
+                button.config(state=tk.DISABLED, takefocus=False)
+            self._correction_entry.config(state=tk.DISABLED, takefocus=False)
+            self._reason_entry.config(state=tk.DISABLED, takefocus=False)
         else:
             self._coin_var.set(candidate.source_coin_id)
             self._field_var.set(candidate.field_label)
@@ -1281,7 +1523,9 @@ class OCRCandidateReviewDialog:
             self._evidence_var.set(display.evidence_label)
             self._human_state_var.set(candidate.human_review_label)
             for button in self._action_buttons:
-                button.config(state=tk.NORMAL)
+                button.config(state=tk.NORMAL, takefocus=True)
+            self._correction_entry.config(state=tk.NORMAL, takefocus=True)
+            self._reason_entry.config(state=tk.NORMAL, takefocus=True)
             self._render_side_previews(self._model._side_previews(display))
 
         review = self._model.current_review
@@ -1296,7 +1540,8 @@ class OCRCandidateReviewDialog:
                 tk.NORMAL
                 if display.has_candidate and display.candidate_index > 0
                 else tk.DISABLED
-            )
+            ),
+            takefocus=(display.has_candidate and display.candidate_index > 0),
         )
         self._next_button.config(
             state=(
@@ -1307,23 +1552,39 @@ class OCRCandidateReviewDialog:
                     < display.candidate_count
                 )
                 else tk.DISABLED
-            )
+            ),
+            takefocus=(
+                display.has_candidate
+                and display.candidate_index + 1 < display.candidate_count
+            ),
         )
 
     def _render_side_previews(
         self,
         sides: tuple[_OCRReviewSidePreview, ...],
     ) -> None:
+        self._preview_wrapped_labels = []
         for child in self._preview_grid.winfo_children():
             child.destroy()
 
         if not sides:
-            ttk.Label(
+            empty_label = ttk.Label(
                 self._preview_grid,
                 text="No obverse or reverse images are available for review.",
                 anchor=tk.CENTER,
-                takefocus=True,
-            ).grid(row=0, column=0, sticky="nsew", padx=4, pady=8)
+                wraplength=_preview_wrap_width(
+                    max(self._scroll_canvas.winfo_width(), 0)
+                ),
+                takefocus=False,
+            )
+            empty_label.grid(
+                row=0,
+                column=0,
+                sticky="nsew",
+                padx=4,
+                pady=8,
+            )
+            self._preview_wrapped_labels.append(empty_label)
             self._preview_images = {}
             self._preview_panels = ()
             self._preview_widgets = {}
@@ -1351,7 +1612,7 @@ class OCRCandidateReviewDialog:
                     if side.is_selected
                     else "TkDefaultFont"
                 ),
-                takefocus=True,
+                takefocus=False,
             ).pack(fill=tk.X, pady=(0, 6))
             preview = side.preview
             displayed_image = self._adjustments.displayed_image(
@@ -1366,7 +1627,7 @@ class OCRCandidateReviewDialog:
                         or f"{side.label} unavailable"
                     ),
                     anchor=tk.CENTER,
-                    takefocus=True,
+                    takefocus=False,
                 )
             else:
                 image_label = ttk.Label(
@@ -1375,31 +1636,46 @@ class OCRCandidateReviewDialog:
                     text=side.alt_text,
                     compound=tk.BOTTOM,
                     anchor=tk.CENTER,
-                    takefocus=True,
+                    takefocus=False,
                 )
                 retained = [displayed_image]
                 if preview.image is not displayed_image:
                     retained.append(preview.image)
                 images[side.identity] = tuple(retained)
             image_label.pack(fill=tk.BOTH, expand=True)
-            ttk.Label(
+            reference_label = ttk.Label(
                 panel,
                 text=f"Reference: {preview.reference}",
-                wraplength=320,
-            ).pack(fill=tk.X, pady=(6, 0))
+                wraplength=_preview_wrap_width(
+                    max(self._scroll_canvas.winfo_width(), 0)
+                ),
+                takefocus=False,
+            )
+            reference_label.pack(fill=tk.X, pady=(6, 0))
+            self._preview_wrapped_labels.append(reference_label)
             adjustment = self._adjustments.adjustment(side.identity)
             adjustment_var = tk.StringVar(value=adjustment.label)
             ttk.Label(
                 panel,
                 textvariable=adjustment_var,
-                takefocus=True,
+                takefocus=False,
             ).pack(fill=tk.X, pady=(6, 0))
             crop_var = tk.StringVar(value=adjustment.crop.label)
             ttk.Label(
                 panel,
                 textvariable=crop_var,
-                takefocus=True,
+                takefocus=False,
             ).pack(fill=tk.X, pady=(2, 0))
+            capability_label = ttk.Label(
+                panel,
+                text=_adjustment_capability_label(preview),
+                wraplength=_preview_wrap_width(
+                    max(self._scroll_canvas.winfo_width(), 0)
+                ),
+                takefocus=False,
+            )
+            capability_label.pack(fill=tk.X, pady=(2, 0))
+            self._preview_wrapped_labels.append(capability_label)
             controls = ttk.Frame(panel)
             controls.pack(fill=tk.X, pady=(4, 0))
             control_state = (
@@ -1437,7 +1713,7 @@ class OCRCandidateReviewDialog:
                     ),
                 ),
                 (
-                    "Reset view",
+                    "Reset crop, zoom, and contrast",
                     lambda identity=side.identity: self._reset_adjustment(
                         identity
                     ),
@@ -1449,7 +1725,7 @@ class OCRCandidateReviewDialog:
                     text=text,
                     command=command,
                     state=control_state,
-                    takefocus=True,
+                    takefocus=(control_state == tk.NORMAL),
                 ).grid(
                     row=index // 3,
                     column=index % 3,
@@ -1487,7 +1763,7 @@ class OCRCandidateReviewDialog:
                         self._change_crop(identity, edge, steps)
                     ),
                     state=crop_state,
-                    takefocus=True,
+                    takefocus=(crop_state == tk.NORMAL),
                 ).grid(
                     row=index // 2,
                     column=index % 2,
@@ -1618,47 +1894,70 @@ class OCRCandidateReviewDialog:
                 pady=4,
             )
 
-    def _run_action(self, action: Callable[[], object]) -> None:
+    def _run_action(
+        self,
+        action: Callable[[], object],
+        *,
+        success_focus_role: str,
+        failure_focus_role: str,
+    ) -> None:
         try:
             action()
         except (TypeError, ValueError) as exc:
             self._error_var.set(str(exc))
+            self._schedule_focus(failure_focus_role)
             return
         self._error_var.set("")
         self._render()
+        self._schedule_focus(success_focus_role)
 
     def _approve(self) -> None:
         self._run_action(
-            lambda: self._model.approve(reason=self._reason_var.get())
+            lambda: self._model.approve(reason=self._reason_var.get()),
+            success_focus_role=_FOCUS_APPROVE,
+            failure_focus_role=_FOCUS_REASON,
         )
 
     def _correct(self) -> None:
+        correction = self._correction_var.get()
         self._run_action(
             lambda: self._model.correct(
-                corrected_value=self._correction_var.get(),
+                corrected_value=correction,
                 reason=self._reason_var.get(),
-            )
+            ),
+            success_focus_role=_FOCUS_CORRECT,
+            failure_focus_role=(
+                _FOCUS_CORRECTION
+                if not correction.strip()
+                else _FOCUS_REASON
+            ),
         )
 
     def _reject(self) -> None:
         self._run_action(
-            lambda: self._model.reject(reason=self._reason_var.get())
+            lambda: self._model.reject(reason=self._reason_var.get()),
+            success_focus_role=_FOCUS_REJECT,
+            failure_focus_role=_FOCUS_REASON,
         )
 
     def _defer(self) -> None:
         self._run_action(
-            lambda: self._model.defer(reason=self._reason_var.get())
+            lambda: self._model.defer(reason=self._reason_var.get()),
+            success_focus_role=_FOCUS_DEFER,
+            failure_focus_role=_FOCUS_REASON,
         )
 
     def _next(self) -> None:
         if self._model.next_candidate():
             self._error_var.set("")
             self._render()
+            self._schedule_focus(_FOCUS_REASON)
 
     def _previous(self) -> None:
         if self._model.previous_candidate():
             self._error_var.set("")
             self._render()
+            self._schedule_focus(_FOCUS_REASON)
 
     def close(self) -> None:
         if self._on_close is not None:
