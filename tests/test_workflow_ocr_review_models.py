@@ -6,58 +6,25 @@ import json
 import unittest
 from dataclasses import FrozenInstanceError
 
-from capture_import.workflow_ocr_models import (
-    OCRFieldCandidate,
-    OCRFieldIdentity,
-)
+from capture_import.workflow_ocr_models import OCRFieldIdentity
 from capture_import.workflow_ocr_review_models import (
     OCRFieldReview,
     OCRReportReview,
     OCRReviewDecision,
 )
+from tests.ocr_review_test_builders import (
+    candidate as candidate_builder,
+    report as report_builder,
+    review as review_builder,
+)
 
 
-def _candidate(
-    *,
-    source_coin_id: str = "coin-1",
-    image_role: str = "front",
-    artifact_key: str = "cropped-coin-1-front",
-    provider_id: str = "legacy-ocr",
-    field_name: str = "year",
-    normalized_value: str = "1967",
-    confidence_score: float = 0.90,
-) -> OCRFieldCandidate:
-    return OCRFieldCandidate(
-        source_coin_id=source_coin_id,
-        image_role=image_role,
-        artifact_key=artifact_key,
-        provider_id=provider_id,
-        field_name=field_name,
-        raw_text=normalized_value,
-        normalized_value=normalized_value,
-        confidence_score=confidence_score,
-    )
+def _candidate(**kwargs):
+    return candidate_builder(**kwargs)
 
 
-def _review(
-    *,
-    decision: OCRReviewDecision = OCRReviewDecision.APPROVE,
-    original_value: str = "1967",
-    reviewed_value: str | None = "1967",
-    field_name: str = "year",
-    reason: str = "Confirmed visually.",
-) -> OCRFieldReview:
-    return OCRFieldReview(
-        source_coin_id="coin-1",
-        image_role="front",
-        artifact_key="cropped-coin-1-front",
-        provider_id="legacy-ocr",
-        field_name=field_name,
-        original_value=original_value,
-        decision=decision,
-        reviewed_value=reviewed_value,
-        reason=reason,
-    )
+def _review(**kwargs):
+    return review_builder(**kwargs)
 
 
 class OCRReviewDecisionTests(unittest.TestCase):
@@ -277,7 +244,7 @@ class OCRReportReviewTests(unittest.TestCase):
             reason="No mintmark is visible.",
         )
 
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(approved, corrected, rejected),
         )
@@ -323,14 +290,14 @@ class OCRReportReviewTests(unittest.TestCase):
 
     def test_empty_report_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least one"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=(),
             ).validate()
 
     def test_field_reviews_must_be_tuple(self) -> None:
         with self.assertRaisesRegex(TypeError, "tuple"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=[_review()],  # type: ignore[arg-type]
             ).validate()
@@ -339,13 +306,13 @@ class OCRReportReviewTests(unittest.TestCase):
         review = _review()
 
         with self.assertRaisesRegex(ValueError, "Duplicate"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=(review, review),
             ).validate()
 
     def test_report_serialization_is_deterministic(self) -> None:
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(_review(),),
         )
@@ -358,7 +325,7 @@ class OCRReportReviewTests(unittest.TestCase):
         self.assertTrue(first["summary"]["is_complete"])
 
     def test_report_is_frozen(self) -> None:
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(_review(),),
         )
