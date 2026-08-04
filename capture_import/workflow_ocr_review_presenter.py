@@ -33,6 +33,7 @@ from capture_import.workflow_ocr_final_projection import (
 )
 from capture_import.workflow_ocr_models import (
     OCRFieldCandidate,
+    OCRFieldIdentity,
     OCRMetadataReport,
 )
 from capture_import.workflow_ocr_review_models import (
@@ -50,26 +51,12 @@ def _display_label(value: str) -> str:
     return value.replace("_", " ").strip().title()
 
 
-def _candidate_identity(candidate: OCRFieldCandidate) -> tuple[str, ...]:
-    return (
-        candidate.source_coin_id,
-        candidate.image_role,
-        candidate.artifact_key,
-        candidate.provider_id,
-        candidate.field_name,
-        candidate.normalized_value,
-    )
+def _candidate_identity(candidate: OCRFieldCandidate) -> OCRFieldIdentity:
+    return candidate.identity_key
 
 
-def _review_identity(review: OCRFieldReview) -> tuple[str, ...]:
-    return (
-        review.source_coin_id,
-        review.image_role,
-        review.artifact_key,
-        review.provider_id,
-        review.field_name,
-        review.original_value,
-    )
+def _review_identity(review: OCRFieldReview) -> OCRFieldIdentity:
+    return review.identity_key
 
 
 @dataclass(frozen=True, slots=True)

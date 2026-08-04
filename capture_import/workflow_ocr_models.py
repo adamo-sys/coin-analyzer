@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, NamedTuple, Protocol, runtime_checkable
 import math
 import unicodedata
 
@@ -51,6 +51,21 @@ class OCRReviewStatus(str, Enum):
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     CONFLICT = "CONFLICT"
     UNAVAILABLE = "UNAVAILABLE"
+
+
+class OCRFieldIdentity(NamedTuple):
+    """Canonical tuple-like identity for one OCR field candidate or decision.
+
+    The tuple ordering is intentionally stable so existing dictionary and set
+    lookups continue to work unchanged while callers can read named attributes.
+    """
+
+    source_coin_id: str
+    image_role: str
+    artifact_key: str
+    provider_id: str
+    field_name: str
+    value: str
 
 
 def _require_text(
@@ -228,6 +243,17 @@ class OCRFieldCandidate:
             raise ValueError("review_status must be an OCRReviewStatus.")
         if self.review_status is OCRReviewStatus.UNAVAILABLE:
             raise ValueError("field candidates cannot have UNAVAILABLE status.")
+
+    @property
+    def identity_key(self) -> OCRFieldIdentity:
+        return OCRFieldIdentity(
+            source_coin_id=self.source_coin_id,
+            image_role=self.image_role,
+            artifact_key=self.artifact_key,
+            provider_id=self.provider_id,
+            field_name=self.field_name,
+            value=self.normalized_value,
+        )
 
     def to_dict(self) -> dict[str, JsonValue]:
         self.validate()

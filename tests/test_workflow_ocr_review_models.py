@@ -6,11 +6,37 @@ import json
 import unittest
 from dataclasses import FrozenInstanceError
 
+from capture_import.workflow_ocr_models import (
+    OCRFieldCandidate,
+    OCRFieldIdentity,
+)
 from capture_import.workflow_ocr_review_models import (
     OCRFieldReview,
     OCRReportReview,
     OCRReviewDecision,
 )
+
+
+def _candidate(
+    *,
+    source_coin_id: str = "coin-1",
+    image_role: str = "front",
+    artifact_key: str = "cropped-coin-1-front",
+    provider_id: str = "legacy-ocr",
+    field_name: str = "year",
+    normalized_value: str = "1967",
+    confidence_score: float = 0.90,
+) -> OCRFieldCandidate:
+    return OCRFieldCandidate(
+        source_coin_id=source_coin_id,
+        image_role=image_role,
+        artifact_key=artifact_key,
+        provider_id=provider_id,
+        field_name=field_name,
+        raw_text=normalized_value,
+        normalized_value=normalized_value,
+        confidence_score=confidence_score,
+    )
 
 
 def _review(
@@ -43,6 +69,100 @@ class OCRReviewDecisionTests(unittest.TestCase):
 
 
 class OCRFieldReviewTests(unittest.TestCase):
+    def test_candidate_identity_key_is_canonical_namedtuple(self) -> None:
+        candidate = _candidate()
+
+        identity = candidate.identity_key
+
+        self.assertIsInstance(identity, OCRFieldIdentity)
+        self.assertEqual(
+            identity,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+        self.assertEqual(identity.source_coin_id, "coin-1")
+        self.assertEqual(identity.image_role, "front")
+        self.assertEqual(identity.artifact_key, "cropped-coin-1-front")
+        self.assertEqual(identity.provider_id, "legacy-ocr")
+        self.assertEqual(identity.field_name, "year")
+        self.assertEqual(identity.value, "1967")
+
+    def test_review_identity_key_is_canonical_namedtuple(self) -> None:
+        review = _review(original_value="1999")
+
+        identity = review.identity_key
+
+        self.assertIsInstance(identity, OCRFieldIdentity)
+        self.assertEqual(
+            identity,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1999",
+            ),
+        )
+        self.assertEqual(identity.source_coin_id, "coin-1")
+        self.assertEqual(identity.image_role, "front")
+        self.assertEqual(identity.artifact_key, "cropped-coin-1-front")
+        self.assertEqual(identity.provider_id, "legacy-ocr")
+        self.assertEqual(identity.field_name, "year")
+        self.assertEqual(identity.value, "1999")
+
+    def test_candidate_and_review_identity_keys_remain_tuple_compatible(self) -> None:
+        candidate = _candidate(normalized_value="1967")
+        review = _review(original_value="1967")
+
+        self.assertEqual(candidate.identity_key, tuple(candidate.identity_key))
+        self.assertEqual(review.identity_key, tuple(review.identity_key))
+        self.assertEqual(
+            candidate.identity_key,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+        self.assertEqual(
+            review.identity_key,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+
+    def test_candidate_to_dict_is_unchanged(self) -> None:
+        candidate = _candidate()
+        expected = {
+            "source_coin_id": "coin-1",
+            "image_role": "front",
+            "artifact_key": "cropped-coin-1-front",
+            "provider_id": "legacy-ocr",
+            "field_name": "year",
+            "raw_text": "1967",
+            "normalized_value": "1967",
+            "confidence_score": 0.9,
+            "evidence": [],
+            "review_status": "REVIEW_REQUIRED",
+        }
+
+        self.assertEqual(candidate.to_dict(), expected)
+
     def test_valid_approval(self) -> None:
         _review().validate()
 
