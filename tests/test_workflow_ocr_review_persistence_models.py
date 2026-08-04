@@ -41,51 +41,24 @@ from capture_import.workflow_ocr_review_persistence_models import (
 )
 from capture_import.workflow_ocr_review_service import OCRReviewMode
 from capture_import.workflow_ocr_review_session import OCRReviewSessionService
+from tests.ocr_review_test_builders import (
+    candidate as candidate_builder,
+    envelope as envelope_builder,
+    field_review as field_review_builder,
+    report_payload as report_payload_builder,
+    resolution as resolution_builder,
+)
 
 
 _FINGERPRINT = "a" * 64
 
 
-def _candidate(
-    *,
-    value: str,
-    image_role: str,
-    artifact_key: str,
-    field_name: str = "year",
-) -> OCRFieldCandidate:
-    return OCRFieldCandidate(
-        source_coin_id="coin-1",
-        image_role=image_role,
-        artifact_key=artifact_key,
-        provider_id="provider-1",
-        field_name=field_name,
-        raw_text=value,
-        normalized_value=value,
-        confidence_score=90.0,
-        evidence=(f"{image_role} evidence",),
-    )
+def _candidate(**kwargs):
+    return candidate_builder(**kwargs)
 
 
-def _report(
-    *candidates: OCRFieldCandidate,
-) -> OCRMetadataReport:
-    return OCRMetadataReport(
-        provider_available=True,
-        candidates=tuple(
-            sorted(
-                candidates,
-                key=lambda item: (
-                    item.source_coin_id,
-                    item.field_name,
-                    item.image_role,
-                    item.normalized_value,
-                    item.provider_id,
-                    item.artifact_key,
-                ),
-            )
-        ),
-        review_status=OCRReviewStatus.REVIEW_REQUIRED,
-    )
+def _report(*candidates: OCRFieldCandidate) -> OCRMetadataReport:
+    return report_payload_builder(candidates=candidates)
 
 
 def _field_review(
@@ -94,18 +67,10 @@ def _field_review(
     decision: OCRReviewDecision = OCRReviewDecision.APPROVE,
     reviewed_value: str | None = None,
 ) -> OCRFieldReview:
-    if decision is OCRReviewDecision.APPROVE and reviewed_value is None:
-        reviewed_value = candidate.normalized_value
-    return OCRFieldReview(
-        source_coin_id=candidate.source_coin_id,
-        image_role=candidate.image_role,
-        artifact_key=candidate.artifact_key,
-        provider_id=candidate.provider_id,
-        field_name=candidate.field_name,
-        original_value=candidate.normalized_value,
+    return field_review_builder(
+        candidate,
         decision=decision,
         reviewed_value=reviewed_value,
-        reason=f"Reviewed {candidate.artifact_key}.",
     )
 
 
@@ -129,44 +94,14 @@ def _conflict_inputs() -> tuple[
     )
 
 
-def _resolution(
-    *,
-    decision: OCRConflictResolutionDecision = (
-        OCRConflictResolutionDecision.SELECT_EXISTING_VALUE
-    ),
-    value: str | None = "1967",
-    field_name: str = "year",
-) -> OCRStoredConflictResolution:
-    return OCRStoredConflictResolution(
-        source_coin_id="coin-1",
-        field_name=field_name,
-        decision=decision,
-        value=value,
-    )
+def _resolution(**kwargs) -> OCRStoredConflictResolution:
+    return resolution_builder(**kwargs)
 
 
-def _envelope(
-    *,
-    lifecycle: OCRReviewSessionLifecycle = (
-        OCRReviewSessionLifecycle.IN_PROGRESS
-    ),
-    resolutions: tuple[OCRStoredConflictResolution, ...] = (),
-    field_reviews: tuple[OCRFieldReview, ...] | None = None,
-    report: OCRMetadataReport | None = None,
-) -> OCRReviewSessionEnvelope:
-    default_report, default_reviews = _conflict_inputs()
-    return OCRReviewSessionEnvelope(
-        schema_version=CURRENT_OCR_REVIEW_SESSION_SCHEMA_VERSION,
-        session_id="review-session-1",
+def _envelope(**kwargs) -> OCRReviewSessionEnvelope:
+    return envelope_builder(
         source_fingerprint=_FINGERPRINT,
-        lifecycle_state=lifecycle,
-        review_mode=OCRReviewMode.PARTIAL,
-        reviewer_id="collector-1",
-        source_report=default_report if report is None else report,
-        field_reviews=(
-            default_reviews if field_reviews is None else field_reviews
-        ),
-        conflict_resolutions=resolutions,
+        **kwargs,
     )
 
 
