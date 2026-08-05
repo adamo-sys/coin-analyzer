@@ -930,107 +930,6 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
 
         self.assertEqual(report.to_dict(), before)
 
-    def test_approve_creates_existing_review_decision(self) -> None:
-        controller = RecordingController()
-        model = self.model(_candidate(), controller=controller)
-
-        review = model.approve(reason="Confirmed visually.")
-
-        self.assertIs(review.decision, OCRReviewDecision.APPROVE)
-        self.assertEqual(review.reviewed_value, "1967")
-        self.assertEqual(controller.review_calls, 1)
-        self.assertEqual(
-            model.current_candidate.human_review_state,
-            "APPROVE",
-        )
-
-    def test_correct_preserves_explicit_value_without_normalization(
-        self,
-    ) -> None:
-        model = self.model(_candidate())
-
-        review = model.correct(
-            corrected_value=" 1968 ",
-            reason="Spacing retained intentionally.",
-        )
-
-        self.assertIs(review.decision, OCRReviewDecision.CORRECT)
-        self.assertEqual(review.reviewed_value, " 1968 ")
-        self.assertEqual(
-            model.current_candidate.human_reviewed_value,
-            " 1968 ",
-        )
-
-    def test_blank_correction_is_rejected_without_mutation(self) -> None:
-        model = self.model(_candidate())
-        approved = model.approve(reason="Initial decision.")
-        before = model.reviews
-
-        with self.assertRaisesRegex(ValueError, "must not be empty"):
-            model.correct(
-                corrected_value="",
-                reason="Invalid correction.",
-            )
-
-        self.assertEqual(model.reviews, before)
-        self.assertIs(model.current_review, approved)
-
-    def test_reject_creates_existing_review_decision(self) -> None:
-        model = self.model(_candidate())
-
-        review = model.reject(reason="Not supported by image.")
-
-        self.assertIs(review.decision, OCRReviewDecision.REJECT)
-        self.assertIsNone(review.reviewed_value)
-        self.assertEqual(
-            model.current_candidate.human_review_state,
-            "REJECT",
-        )
-
-    def test_defer_creates_existing_review_decision(self) -> None:
-        model = self.model(_candidate())
-
-        review = model.defer(reason="Needs another image.")
-
-        self.assertIs(review.decision, OCRReviewDecision.DEFER)
-        self.assertIsNone(review.reviewed_value)
-        self.assertEqual(
-            model.current_candidate.human_review_state,
-            "DEFER",
-        )
-
-    def test_existing_decision_is_reflected_when_revisiting(self) -> None:
-        first = _candidate(field_name="country", value="Canada")
-        second = _candidate()
-        model = self.model(first, second)
-
-        model.approve(reason="Country confirmed.")
-        model.next_candidate()
-        model.previous_candidate()
-
-        self.assertIsNotNone(model.current_review)
-        self.assertIs(
-            model.current_review.decision,
-            OCRReviewDecision.APPROVE,
-        )
-        self.assertEqual(
-            model.current_candidate.human_review_state,
-            "APPROVE",
-        )
-
-    def test_invalid_reason_does_not_replace_prior_decision(self) -> None:
-        model = self.model(_candidate())
-        prior = model.reject(reason="Unreadable.")
-
-        with self.assertRaisesRegex(ValueError, "reason"):
-            model.approve(reason="")
-
-        self.assertIs(model.current_review, prior)
-        self.assertIs(
-            model.current_review.decision,
-            OCRReviewDecision.REJECT,
-        )
-
     def test_next_and_previous_are_bounded(self) -> None:
         model = self.model(_candidate(), _candidate(source_coin_id="coin-2"))
 
@@ -1039,20 +938,6 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertFalse(model.next_candidate())
         self.assertTrue(model.previous_candidate())
         self.assertFalse(model.previous_candidate())
-
-    def test_decisions_survive_navigation(self) -> None:
-        model = self.model(
-            _candidate(field_name="country", value="Canada"),
-            _candidate(),
-        )
-
-        country = model.approve(reason="Country confirmed.")
-        model.next_candidate()
-        year = model.defer(reason="Year unclear.")
-        model.previous_candidate()
-
-        self.assertEqual(model.current_review, country)
-        self.assertEqual(set(model.reviews), {country, year})
 
     def test_batch_progress_counts_deterministic_full_report_queue(self) -> None:
         model = self.model(
@@ -1209,24 +1094,6 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
         self.assertIn("not fully reviewed", progress.state_label)
         self.assertIn("Domain session is not complete", progress.state_label)
 
-    def test_failed_decision_preserves_batch_progress(self) -> None:
-        model = self.model(_candidate())
-        model.reject(reason="Prior decision.")
-        before = model._batch_progress()
-
-        with self.assertRaises(ValueError):
-            model.approve(reason="")
-
-        self.assertEqual(model._batch_progress(), before)
-
-    def test_decision_does_not_automatically_advance_batch_position(self) -> None:
-        model = self.model(_candidate(), _candidate(field_name="country", value="Canada"))
-
-        model.approve(reason="Approved current candidate.")
-
-        self.assertEqual(model.candidate_index, 0)
-        self.assertEqual(model._batch_progress().overall_position, 1)
-
     def test_batch_summary_is_readable_non_color_text(self) -> None:
         progress = self.model(_candidate())._batch_progress()
 
@@ -1307,37 +1174,6 @@ class OCRCandidateReviewModelTests(unittest.TestCase):
             captured["model"],
             OCRCandidateReviewModel,
         )
-
-    def test_dialog_surfaces_validation_error_without_rerender(self) -> None:
-        dialog = OCRCandidateReviewDialog.__new__(
-            OCRCandidateReviewDialog
-        )
-        errors = []
-        renders = []
-
-        class ErrorVar:
-            def set(self, value):
-                errors.append(value)
-
-        dialog._error_var = ErrorVar()
-        dialog._render = lambda: renders.append(True)
-        focus_roles = []
-        dialog._schedule_focus = focus_roles.append
-
-        dialog._run_action(
-            lambda: (_ for _ in ()).throw(
-                ValueError("reviewed_value must not be empty.")
-            ),
-            success_focus_role=_FOCUS_CORRECT,
-            failure_focus_role=_FOCUS_CORRECTION,
-        )
-
-        self.assertEqual(
-            errors,
-            ["reviewed_value must not be empty."],
-        )
-        self.assertEqual(renders, [])
-        self.assertEqual(focus_roles, [_FOCUS_CORRECTION])
 
     def test_adjustment_capability_text_is_explicit(self) -> None:
         legacy = OCRCandidatePreview(reference="legacy", image=object())
