@@ -12,6 +12,10 @@ from typing import Callable
 from coin_collection import CoinCollection
 
 from .coordinator import PreparedPackageImport
+from .desktop_import_pipeline_selection import (
+    ImportPipelineMode,
+    select_import_pipeline,
+)
 from .cleanup_persistence import DurableCleanupExecutor, Schema3CleanupProtocol
 from .collection_persistence import DurableCollectionPublisher
 from .decisions import ImportDecisionModel
@@ -174,6 +178,7 @@ class CapturePackageImportDialog:
         collection: CoinCollection,
         *,
         on_success: Callable[[], None],
+        import_mode: ImportPipelineMode | str = ImportPipelineMode.DEFAULT,
     ) -> None:
         self._parent = parent
         self._source_path = source_path
@@ -189,6 +194,7 @@ class CapturePackageImportDialog:
         self._request_id = object()
         self._queue: queue.Queue = queue.Queue()
         self._workspace: WorkflowWorkspace | None = None
+        self._import_mode = import_mode
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -241,9 +247,14 @@ class CapturePackageImportDialog:
                 self._recovery.reconcile_pending_imports()
                 workspace = WorkflowWorkspace(Path(WORKSPACE_ROOT).absolute())
                 self._workspace = workspace
+                selected_mode = getattr(
+                    self,
+                    "_import_mode",
+                    ImportPipelineMode.DEFAULT,
+                )
                 with workspace:
                     workflow = ImportWorkflow(
-                        build_image_processing_pipeline(),
+                        select_import_pipeline(mode=selected_mode),
                         is_cancelled=self._is_cancelled,
                     )
                     import_request = ImportRequest(

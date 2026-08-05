@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 from coin_collection import CoinCollection
 
+from capture_import.desktop_import_pipeline_selection import ImportPipelineMode
 from capture_import.decisions import ImportDecisionModel
 from capture_import.enums import DuplicateDecision
 from capture_import.errors import PackageChanged, RecoveryRequired
@@ -330,6 +331,45 @@ class DesktopPreparationIntegrationTests(unittest.TestCase):
         self.assertTrue(_ImmediateThread.instances[0].daemon)
         self.assertTrue(_ImmediateThread.instances[0].started)
         self.assertEqual(dialog.window.after_calls[0][0], 50)
+
+    def test_desktop_prepare_defaults_to_explicit_default_mode_selection(self) -> None:
+        from capture_import.desktop_import_pipeline_selection import (
+            select_import_pipeline as real_select_import_pipeline,
+        )
+
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+
+        with patch(
+            "capture_import.ui.select_import_pipeline",
+            wraps=real_select_import_pipeline,
+        ) as selector:
+            self.start(dialog)
+
+        self.assertEqual(selector.call_count, 1)
+        self.assertEqual(
+            selector.call_args.kwargs["mode"],
+            ImportPipelineMode.DEFAULT,
+        )
+
+    def test_desktop_prepare_can_request_ocr_enabled_mode_selection(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+        dialog._import_mode = ImportPipelineMode.OCR_ENABLED
+
+        with patch(
+            "capture_import.ui.select_import_pipeline",
+            side_effect=(
+                lambda **_kwargs: build_image_processing_pipeline()
+            ),
+        ) as selector:
+            self.start(dialog)
+
+        self.assertEqual(selector.call_count, 1)
+        self.assertEqual(
+            selector.call_args.kwargs["mode"],
+            ImportPipelineMode.OCR_ENABLED,
+        )
 
     def test_desktop_prepare_failure_before_claim_closes_once(self) -> None:
         coordinator = _PreparationCoordinatorSpy(fail_before_claim=True)
