@@ -20,6 +20,24 @@ Cross-platform:
 python -m unittest discover -s . -p "test_*.py"
 ```
 
+## Focused OCR Review Boundary and Split Suites
+
+Run the Sprint 19 OCR review package-boundary suite:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_sprint19_ocr_review_package_boundaries
+```
+
+Run the split candidate-review modules together when validating the mechanical split family:
+
+```bash
+python -m unittest \
+  tests.test_desktop_ocr_candidate_review \
+  tests.test_desktop_ocr_candidate_review_shortcuts \
+  tests.test_desktop_ocr_candidate_review_callbacks \
+  tests.test_desktop_ocr_candidate_review_preview
+```
+
 ## Test Data Isolation
 
 Tests must not read from or write to `data/collection.json`. Shared fixtures live in `test_data/`, and tests copy those fixtures into temporary directories before running.

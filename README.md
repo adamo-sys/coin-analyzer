@@ -104,6 +104,7 @@ If a model explanation introduces unsupported numeric wording or fails validatio
 - **Atomic persistence:** collection writes use a validated temporary-file replacement workflow.
 - **Optional dependency isolation:** core startup and CI do not require the OpenAI SDK or an API key.
 - **Regression discipline:** 1,598 automated tests cover backend, persistence, workflows, integrations, and headless GUI behavior.
+- **OCR review package boundaries:** Sprint 19 adds AST-based import-boundary enforcement for OCR review workflow, persistence, and desktop integration modules.
 - **Decision records:** accepted architectural choices are documented as ADRs.
 
 ## How grounded AI works
@@ -219,6 +220,7 @@ See [TESTING.md](TESTING.md) for fixture, OCR experiment, GUI, and manual-accept
 - Legacy estimates are approximate and are not live market valuations.
 - Ask My Collection is read-only, session-only, and provider-dependent. UI cancellation ignores a late response but does not terminate an in-flight HTTP request.
 - OCR, recognition, grading, and template experiments require collector review and may have optional local dependencies.
+- OCR review import boundaries are enforced with dedicated AST-based boundary tests in `tests/test_sprint19_ocr_review_package_boundaries.py`.
 
 ## Repository tour
 
