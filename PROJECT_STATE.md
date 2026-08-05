@@ -1,34 +1,32 @@
 # Project State
 
-<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
-## Current Development State - 2026-07-25
+<!-- SPRINT-19-CLOSURE-AUDIT-2026-08-05 -->
+## Current Development State - 2026-08-05
 
-- **Sprint 8:** complete through Unit 8 documentation closeout.
-- **Current branch:** `main`
-- **Implementation baseline:** `a356810`
-- **Production behavior:** desktop capture-package import now runs the deterministic seven-stage image-processing workflow before coordinator preparation.
-- **Review contract:** preview remains before user confirmation; no transaction delegate runs inside `ImportWorkflow`; processing failures fail closed without raw-source fallback.
-- **Ownership contract:** the dialog owns and closes the temporary workflow workspace; the coordinator claims and owns the processed-artifact set after handoff.
-- **Authoritative regression:** 2,389 passed, 22 skipped, 0 failures, 0 errors.
-- **Push status:** local commits exist beyond `origin/main`; no push was performed during Units 7E-7F.
-- **Next implementation sprint:** requires explicit planning and approval.
+- **Sprint 19:** implementation units complete; closure work remains.
+- **Current branch:** `sprint19/schema-stabilization-implementation`
+- **Sprint 19 implementation commits:** `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c`.
+- **Completed Sprint 19 units:** canonical OCR field identity, DTO schema-version policy, migration policy, shared OCR review test builders, oversized candidate-review test split, package-boundary policy, and package-boundary enforcement tests.
+- **Current closure state:** governance-document reconciliation in progress.
+- **Authoritative Sprint 19 full regression:** pending.
+- **Merge gate:** requires governance reconciliation completion plus authoritative full regression pass with no release-blocking failures.
 
 
 ## Current Version
 
 * Current release version: `v8.8.0`
-* Development stage: v8.9 Discovery
-* Current focus: Know My Collection
-* Coding status: No new features until sufficient evidence is collected.
-* Next gate: 20+ observations in `REAL_WORLD_NOTES.md`
-* Current Git branch: `main`
-* Last updated date: 2026-07-13
+* Development stage: Sprint 19 closure
+* Current focus: governance reconciliation and full-regression gate
+* Coding status: Sprint 19 implementation complete; no Sprint 20 implementation started.
+* Next gate: authoritative full regression for Sprint 19 closure.
+* Current Git branch: `sprint19/schema-stabilization-implementation`
+* Last updated date: 2026-08-05
 
 ## Current Stop Point
 
-No new feature implementation is authorized.
+No new production feature implementation is authorized until Sprint 19 closure completes.
 
-The current objective is to gather evidence through `REAL_WORLD_NOTES.md` until the discovery gate is met.
+The current objective is to finish governance-document reconciliation, run the authoritative full regression, and close Sprint 19.
 
 ## Active Documents
 

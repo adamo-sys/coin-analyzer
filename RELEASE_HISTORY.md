@@ -70,6 +70,12 @@
 | `v7.3` | `849cbde` | Acquisition Strategy with strategic acquisition plans, phased priorities (Immediate, Short-Term, Long-Term), portfolio balance guidance, risk-adjusted recommendations, priority categories (Series Completion, Upgrade, WANT_LIST, Gap Fill, Diversification, Key Date, Budget Opportunity), GUI integration (Tools -> Acquisition Strategy), export support, and 842-test regression pass. |
 | `v7.4` | `2e5c56b` | Collection Assistant with guided cataloguing workflow, photo import, auto-pairing, OCR processing, duplicate detection, gap analysis, side-by-side review, batch review, productivity metrics, GUI integration (Tools -> Collection Assistant), export support, and 880-test regression pass. |
 
+## Internal Milestones
+
+| Date | Milestone | Evidence | Status |
+| --- | --- | --- | --- |
+| 2026-08-05 | Sprint 19 schema stabilization and OCR review boundary-enforcement branch implementation | `829aa1a`, `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c` | Implementation complete on branch; final authoritative full-regression closure pending |
+
 ## Notes
 
 - Release hashes are tag targets, not necessarily the latest post-release documentation commit.

@@ -1,5 +1,21 @@
 # Task Queue
 
+## Current - Sprint 19 Schema Stabilization Closure
+
+- Branch: `sprint19/schema-stabilization-implementation`
+- Implementation units complete:
+  - `[x]` Canonical OCR field identity stabilization (`5c7350f`, `829aa1a`)
+  - `[x]` DTO schema-version policy stabilization (`80239e8`)
+  - `[x]` Migration policy stabilization (`70b93a3`)
+  - `[x]` OCR review shared test builders (`e05a148`, `21aed59`, `5c39109`, `77f498e`)
+  - `[x]` Oversized candidate-review split policy and execution (`c6147fa`, `62c9064`, `6181f89`, `8e7888a`)
+  - `[x]` Package-boundary policy and enforcement tests (`411686f`, `73f971c`)
+- Remaining required closure tasks:
+  1. `[ ]` governance-document reconciliation
+  2. `[ ]` authoritative full regression
+  3. `[ ]` record regression outcome in governance/status documents
+  4. `[ ]` merge Sprint 19 branch
+
 <!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
 ## Completed - Sprint 8 Image Processing and Desktop Import
 

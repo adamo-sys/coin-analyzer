@@ -20,6 +20,7 @@ from .workflow_ocr_final_projection import OCRFinalProjectedField
 from .workflow_ocr_models import (
     ALLOWED_OCR_FIELDS,
     OCRFieldCandidate,
+    OCRFieldIdentity,
     OCRMetadataReport,
 )
 from .workflow_ocr_review_models import (
@@ -29,7 +30,7 @@ from .workflow_ocr_review_models import (
 from .workflow_ocr_review_session import OCRReviewSessionResult
 
 
-CandidateIdentity = tuple[str, str, str, str, str, str]
+CandidateIdentity = OCRFieldIdentity
 FieldIdentity = tuple[str, str]
 
 
@@ -275,13 +276,13 @@ class ConfirmedObservationMapper:
     ) -> ConfirmedFieldObservation:
         provenance = []
         for source in field.source_field.provenance:
-            identity = (
-                field.source_field.source_coin_id,
-                source.image_role,
-                source.artifact_key,
-                source.provider_id,
-                field.source_field.field_name,
-                source.original_value,
+            identity = OCRFieldIdentity(
+                source_coin_id=field.source_field.source_coin_id,
+                image_role=source.image_role,
+                artifact_key=source.artifact_key,
+                provider_id=source.provider_id,
+                field_name=field.source_field.field_name,
+                value=source.original_value,
             )
             candidate = candidates.get(identity)
             review = reviews.get(identity)
@@ -338,22 +339,8 @@ def map_review_session(
 def _candidate_identity(
     candidate: OCRFieldCandidate,
 ) -> CandidateIdentity:
-    return (
-        candidate.source_coin_id,
-        candidate.image_role,
-        candidate.artifact_key,
-        candidate.provider_id,
-        candidate.field_name,
-        candidate.normalized_value,
-    )
+    return candidate.identity_key
 
 
 def _review_identity(review: OCRFieldReview) -> CandidateIdentity:
-    return (
-        review.source_coin_id,
-        review.image_role,
-        review.artifact_key,
-        review.provider_id,
-        review.field_name,
-        review.original_value,
-    )
+    return review.identity_key

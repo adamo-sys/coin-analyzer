@@ -41,6 +41,12 @@ from capture_import.workflow_ocr_review_persistence_models import (
     UnsupportedOCRReviewSessionSchemaVersion,
 )
 from capture_import.workflow_ocr_review_service import OCRReviewMode
+from tests.ocr_review_test_builders import (
+    candidate as build_candidate,
+    envelope as build_envelope,
+    field_review as build_field_review,
+    resolution as build_resolution,
+)
 
 
 _FINGERPRINT = "a" * 64
@@ -53,27 +59,16 @@ def _candidate(
     image_role: str,
     artifact_key: str,
 ) -> OCRFieldCandidate:
-    return OCRFieldCandidate(
-        source_coin_id="coin-1",
+    return build_candidate(
+        value=value,
         image_role=image_role,
         artifact_key=artifact_key,
-        provider_id="provider-1",
-        field_name="year",
-        raw_text=value,
-        normalized_value=value,
-        confidence_score=90.0,
-        evidence=(f"{image_role} evidence",),
     )
 
 
 def _field_review(candidate: OCRFieldCandidate) -> OCRFieldReview:
-    return OCRFieldReview(
-        source_coin_id=candidate.source_coin_id,
-        image_role=candidate.image_role,
-        artifact_key=candidate.artifact_key,
-        provider_id=candidate.provider_id,
-        field_name=candidate.field_name,
-        original_value=candidate.normalized_value,
+    return build_field_review(
+        candidate,
         decision=OCRReviewDecision.APPROVE,
         reviewed_value=candidate.normalized_value,
         reason=f"Reviewed {candidate.artifact_key}.",
@@ -89,63 +84,20 @@ def _envelope(
     reviewer_id: str = "collector-1",
     with_resolution: bool = True,
 ) -> OCRReviewSessionEnvelope:
-    front = _candidate(
-        value="1967",
-        image_role="front",
-        artifact_key="year-front",
-    )
-    reverse = _candidate(
-        value="1968",
-        image_role="reverse",
-        artifact_key="year-reverse",
-    )
-    candidates = tuple(
-        sorted(
-            (front, reverse),
-            key=lambda item: (
-                item.source_coin_id,
-                item.field_name,
-                item.image_role,
-                item.normalized_value,
-                item.provider_id,
-                item.artifact_key,
-            ),
-        )
-    )
-    reviews = tuple(
-        sorted(
-            (_field_review(front), _field_review(reverse)),
-            key=lambda item: item.identity_key,
-        )
-    )
-    resolutions = (
-        (
-            OCRStoredConflictResolution(
-                source_coin_id="coin-1",
-                field_name="year",
-                decision=(
-                    OCRConflictResolutionDecision.SELECT_EXISTING_VALUE
-                ),
+    return build_envelope(
+        session_id=session_id,
+        lifecycle=lifecycle,
+        reviewer_id=reviewer_id,
+        source_fingerprint=_FINGERPRINT,
+        resolutions=(
+            build_resolution(
+                decision=OCRConflictResolutionDecision.SELECT_EXISTING_VALUE,
                 value="1967",
             ),
         )
         if with_resolution
-        else ()
-    )
-    return OCRReviewSessionEnvelope(
-        schema_version=CURRENT_OCR_REVIEW_SESSION_SCHEMA_VERSION,
-        session_id=session_id,
-        source_fingerprint=_FINGERPRINT,
-        lifecycle_state=lifecycle,
+        else (),
         review_mode=OCRReviewMode.PARTIAL,
-        reviewer_id=reviewer_id,
-        source_report=OCRMetadataReport(
-            provider_available=True,
-            candidates=candidates,
-            review_status=OCRReviewStatus.REVIEW_REQUIRED,
-        ),
-        field_reviews=reviews,
-        conflict_resolutions=resolutions,
     )
 
 

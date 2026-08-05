@@ -4,6 +4,14 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 
 ## Recently Completed
 
+- **Sprint 19 — OCR Review Schema Stabilization and Boundary Enforcement (branch milestone)**
+  - Canonical OCR field identity stabilization and consumer adoption.
+  - Frozen Sprint 19 policy units for DTO schema-versioning, migration, test builders, oversized test split, and package boundaries.
+  - OCR review candidate-review split into behavior modules (`shortcuts`, `callbacks`, `preview`) with preserved discovery baseline.
+  - AST-based OCR review package-boundary enforcement suite added.
+  - Branch commits: `829aa1a`, `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c`.
+  - Authoritative full-regression closure is pending.
+
 - **Sprint 5 — Schema-2 Durable Persistence & Recovery Replay**
   - Append-only journal generation chains with immutable transitions
   - Deterministic startup recovery for `RECOVERY_REQUIRED` and `ROLLBACK_FAILED`

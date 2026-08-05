@@ -6,32 +6,31 @@ import json
 import unittest
 from dataclasses import FrozenInstanceError
 
+from capture_import.workflow_ocr_models import OCRFieldIdentity
 from capture_import.workflow_ocr_review_models import (
     OCRFieldReview,
     OCRReportReview,
     OCRReviewDecision,
 )
+from tests.ocr_review_test_builders import (
+    candidate as candidate_builder,
+    report as report_builder,
+    review as review_builder,
+)
 
 
-def _review(
-    *,
-    decision: OCRReviewDecision = OCRReviewDecision.APPROVE,
-    original_value: str = "1967",
-    reviewed_value: str | None = "1967",
-    field_name: str = "year",
-    reason: str = "Confirmed visually.",
-) -> OCRFieldReview:
-    return OCRFieldReview(
-        source_coin_id="coin-1",
-        image_role="front",
-        artifact_key="cropped-coin-1-front",
-        provider_id="legacy-ocr",
-        field_name=field_name,
-        original_value=original_value,
-        decision=decision,
-        reviewed_value=reviewed_value,
-        reason=reason,
-    )
+def _candidate(**kwargs):
+    defaults = {
+        "provider_id": "legacy-ocr",
+        "confidence_score": 0.90,
+        "evidence": (),
+    }
+    defaults.update(kwargs)
+    return candidate_builder(**defaults)
+
+
+def _review(**kwargs):
+    return review_builder(**kwargs)
 
 
 class OCRReviewDecisionTests(unittest.TestCase):
@@ -43,6 +42,100 @@ class OCRReviewDecisionTests(unittest.TestCase):
 
 
 class OCRFieldReviewTests(unittest.TestCase):
+    def test_candidate_identity_key_is_canonical_namedtuple(self) -> None:
+        candidate = _candidate()
+
+        identity = candidate.identity_key
+
+        self.assertIsInstance(identity, OCRFieldIdentity)
+        self.assertEqual(
+            identity,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+        self.assertEqual(identity.source_coin_id, "coin-1")
+        self.assertEqual(identity.image_role, "front")
+        self.assertEqual(identity.artifact_key, "cropped-coin-1-front")
+        self.assertEqual(identity.provider_id, "legacy-ocr")
+        self.assertEqual(identity.field_name, "year")
+        self.assertEqual(identity.value, "1967")
+
+    def test_review_identity_key_is_canonical_namedtuple(self) -> None:
+        review = _review(original_value="1999")
+
+        identity = review.identity_key
+
+        self.assertIsInstance(identity, OCRFieldIdentity)
+        self.assertEqual(
+            identity,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1999",
+            ),
+        )
+        self.assertEqual(identity.source_coin_id, "coin-1")
+        self.assertEqual(identity.image_role, "front")
+        self.assertEqual(identity.artifact_key, "cropped-coin-1-front")
+        self.assertEqual(identity.provider_id, "legacy-ocr")
+        self.assertEqual(identity.field_name, "year")
+        self.assertEqual(identity.value, "1999")
+
+    def test_candidate_and_review_identity_keys_remain_tuple_compatible(self) -> None:
+        candidate = _candidate(normalized_value="1967")
+        review = _review(original_value="1967")
+
+        self.assertEqual(candidate.identity_key, tuple(candidate.identity_key))
+        self.assertEqual(review.identity_key, tuple(review.identity_key))
+        self.assertEqual(
+            candidate.identity_key,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+        self.assertEqual(
+            review.identity_key,
+            (
+                "coin-1",
+                "front",
+                "cropped-coin-1-front",
+                "legacy-ocr",
+                "year",
+                "1967",
+            ),
+        )
+
+    def test_candidate_to_dict_is_unchanged(self) -> None:
+        candidate = _candidate()
+        expected = {
+            "source_coin_id": "coin-1",
+            "image_role": "front",
+            "artifact_key": "cropped-coin-1-front",
+            "provider_id": "legacy-ocr",
+            "field_name": "year",
+            "raw_text": "1967",
+            "normalized_value": "1967",
+            "confidence_score": 0.9,
+            "evidence": [],
+            "review_status": "REVIEW_REQUIRED",
+        }
+
+        self.assertEqual(candidate.to_dict(), expected)
+
     def test_valid_approval(self) -> None:
         _review().validate()
 
@@ -157,7 +250,7 @@ class OCRReportReviewTests(unittest.TestCase):
             reason="No mintmark is visible.",
         )
 
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(approved, corrected, rejected),
         )
@@ -203,14 +296,14 @@ class OCRReportReviewTests(unittest.TestCase):
 
     def test_empty_report_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least one"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=(),
             ).validate()
 
     def test_field_reviews_must_be_tuple(self) -> None:
         with self.assertRaisesRegex(TypeError, "tuple"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=[_review()],  # type: ignore[arg-type]
             ).validate()
@@ -219,13 +312,13 @@ class OCRReportReviewTests(unittest.TestCase):
         review = _review()
 
         with self.assertRaisesRegex(ValueError, "Duplicate"):
-            OCRReportReview(
+            report_builder(
                 reviewer_id="collector-1",
                 field_reviews=(review, review),
             ).validate()
 
     def test_report_serialization_is_deterministic(self) -> None:
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(_review(),),
         )
@@ -238,7 +331,7 @@ class OCRReportReviewTests(unittest.TestCase):
         self.assertTrue(first["summary"]["is_complete"])
 
     def test_report_is_frozen(self) -> None:
-        report = OCRReportReview(
+        report = report_builder(
             reviewer_id="collector-1",
             field_reviews=(_review(),),
         )

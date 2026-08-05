@@ -6,14 +6,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from capture_import.workflow_ocr_models import OCRFieldCandidate, OCRMetadataReport
+from capture_import.workflow_ocr_models import (
+    OCRFieldCandidate,
+    OCRFieldIdentity,
+    OCRMetadataReport,
+)
 from capture_import.workflow_ocr_review_models import (
     OCRFieldReview,
     OCRReportReview,
     OCRReviewDecision,
 )
 
-CandidateKey = tuple[str, str, str, str, str, str]
+CandidateKey = OCRFieldIdentity
 
 
 class OCRReviewMode(str, Enum):
@@ -168,25 +172,11 @@ class OCRReviewReconciliation:
 
 
 def _candidate_key(candidate: OCRFieldCandidate) -> CandidateKey:
-    return (
-        candidate.source_coin_id,
-        candidate.image_role,
-        candidate.artifact_key,
-        candidate.provider_id,
-        candidate.field_name,
-        candidate.normalized_value,
-    )
+    return candidate.identity_key
 
 
 def _review_key(review: OCRFieldReview) -> CandidateKey:
-    return (
-        review.source_coin_id,
-        review.image_role,
-        review.artifact_key,
-        review.provider_id,
-        review.field_name,
-        review.original_value,
-    )
+    return review.identity_key
 
 
 class OCRReviewReconciliationService:

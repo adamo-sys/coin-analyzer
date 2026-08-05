@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from capture_import.workflow_ocr_models import OCRFieldIdentity
+
 
 _ALLOWED_FIELDS = frozenset(
     {
@@ -155,14 +157,14 @@ class OCRFieldReview:
             )
 
     @property
-    def identity_key(self) -> tuple[str, ...]:
-        return (
-            self.source_coin_id,
-            self.image_role,
-            self.artifact_key,
-            self.provider_id,
-            self.field_name,
-            self.original_value,
+    def identity_key(self) -> OCRFieldIdentity:
+        return OCRFieldIdentity(
+            source_coin_id=self.source_coin_id,
+            image_role=self.image_role,
+            artifact_key=self.artifact_key,
+            provider_id=self.provider_id,
+            field_name=self.field_name,
+            value=self.original_value,
         )
 
     def to_dict(self) -> dict[str, Any]:
