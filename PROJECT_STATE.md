@@ -1,32 +1,28 @@
 # Project State
 
-<!-- SPRINT-19-CLOSURE-AUDIT-2026-08-05 -->
+<!-- SPRINT-19-POST-MERGE-CLOSEOUT-2026-08-05 -->
 ## Current Development State - 2026-08-05
 
-- **Sprint 19:** implementation units complete; closure work remains.
-- **Current branch:** `sprint19/schema-stabilization-implementation`
-- **Sprint 19 implementation commits:** `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c`.
+- **Sprint 19:** complete and merged to `main` (PR #11, squash commit `59c114f`, 2026-08-05).
+- **Current branch:** `main`
+- **Sprint 19 squash merge commit:** `59c114f`
 - **Completed Sprint 19 units:** canonical OCR field identity, DTO schema-version policy, migration policy, shared OCR review test builders, oversized candidate-review test split, package-boundary policy, and package-boundary enforcement tests.
-- **Current closure state:** governance-document reconciliation in progress.
-- **Authoritative Sprint 19 full regression:** pending.
-- **Merge gate:** requires governance reconciliation completion plus authoritative full regression pass with no release-blocking failures.
+- **Authoritative Sprint 19 full regression:** 4,356 tests discovered; 4,333 passed, 23 skipped, 0 failures, 0 errors.
+- **Next step:** Sprint 20 discovery. No implementation sprint is currently authorized.
 
 
 ## Current Version
 
 * Current release version: `v8.8.0`
-* Development stage: Sprint 19 closure
-* Current focus: governance reconciliation and full-regression gate
-* Coding status: Sprint 19 implementation complete; no Sprint 20 implementation started.
-* Next gate: authoritative full regression for Sprint 19 closure.
-* Current Git branch: `sprint19/schema-stabilization-implementation`
+* Development stage: Post-Sprint-19 — planning Sprint 20
+* Current focus: Sprint 20 discovery
+* Coding status: Sprint 19 complete and merged; no Sprint 20 implementation started.
+* Current Git branch: `main`
 * Last updated date: 2026-08-05
 
 ## Current Stop Point
 
-No new production feature implementation is authorized until Sprint 19 closure completes.
-
-The current objective is to finish governance-document reconciliation, run the authoritative full regression, and close Sprint 19.
+Sprint 19 is closed. No new production feature implementation is authorized until Sprint 20 scope is defined and its architecture is approved.
 
 ## Active Documents
 
@@ -42,7 +38,7 @@ The current objective is to finish governance-document reconciliation, run the a
 * Repository status: Stable
 * Architecture: Established
 * Public APIs: Stable
-* Testing: 1,500+ automated tests
+* Testing: 4,333 tests passing (4,356 discovered; 23 skipped) — Sprint 19 authoritative regression, 2026-08-05
 * Development mode: Evidence-driven discovery
 * Next milestone: v8.9 - Know My Collection
 
@@ -62,11 +58,11 @@ The current objective is to finish governance-document reconciliation, run the a
 
 ## Coin Analyzer Statistics
 
-Last updated: 2026-07-13 after v8.8.0 release and v8.9 discovery transition.
+Last updated: 2026-08-05 after Sprint 19 merge (PR #11, `59c114f`).
 
-* Python modules: 93 non-test modules, 169 Python files total.
-* Test modules: 76.
-* Current full regression: 1506 tests OK.
+* Python modules: 94 `capture_import` modules; 104 root production modules.
+* Test files: 102 in `tests/`, 99 at root.
+* Current full regression: 4,356 discovered; 4,333 passed; 23 skipped; 0 failures.
 * Release line: `v0.2` -> `v8.8.0` released; 72 local release tags through `v8.8.0`.
 * Architecture and governance docs: 8+ core docs (`VISION.md`, `ARCHITECTURE.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `ROADMAP.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`, `project_docs/release_prompts/RELEASE_GOVERNANCE.md`).
 * Workspace GUI tabs: 12.
