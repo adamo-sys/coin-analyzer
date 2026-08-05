@@ -20,7 +20,13 @@ from tests.ocr_review_test_builders import (
 
 
 def _candidate(**kwargs):
-    return candidate_builder(**kwargs)
+    defaults = {
+        "provider_id": "legacy-ocr",
+        "confidence_score": 0.90,
+        "evidence": (),
+    }
+    defaults.update(kwargs)
+    return candidate_builder(**defaults)
 
 
 def _review(**kwargs):
