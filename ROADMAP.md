@@ -4,13 +4,12 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 
 ## Recently Completed
 
-- **Sprint 19 — OCR Review Schema Stabilization and Boundary Enforcement (branch milestone)**
+- **Sprint 19 — OCR Review Schema Stabilization and Boundary Enforcement (merged 2026-08-05, PR #11)**
   - Canonical OCR field identity stabilization and consumer adoption.
   - Frozen Sprint 19 policy units for DTO schema-versioning, migration, test builders, oversized test split, and package boundaries.
   - OCR review candidate-review split into behavior modules (`shortcuts`, `callbacks`, `preview`) with preserved discovery baseline.
   - AST-based OCR review package-boundary enforcement suite added.
-  - Branch commits: `829aa1a`, `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c`.
-  - Authoritative full-regression closure is pending.
+  - Squash merge commit: `59c114f`. Authoritative regression: 4,356 discovered; 4,333 passed; 23 skipped; 0 failures.
 
 - **Sprint 5 — Schema-2 Durable Persistence & Recovery Replay**
   - Append-only journal generation chains with immutable transitions
@@ -28,28 +27,19 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 - Portfolio Analytics with exact acquisition-cost coverage and comparable-CAD reporting
 - Ask My Collection grounded, read-only MVP for inventory, collection intelligence, and portfolio questions
 
-- Acquisition tracking with exact decimal costs and backward-compatible persistence
-- Collector discovery and confirmed-observation foundations
-- Collection toolbar usability improvement
-- Local runtime-data hygiene for `data/collection.json`
-- Debug-output cleanup and OCR experiment hardening
-- Architecture reconciliation against the implemented system and ADRs
-- Portfolio Analytics with exact acquisition-cost coverage and comparable-CAD reporting
-- Ask My Collection grounded, read-only MVP for inventory, collection intelligence, and portfolio questions
-
 ## Next
 
-<!-- SPRINT-8-CLOSEOUT-2026-07-25 -->
-1. **Sprint 9 - OCR + Metadata Extraction**
+<!-- SPRINT-8-CLOSEOUT-2026-07-25; labels below reflect aspirational capability areas, not sprint numbers -->
+1. **OCR + Metadata Extraction maturity**
    - OCR orchestration and metadata reconciliation.
    - Collector review remains mandatory before authoritative collection mutation.
    - Requires an approved architecture and implementation plan.
 
-2. **Sprint 10 - Grading Engine**
+2. **Grading Engine**
    - Wear estimation, cleaning detection, rim damage, strike quality, and luster estimation.
    - Advisory-only until explicitly approved otherwise.
 
-3. **Sprint 11 - Dealer Tools**
+3. **Dealer Tools**
    - Valuation workflow, market lookup contracts, ROI analysis, duplicate inventory, and export.
    - Live data or external providers require separate architecture approval.
 

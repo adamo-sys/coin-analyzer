@@ -2,6 +2,7 @@
 
 | Version | Release Hash | Summary |
 | --- | --- | --- |
+| Sprint 19 milestone (internal) | `59c114f` (PR #11, 2026-08-05) | OCR Review Schema Stabilization and Boundary Enforcement — canonical OCR field identity, frozen DTO schema-version/migration/test-builder policies, oversized candidate-review test splits (shortcuts, callbacks, preview), AST-based package-boundary enforcement suite, shared test builders, fixture-default regression fix. Authoritative regression: 4,356 discovered; 4,333 passed; 23 skipped; 0 failures. No release tag; internal architecture sprint. |
 | `v8.6` | See verified tag `v8.6` | Unified Workflow - deterministic workflow engine, CollectorWorkspace integration, explainability/navigation metadata, existing Workflow tab GUI integration, and polished markdown Workflow Review export. Supports Acquisition Review, Collection Review, Upgrade Review, Duplicate Review, and Daily Inbox without new persistence, collection mutation, ML/CV, scraping, or external APIs. 1296-test regression pass. |
 | `v8.5` | See verified tag `v8.5` | Collector Advisor — unified acquisition guidance engine with explainable recommendations, frozen recommendation categories (BUY_NOW, BUY_IF_PRICE_RIGHT, WATCH, NEGOTIATE, PASS, REVIEW), deterministic ordering, upstream signal-quality fixes, and GUI Advisor tab integration. Infrastructure milestone: production-quality dependency management (requirements.txt, requirements-dev.txt, requirements-ocr.txt, requirements-gui.txt), setup_dev.ps1 bootstrap script, DEPENDENCIES.md documentation, GitHub Actions CI workflow (Python 3.12), comprehensive .gitignore, and CI test brittleness fixes. 1261-test regression pass. |
 | `v8.0` | `PENDING` | Smart Phone Cataloguer with photo capture workflow, OCR-assisted identification, mobile collection entry, collector workflow integration, and 959-test regression pass. |
@@ -74,7 +75,7 @@
 
 | Date | Milestone | Evidence | Status |
 | --- | --- | --- | --- |
-| 2026-08-05 | Sprint 19 schema stabilization and OCR review boundary-enforcement branch implementation | `829aa1a`, `5c7350f`, `80239e8`, `70b93a3`, `e05a148`, `21aed59`, `5c39109`, `77f498e`, `c6147fa`, `62c9064`, `6181f89`, `8e7888a`, `411686f`, `73f971c` | Implementation complete on branch; final authoritative full-regression closure pending |
+| 2026-08-05 | Sprint 19 schema stabilization and OCR review boundary-enforcement — merged PR #11 | `59c114f` (squash) | Complete — 4,356 discovered; 4,333 passed; 23 skipped; 0 failures |
 
 ## Notes
 

@@ -305,3 +305,9 @@ This document is the frozen architecture note for the OCR field identity stabili
 Any implementation must preserve current tuple equality, hashing, ordering, serialized dictionary shapes, canonical persisted bytes, public behavior, callback behavior, and provenance boundaries.
 
 No other Sprint 19 roadmap item is authorized by this document.
+
+## Sprint 19 closure record
+
+Sprint 19 was merged to `main` on 2026-08-05 as PR #11, squash commit `59c114f`.
+
+Authoritative regression at closure: 4,356 tests discovered; 4,333 passed; 23 skipped; 0 failures; 0 errors.

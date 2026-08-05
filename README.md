@@ -40,7 +40,7 @@ Coin Analyzer brings those workflows into one Windows desktop application. The c
 | AI | Optional OpenAI Responses API |
 | Architecture | Local-first with an explicit optional cloud boundary |
 | Financial arithmetic | `Decimal` acquisition money |
-| Automated tests | 1,598 |
+| Automated regression | 4,356 tests discovered; 4,333 passed and 23 skipped |
 | Primary platform | Windows |
 
 ## What it helps you do
