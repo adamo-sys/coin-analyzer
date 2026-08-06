@@ -15,7 +15,10 @@ from unittest.mock import patch
 
 from coin_collection import CoinCollection
 
-from capture_import.desktop_import_pipeline_selection import ImportPipelineMode
+from capture_import.desktop_import_pipeline_selection import (
+    DesktopImportPipelineSelection,
+    ImportPipelineMode,
+)
 from capture_import.decisions import ImportDecisionModel
 from capture_import.enums import DuplicateDecision
 from capture_import.errors import PackageChanged, RecoveryRequired
@@ -360,7 +363,9 @@ class DesktopPreparationIntegrationTests(unittest.TestCase):
         with patch(
             "capture_import.ui.select_import_pipeline",
             side_effect=(
-                lambda **_kwargs: build_image_processing_pipeline()
+                lambda **_kwargs: DesktopImportPipelineSelection(
+                    pipeline=build_image_processing_pipeline()
+                )
             ),
         ) as selector:
             self.start(dialog)
@@ -369,6 +374,34 @@ class DesktopPreparationIntegrationTests(unittest.TestCase):
         self.assertEqual(
             selector.call_args.kwargs["mode"],
             ImportPipelineMode.OCR_ENABLED,
+        )
+
+    def test_desktop_prepare_dialog_retains_exact_selection_object(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+
+        self.start(dialog)
+
+        self.assertIsInstance(
+            dialog._pipeline_selection,
+            DesktopImportPipelineSelection,
+        )
+        self.assertIsNotNone(dialog._pipeline_selection.pipeline)
+
+    def test_desktop_prepare_import_workflow_receives_selection_pipeline(self) -> None:
+        coordinator = _PreparationCoordinatorSpy()
+        dialog = self.dialog(coordinator)
+
+        self.start(dialog)
+
+        self.assertIsInstance(
+            dialog._pipeline_selection,
+            DesktopImportPipelineSelection,
+        )
+        from capture_import.workflow_pipeline import ProcessingPipeline
+        self.assertIsInstance(
+            dialog._pipeline_selection.pipeline,
+            ProcessingPipeline,
         )
 
     def test_desktop_prepare_failure_before_claim_closes_once(self) -> None:

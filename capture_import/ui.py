@@ -13,6 +13,7 @@ from coin_collection import CoinCollection
 
 from .coordinator import PreparedPackageImport
 from .desktop_import_pipeline_selection import (
+    DesktopImportPipelineSelection,
     ImportPipelineMode,
     select_import_pipeline,
 )
@@ -253,8 +254,10 @@ class CapturePackageImportDialog:
                     ImportPipelineMode.DEFAULT,
                 )
                 with workspace:
+                    selection = select_import_pipeline(mode=selected_mode)
+                    self._pipeline_selection = selection
                     workflow = ImportWorkflow(
-                        select_import_pipeline(mode=selected_mode),
+                        selection.pipeline,
                         is_cancelled=self._is_cancelled,
                     )
                     import_request = ImportRequest(
