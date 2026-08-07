@@ -196,6 +196,7 @@ class CapturePackageImportDialog:
         self._queue: queue.Queue = queue.Queue()
         self._workspace: WorkflowWorkspace | None = None
         self._import_mode = import_mode
+        self._ocr_handoff = None
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -268,6 +269,9 @@ class CapturePackageImportDialog:
                     outcome = workflow.execute(import_request, workspace.path)
                     if self._closed:
                         return
+                    self._ocr_handoff = selection.create_ocr_handoff(
+                        outcome=outcome,
+)
                     prepared = assemble_prepared_import(
                         import_request,
                         outcome,

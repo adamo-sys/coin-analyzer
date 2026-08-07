@@ -27,7 +27,7 @@ from capture_import.recovery import UnifiedPackageImportRecoveryService
 from capture_import.schema3_runtime import Schema3PackageImportRecoveryService
 from capture_import.snapshot import SnapshotHandle
 from capture_import.workflow_adapter import commit_prepared_import
-from capture_import.workflow_execution import ImportWorkflow
+from capture_import.workflow_execution import ImportWorkflow, PipelineOutcome
 from capture_import.workflow_models import (
     ImportConfiguration,
     ImportRequest,
@@ -403,6 +403,45 @@ class DesktopPreparationIntegrationTests(unittest.TestCase):
             dialog._pipeline_selection.pipeline,
             ProcessingPipeline,
         )
+    def test_desktop_prepare_retains_ocr_handoff_from_successful_outcome(
+        self,
+    ) -> None:
+        coordinator = _CoordinatorSpy()
+        dialog = self.dialog(coordinator)
+        dialog._import_mode = ImportPipelineMode.OCR_ENABLED
+
+        outcome = PipelineOutcome(artifacts={}, metadata={})
+        expected_handoff = object()
+        handoff_calls = []
+
+        def create_handoff(*, outcome):
+            handoff_calls.append(outcome)
+            return expected_handoff
+
+        selection = SimpleNamespace(
+            pipeline=build_image_processing_pipeline(),
+            create_ocr_handoff=create_handoff,
+        )
+
+        with (
+            patch(
+                "capture_import.ui.select_import_pipeline",
+                return_value=selection,
+            ),
+            patch(
+                "capture_import.ui.ImportWorkflow.execute",
+                return_value=outcome,
+            ),
+            patch(
+                "capture_import.ui.assemble_prepared_import",
+                return_value=SimpleNamespace(processed_artifacts=None),
+            ),
+        ):
+            self.start(dialog)
+
+        self.assertIs(dialog._pipeline_selection, selection)
+        self.assertIs(dialog._ocr_handoff, expected_handoff)
+        self.assertEqual(handoff_calls, [outcome])
 
     def test_desktop_prepare_failure_before_claim_closes_once(self) -> None:
         coordinator = _PreparationCoordinatorSpy(fail_before_claim=True)

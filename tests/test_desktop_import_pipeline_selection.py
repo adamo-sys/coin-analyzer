@@ -18,6 +18,7 @@ from capture_import.desktop_ocr_review_composition import (
 from capture_import.workflow_ocr_composition import (
     build_ocr_image_processing_pipeline,
 )
+from capture_import.workflow_execution import PipelineOutcome
 from capture_import.workflow_stages import build_image_processing_pipeline
 
 
@@ -138,6 +139,56 @@ class DesktopImportPipelineSelectionTests(unittest.TestCase):
             DesktopImportPipelineSelection(
                 pipeline=build_image_processing_pipeline(),
                 ocr_composition=object(),  # type: ignore[arg-type]
+            )
+    def test_default_selection_creates_no_ocr_handoff(self) -> None:
+        selected = select_import_pipeline(
+            mode=ImportPipelineMode.DEFAULT
+        )
+        outcome = PipelineOutcome(artifacts={}, metadata={})
+
+        self.assertIsNone(
+            selected.create_ocr_handoff(outcome=outcome)
+        )
+
+    def test_ocr_handoff_uses_exact_composition_and_outcome(self) -> None:
+        composition = create_desktop_ocr_review_composition(
+            provider=_FakeOCRProvider()
+        )
+        selected = DesktopImportPipelineSelection(
+            pipeline=composition.pipeline,
+            ocr_composition=composition,
+        )
+        outcome = PipelineOutcome(artifacts={}, metadata={})
+        expected_handoff = object()
+
+        with patch(
+            "capture_import.desktop_ocr_review_handoff."
+            "create_desktop_ocr_review_handoff",
+            return_value=expected_handoff,
+        ) as factory:
+            actual = selected.create_ocr_handoff(outcome=outcome)
+
+        self.assertIs(actual, expected_handoff)
+        factory.assert_called_once_with(
+            composition=composition,
+            outcome=outcome,
+        )
+
+    def test_ocr_handoff_rejects_malformed_outcome(self) -> None:
+        composition = create_desktop_ocr_review_composition(
+            provider=_FakeOCRProvider()
+        )
+        selected = DesktopImportPipelineSelection(
+            pipeline=composition.pipeline,
+            ocr_composition=composition,
+        )
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "outcome must be a PipelineOutcome",
+        ):
+            selected.create_ocr_handoff(
+                outcome=object(),  # type: ignore[arg-type]
             )
 
 

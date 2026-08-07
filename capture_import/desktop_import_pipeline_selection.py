@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from .desktop_ocr_review_composition import (
     DesktopOCRReviewComposition,
@@ -17,8 +17,11 @@ from .desktop_ocr_review_composition import (
 )
 from .manifest import CapturePackageManifestParser
 from .package import CapturePackageValidator
+from .workflow_execution import PipelineOutcome
 from .workflow_pipeline import ProcessingPipeline
 from .workflow_stages import build_image_processing_pipeline
+if TYPE_CHECKING:
+    from .desktop_ocr_review_handoff import DesktopOCRReviewHandoff
 
 OCRPipelineFactory = Callable[..., ProcessingPipeline]
 
@@ -51,7 +54,24 @@ class DesktopImportPipelineSelection:
                 "ocr_composition must be a DesktopOCRReviewComposition or None."
             )
 
+    def create_ocr_handoff(
+        self,
+        *,
+        outcome: PipelineOutcome,
+    ) -> DesktopOCRReviewHandoff | None:
+        """Create the existing review handoff for an OCR-enabled selection."""
 
+        if self.ocr_composition is None:
+            return None
+
+        from .desktop_ocr_review_handoff import (
+            create_desktop_ocr_review_handoff,
+        )
+
+        return create_desktop_ocr_review_handoff(
+            composition=self.ocr_composition,
+            outcome=outcome,
+        )
 def select_import_pipeline(
     *,
     mode: ImportPipelineMode | str = ImportPipelineMode.DEFAULT,
