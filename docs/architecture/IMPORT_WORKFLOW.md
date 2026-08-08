@@ -239,6 +239,18 @@ ImportWorkflowError
 
 ## Image-stage contracts (Sprint 8)
 
+### Desktop standalone-image intake amendment
+
+The production desktop may adapt one explicitly selected obverse/reverse pair
+into an ephemeral format-1.0 capture package before pipeline execution.  The
+adapter must use the existing package domain models and media validator, must
+not persist source images or mutate the collection, and must release its owned
+temporary source after the asynchronous worker finishes reading it.  The
+resulting package enters the same explicit OCR-enabled composition as a user-
+supplied `.ca-package`; no alternate preprocessing, OCR, review, confirmation,
+or persistence path is permitted.  Format 1.0 requires both front and reverse,
+so a one-sided selection fails before pipeline execution.
+
 Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full contracts are defined in `docs/adr/ADR-008-image-processing-pipeline.md`. The following rules govern every image stage:
 
 - **Input format:** JPEG and PNG only, matching `capture_import/media.py` validation.

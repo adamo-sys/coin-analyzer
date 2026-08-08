@@ -276,6 +276,11 @@ class CoinCollectionGUI:
             command=self.import_capture_package_with_ocr,
             state=self.capture_import_menu_state(),
         )
+        file_menu.add_command(
+            label="OCR-Assisted Coin Images...",
+            command=self.import_coin_images_with_ocr,
+            state=self.capture_import_menu_state(),
+        )
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
@@ -417,6 +422,60 @@ Total Unique Dates: {total_unique_dates}
             import_mode=ImportPipelineMode.OCR_ENABLED,
         )
 
+    def import_coin_images_with_ocr(self):
+        """Select obverse/reverse images for the existing OCR workflow."""
+
+        if not self.capture_import_ready:
+            messagebox.showerror(
+                "Coin Image OCR",
+                self.capture_import_recovery_message,
+            )
+            return
+        image_types = [
+            ("Coin images", "*.jpg *.jpeg *.png"),
+            ("JPEG images", "*.jpg *.jpeg"),
+            ("PNG images", "*.png"),
+            ("All files", "*.*"),
+        ]
+        front_path = filedialog.askopenfilename(
+            title="Select Obverse (Front) Coin Image",
+            filetypes=image_types,
+        )
+        if not front_path:
+            return
+        reverse_path = filedialog.askopenfilename(
+            title="Select Reverse Coin Image",
+            filetypes=image_types,
+        )
+        if not reverse_path:
+            return
+
+        from capture_import.standalone_image_intake import (
+            StandaloneImageIntakeError,
+            create_temporary_capture_package,
+        )
+
+        try:
+            source = create_temporary_capture_package(
+                front_path=front_path,
+                reverse_path=reverse_path,
+            )
+        except StandaloneImageIntakeError as error:
+            messagebox.showerror(
+                "Coin Image OCR",
+                error.safe_message,
+            )
+            return
+        try:
+            self._launch_capture_package_import(
+                package_path=str(source.path),
+                import_mode=ImportPipelineMode.OCR_ENABLED,
+                on_source_released=source.release,
+            )
+        except Exception:
+            source.release()
+            raise
+
     def _open_capture_package_import(self, *, import_mode):
         """Open the production package dialog for one explicit pipeline mode."""
 
@@ -440,6 +499,23 @@ Total Unique Dates: {total_unique_dates}
         )
         if not package_path:
             return
+        self._launch_capture_package_import(
+            package_path=package_path,
+            import_mode=import_mode,
+        )
+
+    def _launch_capture_package_import(
+        self,
+        *,
+        package_path,
+        import_mode,
+        on_source_released=None,
+    ):
+        """Launch the shared package-shaped OCR/import dialog."""
+
+        options = {}
+        if on_source_released is not None:
+            options["on_source_released"] = on_source_released
         CapturePackageImportDialog(
             self.root,
             package_path,
@@ -451,6 +527,7 @@ Total Unique Dates: {total_unique_dates}
                 if import_mode == ImportPipelineMode.OCR_ENABLED
                 else None
             ),
+            **options,
         )
 
     def open_ocr_review_handoff(self, parent, handoff):
