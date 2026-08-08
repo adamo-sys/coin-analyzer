@@ -118,6 +118,7 @@ from platform_integration import PlatformIntegration
 from batch_processing import BatchProcessingEngine, BatchReport
 from application_metadata import APPLICATION_VERSION
 from confirmed_observations import ConfirmedObservationRecord, ConfirmedObservationStore
+from capture_import.desktop_import_pipeline_selection import ImportPipelineMode
 from capture_import.errors import CaptureImportError, RecoveryRequired
 from capture_import.ui import CapturePackageImportDialog, build_default_import_services
 
@@ -270,6 +271,11 @@ class CoinCollectionGUI:
             command=self.import_capture_package,
             state=self.capture_import_menu_state(),
         )
+        file_menu.add_command(
+            label="OCR-Assisted Capture Package...",
+            command=self.import_capture_package_with_ocr,
+            state=self.capture_import_menu_state(),
+        )
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
@@ -400,6 +406,20 @@ Total Unique Dates: {total_unique_dates}
     def import_capture_package(self):
         """Select, preview, and explicitly import one local capture package."""
 
+        self._open_capture_package_import(
+            import_mode=ImportPipelineMode.DEFAULT,
+        )
+
+    def import_capture_package_with_ocr(self):
+        """Select one package for advisory OCR review without saving it."""
+
+        self._open_capture_package_import(
+            import_mode=ImportPipelineMode.OCR_ENABLED,
+        )
+
+    def _open_capture_package_import(self, *, import_mode):
+        """Open the production package dialog for one explicit pipeline mode."""
+
         if not self.capture_import_ready:
             messagebox.showerror(
                 "Capture Package Import",
@@ -408,7 +428,11 @@ Total Unique Dates: {total_unique_dates}
             return
 
         package_path = filedialog.askopenfilename(
-            title="Import Capture Package",
+            title=(
+                "Select Capture Package for OCR Review"
+                if import_mode == ImportPipelineMode.OCR_ENABLED
+                else "Import Capture Package"
+            ),
             filetypes=[
                 ("Coin Analyzer capture packages", "*.ca-package"),
                 ("All files", "*.*"),
@@ -421,6 +445,51 @@ Total Unique Dates: {total_unique_dates}
             package_path,
             self.app.collection,
             on_success=self.refresh_collection_list,
+            import_mode=import_mode,
+            on_ocr_handoff=(
+                self.open_ocr_review_handoff
+                if import_mode == ImportPipelineMode.OCR_ENABLED
+                else None
+            ),
+        )
+
+    def open_ocr_review_handoff(self, parent, handoff):
+        """Display existing OCR review dialogs for one advisory handoff."""
+
+        from capture_import.desktop_ocr_candidate_review import (
+            create_ocr_candidate_review_dialog,
+        )
+
+        self._ocr_review_parent = parent
+        self._ocr_review_handoff = handoff
+        self._ocr_review_dialog = create_ocr_candidate_review_dialog(
+            parent=parent,
+            report=handoff.report,
+            review_controller=handoff.review_controller,
+            reviewer_id="desktop-collector",
+            on_close=self._open_ocr_conflict_review,
+        )
+
+    def _open_ocr_conflict_review(self, reviews):
+        """Open conflict review after candidate review when needed."""
+
+        handoff = self._ocr_review_handoff
+        if not handoff.report.conflicts:
+            return
+
+        from capture_import.desktop_ocr_conflict_review import (
+            create_ocr_conflict_review_dialog,
+        )
+        from capture_import.workflow_ocr_review_models import OCRReportReview
+
+        self._ocr_conflict_dialog = create_ocr_conflict_review_dialog(
+            parent=self._ocr_review_parent,
+            report=handoff.report,
+            review=OCRReportReview(
+                reviewer_id="desktop-collector",
+                field_reviews=tuple(reviews),
+            ),
+            review_controller=handoff.review_controller,
         )
 
     def initialize_capture_import_recovery(self) -> bool:
