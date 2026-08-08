@@ -15,6 +15,14 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 
+TESSERACT_COIN_ENGINE = "pytesseract.image_to_string"
+TESSERACT_COIN_PAGE_SEGMENTATION_MODE = 11
+TESSERACT_COIN_CONFIG = (
+    f"--psm {TESSERACT_COIN_PAGE_SEGMENTATION_MODE}"
+)
+TESSERACT_COIN_PREPROCESSING = "none (original-size RGB input)"
+
+
 def _now_iso() -> str:
     return datetime.now().replace(microsecond=0).isoformat(sep=" ")
 
@@ -377,7 +385,11 @@ class OCRExperiment:
             import pytesseract
 
             with Image.open(image_path) as image:
-                return pytesseract.image_to_string(image), []
+                text = pytesseract.image_to_string(
+                    image,
+                    config=TESSERACT_COIN_CONFIG,
+                )
+            return " ".join(text.split()), []
         except Exception as exc:
             return "", [f"OCR engine unavailable or failed: {exc}"]
 

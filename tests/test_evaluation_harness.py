@@ -10,6 +10,7 @@ from PIL import Image
 
 from capture_import.evaluation_harness import (
     BenchmarkManifestError,
+    _runtime_configuration,
     aggregate_latencies,
     load_manifest,
     render_summary,
@@ -62,6 +63,21 @@ class EvaluationHarnessTests(unittest.TestCase):
         self.assertEqual(manifest.version, "test-v1")
         self.assertEqual(manifest.cases[0].case_id, "case-1")
         self.assertEqual(manifest.cases[0].difficulty, ("clean",))
+
+    def test_runtime_provenance_reports_active_tesseract_configuration(self) -> None:
+        runtime = _runtime_configuration()
+
+        self.assertEqual(runtime["ocr_provider"], "legacy-ocr")
+        self.assertEqual(
+            runtime["ocr_engine"],
+            "pytesseract.image_to_string",
+        )
+        self.assertEqual(runtime["ocr_configuration"], "--psm 11")
+        self.assertEqual(runtime["ocr_page_segmentation_mode"], 11)
+        self.assertEqual(
+            runtime["ocr_preprocessing"],
+            "none (original-size RGB input)",
+        )
 
     def test_manifest_rejects_absolute_image_path(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

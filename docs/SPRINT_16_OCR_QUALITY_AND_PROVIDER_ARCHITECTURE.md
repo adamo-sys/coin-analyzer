@@ -623,3 +623,57 @@ Sprint 16 is complete as the bounded OCR quality and provider architecture.
 It is not a claim of a production-ready OCR platform, automatic provider
 operation, empirically validated accuracy, durable diagnostics, or UI
 integration.
+
+## Approved measured-runtime amendment: fixed sparse-text segmentation
+
+Status: VERIFIED
+
+Benchmark v1 established that the installed `legacy-ocr` Tesseract runtime
+completed without infrastructure errors but the default page segmentation
+returned empty text for all coin sides. The legacy local OCR call therefore
+uses exactly one fixed Tesseract configuration: `--psm 11` (sparse text).
+
+This amendment changes only page segmentation for the existing local
+`pytesseract.image_to_string` call. It does not add fallback modes, alter image
+preprocessing, change thresholds or candidate scoring, special-case benchmark
+assets, or affect injected raw-text providers. Local Tesseract whitespace is
+collapsed only because sparse-text output is multiline while the existing OCR
+evidence contract rejects control characters. Review remains mandatory.
+
+## Measured-runtime experiment: fixed OCR input rescaling
+
+Status: REJECTED; not enabled in production
+
+Benchmark v1 production Tesseract inputs ranged from 467×474 to 960×963
+pixels. A controlled experiment resized every input exactly once to 2× width
+and 2× height using Pillow LANCZOS immediately before the fixed PSM 11 call.
+No other OCR, preprocessing, candidate, scoring, threshold, or benchmark input
+changed.
+
+The experiment reduced year accuracy from 33.3% to 16.7%, left country,
+denomination, and full-identity accuracy at 0.0%, and left the unresolved rate
+at 100.0%. Mean latency increased from 2.242 seconds to 4.565 seconds (median
+2.182 to 4.374; p95 3.003 to 7.584). The additional structured outputs were
+false denomination candidates (`$4` and `$2`), while one correct `2013` year
+was lost. Fixed 2× input rescaling therefore failed the identity-evidence and
+latency acceptance criteria and was removed from the production OCR path.
+
+## Measured-runtime experiment: deterministic Otsu binarization
+
+Status: REJECTED; not enabled in production
+
+All Benchmark v1 inputs reached the OCR provider as RGB images ranging from
+467x474 to 960x963 pixels. A controlled experiment converted each image once
+to grayscale and applied one deterministic global Otsu threshold, producing a
+same-dimension 1-bit image immediately before the unchanged `--psm 11` call.
+No rescaling or other preprocessing, candidate, scoring, threshold, or
+benchmark change was present.
+
+The experiment reduced year accuracy from 33.3% to 16.7%, left country,
+denomination, and full-identity accuracy at 0.0%, and left the unresolved rate
+at 100.0%. It lost the clean US-cent `2013` prediction by rendering the token
+as `2OL3`, recovered no new identity-bearing structured prediction, and
+retained only the glare-case `2013`. Mean latency decreased from 2.268 seconds
+to 1.899 seconds (median 2.163 to 1.786; p95 3.289 to 2.753), but the accuracy
+regression fails the retention criterion. Otsu binarization was therefore
+removed from the production OCR path.
