@@ -1,0 +1,656 @@
+{
+  "cases": [
+    {
+      "case_id": "us-cent-2013-clean",
+      "correction_required": true,
+      "difficulty": [
+        "clean",
+        "modern",
+        "studio"
+      ],
+      "expected": {
+        "country": "United States",
+        "denomination": "1 cent",
+        "year": "2013"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 2.20711989980191,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "United States Mint (obverse); MisfitMaid (reverse)",
+        "license": "Public domain (obverse); CC BY-SA 4.0 (reverse)",
+        "source_url": "https://commons.wikimedia.org/wiki/File:US_One_Cent_Obv.png ; https://commons.wikimedia.org/wiki/File:US_union_shield_penny_reverse.png",
+        "transformation": "Wikimedia 960px thumbnails; no benchmark transformation"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "United States",
+        "denomination": "1 cent",
+        "year": "2013"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    },
+    {
+      "case_id": "newfoundland-50-cents-1908-clean",
+      "correction_required": true,
+      "difficulty": [
+        "clean",
+        "older",
+        "worn"
+      ],
+      "expected": {
+        "country": "Canada",
+        "denomination": "50 cents",
+        "monarch": "Edward VII",
+        "year": "1908"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 2.469922199845314,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "Heritage Auctions photograph; Tower Mint coin",
+        "license": "CC BY 4.0 photograph; public-domain Crown coin design",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Canada_Newfoundland_Edward_VII_50_Cents_1908_(obv).jpg ; https://commons.wikimedia.org/wiki/File:Canada_Newfoundland_Edward_VII_50_Cents_1908_(rev).jpg",
+        "transformation": "Wikimedia 960px thumbnails; no benchmark transformation"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "Canada",
+        "denomination": "50 cents",
+        "monarch": "Edward VII",
+        "year": "1908"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    },
+    {
+      "case_id": "india-rupee-1918-clean",
+      "correction_required": true,
+      "difficulty": [
+        "clean",
+        "older",
+        "worn"
+      ],
+      "expected": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "monarch": "George V",
+        "year": "1918"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 1.283192599657923,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "AKS.9955",
+        "license": "CC BY-SA 4.0",
+        "source_url": "https://commons.wikimedia.org/wiki/File:1_Indian_rupee_(1918).jpg",
+        "transformation": "Wikimedia 960px composite split at horizontal midpoint; JPEG quality 92"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "monarch": "George V",
+        "year": "1918"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    },
+    {
+      "case_id": "india-rupee-1918-rotated",
+      "correction_required": true,
+      "difficulty": [
+        "older",
+        "rotated",
+        "worn"
+      ],
+      "expected": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "monarch": "George V",
+        "year": "1918"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 1.4342666999436915,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "AKS.9955",
+        "license": "CC BY-SA 4.0",
+        "source_url": "https://commons.wikimedia.org/wiki/File:1_Indian_rupee_(1918).jpg",
+        "transformation": "Midpoint split, then 17-degree bicubic rotation on dark background; JPEG quality 92"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "monarch": "George V",
+        "year": "1918"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    },
+    {
+      "case_id": "newfoundland-50-cents-1908-low-contrast",
+      "correction_required": true,
+      "difficulty": [
+        "low-contrast",
+        "older",
+        "weak-focus",
+        "worn"
+      ],
+      "expected": {
+        "country": "Canada",
+        "denomination": "50 cents",
+        "monarch": "Edward VII",
+        "year": "1908"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 1.6075347997248173,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "Heritage Auctions photograph; Tower Mint coin",
+        "license": "CC BY 4.0 photograph; public-domain Crown coin design",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Canada_Newfoundland_Edward_VII_50_Cents_1908_(obv).jpg ; https://commons.wikimedia.org/wiki/File:Canada_Newfoundland_Edward_VII_50_Cents_1908_(rev).jpg",
+        "transformation": "Contrast factor 0.32 and Gaussian blur radius 1.4; JPEG quality 92"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "Canada",
+        "denomination": "50 cents",
+        "monarch": "Edward VII",
+        "year": "1908"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    },
+    {
+      "case_id": "us-cent-2013-glare",
+      "correction_required": true,
+      "difficulty": [
+        "glare",
+        "modern",
+        "partial-obstruction"
+      ],
+      "expected": {
+        "country": "United States",
+        "denomination": "1 cent",
+        "year": "2013"
+      },
+      "field_scores": {
+        "country": false,
+        "denomination": false,
+        "year": false
+      },
+      "identity_certain": true,
+      "infrastructure_failure": null,
+      "latency_seconds": 1.8333768001757562,
+      "ocr_evaluated": true,
+      "persistence_exercised": true,
+      "persistence_success": true,
+      "provenance": {
+        "author": "United States Mint (obverse); MisfitMaid (reverse)",
+        "license": "Public domain (obverse); CC BY-SA 4.0 (reverse)",
+        "source_url": "https://commons.wikimedia.org/wiki/File:US_One_Cent_Obv.png ; https://commons.wikimedia.org/wiki/File:US_union_shield_penny_reverse.png",
+        "transformation": "Semi-transparent white elliptical glare overlay; JPEG quality 92"
+      },
+      "provider_available": true,
+      "raw_candidates": [],
+      "raw_conflicts": [],
+      "raw_observations": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 0.0,
+          "image_role": "front",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        },
+        {
+          "artifact_key": "cropped-coin-1-reverse",
+          "confidence_score": 0.0,
+          "image_role": "reverse",
+          "provider_id": "legacy-ocr",
+          "raw_text": "",
+          "source_coin_id": "coin-1"
+        }
+      ],
+      "raw_prediction": {},
+      "reference_corrected_result": {
+        "country": "United States",
+        "denomination": "1 cent",
+        "year": "2013"
+      },
+      "review_outcome": "unresolved",
+      "unresolved": true,
+      "unresolved_fields": [
+        "country",
+        "denomination",
+        "year"
+      ]
+    }
+  ],
+  "dataset_version": "v1",
+  "difficulty_breakdown": {
+    "clean": {
+      "certain_scored_cases": 3,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 3,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.9867448997683823,
+        "median_seconds": 2.20711989980191,
+        "p95_seconds": 2.469922199845314
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 3,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "glare": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.8333768001757562,
+        "median_seconds": 1.8333768001757562,
+        "p95_seconds": 1.8333768001757562
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "low-contrast": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.6075347997248173,
+        "median_seconds": 1.6075347997248173,
+        "p95_seconds": 1.6075347997248173
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "modern": {
+      "certain_scored_cases": 2,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 2,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 2.020248349988833,
+        "median_seconds": 2.020248349988833,
+        "p95_seconds": 2.20711989980191
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 2,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "older": {
+      "certain_scored_cases": 4,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 4,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.6987290747929364,
+        "median_seconds": 1.5209007498342544,
+        "p95_seconds": 2.469922199845314
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 4,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "partial-obstruction": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.8333768001757562,
+        "median_seconds": 1.8333768001757562,
+        "p95_seconds": 1.8333768001757562
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "rotated": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.4342666999436915,
+        "median_seconds": 1.4342666999436915,
+        "p95_seconds": 1.4342666999436915
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "studio": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 2.20711989980191,
+        "median_seconds": 2.20711989980191,
+        "p95_seconds": 2.20711989980191
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "weak-focus": {
+      "certain_scored_cases": 1,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 1,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.6075347997248173,
+        "median_seconds": 1.6075347997248173,
+        "p95_seconds": 1.6075347997248173
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 1,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    },
+    "worn": {
+      "certain_scored_cases": 4,
+      "correction_required_rate": 1.0,
+      "country_accuracy": 0.0,
+      "denomination_accuracy": 0.0,
+      "evaluated_cases": 4,
+      "failure_rate": 0.0,
+      "full_identity_accuracy": 0.0,
+      "infrastructure_failures": 0,
+      "latency": {
+        "mean_seconds": 1.6987290747929364,
+        "median_seconds": 1.5209007498342544,
+        "p95_seconds": 2.469922199845314
+      },
+      "persistence_success_rate": 1.0,
+      "total_cases": 4,
+      "unresolved_rate": 1.0,
+      "year_accuracy": 0.0
+    }
+  },
+  "failure_analysis": {
+    "cases_requiring_human_correction": [
+      "india-rupee-1918-clean",
+      "india-rupee-1918-rotated",
+      "newfoundland-50-cents-1908-clean",
+      "newfoundland-50-cents-1908-low-contrast",
+      "us-cent-2013-clean",
+      "us-cent-2013-glare"
+    ],
+    "error_classes": {
+      "no_structured_candidates": 6
+    },
+    "unresolved_required_fields": {
+      "country": 6,
+      "denomination": 6,
+      "year": 6
+    }
+  },
+  "generated_at_utc": "2026-08-08T17:39:42.617252+00:00",
+  "git": {
+    "commit": "a01d94b34e379083a9ddf00590dd3d87934981ef",
+    "dirty": true
+  },
+  "limitations": [
+    "Benchmark v1 is small and does not support statistical-significance claims.",
+    "Reference-corrected results are manifest ground truth, not automated review output.",
+    "The dataset is a fixed baseline and is not a training set."
+  ],
+  "runtime": {
+    "ocr_engine": "pytesseract.image_to_string default configuration",
+    "ocr_provider": "legacy-ocr",
+    "persistence_exercised": true,
+    "pipeline": "create_desktop_ocr_review_composition",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "pytesseract_version": "0.3.13",
+    "python": "3.14.6",
+    "tesseract_available": true,
+    "tesseract_version": "5.4.0.20240606"
+  },
+  "schema": "coin-analyzer-ocr-evaluation-report",
+  "summary": {
+    "certain_scored_cases": 6,
+    "correction_required_rate": 1.0,
+    "country_accuracy": 0.0,
+    "denomination_accuracy": 0.0,
+    "evaluated_cases": 6,
+    "failure_rate": 0.0,
+    "full_identity_accuracy": 0.0,
+    "infrastructure_failures": 0,
+    "latency": {
+      "mean_seconds": 1.805902166524902,
+      "median_seconds": 1.7204557999502867,
+      "p95_seconds": 2.469922199845314
+    },
+    "persistence_success_rate": 1.0,
+    "total_cases": 6,
+    "unresolved_rate": 1.0,
+    "year_accuracy": 0.0
+  },
+  "timing_boundary": "temporary-package creation through OCR handoff decoding; when enabled, confirmed-reference persistence and collection reload are also included"
+}

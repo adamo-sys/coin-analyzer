@@ -1,0 +1,13 @@
+Coin Analyzer OCR Benchmark v1
+Total/evaluated: 6/6
+Infrastructure failures: 0
+Country accuracy: 0.0%
+Denomination accuracy: 0.0%
+Year accuracy: 0.0%
+Full identity accuracy: 0.0%
+Unresolved rate: 100.0%
+Correction-required rate: 100.0%
+Failure rate: 0.0%
+Latency mean/median/p95: 1.806s / 1.720s / 2.470s
+Persistence success: 100.0%
+Error classes: no_structured_candidates=6
