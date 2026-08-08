@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from PIL import Image
 
@@ -93,10 +95,16 @@ class LegacyOCRWorkflowProviderTests(unittest.TestCase):
         self.assertEqual(provider.provider_id, "legacy-ocr")
 
     def test_local_runtime_uses_one_fixed_sparse_text_psm(self) -> None:
-        with patch(
-            "pytesseract.image_to_string",
+        image_to_string = Mock(
             return_value="CANADA\n1967\f25 CENTS\n",
-        ) as image_to_string:
+        )
+        fake_pytesseract = SimpleNamespace(
+            image_to_string=image_to_string,
+        )
+        with patch.dict(
+            sys.modules,
+            {"pytesseract": fake_pytesseract},
+        ):
             report = LegacyOCRWorkflowProvider().analyze(
                 source_coin_id="coin-1",
                 image_role="front",
