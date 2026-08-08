@@ -180,7 +180,13 @@ class CapturePackageImportDialog:
         *,
         on_success: Callable[[], None],
         import_mode: ImportPipelineMode | str = ImportPipelineMode.DEFAULT,
+        on_ocr_handoff: Callable[
+            [tk.Misc, object],
+            None,
+        ] | None = None,
     ) -> None:
+        if on_ocr_handoff is not None and not callable(on_ocr_handoff):
+            raise TypeError("on_ocr_handoff must be callable or None.")
         self._parent = parent
         self._source_path = source_path
         self._collection = collection
@@ -196,6 +202,8 @@ class CapturePackageImportDialog:
         self._queue: queue.Queue = queue.Queue()
         self._workspace: WorkflowWorkspace | None = None
         self._import_mode = import_mode
+        self._ocr_runtime_factory = None
+        self._on_ocr_handoff = on_ocr_handoff
         self._ocr_handoff = None
 
         self.window = tk.Toplevel(parent)
@@ -255,7 +263,14 @@ class CapturePackageImportDialog:
                     ImportPipelineMode.DEFAULT,
                 )
                 with workspace:
-                    selection = select_import_pipeline(mode=selected_mode)
+                    selection = select_import_pipeline(
+                        mode=selected_mode,
+                        runtime_factory=getattr(
+                            self,
+                            "_ocr_runtime_factory",
+                            None,
+                        ),
+                    )
                     self._pipeline_selection = selection
                     workflow = ImportWorkflow(
                         selection.pipeline,
@@ -271,7 +286,12 @@ class CapturePackageImportDialog:
                         return
                     self._ocr_handoff = selection.create_ocr_handoff(
                         outcome=outcome,
-)
+                    )
+                    if self._ocr_handoff is not None:
+                        self._queue.put(
+                            (request, "ocr_ready", self._ocr_handoff)
+                        )
+                        return
                     prepared = assemble_prepared_import(
                         import_request,
                         outcome,
@@ -325,10 +345,34 @@ class CapturePackageImportDialog:
             self._prepared = payload
             self._decision_state = payload.preview.decisions
             self._render_preview()
+        elif kind == "ocr_ready":
+            self._ocr_handoff = payload
+            self._render_ocr_ready()
         elif kind == "committed":
             self._finish_success(payload)
         else:
             self._show_error(payload)
+
+    def _render_ocr_ready(self) -> None:
+        """Hand advisory OCR output to the desktop without allowing commit."""
+
+        handoff = self._ocr_handoff
+        if handoff is None:
+            raise RuntimeError("OCR review handoff is unavailable.")
+        self.progress.stop()
+        self.progress.destroy()
+        self.status.set(
+            "OCR analysis is ready for review. "
+            "No collection changes will be saved."
+        )
+        self.import_button.configure(state=tk.DISABLED)
+        self.cancel_button.configure(text="Close")
+        callback = getattr(self, "_on_ocr_handoff", None)
+        if callback is not None:
+            try:
+                callback(self.window, handoff)
+            except Exception as error:
+                self._show_error(error)
 
     def _render_preview(self) -> None:
         assert self._prepared is not None
