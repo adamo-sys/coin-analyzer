@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 
 from PIL import Image
 
@@ -90,6 +93,45 @@ class LegacyOCRWorkflowProviderTests(unittest.TestCase):
     def test_provider_id_is_stable(self) -> None:
         provider = LegacyOCRWorkflowProvider()
         self.assertEqual(provider.provider_id, "legacy-ocr")
+
+    def test_local_runtime_uses_one_fixed_sparse_text_psm(self) -> None:
+        image_to_string = Mock(
+            return_value="CANADA\n1967\f25 CENTS\n",
+        )
+        fake_pytesseract = SimpleNamespace(
+            image_to_string=image_to_string,
+        )
+        with patch.dict(
+            sys.modules,
+            {"pytesseract": fake_pytesseract},
+        ):
+            report = LegacyOCRWorkflowProvider().analyze(
+                source_coin_id="coin-1",
+                image_role="front",
+                artifact_key="cropped-coin-1-front",
+                image_bytes=_jpeg(),
+            )
+
+        image_to_string.assert_called_once()
+        ocr_input = image_to_string.call_args.args[0]
+        self.assertEqual(ocr_input.size, (24, 24))
+        self.assertEqual(ocr_input.mode, "RGB")
+        self.assertEqual(
+            image_to_string.call_args.kwargs,
+            {"config": "--psm 11"},
+        )
+        self.assertTrue(report.provider_available)
+        self.assertEqual(
+            report.observations[0].raw_text,
+            "CANADA 1967 25 CENTS",
+        )
+        self.assertIn(
+            ("year", "1967"),
+            {
+                (candidate.field_name, candidate.normalized_value)
+                for candidate in report.candidates
+            },
+        )
 
     def test_raw_text_path_avoids_local_ocr_runtime(self) -> None:
         experiment = _ExperimentSpy()

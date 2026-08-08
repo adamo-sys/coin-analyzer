@@ -18,6 +18,12 @@ from typing import Callable, Iterable, Mapping
 from uuid import uuid4
 
 from coin_collection import CoinCollection
+from ocr_experiment import (
+    TESSERACT_COIN_CONFIG,
+    TESSERACT_COIN_ENGINE,
+    TESSERACT_COIN_PAGE_SEGMENTATION_MODE,
+    TESSERACT_COIN_PREPROCESSING,
+)
 
 from .desktop_ocr_review_composition import create_desktop_ocr_review_composition
 from .desktop_ocr_review_handoff import create_desktop_ocr_review_handoff
@@ -359,7 +365,12 @@ def _runtime_configuration() -> dict[str, object]:
         "python": sys.version.split()[0],
         "platform": platform.platform(),
         "ocr_provider": "legacy-ocr",
-        "ocr_engine": "pytesseract.image_to_string default configuration",
+        "ocr_engine": TESSERACT_COIN_ENGINE,
+        "ocr_configuration": TESSERACT_COIN_CONFIG,
+        "ocr_page_segmentation_mode": (
+            TESSERACT_COIN_PAGE_SEGMENTATION_MODE
+        ),
+        "ocr_preprocessing": TESSERACT_COIN_PREPROCESSING,
         "pipeline": "create_desktop_ocr_review_composition",
     }
     try:

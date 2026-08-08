@@ -16,11 +16,11 @@
       "field_scores": {
         "country": false,
         "denomination": false,
-        "year": false
+        "year": true
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 2.20711989980191,
+      "latency_seconds": 2.372250000014901,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -31,15 +31,32 @@
         "transformation": "Wikimedia 960px thumbnails; no benchmark transformation"
       },
       "provider_available": true,
-      "raw_candidates": [],
+      "raw_candidates": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 7.0,
+          "evidence": [
+            "Single year candidate detected",
+            "trust:LOW",
+            "validation-score:7"
+          ],
+          "field_name": "year",
+          "image_role": "front",
+          "normalized_value": "2013",
+          "provider_id": "legacy-ocr",
+          "raw_text": "WE v Tr [ty Go C (~ LY “ad ot) ot af Le. LIBERTY 2013 S \\ —=—s",
+          "review_status": "REVIEW_REQUIRED",
+          "source_coin_id": "coin-1"
+        }
+      ],
       "raw_conflicts": [],
       "raw_observations": [
         {
           "artifact_key": "cropped-coin-1-front",
-          "confidence_score": 0.0,
+          "confidence_score": 7.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "WE v Tr [ty Go C (~ LY “ad ot) ot af Le. LIBERTY 2013 S \\ —=—s",
           "source_coin_id": "coin-1"
         },
         {
@@ -47,11 +64,13 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "hs ANE S Co es y/ b, th, (a\\ ae) G eo if my Pas SUNY uM e me > A bia J By OM - Wi LF voy WAR —s",
           "source_coin_id": "coin-1"
         }
       ],
-      "raw_prediction": {},
+      "raw_prediction": {
+        "year": "2013"
+      },
       "reference_corrected_result": {
         "country": "United States",
         "denomination": "1 cent",
@@ -61,8 +80,7 @@
       "unresolved": true,
       "unresolved_fields": [
         "country",
-        "denomination",
-        "year"
+        "denomination"
       ]
     },
     {
@@ -86,7 +104,7 @@
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 2.469922199845314,
+      "latency_seconds": 2.728985699824989,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -105,7 +123,7 @@
           "confidence_score": 0.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "EA hoe au PELL. o\\ — <Q Wale oS = ets SY mal SQ ys Ke oS = leg fe Py, B 2g = mo 28 + = a a = oe =. Ve Hes ) ie = a SS °d ee ee S “Gi eh, - Sy Sa yy * & . oe ae & aC x as a ea TONLES Je ae, ses Le. EZ NS Om Weta rete",
           "source_coin_id": "coin-1"
         },
         {
@@ -113,7 +131,7 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "a0 OS Hay e = a UN © ye iD D a be iD PX 1p) ip 2 re 1 1s) es) \\y a. g a LA ey ee = i e a — ae Ss &( ee We D ae! 7 € eee > aN Re ee Orn, eOSe OF HADAS:",
           "source_coin_id": "coin-1"
         }
       ],
@@ -153,7 +171,7 @@
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 1.283192599657923,
+      "latency_seconds": 1.3401736998930573,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -172,7 +190,7 @@
           "confidence_score": 0.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "sett NS —- SS oe oe ee =~ He ge af",
           "source_coin_id": "coin-1"
         },
         {
@@ -180,7 +198,7 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "mew. BS eS fom LN aaa SN 7 \\ SH wo ZN i aS UZ \\ we ae Ss ms",
           "source_coin_id": "coin-1"
         }
       ],
@@ -220,7 +238,7 @@
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 1.4342666999436915,
+      "latency_seconds": 1.4688949999399483,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -239,7 +257,7 @@
           "confidence_score": 0.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "aK. oi ‘i ay —. 1 Naat Sh —— ean re oe a <3 _4f x feat = bis on ee, oS tases",
           "source_coin_id": "coin-1"
         },
         {
@@ -247,7 +265,7 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "‘A ers ws oF — Le Va a ip =< FS Lie VS Ia SN LY >)",
           "source_coin_id": "coin-1"
         }
       ],
@@ -288,7 +306,7 @@
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 1.6075347997248173,
+      "latency_seconds": 1.9144867998547852,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -307,7 +325,7 @@
           "confidence_score": 0.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "ae en f A it? <) “Ss © 7 “an q/ \\™, OF oY Yo = 1 > re. = Ae Ve . cS awed 4Z tar rh: if S hr SS co Er ~~ i {eN rj a TRS we",
           "source_coin_id": "coin-1"
         },
         {
@@ -315,7 +333,7 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "UN NS & »O \\Z jw) CENTS a9 ()) ea Wn “SS > ak =) Ze — e — wen OOODO",
           "source_coin_id": "coin-1"
         }
       ],
@@ -350,11 +368,11 @@
       "field_scores": {
         "country": false,
         "denomination": false,
-        "year": false
+        "year": true
       },
       "identity_certain": true,
       "infrastructure_failure": null,
-      "latency_seconds": 1.8333768001757562,
+      "latency_seconds": 1.9353228998370469,
       "ocr_evaluated": true,
       "persistence_exercised": true,
       "persistence_success": true,
@@ -365,15 +383,32 @@
         "transformation": "Semi-transparent white elliptical glare overlay; JPEG quality 92"
       },
       "provider_available": true,
-      "raw_candidates": [],
+      "raw_candidates": [
+        {
+          "artifact_key": "cropped-coin-1-front",
+          "confidence_score": 4.0,
+          "evidence": [
+            "Single year candidate detected",
+            "trust:LOW",
+            "validation-score:4"
+          ],
+          "field_name": "year",
+          "image_role": "front",
+          "normalized_value": "2013",
+          "provider_id": "legacy-ocr",
+          "raw_text": "_—___. _. ~ eo \\Al e Tp CC, (~ LUBERT 2013 Ss —=",
+          "review_status": "REVIEW_REQUIRED",
+          "source_coin_id": "coin-1"
+        }
+      ],
       "raw_conflicts": [],
       "raw_observations": [
         {
           "artifact_key": "cropped-coin-1-front",
-          "confidence_score": 0.0,
+          "confidence_score": 4.0,
           "image_role": "front",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "_—___. _. ~ eo \\Al e Tp CC, (~ LUBERT 2013 Ss —=",
           "source_coin_id": "coin-1"
         },
         {
@@ -381,11 +416,13 @@
           "confidence_score": 0.0,
           "image_role": "reverse",
           "provider_id": "legacy-ocr",
-          "raw_text": "",
+          "raw_text": "At IDS ig 4 ~) ry é =) Remmesetilll ic: oe aN! ALE e/, yup ewe Sh,",
           "source_coin_id": "coin-1"
         }
       ],
-      "raw_prediction": {},
+      "raw_prediction": {
+        "year": "2013"
+      },
       "reference_corrected_result": {
         "country": "United States",
         "denomination": "1 cent",
@@ -395,8 +432,7 @@
       "unresolved": true,
       "unresolved_fields": [
         "country",
-        "denomination",
-        "year"
+        "denomination"
       ]
     }
   ],
@@ -412,14 +448,14 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.9867448997683823,
-        "median_seconds": 2.20711989980191,
-        "p95_seconds": 2.469922199845314
+        "mean_seconds": 2.147136466577649,
+        "median_seconds": 2.372250000014901,
+        "p95_seconds": 2.728985699824989
       },
       "persistence_success_rate": 1.0,
       "total_cases": 3,
       "unresolved_rate": 1.0,
-      "year_accuracy": 0.0
+      "year_accuracy": 0.3333333333333333
     },
     "glare": {
       "certain_scored_cases": 1,
@@ -431,14 +467,14 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.8333768001757562,
-        "median_seconds": 1.8333768001757562,
-        "p95_seconds": 1.8333768001757562
+        "mean_seconds": 1.9353228998370469,
+        "median_seconds": 1.9353228998370469,
+        "p95_seconds": 1.9353228998370469
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
       "unresolved_rate": 1.0,
-      "year_accuracy": 0.0
+      "year_accuracy": 1.0
     },
     "low-contrast": {
       "certain_scored_cases": 1,
@@ -450,9 +486,9 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.6075347997248173,
-        "median_seconds": 1.6075347997248173,
-        "p95_seconds": 1.6075347997248173
+        "mean_seconds": 1.9144867998547852,
+        "median_seconds": 1.9144867998547852,
+        "p95_seconds": 1.9144867998547852
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
@@ -469,14 +505,14 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 2.020248349988833,
-        "median_seconds": 2.020248349988833,
-        "p95_seconds": 2.20711989980191
+        "mean_seconds": 2.153786449925974,
+        "median_seconds": 2.153786449925974,
+        "p95_seconds": 2.372250000014901
       },
       "persistence_success_rate": 1.0,
       "total_cases": 2,
       "unresolved_rate": 1.0,
-      "year_accuracy": 0.0
+      "year_accuracy": 1.0
     },
     "older": {
       "certain_scored_cases": 4,
@@ -488,9 +524,9 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.6987290747929364,
-        "median_seconds": 1.5209007498342544,
-        "p95_seconds": 2.469922199845314
+        "mean_seconds": 1.863135299878195,
+        "median_seconds": 1.6916908998973668,
+        "p95_seconds": 2.728985699824989
       },
       "persistence_success_rate": 1.0,
       "total_cases": 4,
@@ -507,14 +543,14 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.8333768001757562,
-        "median_seconds": 1.8333768001757562,
-        "p95_seconds": 1.8333768001757562
+        "mean_seconds": 1.9353228998370469,
+        "median_seconds": 1.9353228998370469,
+        "p95_seconds": 1.9353228998370469
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
       "unresolved_rate": 1.0,
-      "year_accuracy": 0.0
+      "year_accuracy": 1.0
     },
     "rotated": {
       "certain_scored_cases": 1,
@@ -526,9 +562,9 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.4342666999436915,
-        "median_seconds": 1.4342666999436915,
-        "p95_seconds": 1.4342666999436915
+        "mean_seconds": 1.4688949999399483,
+        "median_seconds": 1.4688949999399483,
+        "p95_seconds": 1.4688949999399483
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
@@ -545,14 +581,14 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 2.20711989980191,
-        "median_seconds": 2.20711989980191,
-        "p95_seconds": 2.20711989980191
+        "mean_seconds": 2.372250000014901,
+        "median_seconds": 2.372250000014901,
+        "p95_seconds": 2.372250000014901
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
       "unresolved_rate": 1.0,
-      "year_accuracy": 0.0
+      "year_accuracy": 1.0
     },
     "weak-focus": {
       "certain_scored_cases": 1,
@@ -564,9 +600,9 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.6075347997248173,
-        "median_seconds": 1.6075347997248173,
-        "p95_seconds": 1.6075347997248173
+        "mean_seconds": 1.9144867998547852,
+        "median_seconds": 1.9144867998547852,
+        "p95_seconds": 1.9144867998547852
       },
       "persistence_success_rate": 1.0,
       "total_cases": 1,
@@ -583,9 +619,9 @@
       "full_identity_accuracy": 0.0,
       "infrastructure_failures": 0,
       "latency": {
-        "mean_seconds": 1.6987290747929364,
-        "median_seconds": 1.5209007498342544,
-        "p95_seconds": 2.469922199845314
+        "mean_seconds": 1.863135299878195,
+        "median_seconds": 1.6916908998973668,
+        "p95_seconds": 2.728985699824989
       },
       "persistence_success_rate": 1.0,
       "total_cases": 4,
@@ -603,17 +639,17 @@
       "us-cent-2013-glare"
     ],
     "error_classes": {
-      "no_structured_candidates": 6
+      "no_structured_candidates": 4
     },
     "unresolved_required_fields": {
       "country": 6,
       "denomination": 6,
-      "year": 6
+      "year": 4
     }
   },
-  "generated_at_utc": "2026-08-08T17:39:42.617252+00:00",
+  "generated_at_utc": "2026-08-08T18:26:41.135159+00:00",
   "git": {
-    "commit": "a01d94b34e379083a9ddf00590dd3d87934981ef",
+    "commit": "2dde72376bbbc3a035b37baae83198827d6bf1ae",
     "dirty": true
   },
   "limitations": [
@@ -622,7 +658,10 @@
     "The dataset is a fixed baseline and is not a training set."
   ],
   "runtime": {
-    "ocr_engine": "pytesseract.image_to_string default configuration",
+    "ocr_configuration": "--psm 11",
+    "ocr_engine": "pytesseract.image_to_string",
+    "ocr_page_segmentation_mode": 11,
+    "ocr_preprocessing": "none (original-size RGB input)",
     "ocr_provider": "legacy-ocr",
     "persistence_exercised": true,
     "pipeline": "create_desktop_ocr_review_composition",
@@ -643,14 +682,14 @@
     "full_identity_accuracy": 0.0,
     "infrastructure_failures": 0,
     "latency": {
-      "mean_seconds": 1.805902166524902,
-      "median_seconds": 1.7204557999502867,
-      "p95_seconds": 2.469922199845314
+      "mean_seconds": 1.960019016560788,
+      "median_seconds": 1.924904849845916,
+      "p95_seconds": 2.728985699824989
     },
     "persistence_success_rate": 1.0,
     "total_cases": 6,
     "unresolved_rate": 1.0,
-    "year_accuracy": 0.0
+    "year_accuracy": 0.3333333333333333
   },
   "timing_boundary": "temporary-package creation through OCR handoff decoding; when enabled, confirmed-reference persistence and collection reload are also included"
 }
