@@ -807,11 +807,11 @@ class CoinCollection:
             )
         return value
     
-    def add_item(self, item: CoinItem) -> bool:
+    def add_item(self, item: CoinItem, *, import_lock=None) -> bool:
         """Add item to collection."""
         original_items = list(self.items)
         self.items.append(item)
-        if self.save_collection():
+        if self.save_collection(import_lock=import_lock):
             return True
         self.items = original_items
         return False

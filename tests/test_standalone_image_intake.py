@@ -38,6 +38,9 @@ from capture_import.workflow_ocr_composition import (
 from capture_import.workflow_ocr_review_controller import (
     OCRReviewSessionController,
 )
+from capture_import.image_store import ManagedCollectionImageStore
+from capture_import.lock import PackageImportLock
+from capture_import.snapshot import CapturePackageSnapshotService
 from coin_collection import CoinCollection
 from coin_collection_gui import CoinCollectionGUI
 from tests.test_desktop_ocr_review_integration import (
@@ -181,7 +184,14 @@ class StandaloneImageIntakeTests(unittest.TestCase):
             gui.app = SimpleNamespace(collection=collection)
             gui._ocr_review_handoff = handoff
             gui._ocr_review_parent = object()
+            gui._ocr_managed_photo_source = source
             gui.refresh_collection_list = Mock()
+            images = ManagedCollectionImageStore(
+                root / "managed",
+                collection_path_prefix="managed",
+            )
+            snapshots = CapturePackageSnapshotService(root / "snapshots")
+            acquire_lock = PackageImportLock.acquire
 
             with (
                 patch(
@@ -189,19 +199,45 @@ class StandaloneImageIntakeTests(unittest.TestCase):
                     return_value=True,
                 ),
                 patch("coin_collection_gui.messagebox.showinfo"),
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "ManagedCollectionImageStore",
+                    return_value=images,
+                ),
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "CapturePackageSnapshotService",
+                    return_value=snapshots,
+                ),
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "PackageImportLock.acquire",
+                    side_effect=lambda _path, **kwargs: acquire_lock(
+                        root / "import.lock",
+                        **kwargs,
+                    ),
+                ),
             ):
                 gui._confirm_and_save_ocr_review(
                     review,
                     conflicts.resolutions,
                 )
             reopened = CoinCollection(str(storage))
-            source.release()
 
         self.assertEqual(len(reopened.items), 1)
         self.assertEqual(reopened.items[0].country, "Canada")
         self.assertEqual(reopened.items[0].denomination, "25 cents")
         self.assertEqual(reopened.items[0].year, "1968")
-        self.assertEqual(reopened.items[0].image_path, "")
+        self.assertEqual(len(reopened.items[0].photos), 2)
+        self.assertEqual(
+            [photo.role.value for photo in reopened.items[0].photos],
+            ["FRONT", "BACK"],
+        )
+        self.assertEqual(
+            reopened.items[0].image_path,
+            reopened.items[0].photos[0].path,
+        )
+        self.assertFalse(source.path.exists())
 
     def test_partial_selection_is_rejected_before_file_access(self) -> None:
         with self.assertRaises(PartialStandaloneImageSelectionError):

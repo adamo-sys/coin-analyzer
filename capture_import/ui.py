@@ -185,11 +185,14 @@ class CapturePackageImportDialog:
             None,
         ] | None = None,
         on_source_released: Callable[[], None] | None = None,
+        on_close: Callable[[], None] | None = None,
     ) -> None:
         if on_ocr_handoff is not None and not callable(on_ocr_handoff):
             raise TypeError("on_ocr_handoff must be callable or None.")
         if on_source_released is not None and not callable(on_source_released):
             raise TypeError("on_source_released must be callable or None.")
+        if on_close is not None and not callable(on_close):
+            raise TypeError("on_close must be callable or None.")
         self._parent = parent
         self._source_path = source_path
         self._collection = collection
@@ -210,6 +213,8 @@ class CapturePackageImportDialog:
         self._ocr_handoff = None
         self._on_source_released = on_source_released
         self._source_released = False
+        self._on_close = on_close
+        self._close_notified = False
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -342,6 +347,14 @@ class CapturePackageImportDialog:
             return
         self._source_released = True
         callback = getattr(self, "_on_source_released", None)
+        if callback is not None:
+            callback()
+
+    def _notify_close_once(self) -> None:
+        if getattr(self, "_close_notified", False):
+            return
+        self._close_notified = True
+        callback = getattr(self, "_on_close", None)
         if callback is not None:
             callback()
 
@@ -510,6 +523,7 @@ class CapturePackageImportDialog:
                 return
         self.window.grab_release()
         self.window.destroy()
+        self._notify_close_once()
 
     def _finish_success(self, result) -> None:
         self._collection.load_collection()
@@ -525,6 +539,7 @@ class CapturePackageImportDialog:
         self._closed = True
         self.window.grab_release()
         self.window.destroy()
+        self._notify_close_once()
 
     def _show_error(self, error: Exception) -> None:
         self._committing = False

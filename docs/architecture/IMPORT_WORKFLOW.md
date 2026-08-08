@@ -251,6 +251,16 @@ supplied `.ca-package`; no alternate preprocessing, OCR, review, confirmation,
 or persistence path is permitted.  Format 1.0 requires both front and reverse,
 so a one-sided selection fails before pipeline execution.
 
+After a successful standalone-image review, the desktop retains the ephemeral
+package only until the operator confirms or cancels.  Confirmation may invoke
+the existing snapshot, import-lock, and `ManagedCollectionImageStore` seams to
+copy front/reverse media into the canonical managed tree.  The collection item
+and both managed photos are committed under the same lock.  Before collection
+publication, any copy, validation, or save failure must invoke ownership-
+verified managed-image cleanup; cancellation or incomplete review performs no
+managed-image write.  User-supplied `.ca-package` OCR review remains metadata-
+only unless it explicitly supplies the standalone managed-photo context.
+
 Sprint 8 adds internal image-processing stages to the pre-import pipeline. Full contracts are defined in `docs/adr/ADR-008-image-processing-pipeline.md`. The following rules govern every image stage:
 
 - **Input format:** JPEG and PNG only, matching `capture_import/media.py` validation.

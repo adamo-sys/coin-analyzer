@@ -470,7 +470,14 @@ Total Unique Dates: {total_unique_dates}
             self._launch_capture_package_import(
                 package_path=str(source.path),
                 import_mode=ImportPipelineMode.OCR_ENABLED,
-                on_source_released=source.release,
+                on_close=source.release,
+                ocr_handoff_callback=(
+                    lambda parent, handoff: self.open_ocr_review_handoff(
+                        parent,
+                        handoff,
+                        managed_photo_source=source,
+                    )
+                ),
             )
         except Exception:
             source.release()
@@ -510,12 +517,21 @@ Total Unique Dates: {total_unique_dates}
         package_path,
         import_mode,
         on_source_released=None,
+        on_close=None,
+        ocr_handoff_callback=None,
     ):
         """Launch the shared package-shaped OCR/import dialog."""
 
         options = {}
         if on_source_released is not None:
             options["on_source_released"] = on_source_released
+        if on_close is not None:
+            options["on_close"] = on_close
+        callback = (
+            ocr_handoff_callback
+            if ocr_handoff_callback is not None
+            else self.open_ocr_review_handoff
+        )
         CapturePackageImportDialog(
             self.root,
             package_path,
@@ -523,14 +539,19 @@ Total Unique Dates: {total_unique_dates}
             on_success=self.refresh_collection_list,
             import_mode=import_mode,
             on_ocr_handoff=(
-                self.open_ocr_review_handoff
+                callback
                 if import_mode == ImportPipelineMode.OCR_ENABLED
                 else None
             ),
             **options,
         )
 
-    def open_ocr_review_handoff(self, parent, handoff):
+    def open_ocr_review_handoff(
+        self,
+        parent,
+        handoff,
+        managed_photo_source=None,
+    ):
         """Display existing OCR review dialogs for one advisory handoff."""
 
         from capture_import.desktop_ocr_candidate_review import (
@@ -539,6 +560,7 @@ Total Unique Dates: {total_unique_dates}
 
         self._ocr_review_parent = parent
         self._ocr_review_handoff = handoff
+        self._ocr_managed_photo_source = managed_photo_source
         self._ocr_review_dialog = create_ocr_candidate_review_dialog(
             parent=parent,
             report=handoff.report,
@@ -605,6 +627,7 @@ Total Unique Dates: {total_unique_dates}
                 str(error),
                 parent=self._ocr_review_parent,
             )
+            self._release_ocr_managed_photo_source()
             return
 
         duplicates = self.app.collection.find_matching_coins(
@@ -619,7 +642,12 @@ Total Unique Dates: {total_unique_dates}
             f"Denomination: {draft.denomination}",
             f"Year: {draft.year}",
             "Grade: not recorded",
-            "Image: not persisted by this workflow",
+            (
+                "Images: obverse and reverse will be retained"
+                if getattr(self, "_ocr_managed_photo_source", None)
+                is not None
+                else "Images: not supplied by this workflow"
+            ),
         ]
         if draft.unmapped_fields:
             details.extend(
@@ -641,12 +669,19 @@ Total Unique Dates: {total_unique_dates}
             "\n".join(details),
             parent=self._ocr_review_parent,
         ):
+            self._release_ocr_managed_photo_source()
             return
 
         try:
             item = persist_reviewed_coin(
                 collection=self.app.collection,
                 draft=draft,
+                source_package_path=(
+                    self._ocr_managed_photo_source.path
+                    if getattr(self, "_ocr_managed_photo_source", None)
+                    is not None
+                    else None
+                ),
             )
         except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
             messagebox.showerror(
@@ -654,14 +689,22 @@ Total Unique Dates: {total_unique_dates}
                 str(error),
                 parent=self._ocr_review_parent,
             )
+            self._release_ocr_managed_photo_source()
             return
 
+        self._release_ocr_managed_photo_source()
         self.refresh_collection_list()
         messagebox.showinfo(
             "Reviewed Coin Saved",
             f"Saved {item.country} {item.denomination} ({item.year}).",
             parent=self._ocr_review_parent,
         )
+
+    def _release_ocr_managed_photo_source(self):
+        source = getattr(self, "_ocr_managed_photo_source", None)
+        self._ocr_managed_photo_source = None
+        if source is not None:
+            source.release()
 
     def initialize_capture_import_recovery(self) -> bool:
         """Complete fail-closed importer recovery before enabling package import."""

@@ -134,7 +134,7 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
             ):
                 gui.import_coin_images_with_ocr()
                 captured_path = Path(dialog.call_args.args[1])
-                release = dialog.call_args.kwargs["on_source_released"]
+                release = dialog.call_args.kwargs["on_close"]
 
             self.assertTrue(captured_path.exists())
             dialog.assert_called_once()
@@ -142,9 +142,17 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
                 dialog.call_args.kwargs["import_mode"],
                 ImportPipelineMode.OCR_ENABLED,
             )
+            callback = dialog.call_args.kwargs["on_ocr_handoff"]
+            gui.open_ocr_review_handoff = Mock()
+            parent = object()
+            handoff = object()
+            callback(parent, handoff)
+            gui.open_ocr_review_handoff.assert_called_once()
+            forwarded = gui.open_ocr_review_handoff.call_args
+            self.assertEqual(forwarded.args, (parent, handoff))
             self.assertEqual(
-                dialog.call_args.kwargs["on_ocr_handoff"],
-                gui.open_ocr_review_handoff,
+                forwarded.kwargs["managed_photo_source"].path,
+                captured_path,
             )
             release()
             self.assertFalse(captured_path.exists())
@@ -181,6 +189,17 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
         dialog._release_source_once()
 
         released.assert_called_once_with()
+
+    def test_dialog_close_callback_is_idempotent(self) -> None:
+        dialog = CapturePackageImportDialog.__new__(CapturePackageImportDialog)
+        closed = Mock()
+        dialog._close_notified = False
+        dialog._on_close = closed
+
+        dialog._notify_close_once()
+        dialog._notify_close_once()
+
+        closed.assert_called_once_with()
 
     def test_real_sprint20_handoff_reaches_existing_candidate_review_seam(
         self,
@@ -276,19 +295,53 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
             gui.app.collection = collection
             gui._ocr_review_handoff = handoff
             gui._ocr_review_parent = object()
+            source = SimpleNamespace(path=Path(temp) / "source.ca-package")
+            source.release = Mock()
+            gui._ocr_managed_photo_source = source
 
-            with patch(
-                "coin_collection_gui.messagebox.askyesno",
-                return_value=False,
-            ) as confirm:
+            with (
+                patch(
+                    "coin_collection_gui.messagebox.askyesno",
+                    return_value=False,
+                ) as confirm,
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "persist_reviewed_coin"
+                ) as persist,
+            ):
                 gui._confirm_and_save_ocr_review(
                     review,
                     conflict_model.resolutions,
                 )
 
         confirm.assert_called_once()
+        persist.assert_not_called()
+        source.release.assert_called_once_with()
         self.assertEqual(collection.items, [])
         gui.refresh_collection_list.assert_not_called()
+
+    def test_unresolved_review_releases_source_without_managed_write(self) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        gui._ocr_review_handoff = handoff
+        gui._ocr_review_parent = object()
+        source = SimpleNamespace(path=Path("source.ca-package"))
+        source.release = Mock()
+        gui._ocr_managed_photo_source = source
+
+        with (
+            patch("coin_collection_gui.messagebox.showwarning") as warning,
+            patch(
+                "capture_import.reviewed_coin_collection_entry."
+                "persist_reviewed_coin"
+            ) as persist,
+        ):
+            gui._confirm_and_save_ocr_review(review, ())
+
+        warning.assert_called_once()
+        persist.assert_not_called()
+        source.release.assert_called_once_with()
 
     def test_operator_confirmation_saves_and_reload_preserves_coin(self) -> None:
         gui = self.gui()
