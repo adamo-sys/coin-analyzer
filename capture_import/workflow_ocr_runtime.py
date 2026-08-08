@@ -18,6 +18,8 @@ from legacy_ocr_workflow_provider import (
     LegacyOCRWorkflowProvider,
     RawTextResolver,
 )
+from inference_telemetry import get_default_telemetry_sink
+from ocr_experiment import OCRExperiment
 
 
 def build_legacy_ocr_pipeline(
@@ -37,6 +39,9 @@ def build_legacy_ocr_pipeline(
     """
 
     provider = LegacyOCRWorkflowProvider(
+        experiment=OCRExperiment(
+            telemetry_sink=get_default_telemetry_sink(),
+        ),
         raw_text_resolver=raw_text_resolver,
     )
 

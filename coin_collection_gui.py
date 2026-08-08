@@ -4895,8 +4895,12 @@ Total Unique Dates: {total_unique_dates}
 
         def run_ocr():
             try:
+                from inference_telemetry import get_default_telemetry_sink
+
                 supplied_text = raw_text.get("1.0", tk.END).strip()
-                report = OCRExperiment().run(
+                report = OCRExperiment(
+                    telemetry_sink=get_default_telemetry_sink(),
+                ).run(
                     image_path=image_var.get(),
                     raw_text=supplied_text if supplied_text else None,
                 )
@@ -5002,10 +5006,15 @@ Total Unique Dates: {total_unique_dates}
             return None
 
         def engine():
+            from inference_telemetry import get_default_telemetry_sink
+
             return OCRIdentificationEngine(
                 collection_items=self._collection_items(),
                 want_list_intents=self._active_want_list_intents(),
                 watchlists=self.watchlists,
+                ocr_experiment=OCRExperiment(
+                    telemetry_sink=get_default_telemetry_sink(),
+                ),
             )
 
         def run_identification():
@@ -6806,8 +6815,11 @@ Total Unique Dates: {total_unique_dates}
     @staticmethod
     def run_ask_my_collection_request(assistant, question, result_queue, request_id):
         """Run one standalone request without touching Tk from the worker thread."""
+        from inference_telemetry import telemetry_scan
+
         try:
-            response = assistant.ask(question)
+            with telemetry_scan(f"ask-my-collection:{request_id}"):
+                response = assistant.ask(question)
         except Exception as error:
             from grounded_collection_assistant import GroundedAssistantResponse
 

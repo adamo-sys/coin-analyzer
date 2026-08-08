@@ -6,6 +6,7 @@ import threading
 import unittest
 
 from coin_collection_gui import CoinCollectionGUI
+from inference_telemetry import current_scan_id
 from grounded_collection_assistant import (
     AssistantEvidenceReference,
     AssistantToolCall,
@@ -56,6 +57,27 @@ class AskMyCollectionGUITests(unittest.TestCase):
         self.assertIn("threading.Thread", source)
         self.assertIn("dialog.after(50, poll_results)", source)
         self.assertIn("request_assistant = self.create_ask_my_collection_service()", source)
+
+    def test_worker_uses_independent_request_namespace_without_context_leak(self):
+        class CorrelationAssistant(FakeAssistant):
+            def __init__(self):
+                self.scan_ids = []
+
+            def ask(self, question):
+                self.scan_ids.append(current_scan_id())
+                return super().ask(question)
+
+        assistant = CorrelationAssistant()
+        results = queue.Queue()
+        CoinCollectionGUI.run_ask_my_collection_request(
+            assistant,
+            "question",
+            results,
+            17,
+        )
+
+        self.assertEqual(assistant.scan_ids, ["ask-my-collection:17"])
+        self.assertEqual(current_scan_id(), "unscoped")
 
     def test_response_and_evidence_helpers_preserve_backend_text(self):
         response = GroundedAssistantResponse(

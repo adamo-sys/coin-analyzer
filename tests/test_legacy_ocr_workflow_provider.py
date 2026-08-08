@@ -18,6 +18,7 @@ from capture_import.workflow_ocr_models import (
 )
 from capture_import.workflow_pipeline import StageContractError
 from legacy_ocr_workflow_provider import LegacyOCRWorkflowProvider
+from inference_telemetry import telemetry_scan
 from ocr_experiment import OCRExperiment
 from ocr_validation import OCRValidationEngine
 from ocr_workflow_adapter import OCRWorkflowAdapter
@@ -95,6 +96,14 @@ class LegacyOCRWorkflowProviderTests(unittest.TestCase):
         self.assertEqual(provider.provider_id, "legacy-ocr")
 
     def test_local_runtime_uses_one_fixed_sparse_text_psm(self) -> None:
+        class Sink:
+            def __init__(self):
+                self.records = []
+
+            def write(self, record):
+                self.records.append(record)
+
+        sink = Sink()
         image_to_string = Mock(
             return_value="CANADA\n1967\f25 CENTS\n",
         )
@@ -105,12 +114,15 @@ class LegacyOCRWorkflowProviderTests(unittest.TestCase):
             sys.modules,
             {"pytesseract": fake_pytesseract},
         ):
-            report = LegacyOCRWorkflowProvider().analyze(
-                source_coin_id="coin-1",
-                image_role="front",
-                artifact_key="cropped-coin-1-front",
-                image_bytes=_jpeg(),
-            )
+            with telemetry_scan("scan-provider-1"):
+                report = LegacyOCRWorkflowProvider(
+                    experiment=OCRExperiment(telemetry_sink=sink),
+                ).analyze(
+                    source_coin_id="coin-1",
+                    image_role="front",
+                    artifact_key="cropped-coin-1-front",
+                    image_bytes=_jpeg(),
+                )
 
         image_to_string.assert_called_once()
         ocr_input = image_to_string.call_args.args[0]
@@ -132,6 +144,16 @@ class LegacyOCRWorkflowProviderTests(unittest.TestCase):
                 for candidate in report.candidates
             },
         )
+        self.assertEqual(len(sink.records), 1)
+        self.assertEqual(sink.records[0].scan_id, "scan-provider-1")
+        self.assertEqual(sink.records[0].provider, "Tesseract")
+        self.assertEqual(
+            sink.records[0].model,
+            "pytesseract.image_to_string --psm 11",
+        )
+        self.assertEqual(sink.records[0].estimated_cost_usd, 0.0)
+        self.assertIsNone(sink.records[0].input_tokens)
+        self.assertIsNone(sink.records[0].output_tokens)
 
     def test_raw_text_path_avoids_local_ocr_runtime(self) -> None:
         experiment = _ExperimentSpy()

@@ -10,6 +10,12 @@ import os
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 from grounded_collection_assistant import AssistantProviderError, MAX_TEXT_LENGTH
+from inference_telemetry import (
+    TelemetrySink,
+    get_default_telemetry_sink,
+    instrument_inference,
+    response_token_usage,
+)
 
 
 OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
@@ -33,6 +39,7 @@ class OpenAIResponsesAdapter:
         api_key: Optional[str] = None,
         timeout_seconds: float = 30.0,
         client: Any = None,
+        telemetry_sink: TelemetrySink | None = None,
     ) -> None:
         self.model_name = str(model or "").strip()
         if not self.model_name:
@@ -53,12 +60,14 @@ class OpenAIResponsesAdapter:
                 ) from error
             client = OpenAI(api_key=key, timeout=timeout_seconds)
         self._client = client
+        self._telemetry_sink = telemetry_sink
 
     @classmethod
     def from_environment(cls) -> "OpenAIResponsesAdapter":
         return cls(
             model=os.environ.get(OPENAI_MODEL_ENV, ""),
             api_key=os.environ.get(OPENAI_API_KEY_ENV),
+            telemetry_sink=get_default_telemetry_sink(),
         )
 
     @classmethod
@@ -103,7 +112,12 @@ class OpenAIResponsesAdapter:
             sort_keys=True,
             separators=(",", ":"),
         )
-        parsed = self._parse(PlanModel, instructions, user_payload)
+        parsed = self._parse(
+            PlanModel,
+            instructions,
+            user_payload,
+            stage="ask-my-collection-plan",
+        )
         result = parsed.model_dump()
         calls = []
         for call in result.get("tool_calls", []):
@@ -136,19 +150,38 @@ class OpenAIResponsesAdapter:
             sort_keys=True,
             separators=(",", ":"),
         )
-        parsed = self._parse(ExplanationModel, instructions, payload)
+        parsed = self._parse(
+            ExplanationModel,
+            instructions,
+            payload,
+            stage="ask-my-collection-explanation",
+        )
         return parsed.model_dump()
 
-    def _parse(self, schema: Any, instructions: str, user_payload: str) -> Any:
+    def _parse(
+        self,
+        schema: Any,
+        instructions: str,
+        user_payload: str,
+        *,
+        stage: str,
+    ) -> Any:
         try:
-            response = self._client.responses.parse(
+            response = instrument_inference(
+                lambda: self._client.responses.parse(
+                    model=self.model_name,
+                    input=[
+                        {"role": "system", "content": instructions},
+                        {"role": "user", "content": user_payload},
+                    ],
+                    text_format=schema,
+                    store=False,
+                ),
+                stage=stage,
+                provider=self.provider_name,
                 model=self.model_name,
-                input=[
-                    {"role": "system", "content": instructions},
-                    {"role": "user", "content": user_payload},
-                ],
-                text_format=schema,
-                store=False,
+                sink=self._telemetry_sink,
+                usage_resolver=response_token_usage,
             )
         except Exception as error:
             raise AssistantProviderError(

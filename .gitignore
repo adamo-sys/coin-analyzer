@@ -27,3 +27,6 @@ Thumbs.db
 
 # Generated OCR and image-recognition diagnostics
 /debug_outputs/
+
+# Generated best-effort inference telemetry
+/collection_data/telemetry/
