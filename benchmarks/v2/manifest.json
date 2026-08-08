@@ -1,0 +1,871 @@
+{
+  "cases": [
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Canada",
+        "denomination": "5 cents",
+        "type_design": "Elizabeth II beaver",
+        "year": "1964"
+      },
+      "id": "canada-5-cents-1964",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Awmcphee",
+        "license": "CC0-1.0",
+        "path": "images/canada-5-cents-1964/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/3b05d4de8681d17e.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Canada_%240.05_1964.jpg/960px-Canada_%240.05_1964.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.05_1964.jpg",
+        "source_sha256": "b93c7340c1f33dbbd4572f701998e5284181558038d8c909bdefcfb854f718ce",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Awmcphee",
+        "license": "CC0-1.0",
+        "path": "images/canada-5-cents-1964/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/3b05d4de8681d17e.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Canada_%240.05_1964.jpg/960px-Canada_%240.05_1964.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.05_1964.jpg",
+        "source_sha256": "b93c7340c1f33dbbd4572f701998e5284181558038d8c909bdefcfb854f718ce",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "canada-5-cents-1964"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Canada",
+        "denomination": "10 cents",
+        "type_design": "Elizabeth II Bluenose",
+        "year": "1955"
+      },
+      "id": "canada-10-cents-1955",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Coin design: Emanuel Hahn; photograph: Mister rf",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/canada-10-cents-1955/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/cb2ccfa2ea17e6bb.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Canada_%240.1_1955.jpg/960px-Canada_%240.1_1955.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.1_1955.jpg",
+        "source_sha256": "b00a415ee1884646ce3d3fa2695b9ffd47dc4e184ca6b808ab421006e94fb11e",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Coin design: Emanuel Hahn; photograph: Mister rf",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/canada-10-cents-1955/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/cb2ccfa2ea17e6bb.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Canada_%240.1_1955.jpg/960px-Canada_%240.1_1955.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.1_1955.jpg",
+        "source_sha256": "b00a415ee1884646ce3d3fa2695b9ffd47dc4e184ca6b808ab421006e94fb11e",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "canada-10-cents-1955"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "commemorative",
+        "silver-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Canada",
+        "denomination": "25 cents",
+        "type_design": "Centennial bobcat",
+        "year": "1967"
+      },
+      "id": "canada-25-cents-1967",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Awmcphee",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/canada-25-cents-1967/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/c2ce4df3cf78e34f.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Canada_%240.25_1967.jpg/960px-Canada_%240.25_1967.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.25_1967.jpg",
+        "source_sha256": "b78c3511d3db7329921ba5cda0fdf31381656d46a86463a082c2feb494a3311d",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Awmcphee",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/canada-25-cents-1967/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/c2ce4df3cf78e34f.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Canada_%240.25_1967.jpg/960px-Canada_%240.25_1967.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Canada_$0.25_1967.jpg",
+        "source_sha256": "b78c3511d3db7329921ba5cda0fdf31381656d46a86463a082c2feb494a3311d",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "canada-25-cents-1967"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "scalloped",
+        "studio",
+        "worn"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "India",
+        "denomination": "10 paise",
+        "type_design": "Republic contemporary scalloped",
+        "year": "1965"
+      },
+      "id": "india-10-paise-1965",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Reserve Bank of India / AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-10-paise-1965/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/912c315a8b766ac0.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/10_Indian_paise_%281965%29.jpg/960px-10_Indian_paise_%281965%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:10_Indian_paise_(1965).jpg",
+        "source_sha256": "730288524ed31511d961a9f4e3b6b8a0d0ba465a10e3a4801985e077a96c7d4d",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Reserve Bank of India / AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-10-paise-1965/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/912c315a8b766ac0.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/10_Indian_paise_%281965%29.jpg/960px-10_Indian_paise_%281965%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:10_Indian_paise_(1965).jpg",
+        "source_sha256": "730288524ed31511d961a9f4e3b6b8a0d0ba465a10e3a4801985e077a96c7d4d",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "india-10-paise-1965"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "India",
+        "denomination": "2 rupees",
+        "type_design": "Rupee symbol with lotus",
+        "year": "2012"
+      },
+      "id": "india-2-rupees-2012",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Reserve Bank of India / AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-2-rupees-2012/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/57465c15d099438c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/2_Indian_rupee_%282012%29.jpg/960px-2_Indian_rupee_%282012%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:2_Indian_rupee_(2012).jpg",
+        "source_sha256": "b1d69c5960146b194491228a0bf0eca18b98a4d63d2ae52a167d7a41078f9cff",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Reserve Bank of India / AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-2-rupees-2012/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/57465c15d099438c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/2_Indian_rupee_%282012%29.jpg/960px-2_Indian_rupee_%282012%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:2_Indian_rupee_(2012).jpg",
+        "source_sha256": "b1d69c5960146b194491228a0bf0eca18b98a4d63d2ae52a167d7a41078f9cff",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "india-2-rupees-2012"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio",
+        "worn"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "type_design": "George V crowned bust",
+        "year": "1918"
+      },
+      "id": "india-1-rupee-1918",
+      "identity_certain": true,
+      "notes": "Same Commons source identity used in Benchmark v1; v2 derivatives are independently recorded.",
+      "obverse": {
+        "author": "AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-1-rupee-1918/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/a857b02fd75ac3ba.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/1_Indian_rupee_%281918%29.jpg/960px-1_Indian_rupee_%281918%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:1_Indian_rupee_(1918).jpg",
+        "source_sha256": "676f66e5147ebc6c9f8962f98fd303d03617cc820dc74298af931c19bcd9cfa9",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": true,
+      "reverse": {
+        "author": "AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/india-1-rupee-1918/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/a857b02fd75ac3ba.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/1_Indian_rupee_%281918%29.jpg/960px-1_Indian_rupee_%281918%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:1_Indian_rupee_(1918).jpg",
+        "source_sha256": "676f66e5147ebc6c9f8962f98fd303d03617cc820dc74298af931c19bcd9cfa9",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "india-1-rupee-1918"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio",
+        "worn"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Bhutan",
+        "denomination": "1/2 rupee",
+        "type_design": "Jigme Dorji and auspicious symbols",
+        "year": "1955"
+      },
+      "id": "bhutan-half-rupee-1955",
+      "identity_certain": true,
+      "notes": "Country and design label corrected during source-page verification before freeze; selected source identity unchanged.",
+      "obverse": {
+        "author": "AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/bhutan-half-rupee-1955/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/8b6c9cc9d435980d.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Half_Rupee_%281955%29.jpg/960px-Half_Rupee_%281955%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Half_Rupee_(1955).jpg",
+        "source_sha256": "aa699209af8149ad7e6daa0b4dd6dd6b1cfe422e32fd1d44a4335c2521f46b03",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "AKS.9955",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/bhutan-half-rupee-1955/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/8b6c9cc9d435980d.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Half_Rupee_%281955%29.jpg/960px-Half_Rupee_%281955%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Half_Rupee_(1955).jpg",
+        "source_sha256": "aa699209af8149ad7e6daa0b4dd6dd6b1cfe422e32fd1d44a4335c2521f46b03",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "bhutan-half-rupee-1955"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Switzerland",
+        "denomination": "2 francs",
+        "type_design": "Standing Helvetia",
+        "year": "1980"
+      },
+      "id": "switzerland-2-francs-1980",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "AKS.9955",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/switzerland-2-francs-1980/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/452ad6183668a785.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/2_Swiss_Francs_%281980%29.jpg/960px-2_Swiss_Francs_%281980%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:2_Swiss_Francs_(1980).jpg",
+        "source_sha256": "264a3caa83ef485f49d45f3ec4f17739961032229d28e7c395aab6e23839790f",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "AKS.9955",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/switzerland-2-francs-1980/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/452ad6183668a785.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/2_Swiss_Francs_%281980%29.jpg/960px-2_Swiss_Francs_%281980%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:2_Swiss_Francs_(1980).jpg",
+        "source_sha256": "264a3caa83ef485f49d45f3ec4f17739961032229d28e7c395aab6e23839790f",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "switzerland-2-francs-1980"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "copper-color",
+        "worn"
+      ],
+      "era": "nineteenth-century",
+      "expected": {
+        "country": "Liberia",
+        "denomination": "1 cent",
+        "type_design": "Liberty seated",
+        "year": "1847"
+      },
+      "id": "liberia-1-cent-1847",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-1-cent-1847/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/4571dee174d8585f.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Liberian_one-cent_coin%2C_1847%2C_obverse.jpg/960px-Liberian_one-cent_coin%2C_1847%2C_obverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_one-cent_coin,_1847,_obverse.jpg",
+        "source_sha256": "57922dd0f9f1b5ee9b208e8258dfdb8b1b9cddede50c5aed0fa80e5bb06483ea",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-1-cent-1847/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/76118bba381c6d49.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Liberian_one-cent_coin%2C_1847%2C_reverse.jpg/960px-Liberian_one-cent_coin%2C_1847%2C_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_one-cent_coin,_1847,_reverse.jpg",
+        "source_sha256": "0c5048a1afbfb087568638739c7c0b7db402532f0a99b6de26ac233f76d174f1",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "liberia-1-cent-1847"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "copper-color",
+        "worn"
+      ],
+      "era": "nineteenth-century",
+      "expected": {
+        "country": "Liberia",
+        "denomination": "2 cents",
+        "type_design": "Liberty seated",
+        "year": "1862"
+      },
+      "id": "liberia-2-cents-1862",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-2-cents-1862/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/523efce745c48772.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Liberian_two-cent_coin%2C_1862%2C_obverse.jpg/960px-Liberian_two-cent_coin%2C_1862%2C_obverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_two-cent_coin,_1862,_obverse.jpg",
+        "source_sha256": "cbb3b6e4b8c2a877540adc4a9bb8602c8a400fe3b030b81fcc1d6a8f817bc777",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-2-cents-1862/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/703077e801834216.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Liberian_two-cent_coin%2C_1862%2C_reverse.jpg/960px-Liberian_two-cent_coin%2C_1862%2C_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_two-cent_coin,_1862,_reverse.jpg",
+        "source_sha256": "195941b24c1412182ec838c9432fac06f6bb01af994416fe3c52ec7d52467165",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "liberia-2-cents-1862"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "copper-color",
+        "worn"
+      ],
+      "era": "nineteenth-century",
+      "expected": {
+        "country": "Liberia",
+        "denomination": "1 cent",
+        "year": "1896"
+      },
+      "id": "liberia-1-cent-1896",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-1-cent-1896/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/75e4eee790d0231d.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Liberian_one-cent_coin%2C_1896%2C_obverse.jpg/960px-Liberian_one-cent_coin%2C_1896%2C_obverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_one-cent_coin,_1896,_obverse.jpg",
+        "source_sha256": "f46b5a6469a9ba1863018441a90431f170e9aaa06fb20cc3353b511298d11c68",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Nyttend",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/liberia-1-cent-1896/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/53f77691e0fefc22.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Liberian_one-cent_coin%2C_1896%2C_reverse.jpg/960px-Liberian_one-cent_coin%2C_1896%2C_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Liberian_one-cent_coin,_1896,_reverse.jpg",
+        "source_sha256": "af538b8bdae3c785304e8932737a07696fc3529d1ad034f691d86ecbbfe97aaa",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "liberia-1-cent-1896"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "commemorative",
+        "silver-color"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Old Spanish Trail commemorative",
+        "year": "1935"
+      },
+      "id": "us-spanish-trail-half-dollar-1935",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-spanish-trail-half-dollar-1935/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/e2e49529347d212c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg/330px-Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_sha256": "72bc1cca15242071963b9da09aeba7b71a0f1d3a4506bc2b3bf9ae857590b7bb",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-spanish-trail-half-dollar-1935/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/e2e49529347d212c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg/330px-Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Spanish_trail_memorial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_sha256": "72bc1cca15242071963b9da09aeba7b71a0f1d3a4506bc2b3bf9ae857590b7bb",
+        "transformation": "Composite split at horizontal midpoint (right obverse/left reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "us-spanish-trail-half-dollar-1935"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "commemorative",
+        "silver-color"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Columbia Sesquicentennial commemorative",
+        "year": "1936"
+      },
+      "id": "us-columbia-half-dollar-1936",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-columbia-half-dollar-1936/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/a92b28480de52a2c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Columbia_sesquentennial_half_dollar_commorative_obverse_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Columbia_sesquentennial_half_dollar_commorative_obverse_reverse.jpg",
+        "source_sha256": "3afd95167f9dc382e32ad22034da8ed1e9bd95a16930abbfaa637516bf773575",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-columbia-half-dollar-1936/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/a92b28480de52a2c.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Columbia_sesquentennial_half_dollar_commorative_obverse_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Columbia_sesquentennial_half_dollar_commorative_obverse_reverse.jpg",
+        "source_sha256": "3afd95167f9dc382e32ad22034da8ed1e9bd95a16930abbfaa637516bf773575",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "us-columbia-half-dollar-1936"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "commemorative",
+        "silver-color"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Elgin Centennial commemorative",
+        "year": "1936"
+      },
+      "id": "us-elgin-half-dollar-1936",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-elgin-half-dollar-1936/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/7cc2e300def782cf.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/4/47/Elgin_centennial_half_dollar_commemorative_obverse_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Elgin_centennial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_sha256": "b9e4b99552d0135e453a4e244fab32d977f4b0d9dbc8898fcd0ae26054b5b708",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-elgin-half-dollar-1936/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/7cc2e300def782cf.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/4/47/Elgin_centennial_half_dollar_commemorative_obverse_reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Elgin_centennial_half_dollar_commemorative_obverse_reverse.jpg",
+        "source_sha256": "b9e4b99552d0135e453a4e244fab32d977f4b0d9dbc8898fcd0ae26054b5b708",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "us-elgin-half-dollar-1936"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "commemorative",
+        "silver-color"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Pilgrim Tercentenary commemorative",
+        "year": "1920"
+      },
+      "id": "us-pilgrim-half-dollar-1920",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Coin: Cyrus Dallin; image: Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-pilgrim-half-dollar-1920/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/6ed37ed1ec189105.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg/330px-Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg",
+        "source_sha256": "6571232271d8e85b3d4422e4c8937daf08c7ac0c74c3e5dd120635b7d23192a0",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Coin: Cyrus Dallin; image: Bobby131313",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/us-pilgrim-half-dollar-1920/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/6ed37ed1ec189105.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg/330px-Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Pilgrim_Tercentenary_half_dollar_commemorative_obverse_and_reverse.jpg",
+        "source_sha256": "6571232271d8e85b3d4422e4c8937daf08c7ac0c74c3e5dd120635b7d23192a0",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "us-pilgrim-half-dollar-1920"
+    },
+    {
+      "difficulty": [
+        "low-resolution",
+        "silver-color",
+        "worn"
+      ],
+      "era": "early-modern",
+      "expected": {
+        "country": "Australia",
+        "denomination": "6 pence",
+        "type_design": "Edward VII and Australian arms",
+        "year": "1910"
+      },
+      "id": "australia-sixpence-1910",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Australian Coin Information",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/australia-sixpence-1910/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/089a5df08c962a9e.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/5/5c/1910-Australian-Sixpence-Obverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:1910-Australian-Sixpence-Obverse.jpg",
+        "source_sha256": "5f5d099441f0c1536b0c9f65e50724038d13674f10788a183d1428dc7569c6d7",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Australian Coin Information",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/australia-sixpence-1910/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/745ae550855b9d62.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/a/ad/1910-Australian-Sixpence-Reverse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:1910-Australian-Sixpence-Reverse.jpg",
+        "source_sha256": "e0f14740e06eddfbc475470905bf3183959bc6c8c9dd6a7ed48c175c56ba2566",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "australia-sixpence-1910"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "silver-color",
+        "studio"
+      ],
+      "era": "nineteenth-century",
+      "expected": {
+        "country": "Congo Free State",
+        "denomination": "1 franc",
+        "type_design": "Leopold II Congo Free State",
+        "year": "1887"
+      },
+      "id": "belgian-congo-1-franc-1887",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "apuking",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/belgian-congo-1-franc-1887/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/1d8d6196452961ef.png",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Obverse_and_Reverse_of_an_1887_Belgian_Congo_1_Franc_coin.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Obverse_and_Reverse_of_an_1887_Belgian_Congo_1_Franc_coin.png",
+        "source_sha256": "5810253a12a0f9076657a4e0eea25d40b7e0a206b512022a550070e62af9659b",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); transparency composited over white; resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "apuking",
+        "license": "CC-BY-SA-4.0",
+        "path": "images/belgian-congo-1-franc-1887/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/1d8d6196452961ef.png",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Obverse_and_Reverse_of_an_1887_Belgian_Congo_1_Franc_coin.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Obverse_and_Reverse_of_an_1887_Belgian_Congo_1_Franc_coin.png",
+        "source_sha256": "5810253a12a0f9076657a4e0eea25d40b7e0a206b512022a550070e62af9659b",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); transparency composited over white; resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "belgian-congo-1-franc-1887"
+    },
+    {
+      "difficulty": [
+        "clean",
+        "gold-color",
+        "studio"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Indonesia",
+        "denomination": "100 rupiah",
+        "year": "1995"
+      },
+      "id": "indonesia-100-rupiah-1995",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Bank Indonesia",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/indonesia-100-rupiah-1995/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/2e9d739268e0beed.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/6/6a/IDR_100_Coin_%28obverse_and_reverse%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:IDR_100_Coin_(obverse_and_reverse).jpg",
+        "source_sha256": "5e7dd0d9aeb4b065fb88a0bc7a8da843969fd694859ace494910c5aa8565ee14",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Bank Indonesia",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/indonesia-100-rupiah-1995/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/2e9d739268e0beed.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/6/6a/IDR_100_Coin_%28obverse_and_reverse%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:IDR_100_Coin_(obverse_and_reverse).jpg",
+        "source_sha256": "5e7dd0d9aeb4b065fb88a0bc7a8da843969fd694859ace494910c5aa8565ee14",
+        "transformation": "Composite split at horizontal midpoint (left obverse/right reverse); resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "indonesia-100-rupiah-1995"
+    },
+    {
+      "difficulty": [
+        "archive-scan",
+        "copper-color",
+        "worn"
+      ],
+      "era": "eighteenth-century",
+      "expected": {
+        "country": "France",
+        "denomination": "1 centime",
+        "year": "1797"
+      },
+      "id": "france-1-centime-1797",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "French Republic",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/france-1-centime-1797/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/473a0540b1dfe946.png",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/0%2C01-franc-1797-obverse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:0,01-franc-1797-obverse.png",
+        "source_sha256": "5a8daeb0b23b5fc5d68ea8156d99ede126aadabe9fa112f922bd0d489365bed9",
+        "transformation": "Transparency composited over white; resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "French Republic",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/france-1-centime-1797/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/ebaabc96dd43ec71.png",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/5/5f/0%2C01-franc-1797-reverse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:0,01-franc-1797-reverse.png",
+        "source_sha256": "345ef050bdd5bbe8804dda506b16a7f233ed4ea57eb4db07bdddec2c9a4f6560",
+        "transformation": "Transparency composited over white; resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "france-1-centime-1797"
+    },
+    {
+      "difficulty": [
+        "bimetallic",
+        "commemorative",
+        "handheld",
+        "realistic-background"
+      ],
+      "era": "modern",
+      "expected": {
+        "country": "Philippines",
+        "denomination": "10 pesos",
+        "type_design": "People Power Revolution commemorative",
+        "year": "2015"
+      },
+      "id": "philippines-10-pesos-2015",
+      "identity_certain": true,
+      "notes": "",
+      "obverse": {
+        "author": "Bangko Sentral ng Pilipinas / Pandakekok9",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/philippines-10-pesos-2015/obverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "obverse",
+        "source_asset_path": "source/de94003ec88674b2.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Commemorative_10_Philippine_Peso_Coin_%E2%80%94_Remembering_the_People_Power_Revolution_%28Obverse%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Commemorative_10_Philippine_Peso_Coin_%E2%80%94_Remembering_the_People_Power_Revolution_(Obverse).jpg",
+        "source_sha256": "4d43c787a26225c269b359a34d1bc77609e79088abf938d121d4fe0325602204",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "previously_used": false,
+      "reverse": {
+        "author": "Bangko Sentral ng Pilipinas / Pandakekok9",
+        "license": "PUBLIC-DOMAIN",
+        "path": "images/philippines-10-pesos-2015/reverse.jpg",
+        "retrieved_at": "2026-08-08",
+        "role": "reverse",
+        "source_asset_path": "source/03bbe3ad5af670d0.jpg",
+        "source_file_url": "https://upload.wikimedia.org/wikipedia/commons/7/76/Commemorative_10_Philippine_Peso_Coin_%E2%80%94_Remembering_the_People_Power_Revolution_%28Reverse%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Commemorative_10_Philippine_Peso_Coin_%E2%80%94_Remembering_the_People_Power_Revolution_(Reverse).jpg",
+        "source_sha256": "4ee043a9530932e7ba148ddb11a41e8eb23610f7835818d5a031a647934e8d9a",
+        "transformation": "resized only if needed to fit 960x960; JPEG quality 92"
+      },
+      "underlying_identity": "philippines-10-pesos-2015"
+    }
+  ],
+  "description": "Model-independent paired-image visual coin identification benchmark.",
+  "schema": "coin-analyzer-visual-benchmark",
+  "selection_policy": "Selected and labelled before any candidate visual provider was run; no model outputs influenced inclusion, labels, or transforms.",
+  "type_design_policy": "Optional concise source-verifiable design label; omitted where a stable label was not independently clear.",
+  "version": "v2.0"
+}
