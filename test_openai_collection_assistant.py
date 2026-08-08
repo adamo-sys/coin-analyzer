@@ -5,6 +5,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+from inference_telemetry import telemetry_scan
+
 from openai_collection_assistant import (
     OPENAI_API_KEY_ENV,
     OPENAI_MODEL_ENV,
@@ -22,8 +24,9 @@ class Parsed:
 
 
 class Response:
-    def __init__(self, value):
+    def __init__(self, value, usage=None):
         self.output_parsed = Parsed(value)
+        self.usage = usage
 
 
 class FakeResponses:
@@ -104,6 +107,55 @@ class OpenAIAdapterTests(unittest.TestCase):
         adapter = OpenAIResponsesAdapter(model="test-model", client=FakeClient([]))
         self.assertEqual("OpenAI", adapter.provider_name)
         self.assertEqual("test-model", adapter.model_name)
+
+    def test_adapter_records_supplied_usage_and_model_attribution(self):
+        class Usage:
+            input_tokens = 12
+            output_tokens = 3
+
+        class Responses(FakeResponses):
+            def parse(self, **kwargs):
+                self.calls.append(kwargs)
+                return Response(self.values.pop(0), usage=Usage())
+
+        class Client:
+            responses = Responses([{
+                "status": "clarification",
+                "tool_calls": [],
+                "message": "Clarify.",
+            }])
+
+        class Sink:
+            def __init__(self):
+                self.records = []
+
+            def write(self, record):
+                self.records.append(record)
+
+        sink = Sink()
+        adapter = OpenAIResponsesAdapter(
+            model="test-model",
+            client=Client(),
+            telemetry_sink=sink,
+        )
+        with (
+            patch(
+                "openai_collection_assistant._structured_models",
+                return_value=(object, object),
+            ),
+            telemetry_scan("assistant-request-1"),
+        ):
+            adapter.plan("Question", [])
+
+        self.assertEqual(len(sink.records), 1)
+        record = sink.records[0]
+        self.assertEqual(record.scan_id, "assistant-request-1")
+        self.assertEqual(record.stage, "ask-my-collection-plan")
+        self.assertEqual(record.provider, "OpenAI")
+        self.assertEqual(record.model, "test-model")
+        self.assertEqual(record.input_tokens, 12)
+        self.assertEqual(record.output_tokens, 3)
+        self.assertIsNone(record.estimated_cost_usd)
 
 
 if __name__ == "__main__":

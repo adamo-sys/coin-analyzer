@@ -12,6 +12,8 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 import re
 
+from inference_telemetry import scan_id_from_workspace, telemetry_scan
+
 from .workflow_models import JsonValue, StageArtifact, StageInput, StageResult
 from .workflow_obverse_reverse_pairing import _read_bounded_artifact
 from .workflow_ocr_models import OCRMetadataReport
@@ -184,12 +186,15 @@ class OCRMetadataExtractionStage:
             artifact_key = f"{variant}-{coin_id}-{role}"
 
             try:
-                report = self._provider.analyze(
-                    source_coin_id=coin_id,
-                    image_role=role,
-                    artifact_key=artifact_key,
-                    image_bytes=payload,
-                )
+                with telemetry_scan(
+                    scan_id_from_workspace(stage_input.workspace)
+                ):
+                    report = self._provider.analyze(
+                        source_coin_id=coin_id,
+                        image_role=role,
+                        artifact_key=artifact_key,
+                        image_bytes=payload,
+                    )
             except StageContractError:
                 raise
             except Exception as exc:

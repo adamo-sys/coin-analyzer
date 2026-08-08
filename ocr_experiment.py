@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
+from inference_telemetry import TelemetrySink, instrument_inference
+
 
 TESSERACT_COIN_ENGINE = "pytesseract.image_to_string"
 TESSERACT_COIN_PAGE_SEGMENTATION_MODE = 11
@@ -247,6 +249,9 @@ class OCRSuggestionReport:
 class OCRExperiment:
     """Run review-only OCR and extract deterministic text suggestions."""
 
+    def __init__(self, *, telemetry_sink: TelemetrySink | None = None) -> None:
+        self._telemetry_sink = telemetry_sink
+
     COUNTRY_TERMS = [
         "Argentina",
         "Australia",
@@ -385,9 +390,17 @@ class OCRExperiment:
             import pytesseract
 
             with Image.open(image_path) as image:
-                text = pytesseract.image_to_string(
-                    image,
-                    config=TESSERACT_COIN_CONFIG,
+                text = instrument_inference(
+                    lambda: pytesseract.image_to_string(
+                        image,
+                        config=TESSERACT_COIN_CONFIG,
+                    ),
+                    stage="tesseract-ocr",
+                    provider="Tesseract",
+                    model=(
+                        f"{TESSERACT_COIN_ENGINE} {TESSERACT_COIN_CONFIG}"
+                    ),
+                    sink=self._telemetry_sink,
                 )
             return " ".join(text.split()), []
         except Exception as exc:

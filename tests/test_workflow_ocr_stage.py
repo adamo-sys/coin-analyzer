@@ -30,6 +30,7 @@ from capture_import.workflow_pipeline import (
     StageContractError,
     StageExecutionError,
 )
+from inference_telemetry import current_scan_id
 
 
 def _jpeg() -> bytes:
@@ -62,6 +63,7 @@ class FakeProvider:
 
     def __init__(self) -> None:
         self.calls = []
+        self.scan_ids = []
 
     def analyze(
         self,
@@ -71,6 +73,7 @@ class FakeProvider:
         artifact_key,
         image_bytes,
     ):
+        self.scan_ids.append(current_scan_id())
         self.calls.append(
             (
                 source_coin_id,
@@ -251,6 +254,49 @@ class OCRMetadataExtractionStageTests(unittest.TestCase):
                 ("coin-b", "front"),
             ],
         )
+
+    def test_all_provider_calls_in_one_scan_share_one_scan_id(self) -> None:
+        provider = FakeProvider()
+        stage_input = _input(
+            self.workspace,
+            {
+                "cropped-coin-1-front": self._write("cropped/coin-1/front.jpg"),
+                "cropped-coin-1-reverse": self._write(
+                    "cropped/coin-1/reverse.jpg"
+                ),
+            },
+        )
+
+        OCRMetadataExtractionStage(provider=provider).execute(stage_input)
+
+        self.assertEqual(len(provider.scan_ids), 2)
+        self.assertEqual(len(set(provider.scan_ids)), 1)
+        self.assertNotEqual(provider.scan_ids[0], "unscoped")
+        self.assertEqual(current_scan_id(), "unscoped")
+
+    def test_independent_scan_workspaces_use_different_scan_ids(self) -> None:
+        provider = FakeProvider()
+        stage = OCRMetadataExtractionStage(provider=provider)
+        for name in ("workflow-scan-one", "workflow-scan-two"):
+            workspace = self.workspace / name
+            workspace.mkdir()
+            artifact_path = workspace / "cropped/coin-1/front.jpg"
+            artifact_path.parent.mkdir(parents=True)
+            artifact_path.write_bytes(_jpeg())
+            stage.execute(
+                _input(
+                    workspace,
+                    {
+                        "cropped-coin-1-front": StageArtifact(
+                            "cropped/coin-1/front.jpg",
+                            "image/jpeg",
+                        )
+                    },
+                )
+            )
+
+        self.assertEqual(provider.scan_ids, ["scan-one", "scan-two"])
+        self.assertEqual(current_scan_id(), "unscoped")
 
     def test_missing_artifacts_raise_contract_error(self) -> None:
         stage_input = _input(
