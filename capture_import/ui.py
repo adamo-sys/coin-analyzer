@@ -184,9 +184,12 @@ class CapturePackageImportDialog:
             [tk.Misc, object],
             None,
         ] | None = None,
+        on_source_released: Callable[[], None] | None = None,
     ) -> None:
         if on_ocr_handoff is not None and not callable(on_ocr_handoff):
             raise TypeError("on_ocr_handoff must be callable or None.")
+        if on_source_released is not None and not callable(on_source_released):
+            raise TypeError("on_source_released must be callable or None.")
         self._parent = parent
         self._source_path = source_path
         self._collection = collection
@@ -205,6 +208,8 @@ class CapturePackageImportDialog:
         self._ocr_runtime_factory = None
         self._on_ocr_handoff = on_ocr_handoff
         self._ocr_handoff = None
+        self._on_source_released = on_source_released
+        self._source_released = False
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -324,9 +329,21 @@ class CapturePackageImportDialog:
                             f"prepared import cleanup also failed: {cleanup_error}"
                         )
                 self._queue.put((request, "error", error))
+            finally:
+                self._release_source_once()
 
         threading.Thread(target=worker, daemon=True).start()
         self.window.after(50, self._poll)
+
+    def _release_source_once(self) -> None:
+        """Release an adapter-owned source after the worker stops using it."""
+
+        if getattr(self, "_source_released", False):
+            return
+        self._source_released = True
+        callback = getattr(self, "_on_source_released", None)
+        if callback is not None:
+            callback()
 
     def _poll(self) -> None:
         if self._closed:

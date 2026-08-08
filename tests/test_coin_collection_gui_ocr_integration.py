@@ -56,6 +56,8 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
 
         self.assertIn("OCR-Assisted Capture Package...", menu_source)
         self.assertIn("self.import_capture_package_with_ocr", menu_source)
+        self.assertIn("OCR-Assisted Coin Images...", menu_source)
+        self.assertIn("self.import_coin_images_with_ocr", menu_source)
 
     def test_production_entry_passes_real_mode_and_handoff_callback(self) -> None:
         gui = self.gui()
@@ -79,6 +81,106 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
             import_mode=ImportPipelineMode.OCR_ENABLED,
             on_ocr_handoff=gui.open_ocr_review_handoff,
         )
+
+    def test_cancelled_front_image_picker_has_no_effect(self) -> None:
+        gui = self.gui()
+
+        with (
+            patch(
+                "coin_collection_gui.filedialog.askopenfilename",
+                return_value="",
+            ) as picker,
+            patch("coin_collection_gui.CapturePackageImportDialog") as dialog,
+        ):
+            gui.import_coin_images_with_ocr()
+
+        picker.assert_called_once()
+        dialog.assert_not_called()
+
+    def test_cancelled_reverse_image_picker_has_no_effect(self) -> None:
+        gui = self.gui()
+
+        with (
+            patch(
+                "coin_collection_gui.filedialog.askopenfilename",
+                side_effect=["front.jpg", ""],
+            ) as picker,
+            patch("coin_collection_gui.CapturePackageImportDialog") as dialog,
+        ):
+            gui.import_coin_images_with_ocr()
+
+        self.assertEqual(picker.call_count, 2)
+        dialog.assert_not_called()
+
+    def test_real_image_adapter_launches_existing_ocr_dialog_seam(self) -> None:
+        gui = self.gui()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front = root / "front.jpg"
+            reverse = root / "reverse.png"
+            from PIL import Image
+
+            Image.new("RGB", (64, 64), "red").save(front, format="JPEG")
+            Image.new("RGB", (64, 64), "blue").save(reverse, format="PNG")
+            captured_path = None
+            release = None
+
+            with (
+                patch(
+                    "coin_collection_gui.filedialog.askopenfilename",
+                    side_effect=[str(front), str(reverse)],
+                ),
+                patch("coin_collection_gui.CapturePackageImportDialog") as dialog,
+            ):
+                gui.import_coin_images_with_ocr()
+                captured_path = Path(dialog.call_args.args[1])
+                release = dialog.call_args.kwargs["on_source_released"]
+
+            self.assertTrue(captured_path.exists())
+            dialog.assert_called_once()
+            self.assertEqual(
+                dialog.call_args.kwargs["import_mode"],
+                ImportPipelineMode.OCR_ENABLED,
+            )
+            self.assertEqual(
+                dialog.call_args.kwargs["on_ocr_handoff"],
+                gui.open_ocr_review_handoff,
+            )
+            release()
+            self.assertFalse(captured_path.exists())
+
+    def test_malformed_selected_image_reports_error_without_dialog(self) -> None:
+        gui = self.gui()
+        with tempfile.TemporaryDirectory() as temp:
+            malformed = Path(temp) / "front.jpg"
+            malformed.write_bytes(b"not-an-image")
+
+            with (
+                patch(
+                    "coin_collection_gui.filedialog.askopenfilename",
+                    side_effect=[str(malformed), str(malformed)],
+                ),
+                patch("coin_collection_gui.messagebox.showerror") as error,
+                patch("coin_collection_gui.CapturePackageImportDialog") as dialog,
+            ):
+                gui.import_coin_images_with_ocr()
+
+        dialog.assert_not_called()
+        error.assert_called_once_with(
+            "Coin Image OCR",
+            "A selected file is not a valid JPG or PNG image.",
+        )
+
+    def test_adapter_source_release_callback_is_idempotent(self) -> None:
+        dialog = CapturePackageImportDialog.__new__(CapturePackageImportDialog)
+        released = Mock()
+        dialog._source_released = False
+        dialog._on_source_released = released
+
+        dialog._release_source_once()
+        dialog._release_source_once()
+
+        released.assert_called_once_with()
 
     def test_real_sprint20_handoff_reaches_existing_candidate_review_seam(
         self,

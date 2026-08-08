@@ -63,7 +63,7 @@ class CapturePackageMediaValidator:
                 if entry.uncompressed_size > self.limits.image_bytes:
                     raise PackageTooLarge()
                 payload = reader.read_entry(archive, entry, self.limits.image_bytes)
-                actual_format, width, height = self._validate_image(payload)
+                actual_format, width, height = self.inspect_payload(payload)
                 expected_format = "JPEG" if image.mime_type == "image/jpeg" else "PNG"
                 expected_suffix = ".jpg" if actual_format == "JPEG" else ".png"
                 if actual_format != expected_format or PurePosixPath(image.path).suffix != expected_suffix:
@@ -102,7 +102,7 @@ class CapturePackageMediaValidator:
             raise InvalidMedia()
         if len(payload) != expected.byte_length or sha256(payload).hexdigest() != expected.sha256:
             raise InvalidMedia()
-        actual_format, width, height = self._validate_image(payload)
+        actual_format, width, height = self.inspect_payload(payload)
         expected_format = "JPEG" if expected.mime_type == "image/jpeg" else "PNG"
         if actual_format != expected_format or (width, height) != (
             expected.width,
@@ -110,7 +110,8 @@ class CapturePackageMediaValidator:
         ):
             raise InvalidMedia()
 
-    def _validate_image(self, payload: bytes) -> tuple[str, int, int]:
+    def inspect_payload(self, payload: bytes) -> tuple[str, int, int]:
+        """Return the validated encoded format and dimensions for one image."""
         if payload.startswith(b"\x89PNG\r\n\x1a\n"):
             self._require_complete_png(payload)
         elif payload.startswith(b"\xff\xd8"):
@@ -140,6 +141,11 @@ class CapturePackageMediaValidator:
         if image_format not in {"JPEG", "PNG"}:
             raise InvalidMedia()
         return image_format, width, height
+
+    def _validate_image(self, payload: bytes) -> tuple[str, int, int]:
+        """Backward-compatible private alias for established callers/tests."""
+
+        return self.inspect_payload(payload)
 
     def _validate_dimensions(self, width: int, height: int) -> None:
         if width < 1 or height < 1:
