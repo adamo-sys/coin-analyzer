@@ -12,6 +12,11 @@ from typing import Callable
 from coin_collection import CoinCollection
 
 from .coordinator import PreparedPackageImport
+from .desktop_import_pipeline_selection import (
+    DesktopImportPipelineSelection,
+    ImportPipelineMode,
+    select_import_pipeline,
+)
 from .cleanup_persistence import DurableCleanupExecutor, Schema3CleanupProtocol
 from .collection_persistence import DurableCollectionPublisher
 from .decisions import ImportDecisionModel
@@ -174,6 +179,7 @@ class CapturePackageImportDialog:
         collection: CoinCollection,
         *,
         on_success: Callable[[], None],
+        import_mode: ImportPipelineMode | str = ImportPipelineMode.DEFAULT,
     ) -> None:
         self._parent = parent
         self._source_path = source_path
@@ -189,6 +195,8 @@ class CapturePackageImportDialog:
         self._request_id = object()
         self._queue: queue.Queue = queue.Queue()
         self._workspace: WorkflowWorkspace | None = None
+        self._import_mode = import_mode
+        self._ocr_handoff = None
 
         self.window = tk.Toplevel(parent)
         self.window.title("Import Capture Package")
@@ -241,9 +249,16 @@ class CapturePackageImportDialog:
                 self._recovery.reconcile_pending_imports()
                 workspace = WorkflowWorkspace(Path(WORKSPACE_ROOT).absolute())
                 self._workspace = workspace
+                selected_mode = getattr(
+                    self,
+                    "_import_mode",
+                    ImportPipelineMode.DEFAULT,
+                )
                 with workspace:
+                    selection = select_import_pipeline(mode=selected_mode)
+                    self._pipeline_selection = selection
                     workflow = ImportWorkflow(
-                        build_image_processing_pipeline(),
+                        selection.pipeline,
                         is_cancelled=self._is_cancelled,
                     )
                     import_request = ImportRequest(
@@ -254,6 +269,9 @@ class CapturePackageImportDialog:
                     outcome = workflow.execute(import_request, workspace.path)
                     if self._closed:
                         return
+                    self._ocr_handoff = selection.create_ocr_handoff(
+                        outcome=outcome,
+)
                     prepared = assemble_prepared_import(
                         import_request,
                         outcome,
