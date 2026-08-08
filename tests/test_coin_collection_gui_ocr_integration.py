@@ -19,8 +19,11 @@ from coin_collection_gui import CoinCollectionGUI
 from tests.test_desktop_ocr_review_integration import (
     ArtifactSourceStage,
     DeterministicOCRProvider,
+    _complete_candidate_review,
     _execute_opt_in_handoff,
 )
+from capture_import.desktop_ocr_conflict_review import OCRConflictReviewModel
+from coin_collection import CoinCollection
 from tests.test_workflow_image_integration import (
     _CoordinatorSpy,
     _ImmediateThread,
@@ -155,6 +158,95 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
             self.assertEqual(len(provider.calls), 2)
             self.assertEqual(coordinator.prepare_calls, [])
             self.assertIsNone(getattr(dialog, "_prepared", None))
+
+    def test_operator_cancellation_causes_zero_collection_mutation(self) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=review,
+            review_controller=handoff.review_controller,
+        )
+        conflict_model.select_existing(value="1968")
+        with tempfile.TemporaryDirectory() as temp:
+            collection = CoinCollection(str(Path(temp) / "collection.json"))
+            gui.app.collection = collection
+            gui._ocr_review_handoff = handoff
+            gui._ocr_review_parent = object()
+
+            with patch(
+                "coin_collection_gui.messagebox.askyesno",
+                return_value=False,
+            ) as confirm:
+                gui._confirm_and_save_ocr_review(
+                    review,
+                    conflict_model.resolutions,
+                )
+
+        confirm.assert_called_once()
+        self.assertEqual(collection.items, [])
+        gui.refresh_collection_list.assert_not_called()
+
+    def test_operator_confirmation_saves_and_reload_preserves_coin(self) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=review,
+            review_controller=handoff.review_controller,
+        )
+        conflict_model.select_existing(value="1968")
+        with tempfile.TemporaryDirectory() as temp:
+            storage = Path(temp) / "collection.json"
+            collection = CoinCollection(str(storage))
+            gui.app.collection = collection
+            gui._ocr_review_handoff = handoff
+            gui._ocr_review_parent = object()
+
+            with (
+                patch(
+                    "coin_collection_gui.messagebox.askyesno",
+                    return_value=True,
+                ),
+                patch("coin_collection_gui.messagebox.showinfo") as success,
+            ):
+                gui._confirm_and_save_ocr_review(
+                    review,
+                    conflict_model.resolutions,
+                )
+            reopened = CoinCollection(str(storage))
+
+        self.assertEqual(len(reopened.items), 1)
+        self.assertEqual(reopened.items[0].country, "Canada")
+        self.assertEqual(reopened.items[0].denomination, "25 cents")
+        self.assertEqual(reopened.items[0].year, "1968")
+        gui.refresh_collection_list.assert_called_once_with()
+        success.assert_called_once()
+
+    def test_conflict_dialog_hands_completed_resolutions_to_save_seam(self) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        gui._ocr_review_handoff = handoff
+        gui._ocr_review_parent = object()
+        gui._confirm_and_save_ocr_review = Mock()
+
+        with patch(
+            "capture_import.desktop_ocr_conflict_review."
+            "create_ocr_conflict_review_dialog",
+            return_value=object(),
+        ) as dialog:
+            gui._open_ocr_conflict_review(review.field_reviews)
+
+        callback = dialog.call_args.kwargs["on_close"]
+        resolutions = (object(),)
+        callback(resolutions)
+        gui._confirm_and_save_ocr_review.assert_called_once_with(
+            gui._ocr_report_review,
+            resolutions,
+        )
 
 
 if __name__ == "__main__":

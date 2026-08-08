@@ -474,22 +474,116 @@ Total Unique Dates: {total_unique_dates}
         """Open conflict review after candidate review when needed."""
 
         handoff = self._ocr_review_handoff
-        if not handoff.report.conflicts:
-            return
+        from capture_import.workflow_ocr_review_models import OCRReportReview
 
+        report_review = OCRReportReview(
+            reviewer_id="desktop-collector",
+            field_reviews=tuple(reviews),
+        )
+        self._ocr_report_review = report_review
         from capture_import.desktop_ocr_conflict_review import (
+            OCRConflictReviewModel,
             create_ocr_conflict_review_dialog,
         )
-        from capture_import.workflow_ocr_review_models import OCRReportReview
+
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=report_review,
+            review_controller=handoff.review_controller,
+        )
+        if not conflict_model.conflict_count:
+            self._confirm_and_save_ocr_review(report_review, ())
+            return
 
         self._ocr_conflict_dialog = create_ocr_conflict_review_dialog(
             parent=self._ocr_review_parent,
             report=handoff.report,
-            review=OCRReportReview(
-                reviewer_id="desktop-collector",
-                field_reviews=tuple(reviews),
-            ),
+            review=report_review,
             review_controller=handoff.review_controller,
+            on_close=lambda resolutions: self._confirm_and_save_ocr_review(
+                report_review,
+                resolutions,
+            ),
+        )
+
+    def _confirm_and_save_ocr_review(self, report_review, resolutions):
+        """Require explicit confirmation before one reviewed coin is saved."""
+
+        from capture_import.reviewed_coin_collection_entry import (
+            ReviewedCoinCollectionEntryError,
+            create_reviewed_coin_draft,
+            persist_reviewed_coin,
+        )
+
+        handoff = self._ocr_review_handoff
+        try:
+            draft = create_reviewed_coin_draft(
+                source_report=handoff.report,
+                report_review=report_review,
+                conflict_resolutions=tuple(resolutions),
+            )
+        except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
+            messagebox.showwarning(
+                "OCR Review Incomplete",
+                str(error),
+                parent=self._ocr_review_parent,
+            )
+            return
+
+        duplicates = self.app.collection.find_matching_coins(
+            draft.country,
+            draft.denomination,
+            draft.year,
+        )
+        details = [
+            "Save this operator-confirmed coin to the collection?",
+            "",
+            f"Country: {draft.country}",
+            f"Denomination: {draft.denomination}",
+            f"Year: {draft.year}",
+            "Grade: not recorded",
+            "Image: not persisted by this workflow",
+        ]
+        if draft.unmapped_fields:
+            details.extend(
+                (
+                    "",
+                    "Reviewed fields not stored: "
+                    + ", ".join(name for name, _value in draft.unmapped_fields),
+                )
+            )
+        if duplicates:
+            details.extend(
+                (
+                    "",
+                    f"Possible matching collection record(s): {len(duplicates)}",
+                )
+            )
+        if not messagebox.askyesno(
+            "Confirm Reviewed Coin",
+            "\n".join(details),
+            parent=self._ocr_review_parent,
+        ):
+            return
+
+        try:
+            item = persist_reviewed_coin(
+                collection=self.app.collection,
+                draft=draft,
+            )
+        except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Collection Save Failed",
+                str(error),
+                parent=self._ocr_review_parent,
+            )
+            return
+
+        self.refresh_collection_list()
+        messagebox.showinfo(
+            "Reviewed Coin Saved",
+            f"Saved {item.country} {item.denomination} ({item.year}).",
+            parent=self._ocr_review_parent,
         )
 
     def initialize_capture_import_recovery(self) -> bool:
