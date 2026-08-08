@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from uuid import uuid4
 
 from capture_import.desktop_ocr_candidate_review import OCRCandidateReviewModel
 from capture_import.desktop_ocr_conflict_review import OCRConflictReviewModel
@@ -18,6 +19,11 @@ from capture_import.reviewed_coin_collection_entry import (
     persist_reviewed_coin,
 )
 from capture_import.workflow_ocr_review_models import OCRReportReview
+from capture_import.image_store import ManagedCollectionImageStore
+from capture_import.snapshot import CapturePackageSnapshotService
+from capture_import.standalone_image_intake import (
+    create_temporary_capture_package,
+)
 from coin_collection import CoinCollection
 from tests.test_desktop_ocr_review_integration import (
     _complete_candidate_review,
@@ -38,6 +44,19 @@ def _complete_review_and_resolution():
 
 
 class ReviewedCoinCollectionEntryTests(unittest.TestCase):
+    @staticmethod
+    def image_package(root: Path):
+        from PIL import Image
+
+        front = root / "front.jpg"
+        reverse = root / "reverse.png"
+        Image.new("RGB", (64, 64), "red").save(front, format="JPEG")
+        Image.new("RGB", (64, 64), "blue").save(reverse, format="PNG")
+        return create_temporary_capture_package(
+            front_path=front,
+            reverse_path=reverse,
+        )
+
     def test_real_review_mapping_creates_minimal_canonical_draft(self) -> None:
         handoff, review, resolutions = _complete_review_and_resolution()
 
@@ -154,6 +173,152 @@ class ReviewedCoinCollectionEntryTests(unittest.TestCase):
                 )
 
         self.assertEqual(collection.items, before)
+
+    def test_managed_photos_persist_and_survive_collection_reload(self) -> None:
+        handoff, review, resolutions = _complete_review_and_resolution()
+        draft = create_reviewed_coin_draft(
+            source_report=handoff.report,
+            report_review=review,
+            conflict_resolutions=resolutions,
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            storage = root / "collection.json"
+            collection = CoinCollection(str(storage))
+            images = ManagedCollectionImageStore(
+                root / "managed",
+                collection_path_prefix="managed",
+            )
+            snapshots = CapturePackageSnapshotService(root / "snapshots")
+
+            item = persist_reviewed_coin(
+                collection=collection,
+                draft=draft,
+                item_id=str(uuid4()),
+                date_added="2026-08-08T12:00:00",
+                source_package_path=source.path,
+                managed_image_store=images,
+                snapshot_service=snapshots,
+                import_lock_path=root / "import.lock",
+            )
+            reopened = CoinCollection(str(storage))
+            persisted = reopened.get_item(item.id)
+            actual_paths = [
+                images.root.joinpath(*Path(photo.path).parts[1:])
+                for photo in persisted.photos
+            ]
+            actual_paths_exist = all(path.is_file() for path in actual_paths)
+            source.release()
+
+        self.assertEqual([photo.role.value for photo in persisted.photos], ["FRONT", "BACK"])
+        self.assertEqual(persisted.image_path, persisted.photos[0].path)
+        self.assertTrue(actual_paths_exist)
+        self.assertTrue(all("coin-analyzer-image-intake" not in photo.path for photo in persisted.photos))
+
+    def test_collection_save_failure_removes_managed_photos(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            collection = CoinCollection(str(root / "collection.json"))
+            images = ManagedCollectionImageStore(root / "managed")
+            draft = ReviewedCoinDraft("coin-1", "Canada", "25 cents", "1968")
+
+            with patch.object(collection, "save_collection", return_value=False):
+                collection.last_save_error = "disk unavailable"
+                with self.assertRaises(ReviewedCoinPersistenceError):
+                    persist_reviewed_coin(
+                        collection=collection,
+                        draft=draft,
+                        item_id=str(uuid4()),
+                        source_package_path=source.path,
+                        managed_image_store=images,
+                        snapshot_service=CapturePackageSnapshotService(root / "snapshots"),
+                        import_lock_path=root / "import.lock",
+                    )
+            managed_files = [path for path in images.root.rglob("*") if path.is_file()]
+            source.release()
+
+        self.assertEqual(collection.items, [])
+        self.assertEqual(managed_files, [])
+
+    def test_second_image_copy_failure_rolls_back_first_image(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            collection = CoinCollection(str(root / "collection.json"))
+            images = ManagedCollectionImageStore(root / "managed")
+            original_write = images._write_exclusive_verified
+            calls = 0
+
+            def fail_reverse(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 3:
+                    raise OSError("reverse copy failed")
+                return original_write(*args, **kwargs)
+
+            with patch.object(
+                images,
+                "_write_exclusive_verified",
+                side_effect=fail_reverse,
+            ):
+                with self.assertRaises(ReviewedCoinPersistenceError):
+                    persist_reviewed_coin(
+                        collection=collection,
+                        draft=ReviewedCoinDraft(
+                            "coin-1", "Canada", "25 cents", "1968"
+                        ),
+                        item_id=str(uuid4()),
+                        source_package_path=source.path,
+                        managed_image_store=images,
+                        snapshot_service=CapturePackageSnapshotService(root / "snapshots"),
+                        import_lock_path=root / "import.lock",
+                    )
+            managed_files = [path for path in images.root.rglob("*") if path.is_file()]
+            source.release()
+
+        self.assertEqual(collection.items, [])
+        self.assertEqual(managed_files, [])
+
+    def test_first_image_copy_failure_leaves_no_managed_photos(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            collection = CoinCollection(str(root / "collection.json"))
+            images = ManagedCollectionImageStore(root / "managed")
+            original_write = images._write_exclusive_verified
+            calls = 0
+
+            def fail_front(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("front copy failed")
+                return original_write(*args, **kwargs)
+
+            with patch.object(
+                images,
+                "_write_exclusive_verified",
+                side_effect=fail_front,
+            ):
+                with self.assertRaises(ReviewedCoinPersistenceError):
+                    persist_reviewed_coin(
+                        collection=collection,
+                        draft=ReviewedCoinDraft(
+                            "coin-1", "Canada", "25 cents", "1968"
+                        ),
+                        item_id=str(uuid4()),
+                        source_package_path=source.path,
+                        managed_image_store=images,
+                        snapshot_service=CapturePackageSnapshotService(root / "snapshots"),
+                        import_lock_path=root / "import.lock",
+                    )
+            managed_files = [path for path in images.root.rglob("*") if path.is_file()]
+            source.release()
+
+        self.assertEqual(collection.items, [])
+        self.assertEqual(managed_files, [])
 
 
 if __name__ == "__main__":

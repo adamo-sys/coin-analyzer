@@ -10,9 +10,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
+from pathlib import Path
+from uuid import uuid4
 
 from coin_collection import CoinCollection, CoinItem
 
+from .image_store import ManagedCollectionImageStore, OWNER_FILENAME
+from .lock import PackageImportLock
+from .package import CapturePackageValidator
+from .snapshot import CapturePackageSnapshotService
 from .workflow_confirmed_observation_mapper import (
     ConfirmedObservationMapper,
     ConfirmedObservationMappingInput,
@@ -163,6 +170,10 @@ def persist_reviewed_coin(
     draft: ReviewedCoinDraft,
     item_id: str | None = None,
     date_added: str | None = None,
+    source_package_path: str | Path | None = None,
+    managed_image_store: ManagedCollectionImageStore | None = None,
+    snapshot_service: CapturePackageSnapshotService | None = None,
+    import_lock_path: str | Path = "data/imports/package_import.lock",
 ) -> CoinItem:
     """Persist one already-confirmed draft through ``CoinCollection``."""
 
@@ -172,22 +183,40 @@ def persist_reviewed_coin(
         raise TypeError("draft must be a ReviewedCoinDraft.")
     draft.validate()
 
+    if source_package_path is not None:
+        return _persist_reviewed_coin_with_managed_photos(
+            collection=collection,
+            draft=draft,
+            source_package_path=Path(source_package_path),
+            managed_image_store=(
+                managed_image_store
+                if managed_image_store is not None
+                else ManagedCollectionImageStore("coin_photos/collection")
+            ),
+            snapshot_service=(
+                snapshot_service
+                if snapshot_service is not None
+                else CapturePackageSnapshotService("data/imports/snapshots")
+            ),
+            import_lock_path=Path(import_lock_path),
+            item_id=item_id,
+            date_added=date_added,
+        )
+    if managed_image_store is not None or snapshot_service is not None:
+        raise ValueError(
+            "managed image services require source_package_path."
+        )
+
     target_id = item_id or collection.generate_item_id()
     if collection.get_item(target_id) is not None:
         raise ReviewedCoinIdentityCollisionError(
             f"Collection record ID already exists: {target_id}."
         )
 
-    item = CoinItem(
-        id=target_id,
-        image_path="",
-        country=draft.country,
-        denomination=draft.denomination,
-        year=draft.year,
-        grade="",
-        notes="",
-        date_added=date_added or datetime.now().isoformat(),
-        auto_detected=False,
+    item = _build_coin_item(
+        draft=draft,
+        item_id=target_id,
+        date_added=date_added,
     )
     if not collection.add_item(item):
         detail = collection.last_save_error or "collection save failed"
@@ -195,3 +224,124 @@ def persist_reviewed_coin(
             f"The reviewed coin was not saved: {detail}"
         )
     return item
+
+
+def _build_coin_item(
+    *,
+    draft: ReviewedCoinDraft,
+    item_id: str,
+    date_added: str | None,
+    photos=(),
+) -> CoinItem:
+    photo_list = list(photos)
+    image_path = photo_list[0].path if photo_list else ""
+    return CoinItem(
+        id=item_id,
+        image_path=image_path,
+        country=draft.country,
+        denomination=draft.denomination,
+        year=draft.year,
+        grade="",
+        notes="",
+        date_added=date_added or datetime.now().isoformat(),
+        auto_detected=False,
+        photos=photo_list,
+    )
+
+
+def _persist_reviewed_coin_with_managed_photos(
+    *,
+    collection: CoinCollection,
+    draft: ReviewedCoinDraft,
+    source_package_path: Path,
+    managed_image_store: ManagedCollectionImageStore,
+    snapshot_service: CapturePackageSnapshotService,
+    import_lock_path: Path,
+    item_id: str | None,
+    date_added: str | None,
+) -> CoinItem:
+    import_id = str(uuid4())
+    ownership_token = str(uuid4())
+    target_id = item_id or str(uuid4())
+    lock = PackageImportLock.acquire(import_lock_path, import_id=import_id)
+    snapshot = None
+    plan = None
+    created: list[str] = []
+    try:
+        if collection.get_item(target_id) is not None:
+            raise ReviewedCoinIdentityCollisionError(
+                f"Collection record ID already exists: {target_id}."
+            )
+        try:
+            package_payload = source_package_path.read_bytes()
+        except OSError as error:
+            raise ReviewedCoinPersistenceError(
+                "The reviewed coin images are no longer available."
+            ) from error
+        snapshot = snapshot_service.create_snapshot(
+            source_package_path,
+            sha256(package_payload).hexdigest(),
+        )
+        package = CapturePackageValidator().validate_snapshot(
+            snapshot,
+            source_package_path.name,
+        )
+        plan = managed_image_store.plan(
+            package,
+            import_id=import_id,
+            ownership_token=ownership_token,
+            source_to_desktop={draft.source_coin_id: target_id},
+        )
+        photos_by_source = managed_image_store.copy(
+            snapshot,
+            package,
+            plan,
+            created.append,
+            import_lock=lock,
+        )
+        photos = photos_by_source.get(draft.source_coin_id, ())
+        if len(photos) != 2:
+            raise ReviewedCoinPersistenceError(
+                "Both reviewed coin images must be retained."
+            )
+        snapshot.cleanup()
+        snapshot = None
+        item = _build_coin_item(
+            draft=draft,
+            item_id=target_id,
+            date_added=date_added,
+            photos=photos,
+        )
+        if not collection.add_item(item, import_lock=lock):
+            detail = collection.last_save_error or "collection save failed"
+            raise ReviewedCoinPersistenceError(
+                f"The reviewed coin was not saved: {detail}"
+            )
+        return item
+    except Exception as error:
+        cleanup_error = None
+        if plan is not None:
+            marker = f"{plan.import_root_relative_path}/{OWNER_FILENAME}"
+            try:
+                managed_image_store.cleanup(
+                    plan,
+                    import_lock=lock,
+                    ownership_recorded=marker in created,
+                )
+            except Exception as failure:
+                cleanup_error = failure
+        if cleanup_error is not None:
+            raise ReviewedCoinPersistenceError(
+                "Managed-photo rollback requires recovery."
+            ) from cleanup_error
+        if isinstance(error, ReviewedCoinCollectionEntryError):
+            raise
+        raise ReviewedCoinPersistenceError(
+            "The reviewed coin and its images were not saved."
+        ) from error
+    finally:
+        try:
+            if snapshot is not None and snapshot.is_active:
+                snapshot.cleanup()
+        finally:
+            lock.release()
