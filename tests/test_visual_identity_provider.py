@@ -205,10 +205,9 @@ class VisualIdentityProviderTests(unittest.TestCase):
         self.assertEqual(record.output_tokens, 100)
         self.assertAlmostEqual(record.estimated_cost_usd, 0.0032)
 
-    def test_experiment_is_not_wired_into_production_entrypoints(self) -> None:
+    def test_visual_integration_does_not_modify_ocr_or_persistence_boundaries(self) -> None:
         root = Path(__file__).resolve().parents[1]
         for relative in (
-            "coin_collection_gui.py",
             "coin_collection.py",
             "capture_import/desktop_import_pipeline_selection.py",
             "capture_import/workflow_ocr_composition.py",
@@ -229,6 +228,11 @@ class VisualIdentityProviderTests(unittest.TestCase):
                 "fuse_identity_evidence",
             ):
                 self.assertNotIn(forbidden, source, relative)
+
+        gui_source = (root / "coin_collection_gui.py").read_text(encoding="utf-8")
+        self.assertIn("import_coin_images_with_visual_ai", gui_source)
+        self.assertNotIn("evidence_fusion", gui_source)
+        self.assertNotIn("fuse_identity_evidence", gui_source)
 
 
 if __name__ == "__main__":

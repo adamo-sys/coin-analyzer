@@ -247,6 +247,7 @@ class CoinCollectionGUI:
         self.capture_import_recovery_message = RecoveryRequired().safe_message
         self.capture_import_recovery = None
         self.capture_import_coordinator = None
+        self._visual_identity_provider = None
         self.initialize_capture_import_recovery()
         
         # Create menu bar
@@ -279,6 +280,11 @@ class CoinCollectionGUI:
         file_menu.add_command(
             label="OCR-Assisted Coin Images...",
             command=self.import_coin_images_with_ocr,
+            state=self.capture_import_menu_state(),
+        )
+        file_menu.add_command(
+            label="AI-Assisted Coin Images...",
+            command=self.import_coin_images_with_visual_ai,
             state=self.capture_import_menu_state(),
         )
         file_menu.add_separator()
@@ -482,6 +488,237 @@ Total Unique Dates: {total_unique_dates}
         except Exception:
             source.release()
             raise
+
+    def import_coin_images_with_visual_ai(self):
+        """Send two explicitly selected images to Terra for human review."""
+
+        if not self.capture_import_ready:
+            messagebox.showerror(
+                "AI-Assisted Coin Images",
+                self.capture_import_recovery_message,
+            )
+            return
+        image_types = [
+            ("Coin images", "*.jpg *.jpeg *.png"),
+            ("JPEG images", "*.jpg *.jpeg"),
+            ("PNG images", "*.png"),
+            ("All files", "*.*"),
+        ]
+        front_path = filedialog.askopenfilename(
+            title="Select Obverse (Front) Coin Image for AI Review",
+            filetypes=image_types,
+        )
+        if not front_path:
+            return
+        reverse_path = filedialog.askopenfilename(
+            title="Select Reverse Coin Image for AI Review",
+            filetypes=image_types,
+        )
+        if not reverse_path:
+            return
+
+        from capture_import.standalone_image_intake import (
+            StandaloneImageIntakeError,
+            create_temporary_capture_package,
+        )
+
+        try:
+            source = create_temporary_capture_package(
+                front_path=front_path,
+                reverse_path=reverse_path,
+            )
+        except StandaloneImageIntakeError as error:
+            messagebox.showerror(
+                "AI-Assisted Coin Images",
+                error.safe_message,
+            )
+            return
+
+        if not messagebox.askyesno(
+            "Send Coin Images to OpenAI?",
+            (
+                "The selected obverse and reverse images will be sent to "
+                "OpenAI GPT-5.6 Terra for an identity proposal. The proposal "
+                "will not change your collection until you review and "
+                "explicitly confirm it. Continue?"
+            ),
+            parent=self.root,
+        ):
+            source.release()
+            return
+
+        from capture_import.desktop_visual_identity_review import (
+            VisualIdentityAvailabilityError,
+            VisualReviewError,
+            create_visual_identity_proposal,
+            create_visual_identity_review_dialog,
+            create_visual_request_from_capture_package,
+        )
+        from capture_import.visual_identity_provider import (
+            VisualIdentityContractError,
+        )
+
+        try:
+            request = create_visual_request_from_capture_package(source.path)
+            report = self._get_visual_identity_provider().identify(request)
+            proposal = create_visual_identity_proposal(report)
+        except (VisualReviewError, VisualIdentityContractError) as error:
+            source.release()
+            messagebox.showwarning(
+                "AI Identity Proposal Unavailable",
+                str(error),
+                parent=self.root,
+            )
+            return
+        except VisualIdentityAvailabilityError as error:
+            source.release()
+            messagebox.showerror(
+                "AI Identity Service Not Configured",
+                str(error),
+                parent=self.root,
+            )
+            return
+        except Exception:
+            source.release()
+            messagebox.showerror(
+                "AI Identity Service Unavailable",
+                (
+                    "No collection data was changed. Verify that the OpenAI "
+                    "API key is configured and network access is available, "
+                    "then try again."
+                ),
+                parent=self.root,
+            )
+            return
+
+        self._visual_review_source = source
+        self._visual_review_proposal = proposal
+        try:
+            self._visual_review_dialog = create_visual_identity_review_dialog(
+                parent=self.root,
+                proposal=proposal,
+                on_confirm=self._confirm_and_save_visual_review,
+                on_reject=self._reject_visual_review,
+                on_defer=self._defer_visual_review,
+            )
+        except Exception:
+            self._release_visual_review_source()
+            raise
+
+    def _get_visual_identity_provider(self):
+        """Create Terra lazily, only after the explicit user disclosure."""
+
+        provider = getattr(self, "_visual_identity_provider", None)
+        if provider is not None:
+            return provider
+        factory = getattr(self, "_visual_identity_provider_factory", None)
+        if factory is None:
+            from capture_import.desktop_visual_identity_review import (
+                VisualIdentityAvailabilityError,
+            )
+            if not os.environ.get("OPENAI_API_KEY", "").strip():
+                raise VisualIdentityAvailabilityError(
+                    "OPENAI_API_KEY is not configured. No collection data was changed."
+                )
+            from capture_import.visual_identity_provider import (
+                OpenAITerraVisualIdentityProvider,
+            )
+            from inference_telemetry import get_default_telemetry_sink
+
+            factory = lambda: OpenAITerraVisualIdentityProvider(
+                telemetry_sink=get_default_telemetry_sink()
+            )
+        provider = factory()
+        self._visual_identity_provider = provider
+        return provider
+
+    def _confirm_and_save_visual_review(self, reviewed):
+        """Require a second explicit confirmation before managed persistence."""
+
+        from capture_import.desktop_visual_identity_review import VisualReviewError
+        from capture_import.reviewed_coin_collection_entry import (
+            ReviewedCoinCollectionEntryError,
+            persist_reviewed_coin,
+        )
+
+        proposal = self._visual_review_proposal
+        try:
+            draft = reviewed.to_reviewed_coin_draft(proposal)
+        except (VisualReviewError, TypeError, ValueError) as error:
+            messagebox.showwarning(
+                "Visual Review Incomplete", str(error), parent=self.root
+            )
+            self._release_visual_review_source()
+            return
+
+        duplicates = self.app.collection.find_matching_coins(
+            draft.country, draft.denomination, draft.year
+        )
+        candidate = proposal.candidate
+        details = [
+            "Save this operator-confirmed AI proposal to the collection?",
+            "",
+            f"Country: {draft.country}",
+            f"Denomination: {draft.denomination}",
+            f"Year: {draft.year}",
+            f"Type/design: {reviewed.type_design.strip() or 'not recorded'}",
+            "Images: obverse and reverse will be retained",
+            "",
+            f"Provider/model: {proposal.provider_id} / {proposal.model_id}",
+            f"Provider confidence: {candidate.confidence:.0%}",
+            "Evidence: " + " | ".join(candidate.evidence_observations),
+        ]
+        if duplicates:
+            details.extend(
+                ("", f"Possible matching collection record(s): {len(duplicates)}")
+            )
+        if not messagebox.askyesno(
+            "Confirm AI-Reviewed Coin",
+            "\n".join(details),
+            parent=self.root,
+        ):
+            self._release_visual_review_source()
+            return
+
+        source = getattr(self, "_visual_review_source", None)
+        try:
+            item = persist_reviewed_coin(
+                collection=self.app.collection,
+                draft=draft,
+                source_package_path=source.path if source is not None else None,
+            )
+        except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Collection Save Failed", str(error), parent=self.root
+            )
+            self._release_visual_review_source()
+            return
+
+        self._release_visual_review_source()
+        self.refresh_collection_list()
+        messagebox.showinfo(
+            "AI-Reviewed Coin Saved",
+            f"Saved {item.country} {item.denomination} ({item.year}).",
+            parent=self.root,
+        )
+
+    def _reject_visual_review(self):
+        self._release_visual_review_source()
+        messagebox.showinfo(
+            "AI Proposal Rejected",
+            "The proposal was rejected. No collection data was changed.",
+            parent=self.root,
+        )
+
+    def _defer_visual_review(self):
+        self._release_visual_review_source()
+
+    def _release_visual_review_source(self):
+        source = getattr(self, "_visual_review_source", None)
+        self._visual_review_source = None
+        self._visual_review_proposal = None
+        if source is not None:
+            source.release()
 
     def _open_capture_package_import(self, *, import_mode):
         """Open the production package dialog for one explicit pipeline mode."""
@@ -11960,5 +12197,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     main()

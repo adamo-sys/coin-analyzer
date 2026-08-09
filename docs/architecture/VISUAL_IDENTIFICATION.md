@@ -1,6 +1,6 @@
 # Visual Identification Responsibility Amendment
 
-Status: APPROVED — Benchmark v2.0 frozen; headless experiments only
+Status: APPROVED — Benchmark v2.0 frozen; review-only production proposal path verified
 
 ## Product invariant
 
@@ -124,6 +124,31 @@ remained 65%, and no silent incorrect resolution was introduced. Deterministic
 fusion behavior was safe, but Tesseract evidence was too weak to justify
 production fusion. The formal verdict is `FAIL`; production fusion remains
 unapproved.
+
+## Production review-only proposal boundary
+
+The production desktop may expose a separate, explicit **AI-Assisted Coin
+Images** action. It sends only the operator-selected obverse and reverse image
+bytes to the unchanged passing Terra provider configuration. Provider/client
+construction is lazy, no request occurs during application startup, and the
+existing OCR-assisted action remains a separate Tesseract PSM-11 workflow.
+
+Terra output enters a source-neutral visual review proposal. The review shows
+raw and canonical presentation values, normalization-rule provenance,
+provider/model, confidence, bounded evidence, and supporting image roles. The
+operator may correct required identity fields, reject, or defer. A second
+explicit save confirmation is required before the proposal becomes the
+existing `ReviewedCoinDraft` and enters the established managed-photo and
+`CoinCollection` persistence transaction.
+
+The production path selects no identity autonomously beyond presenting the
+provider's explicit rank-one proposal for review. It does not import or invoke
+the failed deterministic fusion experiment, does not combine OCR and visual
+evidence automatically, and does not make Terra authoritative. Missing
+configuration, provider/malformed output failures, cancellation, rejection,
+invalid review, or persistence failure must leave collection state unchanged.
+OCR evidence inside the visual dialog remains deferred until a separately
+approved source-neutral evidence presentation unit exists.
 
 ## Reproducing the headless experiments
 
