@@ -16,7 +16,13 @@ class TokenPricing:
 
 # Pricing is intentionally offline and centralized. Models absent from this
 # table produce an unknown (None) estimate rather than an invented cost.
-MODEL_PRICING_USD_PER_MILLION: dict[tuple[str, str], TokenPricing] = {}
+MODEL_PRICING_USD_PER_MILLION: dict[tuple[str, str], TokenPricing] = {
+    # Official OpenAI model catalog, verified 2026-08-09.
+    ("openai", "gpt-5.6-terra"): TokenPricing(
+        input_usd_per_million=Decimal("2.00"),
+        output_usd_per_million=Decimal("12.00"),
+    ),
+}
 LOCAL_PROVIDERS = frozenset({"local", "tesseract"})
 
 

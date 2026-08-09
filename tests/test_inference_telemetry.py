@@ -110,6 +110,24 @@ class InferenceTelemetryTests(unittest.TestCase):
             "primary-result",
         )
 
+    def test_failure_can_report_billed_usage_without_replacing_exception(self) -> None:
+        failure = RuntimeError("malformed paid response")
+        sink = _Sink()
+        with self.assertRaises(RuntimeError) as raised:
+            instrument_inference(
+                lambda: (_ for _ in ()).throw(failure),
+                scan_id="scan-paid-failure",
+                stage="visual-identity",
+                provider="OpenAI",
+                model="gpt-5.6-terra",
+                sink=sink,
+                error_usage_resolver=lambda error: (1_000, 100),
+            )
+        self.assertIs(raised.exception, failure)
+        self.assertEqual(sink.records[0].input_tokens, 1_000)
+        self.assertEqual(sink.records[0].output_tokens, 100)
+        self.assertAlmostEqual(sink.records[0].estimated_cost_usd, 0.0032)
+
     def test_pricing_failure_after_success_preserves_provider_result(self) -> None:
         marker = object()
         with patch(

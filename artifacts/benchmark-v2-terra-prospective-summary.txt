@@ -1,0 +1,17 @@
+Visual benchmark: v2.0
+Provider: openai-responses-visual / gpt-5.6-terra
+Cases: 20
+Infrastructure failures: 0
+Exact country accuracy: 70.0%
+Canonical country accuracy: 75.0%
+Exact denomination accuracy: 45.0%
+Canonical denomination accuracy: 85.0%
+Exact full required identity: 35.0%
+Canonical full required identity: 50.0%
+Type/design exact-label differences: 9
+Abstention rate: 0.0%
+Mean latency: 3.562s
+Input tokens: 19220
+Output tokens: 3971
+Estimated cost: $0.086092
+Retention: PASS

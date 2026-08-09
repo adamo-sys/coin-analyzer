@@ -159,6 +159,7 @@ def instrument_inference(
     scan_id: str | None = None,
     clock: Callable[[], float] = perf_counter,
     usage_resolver: Callable[[T], tuple[int | None, int | None]] | None = None,
+    error_usage_resolver: Callable[[Exception], tuple[int | None, int | None]] | None = None,
 ) -> T:
     """Run one inference call, emit best-effort telemetry, and preserve behavior."""
 
@@ -179,6 +180,8 @@ def instrument_inference(
             model=model,
             success=False,
             error_type=error.__class__.__name__,
+            result=error,
+            usage_resolver=error_usage_resolver,
         )
         raise
 
@@ -225,7 +228,7 @@ def _record_best_effort(
             return
         duration_ms = max(0.0, (clock() - started) * 1000.0)
         input_tokens = output_tokens = None
-        if success and usage_resolver is not None:
+        if usage_resolver is not None:
             try:
                 input_tokens, output_tokens = usage_resolver(result)
             except Exception:
