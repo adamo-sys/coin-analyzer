@@ -1,0 +1,3301 @@
+{
+  "artifact_hardening": {
+    "hardened_implementation_sha256": "b6bd6462f90c383365f282a75856014425aa1db1a7536221cffa7d5b27efb1ed",
+    "measurements_changed": false,
+    "original_artifact_sha256": "79aeacb90e4f24b0122c02ab89c79ac261a13f6bc20f1f7875a9323db25d5bd8",
+    "original_implementation_sha256": "4ad9de713fbed3432d0ec65d9335571550d466e220ee8b20abe939d05d8d8a48",
+    "performed_at": "2026-08-09",
+    "provider_rerun": false,
+    "transformations": [
+      "removed provider response identifiers",
+      "renamed exact type/design label diagnostic without changing its boolean values"
+    ]
+  },
+  "benchmark_version": "v2.0",
+  "canonical_metrics": {
+    "abstained_cases": 0,
+    "abstention_rate": 0.0,
+    "canonicalization_rules_exercised": {
+      "denomination.compound.sixpence": 1,
+      "denomination.fraction-word.half": 6,
+      "denomination.number-word": 2,
+      "denomination.numeric": 10,
+      "denomination.unit-alias.ph-piso-peso": 2,
+      "denomination.unit-canonical": 16,
+      "jurisdiction.canonical-name": 6,
+      "jurisdiction.official-long-name": 2,
+      "text.unicode-case-space-punctuation": 27
+    },
+    "country_accuracy": 0.75,
+    "denomination_accuracy": 0.85,
+    "full_required_identity_accuracy": 0.5,
+    "infrastructure_failure_rate": 0.0,
+    "infrastructure_failures": 0,
+    "latency": {
+      "mean_seconds": 3.561834339960478,
+      "median_seconds": 2.42848869971931,
+      "p95_seconds": 4.727977500297129
+    },
+    "predicted_cases": 20,
+    "required_identity_correct_but_type_design_label_differs": {
+      "case_ids": [
+        "canada-5-cents-1964",
+        "canada-10-cents-1955",
+        "canada-25-cents-1967",
+        "india-10-paise-1965",
+        "india-2-rupees-2012",
+        "switzerland-2-francs-1980",
+        "liberia-2-cents-1862",
+        "us-spanish-trail-half-dollar-1935",
+        "us-elgin-half-dollar-1936"
+      ],
+      "count": 9
+    },
+    "top_k": 3,
+    "top_k_identity_recall": 0.05,
+    "total_cases": 20,
+    "type_design_accuracy": 0.058823529411764705,
+    "year_accuracy": 0.65
+  },
+  "cases": [
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Canada",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "5 cents",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 5
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "5 cents",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Elizabeth II beaver",
+        "year_raw": "1964"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Canada",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "5 cents",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 5
+              },
+              "unit_id": "cent"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "5 cents",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Elizabeth II “Beaver” reverse type",
+          "year_raw": "1964"
+        }
+      ],
+      "case_id": "canada-5-cents-1964",
+      "estimated_cost_usd": 0.003102,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Canada",
+        "denomination": "5 cents",
+        "type_design": "Elizabeth II beaver",
+        "year": "1964"
+      },
+      "identity_certain": true,
+      "input_tokens": 807,
+      "latency_seconds": 4.693551399745047,
+      "outcome": "PREDICTED",
+      "output_tokens": 124,
+      "predictions": [
+        {
+          "country": "Canada",
+          "denomination": "5 cents",
+          "type_design": "Elizabeth II “Beaver” reverse type",
+          "year": "1964"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Canada",
+          "denomination": "5 cents",
+          "evidence_observations": [
+            "Obverse visibly reads “ELIZABETH II DEI GRATIA REGINA” around a young-cy",
+            "Reverse visibly reads “5 CENTS CANADA 1964” and depicts a beaver with fl"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Elizabeth II “Beaver” reverse type",
+          "year": "1964"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Canada",
+            "denomination": "5 cents",
+            "evidence_observations": [
+              "Obverse visibly reads “ELIZABETH II DEI GRATIA REGINA” around a young-cy",
+              "Reverse visibly reads “5 CENTS CANADA 1964” and depicts a beaver with fl"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Elizabeth II “Beaver” reverse type",
+            "year": "1964"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Canada",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "10 cents",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "10 cents",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Elizabeth II Bluenose",
+        "year_raw": "1955"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Canada",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "10 cents",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 10
+              },
+              "unit_id": "cent"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "10 cents",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "George VI? Actually Elizabeth II 'Bluenose' sailing schooner reverse",
+          "year_raw": "1955"
+        }
+      ],
+      "case_id": "canada-10-cents-1955",
+      "estimated_cost_usd": 0.00315,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Canada",
+        "denomination": "10 cents",
+        "type_design": "Elizabeth II Bluenose",
+        "year": "1955"
+      },
+      "identity_certain": true,
+      "input_tokens": 807,
+      "latency_seconds": 2.4049928998574615,
+      "outcome": "PREDICTED",
+      "output_tokens": 128,
+      "predictions": [
+        {
+          "country": "Canada",
+          "denomination": "10 cents",
+          "type_design": "George VI? Actually Elizabeth II 'Bluenose' sailing schooner reverse",
+          "year": "1955"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Canada",
+          "denomination": "10 cents",
+          "evidence_observations": [
+            "Obverse visibly reads 'ELIZABETH II DEI GRATIA REGINA' around a right-fa",
+            "Reverse visibly reads 'CANADA', '1955', and '10 CENTS'. The central ship"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "George VI? Actually Elizabeth II 'Bluenose' sailing schooner reverse",
+          "year": "1955"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Canada",
+            "denomination": "10 cents",
+            "evidence_observations": [
+              "Obverse visibly reads 'ELIZABETH II DEI GRATIA REGINA' around a right-fa",
+              "Reverse visibly reads 'CANADA', '1955', and '10 CENTS'. The central ship"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "George VI? Actually Elizabeth II 'Bluenose' sailing schooner reverse",
+            "year": "1955"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Canada",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "25 cents",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 25
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "25 cents",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Centennial bobcat",
+        "year_raw": "1967"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Canada",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "25 cents",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 25
+              },
+              "unit_id": "cent"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "25 cents",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Canadian Centennial 25-cent coin, bobcat reverse",
+          "year_raw": "1967"
+        }
+      ],
+      "case_id": "canada-25-cents-1967",
+      "estimated_cost_usd": 0.003186,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Canada",
+        "denomination": "25 cents",
+        "type_design": "Centennial bobcat",
+        "year": "1967"
+      },
+      "identity_certain": true,
+      "input_tokens": 807,
+      "latency_seconds": 2.374956200364977,
+      "outcome": "PREDICTED",
+      "output_tokens": 131,
+      "predictions": [
+        {
+          "country": "Canada",
+          "denomination": "25 cents",
+          "type_design": "Canadian Centennial 25-cent coin, bobcat reverse",
+          "year": "1967"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Canada",
+          "denomination": "25 cents",
+          "evidence_observations": [
+            "Obverse visibly reads “ELIZABETH II” and “D·G·REGINA” around Queen Eliz­",
+            "Reverse visibly reads “25 CENTS,” “CANADA,” and “1867 1967.”"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Canadian Centennial 25-cent coin, bobcat reverse",
+          "year": "1967"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Canada",
+            "denomination": "25 cents",
+            "evidence_observations": [
+              "Obverse visibly reads “ELIZABETH II” and “D·G·REGINA” around Queen Eliz­",
+              "Reverse visibly reads “25 CENTS,” “CANADA,” and “1867 1967.”"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Canadian Centennial 25-cent coin, bobcat reverse",
+            "year": "1967"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "India",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "10 paise",
+          "status": "UNMAPPED"
+        },
+        "type_design_raw": "Republic contemporary scalloped",
+        "year_raw": "1965"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "India",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "10 paise",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "Scalloped-edge 10 naye paise, Ashoka Lion Capital obverse",
+          "year_raw": "1965"
+        }
+      ],
+      "case_id": "india-10-paise-1965",
+      "estimated_cost_usd": 0.003102,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "India",
+        "denomination": "10 paise",
+        "type_design": "Republic contemporary scalloped",
+        "year": "1965"
+      },
+      "identity_certain": true,
+      "input_tokens": 843,
+      "latency_seconds": 2.102833000011742,
+      "outcome": "PREDICTED",
+      "output_tokens": 118,
+      "predictions": [
+        {
+          "country": "India",
+          "denomination": "10 paise",
+          "type_design": "Scalloped-edge 10 naye paise, Ashoka Lion Capital obverse",
+          "year": "1965"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "India",
+          "denomination": "10 paise",
+          "evidence_observations": [
+            "Obverse visibly bears the Ashoka Lion Capital and the legends भारत and “",
+            "Reverse visibly shows the numeral 10, Hindi/English denomination wording"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Scalloped-edge 10 naye paise, Ashoka Lion Capital obverse",
+          "year": "1965"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "India",
+            "denomination": "10 paise",
+            "evidence_observations": [
+              "Obverse visibly bears the Ashoka Lion Capital and the legends भारत and “",
+              "Reverse visibly shows the numeral 10, Hindi/English denomination wording"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Scalloped-edge 10 naye paise, Ashoka Lion Capital obverse",
+            "year": "1965"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "India",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "2 rupees",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 2
+            },
+            "unit_id": "rupee"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "2 rupees",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Rupee symbol with lotus",
+        "year_raw": "2012"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "India",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "2 rupees",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 2
+              },
+              "unit_id": "rupee"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "2 rupees",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Republic of India circulating ₹2 coin, Lion Capital obverse and floral reverse",
+          "year_raw": "2012"
+        }
+      ],
+      "case_id": "india-2-rupees-2012",
+      "estimated_cost_usd": 0.00303,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "India",
+        "denomination": "2 rupees",
+        "type_design": "Rupee symbol with lotus",
+        "year": "2012"
+      },
+      "identity_certain": true,
+      "input_tokens": 843,
+      "latency_seconds": 2.397234699688852,
+      "outcome": "PREDICTED",
+      "output_tokens": 112,
+      "predictions": [
+        {
+          "country": "India",
+          "denomination": "2 rupees",
+          "type_design": "Republic of India circulating ₹2 coin, Lion Capital obverse and floral reverse",
+          "year": "2012"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "India",
+          "denomination": "2 rupees",
+          "evidence_observations": [
+            "Obverse visibly carries the Lion Capital of Ashoka, Hindi 'भारत', Latin/",
+            "supporting_image_roles"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Republic of India circulating ₹2 coin, Lion Capital obverse and floral reverse",
+          "year": "2012"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "India",
+            "denomination": "2 rupees",
+            "evidence_observations": [
+              "Obverse visibly carries the Lion Capital of Ashoka, Hindi 'भारत', Latin/",
+              "supporting_image_roles"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Republic of India circulating ₹2 coin, Lion Capital obverse and floral reverse",
+            "year": "2012"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": false,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "India",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1 rupee",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "unit_id": "rupee"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1 rupee",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "George V crowned bust",
+        "year_raw": "1918"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "India (British India)",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1 rupee",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 1
+              },
+              "unit_id": "rupee"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.number-word",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "One rupee",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "George V silver rupee, crowned bust left; floral-wreath reverse",
+          "year_raw": "1918"
+        }
+      ],
+      "case_id": "india-1-rupee-1918",
+      "estimated_cost_usd": 0.003246,
+      "exact_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "India",
+        "denomination": "1 rupee",
+        "type_design": "George V crowned bust",
+        "year": "1918"
+      },
+      "identity_certain": true,
+      "input_tokens": 843,
+      "latency_seconds": 2.7396467002108693,
+      "outcome": "PREDICTED",
+      "output_tokens": 130,
+      "predictions": [
+        {
+          "country": "India (British India)",
+          "denomination": "One rupee",
+          "type_design": "George V silver rupee, crowned bust left; floral-wreath reverse",
+          "year": "1918"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "India (British India)",
+          "denomination": "One rupee",
+          "evidence_observations": [
+            "Obverse legend visibly reads “GEORGE V KING EMPEROR” around a crowned, j",
+            "Reverse visibly reads “ONE RUPEE INDIA 1918.”   ,"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "George V silver rupee, crowned bust left; floral-wreath reverse",
+          "year": "1918"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "India (British India)",
+            "denomination": "One rupee",
+            "evidence_observations": [
+              "Obverse legend visibly reads “GEORGE V KING EMPEROR” around a crowned, j",
+              "Reverse visibly reads “ONE RUPEE INDIA 1918.”   , "
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "George V silver rupee, crowned bust left; floral-wreath reverse",
+            "year": "1918"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Bhutan",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1/2 rupee",
+            "numeric_value": {
+              "denominator": 2,
+              "numerator": 1
+            },
+            "unit_id": "rupee"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.fraction-numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1/2 rupee",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Jigme Dorji and auspicious symbols",
+        "year_raw": "1955"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Bhutan",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "25 chhertum",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year_raw": null
+        },
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Bhutan",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "20 chhertum",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year_raw": null
+        },
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Bhutan",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "50 chhertum",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year_raw": null
+        }
+      ],
+      "case_id": "bhutan-half-rupee-1955",
+      "estimated_cost_usd": 0.005226,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "expected": {
+        "country": "Bhutan",
+        "denomination": "1/2 rupee",
+        "type_design": "Jigme Dorji and auspicious symbols",
+        "year": "1955"
+      },
+      "identity_certain": true,
+      "input_tokens": 843,
+      "latency_seconds": 3.827469499781728,
+      "outcome": "PREDICTED",
+      "output_tokens": 295,
+      "predictions": [
+        {
+          "country": "Bhutan",
+          "denomination": "25 chhertum",
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin"
+        },
+        {
+          "country": "Bhutan",
+          "denomination": "20 chhertum",
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin"
+        },
+        {
+          "country": "Bhutan",
+          "denomination": "50 chhertum",
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.86,
+          "country": "Bhutan",
+          "denomination": "25 chhertum",
+          "evidence_observations": [
+            "Obverse visibly shows a left-facing crowned Bhutanese king and the Latin",
+            "reverse is divided into eight panels containing Buddhist/zodiac-style em"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year": null
+        },
+        {
+          "confidence": 0.1,
+          "country": "Bhutan",
+          "denomination": "20 chhertum",
+          "evidence_observations": [
+            "The portrait, Bhutan-associated Dzongkha/Tibetan script, and segmented",
+            "denomination numeral is not clearly legible, leaving nearby Bhutanese sm"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 2,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year": null
+        },
+        {
+          "confidence": 0.04,
+          "country": "Bhutan",
+          "denomination": "50 chhertum",
+          "evidence_observations": [
+            "Visible royal portrait and eight auspicious/zodiac-like reverse panels s",
+            "No clearly readable denomination is visible to distinguish this from o"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 3,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+          "year": null
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.86,
+            "country": "Bhutan",
+            "denomination": "25 chhertum",
+            "evidence_observations": [
+              "Obverse visibly shows a left-facing crowned Bhutanese king and the Latin",
+              "reverse is divided into eight panels containing Buddhist/zodiac-style em"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+            "year": null
+          },
+          {
+            "confidence": 0.1,
+            "country": "Bhutan",
+            "denomination": "20 chhertum",
+            "evidence_observations": [
+              "The portrait, Bhutan-associated Dzongkha/Tibetan script, and segmented ",
+              "denomination numeral is not clearly legible, leaving nearby Bhutanese sm"
+            ],
+            "rank": 2,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+            "year": null
+          },
+          {
+            "confidence": 0.04,
+            "country": "Bhutan",
+            "denomination": "50 chhertum",
+            "evidence_observations": [
+              "Visible royal portrait and eight auspicious/zodiac-like reverse panels s",
+              "No clearly readable denomination is visible to distinguish this from o"
+            ],
+            "rank": 3,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "King Jigme Singye Wangchuck zodiac-design circulation coin",
+            "year": null
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Switzerland",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "2 francs",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 2
+            },
+            "unit_id": "franc"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "2 francs",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Standing Helvetia",
+        "year_raw": "1980"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Switzerland",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "2 francs",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 2
+              },
+              "unit_id": "franc"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "2 francs",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Federal 2-franc coin: standing Helvetia with shield and stars; wreath reverse",
+          "year_raw": "1980"
+        }
+      ],
+      "case_id": "switzerland-2-francs-1980",
+      "estimated_cost_usd": 0.00327,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Switzerland",
+        "denomination": "2 francs",
+        "type_design": "Standing Helvetia",
+        "year": "1980"
+      },
+      "identity_certain": true,
+      "input_tokens": 843,
+      "latency_seconds": 2.202923699747771,
+      "outcome": "PREDICTED",
+      "output_tokens": 132,
+      "predictions": [
+        {
+          "country": "Switzerland",
+          "denomination": "2 francs",
+          "type_design": "Federal 2-franc coin: standing Helvetia with shield and stars; wreath reverse",
+          "year": "1980"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Switzerland",
+          "denomination": "2 francs",
+          "evidence_observations": [
+            "Obverse visibly reads HELVETIA and depicts the standing female Helvetia,",
+            "Reverse visibly reads 2 Fr. and 1980, within an oak-and-alpine-flower/wr"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Federal 2-franc coin: standing Helvetia with shield and stars; wreath reverse",
+          "year": "1980"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Switzerland",
+            "denomination": "2 francs",
+            "evidence_observations": [
+              "Obverse visibly reads HELVETIA and depicts the standing female Helvetia,",
+              "Reverse visibly reads 2 Fr. and 1980, within an oak-and-alpine-flower/wr"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Federal 2-franc coin: standing Helvetia with shield and stars; wreath reverse",
+            "year": "1980"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Liberia",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1 cent",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1 cent",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Liberty seated",
+        "year_raw": "1847"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "United Kingdom (Great Britain)",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Penny",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "George III copper penny, Britannia reverse",
+          "year_raw": null
+        }
+      ],
+      "case_id": "liberia-1-cent-1847",
+      "estimated_cost_usd": 0.017706,
+      "exact_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "expected": {
+        "country": "Liberia",
+        "denomination": "1 cent",
+        "type_design": "Liberty seated",
+        "year": "1847"
+      },
+      "identity_certain": true,
+      "input_tokens": 1923,
+      "latency_seconds": 17.772532400209457,
+      "outcome": "PREDICTED",
+      "output_tokens": 1155,
+      "predictions": [
+        {
+          "country": "United Kingdom (Great Britain)",
+          "denomination": "Penny",
+          "type_design": "George III copper penny, Britannia reverse"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.48,
+          "country": "United Kingdom (Great Britain)",
+          "denomination": "Penny",
+          "evidence_observations": [
+            "First image appears to show a worn laureate male portrait with a Latin-r",
+            "Outer legend is consistent in layout with a GEORGIUS III-era British obv"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "George III copper penny, Britannia reverse",
+          "year": null
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.48,
+            "country": "United Kingdom (Great Britain)",
+            "denomination": "Penny",
+            "evidence_observations": [
+              "First image appears to show a worn laureate male portrait with a Latin-r",
+              "Outer legend is consistent in layout with a GEORGIUS III-era British obv"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "George III copper penny, Britannia reverse",
+            "year": null
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Liberia",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "2 cents",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 2
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "2 cents",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Liberty seated",
+        "year_raw": "1862"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Liberia",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "2 cents",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 2
+              },
+              "unit_id": "cent"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.number-word",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "Two Cents",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Republic of Liberia / palm tree type",
+          "year_raw": "1862"
+        }
+      ],
+      "case_id": "liberia-2-cents-1862",
+      "estimated_cost_usd": 0.005286,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Liberia",
+        "denomination": "2 cents",
+        "type_design": "Liberty seated",
+        "year": "1862"
+      },
+      "identity_certain": true,
+      "input_tokens": 1923,
+      "latency_seconds": 2.3164275996387005,
+      "outcome": "PREDICTED",
+      "output_tokens": 120,
+      "predictions": [
+        {
+          "country": "Liberia",
+          "denomination": "Two Cents",
+          "type_design": "Republic of Liberia / palm tree type",
+          "year": "1862"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Liberia",
+          "denomination": "Two Cents",
+          "evidence_observations": [
+            "Obverse visibly reads “REPUBLIC OF LIBERIA” around a left-facing Liberty",
+            "Reverse visibly reads “TWO CENTS” above a palm tree and shows the date “"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Republic of Liberia / palm tree type",
+          "year": "1862"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Liberia",
+            "denomination": "Two Cents",
+            "evidence_observations": [
+              "Obverse visibly reads “REPUBLIC OF LIBERIA” around a left-facing Liberty",
+              "Reverse visibly reads “TWO CENTS” above a palm tree and shows the date “"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Republic of Liberia / palm tree type",
+            "year": "1862"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": null,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Liberia",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1 cent",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "unit_id": "cent"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1 cent",
+          "status": "MAPPED"
+        },
+        "type_design_raw": null,
+        "year_raw": "1896"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Ceylon (Sri Lanka)",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "10 cents",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 10
+              },
+              "unit_id": "cent"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "10 cents",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "British colonial issue, Queen Victoria obverse and palm-tree reverse",
+          "year_raw": "1891"
+        }
+      ],
+      "case_id": "liberia-1-cent-1896",
+      "estimated_cost_usd": 0.00519,
+      "exact_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "year": false
+      },
+      "expected": {
+        "country": "Liberia",
+        "denomination": "1 cent",
+        "year": "1896"
+      },
+      "identity_certain": true,
+      "input_tokens": 1923,
+      "latency_seconds": 2.30699469987303,
+      "outcome": "PREDICTED",
+      "output_tokens": 112,
+      "predictions": [
+        {
+          "country": "Ceylon (Sri Lanka)",
+          "denomination": "10 cents",
+          "type_design": "British colonial issue, Queen Victoria obverse and palm-tree reverse",
+          "year": "1891"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.93,
+          "country": "Ceylon (Sri Lanka)",
+          "denomination": "10 cents",
+          "evidence_observations": [
+            "Reverse visibly reads \"ONE CENT\" around a central palm tree, with date \"",
+            "supporting_image_roles"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "British colonial issue, Queen Victoria obverse and palm-tree reverse",
+          "year": "1891"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.93,
+            "country": "Ceylon (Sri Lanka)",
+            "denomination": "10 cents",
+            "evidence_observations": [
+              "Reverse visibly reads \"ONE CENT\" around a central palm tree, with date \"",
+              "supporting_image_roles"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "British colonial issue, Queen Victoria obverse and palm-tree reverse",
+            "year": "1891"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "NOT_APPLICABLE"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": {
+            "canonical_id": "US",
+            "display_name": "United States"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "jurisdiction.canonical-name"
+          ],
+          "raw_value": "United States",
+          "status": "MAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1/2 dollar",
+            "numeric_value": {
+              "denominator": 2,
+              "numerator": 1
+            },
+            "unit_id": "dollar"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.fraction-numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1/2 dollar",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Old Spanish Trail commemorative",
+        "year_raw": "1935"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "United States",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "Half Dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Connecticut Tercentenary commemorative half dollar",
+          "year_raw": "1935"
+        }
+      ],
+      "case_id": "us-spanish-trail-half-dollar-1935",
+      "estimated_cost_usd": 0.002266,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Old Spanish Trail commemorative",
+        "year": "1935"
+      },
+      "identity_certain": true,
+      "input_tokens": 353,
+      "latency_seconds": 2.2788573000580072,
+      "outcome": "PREDICTED",
+      "output_tokens": 130,
+      "predictions": [
+        {
+          "country": "United States",
+          "denomination": "Half Dollar",
+          "type_design": "Connecticut Tercentenary commemorative half dollar",
+          "year": "1935"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "United States",
+          "denomination": "Half Dollar",
+          "evidence_observations": [
+            "Obverse visibly reads “UNITED STATES OF AMERICA,” “E PLURIBUS UNUM,” “IN",
+            "GOD WE TRUST,” “LIBERTY,” and “HALF DOLLAR.” Reverse visibly reads “THE…"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Connecticut Tercentenary commemorative half dollar",
+          "year": "1935"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "United States",
+            "denomination": "Half Dollar",
+            "evidence_observations": [
+              "Obverse visibly reads “UNITED STATES OF AMERICA,” “E PLURIBUS UNUM,” “IN",
+              "GOD WE TRUST,” “LIBERTY,” and “HALF DOLLAR.” Reverse visibly reads “THE…"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Connecticut Tercentenary commemorative half dollar",
+            "year": "1935"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": {
+            "canonical_id": "US",
+            "display_name": "United States"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "jurisdiction.canonical-name"
+          ],
+          "raw_value": "United States",
+          "status": "MAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1/2 dollar",
+            "numeric_value": {
+              "denominator": 2,
+              "numerator": 1
+            },
+            "unit_id": "dollar"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.fraction-numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1/2 dollar",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Columbia Sesquicentennial commemorative",
+        "year_raw": "1936"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.official-long-name"
+            ],
+            "raw_value": "United States of America",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "half dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Sesquicentennial of American Independence commemorative half dollar",
+          "year_raw": "1926"
+        },
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.official-long-name"
+            ],
+            "raw_value": "United States of America",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "half dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "United States commemorative half dollar, Liberty Bell / Independence Hall design",
+          "year_raw": null
+        }
+      ],
+      "case_id": "us-columbia-half-dollar-1936",
+      "estimated_cost_usd": 0.00355,
+      "exact_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Columbia Sesquicentennial commemorative",
+        "year": "1936"
+      },
+      "identity_certain": true,
+      "input_tokens": 461,
+      "latency_seconds": 3.8411826002411544,
+      "outcome": "PREDICTED",
+      "output_tokens": 219,
+      "predictions": [
+        {
+          "country": "United States of America",
+          "denomination": "half dollar",
+          "type_design": "Sesquicentennial of American Independence commemorative half dollar",
+          "year": "1926"
+        },
+        {
+          "country": "United States of America",
+          "denomination": "half dollar",
+          "type_design": "United States commemorative half dollar, Liberty Bell / Independence Hall design"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "United States of America",
+          "denomination": "half dollar",
+          "evidence_observations": [
+            "Reverse legend visibly reads “SESQUICENTENNIAL CELEBRATION OF THE CAPIT…",
+            "Reverse shows Liberty and Independence Hall, with the dates 1776 and 192"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Sesquicentennial of American Independence commemorative half dollar",
+          "year": "1926"
+        },
+        {
+          "confidence": 0.01,
+          "country": "United States of America",
+          "denomination": "half dollar",
+          "evidence_observations": [
+            "Obverse visibly reads “UNITED STATES OF AMERICA,” “HALF DOLLAR,” and “IN",
+            "Reverse has an Independence Hall-themed commemorative design."
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 2,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "United States commemorative half dollar, Liberty Bell / Independence Hall design",
+          "year": null
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "United States of America",
+            "denomination": "half dollar",
+            "evidence_observations": [
+              "Reverse legend visibly reads “SESQUICENTENNIAL CELEBRATION OF THE CAPIT…",
+              "Reverse shows Liberty and Independence Hall, with the dates 1776 and 192"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Sesquicentennial of American Independence commemorative half dollar",
+            "year": "1926"
+          },
+          {
+            "confidence": 0.01,
+            "country": "United States of America",
+            "denomination": "half dollar",
+            "evidence_observations": [
+              "Obverse visibly reads “UNITED STATES OF AMERICA,” “HALF DOLLAR,” and “IN",
+              "Reverse has an Independence Hall-themed commemorative design."
+            ],
+            "rank": 2,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "United States commemorative half dollar, Liberty Bell / Independence Hall design",
+            "year": null
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": {
+            "canonical_id": "US",
+            "display_name": "United States"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "jurisdiction.canonical-name"
+          ],
+          "raw_value": "United States",
+          "status": "MAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1/2 dollar",
+            "numeric_value": {
+              "denominator": 2,
+              "numerator": 1
+            },
+            "unit_id": "dollar"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.fraction-numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1/2 dollar",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Elgin Centennial commemorative",
+        "year_raw": "1936"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "United States",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "Half dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Oregon Trail Memorial half dollar",
+          "year_raw": "1936"
+        }
+      ],
+      "case_id": "us-elgin-half-dollar-1936",
+      "estimated_cost_usd": 0.002326,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Elgin Centennial commemorative",
+        "year": "1936"
+      },
+      "identity_certain": true,
+      "input_tokens": 419,
+      "latency_seconds": 2.1492349999025464,
+      "outcome": "PREDICTED",
+      "output_tokens": 124,
+      "predictions": [
+        {
+          "country": "United States",
+          "denomination": "Half dollar",
+          "type_design": "Oregon Trail Memorial half dollar",
+          "year": "1936"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "United States",
+          "denomination": "Half dollar",
+          "evidence_observations": [
+            "Obverse visibly reads “LIBERTY,” “IN GOD WE TRUST,” and the date “1936,”",
+            "Reverse visibly reads “UNITED STATES OF AMERICA” and “HALF DOLLAR,” with"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Oregon Trail Memorial half dollar",
+          "year": "1936"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "United States",
+            "denomination": "Half dollar",
+            "evidence_observations": [
+              "Obverse visibly reads “LIBERTY,” “IN GOD WE TRUST,” and the date “1936,”",
+              "Reverse visibly reads “UNITED STATES OF AMERICA” and “HALF DOLLAR,” with"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Oregon Trail Memorial half dollar",
+            "year": "1936"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": true,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": {
+            "canonical_id": "US",
+            "display_name": "United States"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "jurisdiction.canonical-name"
+          ],
+          "raw_value": "United States",
+          "status": "MAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1/2 dollar",
+            "numeric_value": {
+              "denominator": 2,
+              "numerator": 1
+            },
+            "unit_id": "dollar"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.fraction-numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1/2 dollar",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Pilgrim Tercentenary commemorative",
+        "year_raw": "1920"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "United States",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "Half dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Pilgrim Tercentenary commemorative half dollar",
+          "year_raw": "1921"
+        },
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "US",
+              "display_name": "United States"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "United States",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1/2 dollar",
+              "numeric_value": {
+                "denominator": 2,
+                "numerator": 1
+              },
+              "unit_id": "dollar"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.fraction-word.half",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "Half dollar",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Pilgrim Tercentenary commemorative half dollar",
+          "year_raw": "1920"
+        }
+      ],
+      "case_id": "us-pilgrim-half-dollar-1920",
+      "estimated_cost_usd": 0.003082,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": false
+      },
+      "expected": {
+        "country": "United States",
+        "denomination": "1/2 dollar",
+        "type_design": "Pilgrim Tercentenary commemorative",
+        "year": "1920"
+      },
+      "identity_certain": true,
+      "input_tokens": 353,
+      "latency_seconds": 2.7178163998760283,
+      "outcome": "PREDICTED",
+      "output_tokens": 198,
+      "predictions": [
+        {
+          "country": "United States",
+          "denomination": "Half dollar",
+          "type_design": "Pilgrim Tercentenary commemorative half dollar",
+          "year": "1921"
+        },
+        {
+          "country": "United States",
+          "denomination": "Half dollar",
+          "type_design": "Pilgrim Tercentenary commemorative half dollar",
+          "year": "1920"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "United States",
+          "denomination": "Half dollar",
+          "evidence_observations": [
+            "Obverse visibly reads “UNITED STATES OF AMERICA,” “PILGRIM HALF DOLLAR,”",
+            "Date “1921” is visible beside the Pilgrim figure; “IN GOD WE TRUST” is,`"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Pilgrim Tercentenary commemorative half dollar",
+          "year": "1921"
+        },
+        {
+          "confidence": 0.72,
+          "country": "United States",
+          "denomination": "Half dollar",
+          "evidence_observations": [
+            "Reverse visibly depicts a sailing ship and bears the legend “PILGRIM T`"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 2,
+          "supporting_image_roles": [
+            "reverse"
+          ],
+          "type_design": "Pilgrim Tercentenary commemorative half dollar",
+          "year": "1920"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "United States",
+            "denomination": "Half dollar",
+            "evidence_observations": [
+              "Obverse visibly reads “UNITED STATES OF AMERICA,” “PILGRIM HALF DOLLAR,”",
+              "Date “1921” is visible beside the Pilgrim figure; “IN GOD WE TRUST” is,`"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Pilgrim Tercentenary commemorative half dollar",
+            "year": "1921"
+          },
+          {
+            "confidence": 0.72,
+            "country": "United States",
+            "denomination": "Half dollar",
+            "evidence_observations": [
+              "Reverse visibly depicts a sailing ship and bears the legend “PILGRIM T`"
+            ],
+            "rank": 2,
+            "supporting_image_roles": [
+              "reverse"
+            ],
+            "type_design": "Pilgrim Tercentenary commemorative half dollar",
+            "year": "1920"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": false,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Australia",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "6 pence",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 6
+            },
+            "unit_id": "pence"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "6 pence",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Edward VII and Australian arms",
+        "year_raw": "1910"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "United Kingdom",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "6 pence",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 6
+              },
+              "unit_id": "pence"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.compound.sixpence"
+            ],
+            "raw_value": "Sixpence",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Edward VII silver sixpence",
+          "year_raw": "1910"
+        }
+      ],
+      "case_id": "australia-sixpence-1910",
+      "estimated_cost_usd": 0.002514,
+      "exact_scores": {
+        "country": false,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Australia",
+        "denomination": "6 pence",
+        "type_design": "Edward VII and Australian arms",
+        "year": "1910"
+      },
+      "identity_certain": true,
+      "input_tokens": 507,
+      "latency_seconds": 2.503044799901545,
+      "outcome": "PREDICTED",
+      "output_tokens": 125,
+      "predictions": [
+        {
+          "country": "United Kingdom",
+          "denomination": "Sixpence",
+          "type_design": "Edward VII silver sixpence",
+          "year": "1910"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.98,
+          "country": "United Kingdom",
+          "denomination": "Sixpence",
+          "evidence_observations": [
+            "Obverse visibly reads 'EDWARDVS VII D:G: BRITT: OMN: REX F:D: IND: IMP:'",
+            "Crowned portrait of King Edward VII is visible on the obverse; small 'D'"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Edward VII silver sixpence",
+          "year": "1910"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.98,
+            "country": "United Kingdom",
+            "denomination": "Sixpence",
+            "evidence_observations": [
+              "Obverse visibly reads 'EDWARDVS VII D:G: BRITT: OMN: REX F:D: IND: IMP:'",
+              "Crowned portrait of King Edward VII is visible on the obverse; small 'D'"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Edward VII silver sixpence",
+            "year": "1910"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": false,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Congo Free State",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1 franc",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "unit_id": "franc"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1 franc",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "Leopold II Congo Free State",
+        "year_raw": "1887"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Belgium",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1 franc",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 1
+              },
+              "unit_id": "franc"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "1 franc",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "Leopold II, French-language legend; crowned Belgian arms within oak branches",
+          "year_raw": "1887"
+        }
+      ],
+      "case_id": "belgian-congo-1-franc-1887",
+      "estimated_cost_usd": 0.003106,
+      "exact_scores": {
+        "country": false,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": false,
+        "year": true
+      },
+      "expected": {
+        "country": "Congo Free State",
+        "denomination": "1 franc",
+        "type_design": "Leopold II Congo Free State",
+        "year": "1887"
+      },
+      "identity_certain": true,
+      "input_tokens": 737,
+      "latency_seconds": 3.060805100016296,
+      "outcome": "PREDICTED",
+      "output_tokens": 136,
+      "predictions": [
+        {
+          "country": "Belgium",
+          "denomination": "1 franc",
+          "type_design": "Leopold II, French-language legend; crowned Belgian arms within oak branches",
+          "year": "1887"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Belgium",
+          "denomination": "1 franc",
+          "evidence_observations": [
+            "Obverse visibly reads 'LEOPOLD II ROI DES BELGES' and 'SOUV. DE L'ETAT-…",
+            "Reverse visibly reads '1 FRANC' and the date '1887'.', 'Portrait and the"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Leopold II, French-language legend; crowned Belgian arms within oak branches",
+          "year": "1887"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Belgium",
+            "denomination": "1 franc",
+            "evidence_observations": [
+              "Obverse visibly reads 'LEOPOLD II ROI DES BELGES' and 'SOUV. DE L'ETAT-…",
+              "Reverse visibly reads '1 FRANC' and the date '1887'.', 'Portrait and the"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Leopold II, French-language legend; crowned Belgian arms within oak branches",
+            "year": "1887"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_DIFFERS"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "type_design": null,
+        "year": true
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "Indonesia",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "100 rupiah",
+          "status": "UNMAPPED"
+        },
+        "type_design_raw": null,
+        "year_raw": "1995"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "Indonesia",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "100 rupiah",
+            "status": "UNMAPPED"
+          },
+          "type_design_raw": "Rp100; Garuda Pancasila obverse and Karapan Sapi (Madurese bull-racing) reverse",
+          "year_raw": "1995"
+        }
+      ],
+      "case_id": "indonesia-100-rupiah-1995",
+      "estimated_cost_usd": 0.002926,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": true,
+        "year": true
+      },
+      "expected": {
+        "country": "Indonesia",
+        "denomination": "100 rupiah",
+        "year": "1995"
+      },
+      "identity_certain": true,
+      "input_tokens": 671,
+      "latency_seconds": 2.366220800206065,
+      "outcome": "PREDICTED",
+      "output_tokens": 132,
+      "predictions": [
+        {
+          "country": "Indonesia",
+          "denomination": "100 rupiah",
+          "type_design": "Rp100; Garuda Pancasila obverse and Karapan Sapi (Madurese bull-racing) reverse",
+          "year": "1995"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Indonesia",
+          "denomination": "100 rupiah",
+          "evidence_observations": [
+            "Obverse visibly reads “BANK INDONESIA” and “1995” beneath the Garuda.",
+            "Reverse visibly reads “Rp100”. It depicts racing bulls with riders, with"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "Rp100; Garuda Pancasila obverse and Karapan Sapi (Madurese bull-racing) reverse",
+          "year": "1995"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Indonesia",
+            "denomination": "100 rupiah",
+            "evidence_observations": [
+              "Obverse visibly reads “BANK INDONESIA” and “1995” beneath the Garuda.",
+              "Reverse visibly reads “Rp100”. It depicts racing bulls with riders, with"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "Rp100; Garuda Pancasila obverse and Karapan Sapi (Madurese bull-racing) reverse",
+            "year": "1995"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "NOT_APPLICABLE"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": null,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": null,
+          "normalization_rules": [],
+          "raw_value": "France",
+          "status": "UNMAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "1 centime",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "unit_id": "centime"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "1 centime",
+          "status": "MAPPED"
+        },
+        "type_design_raw": null,
+        "year_raw": "1797"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": null,
+            "normalization_rules": [],
+            "raw_value": "France",
+            "status": "UNMAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "1 centime",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 1
+              },
+              "unit_id": "centime"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-canonical"
+            ],
+            "raw_value": "1 centime",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "French First Republic \"UN CENTIME\" copper coin, Liberty/Republic head obverse",
+          "year_raw": null
+        }
+      ],
+      "case_id": "france-1-centime-1797",
+      "estimated_cost_usd": 0.005318,
+      "exact_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": false,
+        "year": false
+      },
+      "expected": {
+        "country": "France",
+        "denomination": "1 centime",
+        "year": "1797"
+      },
+      "identity_certain": true,
+      "input_tokens": 1891,
+      "latency_seconds": 2.451984499581158,
+      "outcome": "PREDICTED",
+      "output_tokens": 128,
+      "predictions": [
+        {
+          "country": "France",
+          "denomination": "1 centime",
+          "type_design": "French First Republic \"UN CENTIME\" copper coin, Liberty/Republic head obverse"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.94,
+          "country": "France",
+          "denomination": "1 centime",
+          "evidence_observations": [
+            "Obverse visibly reads \"REPUBLIQUE FRANÇAISE\" around a left-facing female",
+            "Reverse visibly reads \"UN CENTIME\" with a worn two-digit date below, but"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "French First Republic \"UN CENTIME\" copper coin, Liberty/Republic head obverse",
+          "year": null
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.94,
+            "country": "France",
+            "denomination": "1 centime",
+            "evidence_observations": [
+              "Obverse visibly reads \"REPUBLIQUE FRANÇAISE\" around a left-facing female",
+              "Reverse visibly reads \"UN CENTIME\" with a worn two-digit date below, but"
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "French First Republic \"UN CENTIME\" copper coin, Liberty/Republic head obverse",
+            "year": null
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "NOT_APPLICABLE"
+    },
+    {
+      "canonical_scores": {
+        "country": true,
+        "denomination": true,
+        "full_required_identity": false,
+        "type_design": true,
+        "year": false
+      },
+      "canonicalized_expected": {
+        "country": {
+          "canonical_value": {
+            "canonical_id": "PH",
+            "display_name": "Philippines"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "jurisdiction.canonical-name"
+          ],
+          "raw_value": "Philippines",
+          "status": "MAPPED"
+        },
+        "denomination": {
+          "canonical_value": {
+            "display_name": "10 pesos",
+            "numeric_value": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "unit_id": "peso"
+          },
+          "normalization_rules": [
+            "text.unicode-case-space-punctuation",
+            "denomination.numeric",
+            "denomination.unit-canonical"
+          ],
+          "raw_value": "10 pesos",
+          "status": "MAPPED"
+        },
+        "type_design_raw": "People Power Revolution commemorative",
+        "year_raw": "2015"
+      },
+      "canonicalized_predictions": [
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "PH",
+              "display_name": "Philippines"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "Philippines",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "10 pesos",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 10
+              },
+              "unit_id": "peso"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-alias.ph-piso-peso"
+            ],
+            "raw_value": "10 piso",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "People Power Revolution commemorative",
+          "year_raw": "1988"
+        },
+        {
+          "country": {
+            "canonical_value": {
+              "canonical_id": "PH",
+              "display_name": "Philippines"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "jurisdiction.canonical-name"
+            ],
+            "raw_value": "Philippines",
+            "status": "MAPPED"
+          },
+          "denomination": {
+            "canonical_value": {
+              "display_name": "10 pesos",
+              "numeric_value": {
+                "denominator": 1,
+                "numerator": 10
+              },
+              "unit_id": "peso"
+            },
+            "normalization_rules": [
+              "text.unicode-case-space-punctuation",
+              "denomination.numeric",
+              "denomination.unit-alias.ph-piso-peso"
+            ],
+            "raw_value": "10 piso",
+            "status": "MAPPED"
+          },
+          "type_design_raw": "People Power Revolution, February 22–25 1986",
+          "year_raw": "1988"
+        }
+      ],
+      "case_id": "philippines-10-pesos-2015",
+      "estimated_cost_usd": 0.00551,
+      "exact_scores": {
+        "country": true,
+        "denomination": false,
+        "full_required_identity": false,
+        "type_design": true,
+        "year": false
+      },
+      "expected": {
+        "country": "Philippines",
+        "denomination": "10 pesos",
+        "type_design": "People Power Revolution commemorative",
+        "year": "2015"
+      },
+      "identity_certain": true,
+      "input_tokens": 1423,
+      "latency_seconds": 4.727977500297129,
+      "outcome": "PREDICTED",
+      "output_tokens": 222,
+      "predictions": [
+        {
+          "country": "Philippines",
+          "denomination": "10 piso",
+          "type_design": "People Power Revolution commemorative",
+          "year": "1988"
+        },
+        {
+          "country": "Philippines",
+          "denomination": "10 piso",
+          "type_design": "People Power Revolution, February 22–25 1986",
+          "year": "1988"
+        }
+      ],
+      "provider_failure": null,
+      "ranked_candidates": [
+        {
+          "confidence": 0.99,
+          "country": "Philippines",
+          "denomination": "10 piso",
+          "evidence_observations": [
+            "Visible reverse legend reads “REPUBLIKA NG PILIPINAS,” with “10 PISO” at",
+            "bottom and split date “19 88.” The Philippine coat of arms is centered."
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 1,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "People Power Revolution commemorative",
+          "year": "1988"
+        },
+        {
+          "confidence": 0.98,
+          "country": "Philippines",
+          "denomination": "10 piso",
+          "evidence_observations": [
+            "The commemorative face visibly reads “PEOPLE POWER REVOLUTION” and “PHIL",
+            "IPPINES FEBRUARY 22-25, 1986,” surrounding a crowd, flag, and military-"
+          ],
+          "model_id": "gpt-5.6-terra",
+          "provider_id": "openai-responses-visual",
+          "rank": 2,
+          "supporting_image_roles": [
+            "obverse",
+            "reverse"
+          ],
+          "type_design": "People Power Revolution, February 22–25 1986",
+          "year": "1988"
+        }
+      ],
+      "raw_structured_provider_result": {
+        "candidates": [
+          {
+            "confidence": 0.99,
+            "country": "Philippines",
+            "denomination": "10 piso",
+            "evidence_observations": [
+              "Visible reverse legend reads “REPUBLIKA NG PILIPINAS,” with “10 PISO” at",
+              "bottom and split date “19 88.” The Philippine coat of arms is centered."
+            ],
+            "rank": 1,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "People Power Revolution commemorative",
+            "year": "1988"
+          },
+          {
+            "confidence": 0.98,
+            "country": "Philippines",
+            "denomination": "10 piso",
+            "evidence_observations": [
+              "The commemorative face visibly reads “PEOPLE POWER REVOLUTION” and “PHIL",
+              "IPPINES FEBRUARY 22-25, 1986,” surrounding a crowd, flag, and military-"
+            ],
+            "rank": 2,
+            "supporting_image_roles": [
+              "obverse",
+              "reverse"
+            ],
+            "type_design": "People Power Revolution, February 22–25 1986",
+            "year": "1988"
+          }
+        ],
+        "outcome": "CANDIDATES"
+      },
+      "required_identity_correct_but_type_design_label_differs": false,
+      "type_design_label_result": "LABEL_MATCH"
+    }
+  ],
+  "exact_metrics": {
+    "abstained_cases": 0,
+    "abstention_rate": 0.0,
+    "country_accuracy": 0.7,
+    "denomination_accuracy": 0.45,
+    "estimated_cost_usd": {
+      "mean_per_case": 0.0043046000000000004,
+      "total": 0.086092
+    },
+    "full_required_identity_accuracy": 0.35,
+    "infrastructure_failure_rate": 0.0,
+    "infrastructure_failures": 0,
+    "latency": {
+      "mean_seconds": 3.561834339960478,
+      "median_seconds": 2.42848869971931,
+      "p95_seconds": 4.727977500297129
+    },
+    "predicted_cases": 20,
+    "top_k": 3,
+    "top_k_identity_recall": 0.05,
+    "total_cases": 20,
+    "type_design_accuracy": 0.058823529411764705,
+    "year_accuracy": 0.65
+  },
+  "execution_provenance": {
+    "git_worktree_dirty": true,
+    "implementation_files": [
+      "capture_import/canonical_identity.py",
+      "capture_import/visual_identity_provider.py",
+      "capture_import/visual_evaluation_runner.py",
+      "capture_import/visual_evaluation_harness.py",
+      "inference_pricing.py",
+      "inference_telemetry.py"
+    ],
+    "implementation_sha256": "4ad9de713fbed3432d0ec65d9335571550d466e220ee8b20abe939d05d8d8a48",
+    "openai_sdk": "2.45.0",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.14.6"
+  },
+  "experiment_passes": true,
+  "generated_at": "2026-08-09T05:55:05.484550+00:00",
+  "git_commit": "2951a5feb07efe061b3729488bf4a40c45d1e45e",
+  "pricing": {
+    "input_usd_per_million": "2.00",
+    "model": "gpt-5.6-terra",
+    "output_usd_per_million": "12.00",
+    "provider": "OpenAI",
+    "source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+    "verified_at": "2026-08-09"
+  },
+  "provider": {
+    "configuration": {
+      "api": "Responses API",
+      "country_max_chars": 48,
+      "denomination_max_chars": 40,
+      "evidence_observation_max_chars": 72,
+      "image_detail": "original",
+      "max_candidates": 3,
+      "max_evidence_observations": 2,
+      "max_output_tokens": 2000,
+      "model": "gpt-5.6-terra",
+      "previous_max_output_tokens": 1200,
+      "prompt": "Identify the single physical coin shown in these two photographs. The first image is the obverse and the second image is the reverse. Using only visible evidence in the images and your general knowledge, return up to three ranked composite identity candidates. Do not use external tools or sources. Abstain if country and denomination cannot both be proposed from the visible evidence. A candidate year or type/design may be null when unsupported. Give a calibrated confidence from 0 to 1 and brief bounded evidence based on visible legends, numerals, motifs, or designs. State which image roles support each candidate.",
+      "provider": "OpenAI",
+      "provider_id": "openai-responses-visual",
+      "reasoning_effort": "low",
+      "store": false,
+      "structured_output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "country": {
+                  "maxLength": 48,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "denomination": {
+                  "maxLength": 40,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "evidence_observations": {
+                  "items": {
+                    "maxLength": 72,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 2,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "rank": {
+                  "maximum": 3,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "supporting_image_roles": {
+                  "items": {
+                    "enum": [
+                      "obverse",
+                      "reverse"
+                    ],
+                    "type": "string"
+                  },
+                  "maxItems": 2,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "type_design": {
+                  "maxLength": 80,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "year": {
+                  "maxLength": 16,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "rank",
+                "country",
+                "denomination",
+                "year",
+                "type_design",
+                "confidence",
+                "evidence_observations",
+                "supporting_image_roles"
+              ],
+              "type": "object"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "outcome": {
+            "enum": [
+              "CANDIDATES",
+              "ABSTAINED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "candidates"
+        ],
+        "type": "object"
+      },
+      "tools": [],
+      "type_design_max_chars": 80,
+      "year_max_chars": 16
+    },
+    "model_id": "gpt-5.6-terra",
+    "provider_id": "openai-responses-visual"
+  },
+  "retention": {
+    "abstention_rate": true,
+    "canonical_country_accuracy": true,
+    "canonical_denomination_accuracy": true,
+    "canonical_full_required_identity_accuracy": true,
+    "infrastructure_failures": true,
+    "mean_latency_seconds": true
+  },
+  "retention_thresholds": {
+    "canonical_country_accuracy": 0.75,
+    "canonical_denomination_accuracy": 0.7,
+    "canonical_full_required_identity_accuracy": 0.5,
+    "maximum_abstention_rate": 0.5,
+    "maximum_infrastructure_failures": 0,
+    "maximum_mean_latency_seconds": 5.0
+  },
+  "schema": "coin-analyzer-terra-v2-prospective-experiment",
+  "timing_boundary": "provider.identify(request), including API call, structured-output validation, and telemetry write",
+  "usage": {
+    "input_tokens": 19220,
+    "mean_estimated_cost_usd": 0.0043046000000000004,
+    "output_tokens": 3971,
+    "total_estimated_cost_usd": 0.086092
+  }
+}

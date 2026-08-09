@@ -1,0 +1,10 @@
+Visual + OCR fusion benchmark: v2.0
+Cases: 20
+Infrastructure failures: 0
+Visual canonical country/denomination/year/full: 75.0% / 85.0% / 65.0% / 50.0%
+OCR country/denomination/year/full: 0.0% / 0.0% / 5.0% / 0.0%
+Fused country/denomination/year/full: 75.0% / 80.0% / 65.0% / 45.0%
+Fused unresolved/conflict/correction required: 20.0% / 5.0% / 55.0%
+Silent incorrect resolutions: 0
+Mean Tesseract/fusion/total latency: 0.659052s / 0.000189s / 4.644530s
+Disposition: FAIL
