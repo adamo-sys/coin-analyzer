@@ -188,6 +188,9 @@ class CoinCollectionGUI:
         self.platform = Platform()
         self.platform_integration = PlatformIntegration(self.platform)
         self.platform_integration.initialize()
+        self.app.set_recognition_orchestrator(
+            self._build_default_legacy_recognition_orchestrator()
+        )
         self.ocr_identification_reports = []
         self.mobile_entry_reports = []
         self.workflow_completion_reports = []
@@ -257,6 +260,26 @@ class CoinCollectionGUI:
         self.create_widgets()
         self.refresh_collection_list()
         self.schedule_startup_photo_inbox_scan()
+
+    def _build_default_legacy_recognition_orchestrator(self):
+        """Compose the legacy detector shell with the runtime event bus."""
+        from legacy_coin_recognition_capability import LegacyCoinRecognitionCapability
+        from legacy_recognition_orchestration import (
+            RecognitionCapabilityRegistry,
+            RecognitionOrchestrator,
+        )
+
+        def emit(event_name, payload):
+            self.platform_integration.event_bus.publish_sync(
+                event_name,
+                dict(payload),
+                source="legacy_recognition_orchestrator",
+            )
+
+        return RecognitionOrchestrator(
+            RecognitionCapabilityRegistry((LegacyCoinRecognitionCapability(),)),
+            telemetry=emit,
+        )
     
     def create_menu_bar(self):
         """Create the menu bar."""

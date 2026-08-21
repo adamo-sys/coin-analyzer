@@ -1248,11 +1248,30 @@ class CoinCollection:
 class CoinCollectionApp:
     """Main application for coin collection management."""
     
-    def __init__(self, collection: Optional[CoinCollection] = None):
+    def __init__(self, collection: Optional[CoinCollection] = None,
+                 recognition_orchestrator=None):
         self.collection = collection if collection is not None else CoinCollection()
         self.current_image_path = None
         self.current_detection_result = None
         self.last_added_item_id = ""
+        self._recognition_orchestrator = recognition_orchestrator
+
+    def set_recognition_orchestrator(self, orchestrator) -> None:
+        """Inject the runtime-only shell used by the legacy detector path."""
+        self._recognition_orchestrator = orchestrator
+
+    def _get_recognition_orchestrator(self):
+        if self._recognition_orchestrator is None:
+            from legacy_coin_recognition_capability import LegacyCoinRecognitionCapability
+            from legacy_recognition_orchestration import (
+                RecognitionCapabilityRegistry,
+                RecognitionOrchestrator,
+            )
+
+            self._recognition_orchestrator = RecognitionOrchestrator(
+                RecognitionCapabilityRegistry((LegacyCoinRecognitionCapability(),))
+            )
+        return self._recognition_orchestrator
     
     def upload_image(self, image_path: str) -> bool:
         """Upload and validate coin image."""
@@ -1276,31 +1295,21 @@ class CoinCollectionApp:
             return {'success': False, 'error': 'No image uploaded'}
         
         try:
-            from coin_recognition import CoinRecognizer
-            recognizer = CoinRecognizer()
-            result = recognizer.detect_coin(self.current_image_path)
-            
-            if result['success']:
-                self.current_detection_result = {
-                    'success': True,
-                    'country': result.get('country', 'Unknown'),
-                    'denomination': result.get('denomination', 'Unknown'),
-                    'year': result.get('year', 'Unknown'),
-                    'confidence': result.get('denomination_confidence', 0.0),
-                    'year_confidence': result.get('year_confidence', 0.0),
-                    'method': 'coin_recognition'
-                }
-            else:
-                self.current_detection_result = {
-                    'success': False,
-                    'error': result.get('error', 'Detection failed'),
-                    'country': 'Unknown',
-                    'denomination': 'Unknown',
-                    'year': 'Unknown',
-                    'confidence': 0.0,
-                    'method': 'coin_recognition'
-                }
-            
+            from legacy_coin_recognition_capability import to_legacy_detector_result
+            from legacy_recognition_orchestration import LEGACY_COIN_RECOGNITION
+
+            state = self._get_recognition_orchestrator().run(self.current_image_path)
+            result = next(
+                (
+                    item
+                    for item in state.results
+                    if item.capability == LEGACY_COIN_RECOGNITION
+                ),
+                None,
+            )
+            if result is None:
+                raise RuntimeError("Recognition did not return the legacy detector result.")
+            self.current_detection_result = to_legacy_detector_result(result)
             return self.current_detection_result
             
         except Exception as e:

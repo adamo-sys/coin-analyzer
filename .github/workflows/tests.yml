@@ -55,6 +55,9 @@ jobs:
           tests.test_sprint19_ocr_review_package_boundaries
           tests.test_evaluation_case_contract
           tests.test_repository_privacy_boundaries
+          tests.test_legacy_recognition_orchestration
+          tests.test_legacy_coin_recognition_capability
+          tests.test_legacy_recognition_integration
 
       - name: Run tests
         run: python -m unittest discover -s . -p "test_*.py"

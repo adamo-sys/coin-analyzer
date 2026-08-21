@@ -213,6 +213,23 @@ image-quality assessment. Pixel-derived identification, grade, and attribution
 are not authoritative collection facts without collector review. Experimental
 scripts remain isolated from core startup and core dependency requirements.
 
+The legacy GUI denomination detector has a separate bounded runtime shell:
+
+```text
+CoinCollectionGUI
+  -> CoinCollectionApp.run_denomination_detector()
+  -> allowlisted legacy recognition capability (maximum one call)
+  -> unchanged CoinRecognizer.detect_coin()
+  -> exact historical dictionary mapping
+  -> advisory GUI suggestions
+  -> collector review and existing save flow
+```
+
+The shell generates its own opaque scan IDs, routes deterministically, emits
+only bounded optional telemetry, and owns no persistence. It does not orchestrate
+or import `capture_import`; that mature package retains its independent workflow,
+durability, OCR, visual-identification, and review boundaries. See ADR-010.
+
 ### Canadian references
 
 ```text

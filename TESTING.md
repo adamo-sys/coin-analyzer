@@ -38,6 +38,15 @@ python -m unittest \
   tests.test_desktop_ocr_candidate_review_preview
 ```
 
+Run the bounded legacy-recognition contract, adapter, and integration suites:
+
+```bash
+python -m unittest \
+  tests.test_legacy_recognition_orchestration \
+  tests.test_legacy_coin_recognition_capability \
+  tests.test_legacy_recognition_integration
+```
+
 ## Test Data Isolation
 
 Tests must not read from or write to `data/collection.json`. Shared fixtures live in `test_data/`, and tests copy those fixtures into temporary directories before running.
