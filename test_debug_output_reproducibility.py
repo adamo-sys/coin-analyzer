@@ -15,6 +15,13 @@ import template_matching_year
 import year_ocr_experiment
 
 
+TEST_COINS_DIRECTORY = os.path.join(os.path.dirname(__file__), "test_coins")
+LOCAL_TEST_COINS_AVAILABLE = all(
+    os.path.isfile(os.path.join(TEST_COINS_DIRECTORY, f"IMG_{number}.jpeg"))
+    for number in range(3460, 3470)
+)
+
+
 class DebugOutputReproducibilityTests(unittest.TestCase):
     def test_experiment_defaults_are_repository_relative(self):
         project_root = os.path.dirname(os.path.abspath(__file__))
@@ -115,8 +122,12 @@ class DebugOutputReproducibilityTests(unittest.TestCase):
         self.assertIn("pytesseract", error)
         self.assertIn("Tesseract", error)
 
+    @unittest.skipUnless(
+        LOCAL_TEST_COINS_AVAILABLE,
+        "uncertain local-only test_coins fixtures are unavailable",
+    )
     def test_all_ten_source_coin_fixtures_exist(self):
-        fixture_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_coins")
+        fixture_folder = TEST_COINS_DIRECTORY
         expected = {f"IMG_{number}.jpeg" for number in range(3460, 3470)}
         actual = {
             name

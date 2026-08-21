@@ -18,6 +18,13 @@ from typing import Iterable, Mapping
 
 from PIL import Image
 
+from .evaluation_case_contract import (
+    EvaluationCase,
+    EvaluationInput,
+    EvaluationProvenance,
+    ExpectedFinding,
+)
+
 
 SCHEMA = "coin-analyzer-visual-benchmark"
 REQUIRED_IDENTITY_FIELDS = ("country", "denomination", "year")
@@ -76,6 +83,46 @@ class VisualBenchmarkManifest:
     version: str
     root: Path
     cases: tuple[VisualBenchmarkCase, ...]
+
+
+def to_evaluation_case(
+    manifest: VisualBenchmarkManifest,
+    case: VisualBenchmarkCase,
+    *,
+    allowed_abstention: bool,
+    privacy_classification: str,
+) -> EvaluationCase:
+    """Project one validated visual case into the common comparison contract."""
+
+    images = (case.obverse, case.reverse)
+    return EvaluationCase(
+        case_id=case.case_id,
+        specimen_id=case.underlying_identity,
+        inputs=tuple(
+            EvaluationInput(
+                role=image.role,
+                reference=image.path.relative_to(manifest.root).as_posix(),
+            )
+            for image in sorted(images, key=lambda item: item.role)
+        ),
+        expected_findings=tuple(
+            ExpectedFinding(field=field, value=value)
+            for field, value in sorted(case.expected.items())
+        ),
+        allowed_abstention=allowed_abstention,
+        provenance=tuple(
+            EvaluationProvenance(
+                role=image.role,
+                source_reference=image.source_page,
+                license=image.license,
+                author=image.author,
+                label_method="manifest_ground_truth",
+                source_sha256=image.source_sha256,
+            )
+            for image in sorted(images, key=lambda item: item.role)
+        ),
+        privacy_classification=privacy_classification,
+    )
 
 
 def _text(value: object, name: str, *, allow_empty: bool = False) -> str:

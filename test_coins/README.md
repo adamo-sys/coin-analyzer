@@ -1,7 +1,10 @@
-# Coin Image Test Fixtures
+# Local-Only Coin Images
 
-The images in this directory are original photographs created by the repository owner and intentionally included as public test fixtures.
+The provenance and redistribution rights of the ten JPEGs in this directory
+have not been established. They are therefore classified **UNCERTAIN /
+LOCAL-ONLY**.
 
-They are used to test image loading, cropping, orientation, OCR, and coin-analysis workflows. They do not contain embedded location, device, ownership, or filesystem metadata and are not linked to the application's private collection dataset.
-
-These fixtures are distributed under the repository's license unless otherwise noted.
+They may remain in their existing local test role, but must not be uploaded to
+CI artifacts or external providers, redistributed, or promoted into public
+benchmark manifests. This classification makes no claim about their visual
+contents, authorship, embedded metadata, or relationship to collection data.

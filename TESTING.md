@@ -42,13 +42,16 @@ python -m unittest \
 
 Tests must not read from or write to `data/collection.json`. Shared fixtures live in `test_data/`, and tests copy those fixtures into temporary directories before running.
 
-Current fixtures:
+Current public-safe fixtures:
 
 - `test_data/sample_collection.json`
 - `test_data/sample_import.csv`
-- `test_coins/IMG_3460.jpeg` through `test_coins/IMG_3469.jpeg`
 
-The ten `test_coins` images are stable source fixtures for recognition experiments. Crops, contour overlays, OCR diagnostics, and other files under `debug_outputs/` are generated artifacts: they are ignored by Git and must be regenerated from the source fixtures when needed.
+The ten JPEGs under `test_coins/` are **UNCERTAIN / LOCAL-ONLY** because their
+provenance has not been established. Existing local tests may use them, but CI,
+external providers, public benchmark manifests, and distributable test artifacts
+must not. Crops, contour overlays, OCR diagnostics, and other files under
+`debug_outputs/` are generated artifacts: they are ignored by Git.
 
 Temporary files are created with Python's `tempfile` module and removed after each test.
 
@@ -61,6 +64,8 @@ python -m unittest discover -s . -p "test_*.py"
 ```
 
 The workflow is defined in `.github/workflows/tests.yml`.
+The CI checkout excludes `test_coins/`, and CI does not upload separate raw-log
+or image artifacts.
 
 ## Adding Tests
 

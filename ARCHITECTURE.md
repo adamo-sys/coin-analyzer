@@ -108,8 +108,8 @@ create authoritative collection facts.
 
 - `backup_manager.py` and `sync_backup_engine.py` provide local backup,
   validation, and simulated synchronization workflows.
-- `test_coins/` contains stable source fixtures used by recognition and
-  experiment tests.
+- `test_coins/` contains uncertain-provenance, local-only inputs retained solely
+  for their existing local test role. They are not public benchmark fixtures.
 - `extract_date_regions.py`, `year_ocr_experiment.py`,
   `template_matching_year.py`, and `label_years.py` are research utilities, not
   supported application workflows.
@@ -329,11 +329,18 @@ decision requires approval, compatibility tests, and normally an ADR.
 
 ### Experimental image work
 
-Use stable fixtures from `test_coins/`, write generated diagnostics only beneath
-ignored `debug_outputs/`, keep optional dependencies lazy, and do not change
-supported recognition behavior as a side effect of experiment maintenance.
+When explicitly running legacy local experiments, `test_coins/` may be used in
+its existing local-only role. Write generated diagnostics only beneath ignored
+`debug_outputs/`, keep optional dependencies lazy, and never send these inputs
+to CI, external providers, or public benchmarks.
 
 ## Testing Strategy
+
+The OCR and visual benchmark manifests remain task-specific authorities. When
+cross-provider comparisons need common metadata, they project validated cases
+into the versioned, provider-independent contract in
+`capture_import/evaluation_case_contract.py`; the shared contract never loads
+images, executes providers, scores results, or persists collection data.
 
 - **Backend unit tests** cover normalization, validation, calculations,
   serialization, persistence failure modes, and backward compatibility.

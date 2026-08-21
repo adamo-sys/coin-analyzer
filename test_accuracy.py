@@ -5,6 +5,13 @@ import unittest
 from unittest.mock import MagicMock
 
 
+TEST_COINS_DIRECTORY = os.path.join(os.path.dirname(__file__), "test_coins")
+LOCAL_TEST_COINS_AVAILABLE = all(
+    os.path.isfile(os.path.join(TEST_COINS_DIRECTORY, f"IMG_{number}.jpeg"))
+    for number in range(3460, 3470)
+)
+
+
 def summarize_accuracy(results):
     """Summarize analyzer output without invoking OCR or CV engines."""
     return {
@@ -61,10 +68,12 @@ class TestAccuracyHarness(unittest.TestCase):
         self.assertEqual(summary["unknown_denomination"], 1)
         self.assertEqual(summary["unknown_year"], 1)
 
+    @unittest.skipUnless(
+        LOCAL_TEST_COINS_AVAILABLE,
+        "uncertain local-only test_coins fixtures are unavailable",
+    )
     def test_harness_uses_repo_relative_test_images(self):
-        test_folder = os.path.join(os.path.dirname(__file__), "test_coins")
-
-        self.assertTrue(os.path.isdir(test_folder))
+        self.assertTrue(os.path.isdir(TEST_COINS_DIRECTORY))
 
     def test_analyzer_can_be_mocked_for_unit_tests(self):
         analyzer = MagicMock()

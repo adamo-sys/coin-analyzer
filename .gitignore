@@ -25,6 +25,11 @@ Thumbs.db
 /data/debug_feedback.csv
 /data/photo_inbox_state.json
 
+# Private local collection backups and exports
+/collection_backup_before_reimport.json
+/collection_backup_encoding.json
+/numista_export.xlsx
+
 # Generated OCR and image-recognition diagnostics
 /debug_outputs/
 
