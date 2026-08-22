@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from unittest.mock import patch
+from uuid import UUID
 
 from coin_collection import CoinCollection, CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
 
@@ -215,6 +216,38 @@ class TestCoinCollectionBackend(unittest.TestCase):
 
         self.assertTrue(app.add_to_collection("Canada", "Cent", "1920", "VF-20", "isolated"))
         self.assertTrue(os.path.exists(self.collection_path))
+
+    def test_generate_item_id_is_unique_across_rapid_calls(self):
+        collection = CoinCollection(self.collection_path)
+
+        generated = [collection.generate_item_id() for _ in range(1_000)]
+
+        self.assertEqual(len(generated), len(set(generated)))
+        for item_id in generated:
+            self.assertRegex(item_id, r"^coin_[0-9a-f]{32}$")
+
+    @patch("coin_collection.uuid4")
+    def test_generate_item_id_retries_an_existing_collection_id(self, mock_uuid4):
+        collision = UUID("00000000-0000-4000-8000-000000000001")
+        replacement = UUID("00000000-0000-4000-8000-000000000002")
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item(f"coin_{collision.hex}")]
+        mock_uuid4.side_effect = [collision, replacement]
+
+        self.assertEqual(f"coin_{replacement.hex}", collection.generate_item_id())
+        self.assertEqual(2, mock_uuid4.call_count)
+
+    @patch("coin_collection.uuid4")
+    def test_generate_item_id_fails_closed_after_repeated_collisions(self, mock_uuid4):
+        collision = UUID("00000000-0000-4000-8000-000000000001")
+        collection = CoinCollection(self.collection_path)
+        collection.items = [make_coin_item(f"coin_{collision.hex}")]
+        mock_uuid4.return_value = collision
+
+        with self.assertRaisesRegex(RuntimeError, "Unable to generate a unique coin item ID"):
+            collection.generate_item_id()
+
+        self.assertEqual(10, mock_uuid4.call_count)
 
     def test_legacy_image_path_only_record_loads_and_synthesizes_photo(self):
         image_path = "coin_photos/collection/Canada/1920_front.jpg"

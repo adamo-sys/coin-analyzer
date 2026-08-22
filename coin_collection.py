@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional, Set
 from dataclasses import dataclass, field
-from uuid import UUID
+from uuid import UUID, uuid4
 import cv2
 import numpy as np
 
@@ -1211,9 +1211,13 @@ class CoinCollection:
             return False
     
     def generate_item_id(self) -> str:
-        """Generate unique item ID."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"coin_{timestamp}"
+        """Generate a collision-resistant item ID unique within this collection."""
+        existing_ids = {item.id for item in self.items}
+        for _ in range(10):
+            candidate = f"coin_{uuid4().hex}"
+            if candidate not in existing_ids:
+                return candidate
+        raise RuntimeError("Unable to generate a unique coin item ID")
     
     def get_statistics(self) -> Dict:
         """Get collection statistics."""
