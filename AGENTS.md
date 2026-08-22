@@ -77,6 +77,45 @@ The agent never:
 The agent may prepare commit messages, tag suggestions, and release notes.
 The user retains sole authority over repository mutations.
 
+### 8. Private Data and Protected Local Files
+
+- Never inspect, commit, upload, or migrate collection backups, exports, live
+  collection records, collector notes, credentials, or private photographs
+  unless the user explicitly authorizes the exact material and operation.
+- Collection backups and exports must remain outside source control. Tests use
+  sanitized synthetic fixtures and temporary directories.
+- Preserve untracked files unless the user explicitly names them for change.
+  Do not infer that an untracked file is disposable or publishable.
+- The ten JPEGs under `test_coins/` have uncertain provenance and are
+  **UNCERTAIN / LOCAL-ONLY**. They may support their existing local test role,
+  but must not be uploaded to CI artifacts or external providers, redistributed,
+  or promoted into public benchmark manifests.
+
+### 9. Recognition and Evaluation Boundaries
+
+- Recognition and evaluation produce advisory findings only. They do not own
+  collection persistence, confirmed observations, or collector decisions.
+- Do not convert heuristic or source-specific scores into generic probability
+  confidence. Use unavailable confidence when semantics are not defensible.
+- Ground truth must be provenance-backed. Do not manufacture labels to satisfy
+  a schema or benchmark.
+- Evaluation inputs use sanitized relative references and explicit privacy
+  classification. Private or uncertain inputs do not enter cloud CI or provider
+  comparisons.
+
+### 10. Regression and Reporting Discipline
+
+- Run the relevant baseline before editing, focused tests after each unit, and
+  root unittest discovery plus compilation before completion when practical.
+- Date-sensitive tests use an injected/frozen clock or a fixture relative to a
+  controlled test time; production freshness semantics are not weakened for a
+  test.
+- Native Tk smoke validation must be reported as manual or unavailable when the
+  environment cannot genuinely exercise the window.
+- Keep unrelated fixes in separate commits.
+- Do not push or merge by default. Final reports include files changed, tests,
+  failures, review findings, commit status, and exact `git status`.
+
 ## Stop Conditions
 
 The agent must halt and await direction when any of the following occur:

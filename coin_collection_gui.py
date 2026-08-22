@@ -188,6 +188,9 @@ class CoinCollectionGUI:
         self.platform = Platform()
         self.platform_integration = PlatformIntegration(self.platform)
         self.platform_integration.initialize()
+        self.app.set_recognition_orchestrator(
+            self._build_default_legacy_recognition_orchestrator()
+        )
         self.ocr_identification_reports = []
         self.mobile_entry_reports = []
         self.workflow_completion_reports = []
@@ -257,6 +260,26 @@ class CoinCollectionGUI:
         self.create_widgets()
         self.refresh_collection_list()
         self.schedule_startup_photo_inbox_scan()
+
+    def _build_default_legacy_recognition_orchestrator(self):
+        """Compose the legacy detector shell with the runtime event bus."""
+        from legacy_coin_recognition_capability import LegacyCoinRecognitionCapability
+        from legacy_recognition_orchestration import (
+            RecognitionCapabilityRegistry,
+            RecognitionOrchestrator,
+        )
+
+        def emit(event_name, payload):
+            self.platform_integration.event_bus.publish_sync(
+                event_name,
+                dict(payload),
+                source="legacy_recognition_orchestrator",
+            )
+
+        return RecognitionOrchestrator(
+            RecognitionCapabilityRegistry((LegacyCoinRecognitionCapability(),)),
+            telemetry=emit,
+        )
     
     def create_menu_bar(self):
         """Create the menu bar."""
@@ -1105,8 +1128,31 @@ Total Unique Dates: {total_unique_dates}
         main_frame.rowconfigure(0, weight=1)
         
         # Left panel - Image and detection
-        left_panel = ttk.Frame(main_frame)
-        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        left_container = ttk.Frame(main_frame)
+        left_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        left_container.columnconfigure(0, weight=1)
+        left_container.rowconfigure(0, weight=1)
+
+        left_canvas = tk.Canvas(left_container, highlightthickness=0)
+        left_scrollbar = ttk.Scrollbar(
+            left_container,
+            orient=tk.VERTICAL,
+            command=left_canvas.yview,
+        )
+        left_canvas.configure(yscrollcommand=left_scrollbar.set)
+        left_canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        left_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        left_panel = ttk.Frame(left_canvas)
+        left_window = left_canvas.create_window((0, 0), window=left_panel, anchor=tk.NW)
+        left_panel.bind(
+            "<Configure>",
+            lambda _event: left_canvas.configure(scrollregion=left_canvas.bbox("all")),
+        )
+        left_canvas.bind(
+            "<Configure>",
+            lambda event: left_canvas.itemconfigure(left_window, width=event.width),
+        )
         
         # Image section
         image_frame = ttk.LabelFrame(left_panel, text="Photos", padding="10")

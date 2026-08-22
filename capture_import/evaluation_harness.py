@@ -27,6 +27,12 @@ from ocr_experiment import (
 
 from .desktop_ocr_review_composition import create_desktop_ocr_review_composition
 from .desktop_ocr_review_handoff import create_desktop_ocr_review_handoff
+from .evaluation_case_contract import (
+    EvaluationCase,
+    EvaluationInput,
+    EvaluationProvenance,
+    ExpectedFinding,
+)
 from .image_store import ManagedCollectionImageStore
 from .reviewed_coin_collection_entry import ReviewedCoinDraft, persist_reviewed_coin
 from .snapshot import CapturePackageSnapshotService
@@ -64,6 +70,52 @@ class BenchmarkManifest:
     version: str
     root: Path
     cases: tuple[BenchmarkCase, ...]
+
+
+def to_evaluation_case(
+    manifest: BenchmarkManifest,
+    case: BenchmarkCase,
+    *,
+    allowed_abstention: bool,
+    privacy_classification: str,
+) -> EvaluationCase:
+    """Project one validated OCR case into the common comparison contract."""
+
+    provenance = case.provenance
+    return EvaluationCase(
+        case_id=case.case_id,
+        specimen_id=None,
+        inputs=tuple(
+            sorted(
+                (
+                    EvaluationInput(
+                        role="obverse",
+                        reference=case.obverse.relative_to(manifest.root).as_posix(),
+                    ),
+                    EvaluationInput(
+                        role="reverse",
+                        reference=case.reverse.relative_to(manifest.root).as_posix(),
+                    ),
+                ),
+                key=lambda item: item.role,
+            )
+        ),
+        expected_findings=tuple(
+            ExpectedFinding(field=field, value=value)
+            for field, value in sorted(case.expected.items())
+        ),
+        allowed_abstention=allowed_abstention,
+        provenance=(
+            EvaluationProvenance(
+                role="case",
+                source_reference=str(provenance["source_url"]),
+                license=str(provenance["license"]),
+                author=str(provenance["author"]),
+                label_method="manifest_ground_truth",
+            ),
+        ),
+        privacy_classification=privacy_classification,
+    )
 
 
 def _require_text(value: object, name: str, *, allow_empty: bool = False) -> str:
