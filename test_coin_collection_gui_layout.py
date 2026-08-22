@@ -79,6 +79,49 @@ class CollectionLayoutTests(unittest.TestCase):
 
         self.assertEqual(expected, actual)
 
+    def test_photo_and_detection_column_is_vertically_scrollable(self):
+        canvas_calls = [
+            node
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "tk"
+            and node.func.attr == "Canvas"
+        ]
+        self.assertEqual(1, len(canvas_calls))
+
+        create_window_calls = self._calls("left_canvas", "create_window")
+        self.assertEqual(1, len(create_window_calls))
+        window_keyword = next(
+            keyword for keyword in create_window_calls[0].keywords if keyword.arg == "window"
+        )
+        self.assertIsInstance(window_keyword.value, ast.Name)
+        self.assertEqual("left_panel", window_keyword.value.id)
+
+        scrollbar_calls = [
+            node
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "ttk"
+            and node.func.attr == "Scrollbar"
+        ]
+        self.assertTrue(
+            any(
+                any(
+                    keyword.arg == "command"
+                    and isinstance(keyword.value, ast.Attribute)
+                    and isinstance(keyword.value.value, ast.Name)
+                    and keyword.value.value.id == "left_canvas"
+                    and keyword.value.attr == "yview"
+                    for keyword in call.keywords
+                )
+                for call in scrollbar_calls
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

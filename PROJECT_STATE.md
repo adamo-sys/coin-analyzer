@@ -38,7 +38,7 @@ Sprint 19 is closed. No new production feature implementation is authorized unti
 * Repository status: Stable
 * Architecture: Established
 * Public APIs: Stable
-* Testing: 4,333 tests passing (4,356 discovered; 23 skipped) — Sprint 19 authoritative regression, 2026-08-05
+* Testing: 4,536 tests passing (4,559 discovered; 23 skipped) — migration-candidate regression, 2026-08-22
 * Development mode: Evidence-driven discovery
 * Next milestone: v8.9 - Know My Collection
 
@@ -58,11 +58,11 @@ Sprint 19 is closed. No new production feature implementation is authorized unti
 
 ## Coin Analyzer Statistics
 
-Last updated: 2026-08-05 after Sprint 19 merge (PR #11, `59c114f`).
+Last updated: 2026-08-22 after migration-candidate Stage 2.1 verification.
 
-* Python modules: 94 `capture_import` modules; 104 root production modules.
-* Test files: 102 in `tests/`, 99 at root.
-* Current full regression: 4,356 discovered; 4,333 passed; 23 skipped; 0 failures.
+* Python modules: 109 `capture_import` modules; 108 root production modules.
+* Test files: 122 in `tests/`, 99 at root.
+* Current full regression: 4,559 discovered; 4,536 passed; 23 skipped; 0 failures.
 * Release line: `v0.2` -> `v8.8.0` released; 72 local release tags through `v8.8.0`.
 * Architecture and governance docs: 8+ core docs (`VISION.md`, `ARCHITECTURE.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, `ROADMAP.md`, `TASK_QUEUE.md`, `RELEASE_HISTORY.md`, `project_docs/release_prompts/RELEASE_GOVERNANCE.md`).
 * Workspace GUI tabs: 12.

@@ -4,7 +4,7 @@
 
 Coin Analyzer is a local-first Python desktop application for managing a coin and banknote collection, tracking exact acquisition costs, understanding portfolio coverage, and asking grounded natural-language questions about collection data.
 
-The project combines practical collector workflows with disciplined software engineering: deterministic analytics, backward-compatible JSON persistence, optional cloud AI, explicit privacy boundaries, and 1,598 automated tests.
+The project combines practical collector workflows with disciplined software engineering: deterministic analytics, backward-compatible JSON persistence, optional cloud AI, explicit privacy boundaries, and 4,559 automated tests.
 
 ## See it in action
 
@@ -40,7 +40,7 @@ Coin Analyzer brings those workflows into one Windows desktop application. The c
 | AI | Optional OpenAI Responses API |
 | Architecture | Local-first with an explicit optional cloud boundary |
 | Financial arithmetic | `Decimal` acquisition money |
-| Automated regression | 4,356 tests discovered; 4,333 passed and 23 skipped |
+| Automated regression | 4,559 tests discovered; 4,536 passed and 23 skipped |
 | Primary platform | Windows |
 
 ## What it helps you do
@@ -103,7 +103,7 @@ If a model explanation introduces unsupported numeric wording or fails validatio
 - **Backward compatibility:** older JSON and CSV records load without migrations or fabricated acquisition data.
 - **Atomic persistence:** collection writes use a validated temporary-file replacement workflow.
 - **Optional dependency isolation:** core startup and CI do not require the OpenAI SDK or an API key.
-- **Regression discipline:** 1,598 automated tests cover backend, persistence, workflows, integrations, and headless GUI behavior.
+- **Regression discipline:** 4,559 automated tests cover backend, persistence, workflows, integrations, and headless GUI behavior.
 - **OCR review package boundaries:** Sprint 19 adds AST-based import-boundary enforcement for OCR review workflow, persistence, and desktop integration modules.
 - **Decision records:** accepted architectural choices are documented as ADRs.
 
@@ -205,7 +205,7 @@ Run the complete `unittest` suite from the repository root:
 .\.venv\Scripts\python.exe -m unittest discover -s . -p "test_*.py"
 ```
 
-The current verified baseline is **1,598 passing tests**. Normal tests use isolated fixtures, temporary directories, and fake AI adapters; they do not load the live collection or make provider calls.
+The current verified baseline is **4,536 passing tests** from 4,559 discovered, with 23 platform-gated skips. Normal tests use isolated fixtures, temporary directories, and fake AI adapters; they do not load the live collection or make provider calls.
 
 See [TESTING.md](TESTING.md) for fixture, OCR experiment, GUI, and manual-acceptance guidance.
 

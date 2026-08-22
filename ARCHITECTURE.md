@@ -104,6 +104,10 @@ create authoritative collection facts.
 | `openai_collection_assistant.py` | Optional OpenAI Responses structured-output adapter; imported only when explicitly configured |
 | `gui.py` / `main.py` | Older experimental folder-analysis GUI and launcher |
 
+The supported Tkinter manager keeps the photo, detection, and optional advanced
+identification controls in one vertically scrollable column so collector actions
+remain reachable when photo previews exceed the available window height.
+
 ### Platform, fixtures, and experiments
 
 - `backup_manager.py` and `sync_backup_engine.py` provide local backup,
