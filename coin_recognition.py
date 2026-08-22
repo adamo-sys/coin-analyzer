@@ -25,17 +25,6 @@ class CoinRecognizer:
         # Configure Tesseract path for Windows
         self.configure_tesseract()
         
-        # Canadian coin specifications (approximate diameters in pixels for reference)
-        # These are relative sizes - actual detection will use proportional analysis
-        self.coin_specs = {
-            'penny': {'diameter_ratio': 0.85, 'color': 'copper'},
-            'nickel': {'diameter_ratio': 0.90, 'color': 'silver'},
-            'dime': {'diameter_ratio': 0.70, 'color': 'silver'},
-            'quarter': {'diameter_ratio': 1.00, 'color': 'silver'},
-            '50_cent': {'diameter_ratio': 1.15, 'color': 'silver'},
-            'dollar': {'diameter_ratio': 1.10, 'color': 'gold'}
-        }
-        
         # Common year patterns for digit recognition
         self.year_patterns = {
             '0': [cv2.imread('templates/0.png', 0)] if False else [],
@@ -106,17 +95,26 @@ class CoinRecognizer:
             # Segment the coin from the background
             coin_segment = self.segment_coin(gray, coin_info)
             
-            # Identify denomination with confidence
-            denomination_result = self.identify_denomination(coin_segment, coin_info)
-            
             # Identify obverse vs reverse
             orientation = self.identify_orientation(coin_segment)
             
             # Detect year with confidence and OCR variants using cropped date region
             year_result = self.detect_year(coin_segment, orientation, image_path, coin_info)
+
+            # Denomination suggestions require explicit textual evidence. A coin's
+            # apparent diameter in a single unscaled photo is not a physical size.
+            recognition_text = year_result.get(
+                'recognized_text',
+                year_result['all_ocr_text'],
+            )
+            denomination_result = self.identify_denomination(
+                coin_segment,
+                coin_info,
+                ocr_text=recognition_text,
+            )
             
             # Detect country with confidence (no default to Canada)
-            country_result = self.detect_country(image_path, year_result['all_ocr_text'])
+            country_result = self.detect_country(image_path, recognition_text)
             
             return {
                 'success': True,
@@ -147,31 +145,78 @@ class CoinRecognizer:
         Returns:
             Dictionary with circle detection results
         """
-        # Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+        height, width = gray.shape[:2]
+        longest_side = max(height, width)
+        detection_scale = min(1.0, 1000.0 / longest_side)
+        detection_gray = gray
+        if detection_scale < 1.0:
+            detection_gray = cv2.resize(
+                gray,
+                (max(1, int(width * detection_scale)), max(1, int(height * detection_scale))),
+                interpolation=cv2.INTER_AREA,
+            )
+
+        # Run Hough detection at a bounded resolution, but express allowed coin
+        # radii relative to the image instead of using a phone-photo-hostile
+        # fixed 300-pixel ceiling.
+        blurred = cv2.GaussianBlur(detection_gray, (9, 9), 2)
+        minimum_dimension = min(detection_gray.shape[:2])
         
         # Detect circles using Hough Circle Transform
         circles = cv2.HoughCircles(
             blurred,
             cv2.HOUGH_GRADIENT,
             dp=1.2,
-            minDist=100,
+            minDist=max(50, int(minimum_dimension * 0.25)),
             param1=50,
             param2=30,
-            minRadius=50,
-            maxRadius=300
+            minRadius=max(30, int(minimum_dimension * 0.10)),
+            maxRadius=max(50, int(minimum_dimension * 0.49)),
         )
         
         if circles is None:
             return {'success': False}
         
         circles = np.round(circles[0, :]).astype("int")
-        
-        # Take the largest circle (assuming it's the coin)
+
         if len(circles) > 0:
-            # Sort by radius (descending)
-            circles = sorted(circles, key=lambda x: x[2], reverse=True)
-            x, y, radius = circles[0]
+            detection_height, detection_width = detection_gray.shape[:2]
+
+            def circle_rank(circle: np.ndarray) -> tuple:
+                """Prefer large circles that are substantially inside the photo."""
+
+                candidate_x, candidate_y, candidate_radius = circle
+                diameter = max(1, candidate_radius * 2)
+                visible_width = max(
+                    0,
+                    min(detection_width, candidate_x + candidate_radius)
+                    - max(0, candidate_x - candidate_radius),
+                )
+                visible_height = max(
+                    0,
+                    min(detection_height, candidate_y + candidate_radius)
+                    - max(0, candidate_y - candidate_radius),
+                )
+                visible_fraction = min(
+                    visible_width / diameter,
+                    visible_height / diameter,
+                )
+                center_distance = np.hypot(
+                    (candidate_x - detection_width / 2) / detection_width,
+                    (candidate_y - detection_height / 2) / detection_height,
+                )
+                return (
+                    visible_fraction >= 0.85,
+                    candidate_radius * visible_fraction,
+                    -center_distance,
+                    candidate_radius,
+                )
+
+            x, y, radius = max(circles, key=circle_rank)
+            if detection_scale < 1.0:
+                x = int(round(x / detection_scale))
+                y = int(round(y / detection_scale))
+                radius = int(round(radius / detection_scale))
             
             return {
                 'success': True,
@@ -213,87 +258,59 @@ class CoinRecognizer:
         
         return coin_crop
     
-    def identify_denomination(self, coin_segment: np.ndarray, coin_info: Dict) -> Dict:
+    def identify_denomination(
+        self,
+        coin_segment: np.ndarray,
+        coin_info: Dict,
+        ocr_text: str = "",
+    ) -> Dict:
         """
-        Identify coin denomination using size and color analysis with confidence scoring.
+        Identify denomination only from explicit OCR text.
         
         Args:
             coin_segment: Segmented coin image
             coin_info: Coin detection information
+            ocr_text: Bounded OCR evidence collected from the same image
             
         Returns:
             Dictionary with denomination and confidence score
         """
-        # Analyze color
-        color = self.analyze_color(coin_segment)
-        
-        # Analyze size relative to image
-        radius = coin_info['radius']
-        image_diagonal = np.sqrt(coin_segment.shape[0]**2 + coin_segment.shape[1]**2)
-        size_ratio = radius / (image_diagonal / 2)
-        
-        # Match against specifications with confidence scoring
-        candidates = []
-        
-        for denom, spec in self.coin_specs.items():
-            # Score based on size similarity
-            size_score = 1 - abs(size_ratio - spec['diameter_ratio'] * 0.5)
-            
-            # Score based on color match
-            color_score = 1 if color == spec['color'] else 0.5
-            
-            # Combined score
-            total_score = (size_score * 0.7) + (color_score * 0.3)
-            
-            candidates.append({
-                'denomination': denom,
-                'confidence': total_score
-            })
-        
-        # Sort by confidence
-        candidates.sort(key=lambda x: x['confidence'], reverse=True)
-        
-        best_candidate = candidates[0]
-        
-        # Return unknown if confidence is too low
-        if best_candidate['confidence'] < 0.5:
-            return {
-                'denomination': 'unknown',
-                'confidence': best_candidate['confidence'],
-                'candidates': candidates
+        normalized = re.sub(r"[^a-z0-9]+", " ", str(ocr_text).casefold()).strip()
+        patterns = (
+            # Raised rim/detail can make Tesseract append a false trailing S to
+            # ONE; require the following CENT token before accepting it.
+            (r"\bones?\s+cent\b|\b1\s+cent\b", "penny"),
+            (r"\bfive\s+cents?\b|\b5\s+cents?\b", "nickel"),
+            (r"\bten\s+cents?\b|\b10\s+cents?\b", "dime"),
+            (r"\btwenty\s*five\s+cents?\b|\b25\s+cents?\b", "quarter"),
+            (r"\bfifty\s+cents?\b|\b50\s+cents?\b", "50_cent"),
+            (r"\bone\s+dollar\b|\b1\s+dollar\b", "dollar"),
+        )
+        candidates = [
+            {
+                "denomination": denomination,
+                # Binary exact-phrase evidence, not a calibrated probability.
+                "confidence": 1.0,
+                "source": "ocr_text",
             }
-        
-        return {
-            'denomination': best_candidate['denomination'],
-            'confidence': best_candidate['confidence'],
-            'candidates': candidates
-        }
-    
-    def analyze_color(self, coin_segment: np.ndarray) -> str:
-        """
-        Analyze coin color to determine metal type.
-        
-        Args:
-            coin_segment: Segmented coin image
-            
-        Returns:
-            Color string ('copper', 'silver', 'gold')
-        """
-        # Convert to color if needed (this would need the original color image)
-        # For now, use grayscale analysis
-        mean_intensity = np.mean(coin_segment)
-        
-        # Simple heuristic based on intensity
-        # Copper coins (pennies) tend to be darker
-        # Silver coins are brighter
-        # Gold coins (dollar) have intermediate values
-        
-        if mean_intensity < 100:
-            return 'copper'
-        elif mean_intensity > 150:
-            return 'silver'
-        else:
-            return 'gold'
+            for pattern, denomination in patterns
+            if re.search(pattern, normalized)
+        ]
+        if not candidates:
+            return {
+                "denomination": "unknown",
+                "confidence": 0.0,
+                "candidates": [],
+                "source": "unavailable",
+            }
+        if len(candidates) > 1:
+            return {
+                "denomination": "unknown",
+                "confidence": 0.0,
+                "candidates": candidates,
+                "source": "conflicting_ocr_text",
+            }
+        return {**candidates[0], "candidates": candidates}
     
     def identify_orientation(self, coin_segment: np.ndarray) -> str:
         """
@@ -336,71 +353,191 @@ class CoinRecognizer:
         Returns:
             Dictionary with year detection results including confidence and candidates
         """
-        current_year = datetime.now().year
-        year_pattern = r'\b(18[5-9][0-9]|19[0-9]{2}|20[0-9]{2})\b'
-        
-        # Detect text regions in the coin image
-        text_regions = self.detect_text_regions(image_path, coin_info)
-        
-        if not text_regions:
-            return {
-                'year': None,
-                'confidence': 0.0,
-                'candidates': [],
-                'all_ocr_text': 'No text regions detected'
-            }
-        
-        # Extract years from each text region with confidence scoring
+        # Keep the OCR workload bounded. Whole-face and targeted date crops are
+        # more useful than running Tesseract once per individual letter contour.
+        text_config = "--psm 6 --oem 3"
+        sparse_text_config = "--psm 11 --oem 3"
+        digits_config = "--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789"
+        ocr_jobs = []
+        if coin_segment is not None and coin_segment.size:
+            upscaled_coin = self.resize_for_ocr(coin_segment)
+            _, thresholded_coin = cv2.threshold(
+                upscaled_coin,
+                0,
+                255,
+                cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+            )
+            high_contrast_coin = cv2.createCLAHE(
+                clipLimit=3.0,
+                tileGridSize=(8, 8),
+            ).apply(upscaled_coin)
+            ocr_jobs.extend((
+                ("coin_upscaled", upscaled_coin, text_config),
+                ("coin_thresholded", thresholded_coin, sparse_text_config),
+                ("coin_high_contrast", high_contrast_coin, text_config),
+            ))
+        date_crop = self.crop_date_region(image_path, coin_info)
+        if date_crop is not None and date_crop.size:
+            ocr_jobs.extend(
+                (f"date_{name}", variant, digits_config)
+                for name, variant in self.generate_date_crop_variants(date_crop).items()
+                if name in {"upscaled", "high_contrast"}
+            )
+        ocr_jobs.extend(self.build_embossed_text_jobs(image_path, coin_info))
+
         year_candidates = []
         all_ocr_text = []
-        
-        for i, region in enumerate(text_regions):
+        recognized_text = []
+        try:
+            import pytesseract
+        except Exception as error:
+            return {
+                "year": None,
+                "confidence": 0.0,
+                "candidates": [],
+                "all_ocr_text": f"OCR unavailable: {error.__class__.__name__}",
+                "recognized_text": "",
+            }
+
+        for source_name, region, config in ocr_jobs:
             try:
-                import pytesseract
-                # Try different OCR configurations
-                configs = [
-                    '--psm 7 --oem 3',  # Treat as single text line
-                    '--psm 6 --oem 3',  # Assume uniform block of text
-                ]
-                
-                for config in configs:
-                    text = pytesseract.image_to_string(region, config=config)
-                    all_ocr_text.append(f"region_{i} ({config}): {text[:100]}")
-                    
-                    # Find all year matches
-                    matches = re.findall(year_pattern, text)
-                    
-                    for match in matches:
-                        year = int(match)
-                        # Validate year is in reasonable range
-                        if 1850 <= year <= current_year:
-                            # Calculate confidence
-                            confidence = self.calculate_year_confidence(f"region_{i}", text, match)
-                            year_candidates.append({
-                                'year': match,
-                                'confidence': confidence,
-                                'source': f"region_{i} ({config})"
-                            })
-            except Exception as e:
-                all_ocr_text.append(f"region_{i}: OCR Error - {str(e)}")
-        
-        # Sort candidates by confidence (descending)
-        year_candidates.sort(key=lambda x: x['confidence'], reverse=True)
-        
-        # Select best year if confidence is high enough
+                text = pytesseract.image_to_string(region, config=config, timeout=2)
+            except Exception as error:
+                all_ocr_text.append(f"{source_name}: OCR Error - {error.__class__.__name__}")
+                continue
+            all_ocr_text.append(f"{source_name} ({config}): {text[:100]}")
+            if text.strip():
+                recognized_text.append(text.strip())
+            for match in self.extract_years_from_text(text):
+                year_candidates.append({
+                    "year": match,
+                    "confidence": self.calculate_year_confidence(source_name, text, match),
+                    "source": f"{source_name} ({config})",
+                })
+
+        year_candidates.sort(key=lambda item: (-item['confidence'], item['year'], item['source']))
+
+        # Select only an unambiguous plurality. Conflicting OCR variants must
+        # not become an arbitrary year suggestion because of iteration order.
         best_year = None
         year_confidence = 0.0
-        
-        if year_candidates and year_candidates[0]['confidence'] > 0.3:
-            best_year = year_candidates[0]['year']
-            year_confidence = year_candidates[0]['confidence']
+        counts = {}
+        for candidate in year_candidates:
+            counts[candidate['year']] = counts.get(candidate['year'], 0) + 1
+        if counts:
+            ordered_counts = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+            top_year, top_count = ordered_counts[0]
+            tied = len(ordered_counts) > 1 and ordered_counts[1][1] == top_count
+            if not tied:
+                best_year = top_year
+                best_source_score = max(
+                    item['confidence']
+                    for item in year_candidates
+                    if item['year'] == top_year
+                )
+                year_confidence = min(best_source_score + (0.1 if top_count > 1 else 0.0), 1.0)
         
         return {
             'year': best_year,
             'confidence': year_confidence,
             'candidates': year_candidates,
-            'all_ocr_text': '\n'.join(all_ocr_text)
+            'all_ocr_text': '\n'.join(all_ocr_text),
+            'recognized_text': '\n'.join(recognized_text),
         }
+
+    def build_embossed_text_jobs(self, image_path: str, coin_info: Dict) -> List[tuple]:
+        """Build three bounded OCR jobs for upright, embossed coin text."""
+
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None or not image.size:
+            return []
+
+        center_x, center_y = coin_info.get("center", (0, 0))
+        radius = int(coin_info.get("radius", 0))
+        if radius <= 0:
+            return []
+        image_height, image_width = image.shape[:2]
+        image = image[
+            max(0, center_y - radius):min(image_height, center_y + radius),
+            max(0, center_x - radius):min(image_width, center_x + radius),
+        ]
+        if not image.size:
+            return []
+        height, width = image.shape[:2]
+        region_specs = (
+            (
+                "embossed_denomination_upper",
+                (0.075, 0.325, 0.20, 0.95),
+                "--psm 13 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            ),
+            (
+                "embossed_denomination_lower",
+                (0.28, 0.565, 0.16, 0.98),
+                "--psm 13 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            ),
+            (
+                "embossed_date",
+                (0.55, 0.75, 0.29, 0.90),
+                "--psm 13 --oem 3 -c tessedit_char_whitelist=0123456789",
+            ),
+        )
+
+        jobs = []
+        for source_name, (top, bottom, left, right), config in region_specs:
+            region = image[
+                int(height * top):int(height * bottom),
+                int(width * left):int(width * right),
+            ]
+            if not region.size:
+                continue
+            longest_side = max(region.shape[:2])
+            scale = min(2.0, 1800.0 / longest_side)
+            if scale != 1.0:
+                interpolation = cv2.INTER_CUBIC if scale > 1.0 else cv2.INTER_AREA
+                region = cv2.resize(
+                    region,
+                    (
+                        max(1, int(region.shape[1] * scale)),
+                        max(1, int(region.shape[0] * scale)),
+                    ),
+                    interpolation=interpolation,
+                )
+            enhanced = cv2.createCLAHE(
+                clipLimit=3.0,
+                tileGridSize=(8, 8),
+            ).apply(region)
+            embossed_gradient = cv2.morphologyEx(
+                enhanced,
+                cv2.MORPH_GRADIENT,
+                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)),
+            )
+            jobs.append((source_name, embossed_gradient, config))
+        return jobs
+
+    @staticmethod
+    def extract_years_from_text(text: str) -> List[str]:
+        """Return plausible four-digit years without repairing ambiguous glyphs."""
+
+        current_year = datetime.now().year
+        # Tesseract sometimes inserts spaces between otherwise clear digits.
+        digit_joined = re.sub(r"(?<=\d)\s+(?=\d)", "", str(text))
+        matches = re.findall(r"(?<!\d)(18[5-9][0-9]|19[0-9]{2}|20[0-9]{2})(?!\d)", digit_joined)
+        return [year for year in matches if 1850 <= int(year) <= current_year]
+
+    @staticmethod
+    def resize_for_ocr(image: np.ndarray, maximum_dimension: int = 1000) -> np.ndarray:
+        """Bound OCR input size while preserving smaller source detail."""
+
+        height, width = image.shape[:2]
+        longest_side = max(height, width)
+        if longest_side <= maximum_dimension:
+            return image.copy()
+        scale = maximum_dimension / longest_side
+        return cv2.resize(
+            image,
+            (max(1, int(width * scale)), max(1, int(height * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
     
     def detect_text_regions(self, image_path: str, coin_info: Dict) -> List[np.ndarray]:
         """
@@ -536,10 +673,9 @@ class CoinRecognizer:
             
             # Use the largest region (most likely to contain date)
             best_crop = max(crop_regions, key=lambda x: x.shape[0] * x.shape[1])
-            
-            # Save the cropped date image to debug folder
+
             filename = os.path.basename(image_path)
-            debug_path = os.path.join(DEBUG_OUTPUT_ROOT, 'date_crops', f'crop_{filename}')
+            debug_path = os.path.join(DEBUG_OUTPUT_ROOT, "date_crops", f"crop_{filename}")
             os.makedirs(os.path.dirname(debug_path), exist_ok=True)
             cv2.imwrite(debug_path, best_crop)
             
@@ -699,16 +835,16 @@ class CoinRecognizer:
         """
         # Common country names and their variations
         country_patterns = {
-            'canada': ['canada', 'canadian', 'ca', 'can'],
-            'united states': ['usa', 'united states', 'america', 'us', 'united states of america'],
-            'united kingdom': ['uk', 'united kingdom', 'great britain', 'britain', 'england'],
-            'australia': ['australia', 'australian', 'aus'],
-            'france': ['france', 'french', 'fr'],
-            'germany': ['germany', 'german', 'deutschland', 'de'],
-            'japan': ['japan', 'japanese', 'jp'],
-            'china': ['china', 'chinese', 'cn'],
-            'mexico': ['mexico', 'mexican', 'mx'],
-            'spain': ['spain', 'spanish', 'es']
+            'canada': ['canada', 'canadian'],
+            'united states': ['usa', 'united states', 'america', 'united states of america'],
+            'united kingdom': ['united kingdom', 'great britain', 'britain', 'england'],
+            'australia': ['australia', 'australian'],
+            'france': ['france', 'french'],
+            'germany': ['germany', 'german', 'deutschland'],
+            'japan': ['japan', 'japanese'],
+            'china': ['china', 'chinese'],
+            'mexico': ['mexico', 'mexican'],
+            'spain': ['spain', 'spanish']
         }
         
         text_lower = ocr_text.lower()
@@ -718,7 +854,7 @@ class CoinRecognizer:
         for country, patterns in country_patterns.items():
             score = 0
             for pattern in patterns:
-                if pattern in text_lower:
+                if re.search(rf"\b{re.escape(pattern)}\b", text_lower):
                     # Exact match gets higher score
                     if pattern == text_lower:
                         score += 1.0

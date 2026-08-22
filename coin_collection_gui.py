@@ -2410,8 +2410,9 @@ Total Unique Dates: {total_unique_dates}
             text += f"Suggested Year: {result['year']}\n"
             self.detection_label.config(text=text)
             
-            confidence_text = f"Denomination Confidence: {result['confidence']:.2%}\n"
-            confidence_text += f"Year Confidence: {result['year_confidence']:.2%}"
+            confidence_text = f"Denomination Evidence Score: {result['confidence']:.2%}\n"
+            confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
+            confidence_text += "Source scores are not calibrated probabilities."
             self.confidence_label.config(text=confidence_text)
             
             # Log detection for debugging
