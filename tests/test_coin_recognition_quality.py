@@ -1,7 +1,9 @@
 """Focused contracts for the legacy detector's evidence-based suggestions."""
 
+import sys
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -72,10 +74,13 @@ class TestCoinRecognitionQuality(unittest.TestCase):
 
     def test_year_detection_ocr_includes_whole_coin_variants(self):
         coin = np.zeros((80, 80), dtype=np.uint8)
+        fake_pytesseract = SimpleNamespace(
+            image_to_string=Mock(return_value="ONE CENT 18 59"),
+        )
         with (
             patch.object(self.recognizer, "crop_date_region", return_value=None),
             patch.object(self.recognizer, "build_embossed_text_jobs", return_value=[]),
-            patch("pytesseract.image_to_string", return_value="ONE CENT 18 59"),
+            patch.dict(sys.modules, {"pytesseract": fake_pytesseract}),
         ):
             result = self.recognizer.detect_year(
                 coin,
@@ -93,10 +98,13 @@ class TestCoinRecognitionQuality(unittest.TestCase):
             ("lower", np.zeros((20, 40), dtype=np.uint8), "lower-config"),
             ("date", np.zeros((20, 40), dtype=np.uint8), "date-config"),
         ]
+        fake_pytesseract = SimpleNamespace(
+            image_to_string=Mock(side_effect=["ONE", "CENT", "1859"]),
+        )
         with (
             patch.object(self.recognizer, "crop_date_region", return_value=None),
             patch.object(self.recognizer, "build_embossed_text_jobs", return_value=jobs),
-            patch("pytesseract.image_to_string", side_effect=["ONE", "CENT", "1859"]),
+            patch.dict(sys.modules, {"pytesseract": fake_pytesseract}),
         ):
             result = self.recognizer.detect_year(
                 np.empty((0, 0), dtype=np.uint8),
