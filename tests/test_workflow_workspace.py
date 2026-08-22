@@ -342,7 +342,9 @@ class CleanupFailureTests(WorkspaceTestCase):
         extra.write_bytes(b"2")
         with self.assertRaises(WorkspaceCleanupError):
             workspace.close()
-        extra.unlink()  # caller removes the excess entry
+        survivors = list(workspace.path.iterdir())
+        self.assertEqual(len(survivors), 1)
+        survivors[0].unlink()  # caller removes whichever entry exceeded the bound
         workspace.close()
         self.assertTrue(workspace.is_closed)
         self.assertFalse(workspace.path.exists())
