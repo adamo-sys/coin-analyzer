@@ -29,6 +29,7 @@ from .visual_evaluation_harness import (
     REQUIRED_IDENTITY_FIELDS,
     VisualBenchmarkManifest,
     load_visual_manifest,
+    score_selective_safety,
     score_visual_results,
 )
 from .visual_identity_provider import (
@@ -326,6 +327,7 @@ def score_canonical_results(
                 if isinstance(value, Mapping):
                     for rule in value.get("normalization_rules", []):
                         rules[str(rule)] += 1
+    safety = score_selective_safety(rows, field_matcher=_canonical_field_match)
     return {
         "total_cases": len(rows),
         "predicted_cases": outcomes["PREDICTED"],
@@ -356,6 +358,7 @@ def score_canonical_results(
         },
         "canonicalization_rules_exercised": dict(sorted(rules.items())),
         "latency": _latencies(latencies),
+        **safety,
     }
 
 
@@ -475,7 +478,14 @@ def _candidate_record(candidate: object) -> dict[str, object]:
         "denomination": candidate.denomination,
         "year": candidate.year,
         "type_design": candidate.type_design,
+        "source_score": candidate.source_score,
+        "source_score_semantics": "uncalibrated_provider_source_score",
         "confidence": candidate.confidence,
+        "observed_text": list(candidate.observed_text),
+        "field_evidence": {
+            field: list(observations)
+            for field, observations in candidate.field_evidence
+        },
         "evidence_observations": list(candidate.evidence_observations),
         "supporting_image_roles": list(candidate.supporting_image_roles),
         "provider_id": candidate.provider_id,
@@ -517,6 +527,22 @@ def render_visual_summary(report: Mapping[str, object]) -> str:
             f"Canonical denomination accuracy: {_percent(canonical['denomination_accuracy'])}",
             f"Exact full required identity: {_percent(exact['full_required_identity_accuracy'])}",
             f"Canonical full required identity: {_percent(canonical['full_required_identity_accuracy'])}",
+            "Exact full-identity coverage: "
+            + _percent(exact["field_coverage"]["full_required_identity"]),
+            "Exact selective full-identity accuracy: "
+            + _percent(exact["selective_accuracy"]["full_required_identity"]),
+            "Exact high-source-score incomplete identities: "
+            + str(exact["source_score_safety"]["high_score_incomplete"]),
+            "Exact high-source-score incorrect identities: "
+            + str(exact["source_score_safety"]["high_score_incorrect"]),
+            "Exact high-source-score unsafe rate: "
+            + _percent(exact["source_score_safety"]["high_score_unsafe_rate"]),
+            "Canonical high-source-score incomplete identities: "
+            + str(canonical["source_score_safety"]["high_score_incomplete"]),
+            "Canonical high-source-score incorrect identities: "
+            + str(canonical["source_score_safety"]["high_score_incorrect"]),
+            "Canonical high-source-score unsafe rate: "
+            + _percent(canonical["source_score_safety"]["high_score_unsafe_rate"]),
             f"Type/design exact-label differences: {canonical['required_identity_correct_but_type_design_label_differs']['count']}",
             f"Abstention rate: {_percent(exact['abstention_rate'])}",
             f"Mean latency: {_seconds(exact['latency']['mean_seconds'])}",

@@ -14,7 +14,7 @@ import json
 import math
 from pathlib import Path, PurePosixPath
 import statistics
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 from PIL import Image
 
@@ -44,6 +44,8 @@ ALLOWED_LICENSES = frozenset(
         "PUBLIC-DOMAIN",
     }
 )
+SOURCE_SCORE_HIGH_THRESHOLD = 0.90
+SOURCE_SCORE_BINS = ((0.0, 0.7), (0.7, 0.9), (0.9, 1.0))
 
 
 class VisualBenchmarkManifestError(ValueError):
@@ -266,6 +268,199 @@ def _latencies(values: list[float]) -> dict[str, float | None]:
     }
 
 
+def score_selective_safety(
+    rows: Iterable[Mapping[str, object]],
+    *,
+    field_matcher: Callable[[Mapping[str, object], Mapping[str, object], str], bool],
+) -> dict[str, object]:
+    """Measure useful coverage and mistakes hidden by aggregate accuracy.
+
+    Provider source scores are treated only as uncalibrated ranking evidence.
+    The bin diagnostics reveal whether those scores correlate with correctness;
+    they do not convert the scores into probabilities.
+    """
+
+    eligible = Counter()
+    supplied = Counter()
+    supplied_correct = Counter()
+    scored: list[tuple[float, bool, bool, str]] = []
+    missing_source_scores = 0
+    invalid_source_score_case_ids: list[str] = []
+    fields = (*REQUIRED_IDENTITY_FIELDS, *OPTIONAL_IDENTITY_FIELDS)
+    for row in rows:
+        if (
+            row.get("identity_certain") is not True
+            or row.get("outcome") == "INFRASTRUCTURE_FAILURE"
+        ):
+            continue
+        expected = row.get("expected")
+        if not isinstance(expected, Mapping):
+            raise ValueError("evaluated certain results require expected values.")
+        for field in fields:
+            if field in expected:
+                eligible[field] += 1
+        eligible["full_required_identity"] += 1
+        if row.get("outcome") != "PREDICTED":
+            continue
+        predictions = row.get("predictions")
+        if not isinstance(predictions, list) or not predictions:
+            raise ValueError("predicted certain results require predictions.")
+        first = predictions[0]
+        if not isinstance(first, Mapping):
+            raise ValueError("predictions must contain objects.")
+        for field in fields:
+            if field in expected and _has_value(first.get(field)):
+                supplied[field] += 1
+                supplied_correct[field] += field_matcher(first, expected, field)
+        required_supplied = all(
+            _has_value(first.get(field)) for field in REQUIRED_IDENTITY_FIELDS
+        )
+        required_correct = required_supplied and all(
+            field_matcher(first, expected, field)
+            for field in REQUIRED_IDENTITY_FIELDS
+        )
+        if required_supplied:
+            supplied["full_required_identity"] += 1
+            supplied_correct["full_required_identity"] += required_correct
+        source_score, invalid_source_score = _source_score_observation(row)
+        if invalid_source_score:
+            invalid_source_score_case_ids.append(_auditable_case_id(row))
+        elif source_score is None:
+            missing_source_scores += 1
+        if source_score is not None:
+            scored.append(
+                (
+                    source_score,
+                    required_supplied,
+                    required_correct,
+                    _auditable_case_id(row),
+                )
+            )
+
+    coverage = {
+        field: _rate(supplied[field], eligible[field])
+        for field in (*fields, "full_required_identity")
+    }
+    selective_accuracy = {
+        field: _rate(supplied_correct[field], supplied[field])
+        for field in (*fields, "full_required_identity")
+    }
+    bins = []
+    calibration_weighted_gap = 0.0
+    for lower, upper in SOURCE_SCORE_BINS:
+        members = [
+            (score, correct)
+            for score, _complete, correct, _case_id in scored
+            if lower <= score < upper or (upper == 1.0 and score == 1.0)
+        ]
+        mean_score = (
+            statistics.fmean(score for score, _correct in members)
+            if members
+            else None
+        )
+        empirical_accuracy = (
+            statistics.fmean(1.0 if correct else 0.0 for _score, correct in members)
+            if members
+            else None
+        )
+        gap = (
+            abs(mean_score - empirical_accuracy)
+            if mean_score is not None and empirical_accuracy is not None
+            else None
+        )
+        if gap is not None and scored:
+            calibration_weighted_gap += len(members) / len(scored) * gap
+        bins.append(
+            {
+                "lower_inclusive": lower,
+                "upper_inclusive": upper == 1.0,
+                "upper": upper,
+                "count": len(members),
+                "mean_source_score": mean_score,
+                "empirical_full_identity_accuracy": empirical_accuracy,
+                "absolute_gap": gap,
+            }
+        )
+    high_score_incorrect = sorted(
+        case_id
+        for score, complete, correct, case_id in scored
+        if score >= SOURCE_SCORE_HIGH_THRESHOLD and complete and not correct
+    )
+    high_score_incomplete = sorted(
+        case_id
+        for score, complete, _correct, case_id in scored
+        if score >= SOURCE_SCORE_HIGH_THRESHOLD and not complete
+    )
+    high_score_total = sum(
+        score >= SOURCE_SCORE_HIGH_THRESHOLD
+        for score, _complete, _correct, _case_id in scored
+    )
+    high_score_unsafe = len(high_score_incorrect) + len(high_score_incomplete)
+    return {
+        "field_coverage": coverage,
+        "selective_accuracy": selective_accuracy,
+        "source_score_safety": {
+            "semantics": "uncalibrated_provider_source_score",
+            "scored_predictions": len(scored),
+            "missing_source_scores": missing_source_scores,
+            "invalid_source_scores": len(invalid_source_score_case_ids),
+            "invalid_source_score_case_ids": sorted(
+                invalid_source_score_case_ids
+            ),
+            "high_score_threshold": SOURCE_SCORE_HIGH_THRESHOLD,
+            "high_score_predictions": high_score_total,
+            "high_score_incomplete": len(high_score_incomplete),
+            "high_score_incomplete_case_ids": high_score_incomplete,
+            "high_score_incorrect": len(high_score_incorrect),
+            "high_score_incorrect_rate": _rate(
+                len(high_score_incorrect), high_score_total
+            ),
+            "high_score_incorrect_case_ids": high_score_incorrect,
+            "high_score_unsafe": high_score_unsafe,
+            "high_score_unsafe_rate": _rate(high_score_unsafe, high_score_total),
+            "calibration_diagnostic_only": {
+                "weighted_absolute_gap": (
+                    calibration_weighted_gap if scored else None
+                ),
+                "bins": bins,
+            },
+        },
+    }
+
+
+def _source_score_observation(
+    row: Mapping[str, object],
+) -> tuple[float | None, bool]:
+    candidates = row.get("ranked_candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return None, False
+    first = candidates[0]
+    if not isinstance(first, Mapping):
+        return None, True
+    if "source_score" not in first and "confidence" not in first:
+        return None, False
+    value = first.get("source_score", first.get("confidence"))
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or not 0 <= value <= 1
+    ):
+        return None, True
+    return float(value), False
+
+
+def _auditable_case_id(row: Mapping[str, object]) -> str:
+    case_id = row.get("case_id")
+    if not isinstance(case_id, str) or not case_id.strip():
+        raise ValueError("scored predictions require a non-empty case_id.")
+    return case_id.strip()
+
+
+def _has_value(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def score_visual_results(results: Iterable[Mapping[str, object]], *, top_k: int = 3) -> dict[str, object]:
     if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1:
         raise ValueError("top_k must be a positive integer.")
@@ -312,6 +507,7 @@ def score_visual_results(results: Iterable[Mapping[str, object]], *, top_k: int 
         field_correct["full_required_identity"] += _matches(first, expected, required)
         identity_fields = tuple(field for field in (*REQUIRED_IDENTITY_FIELDS, *OPTIONAL_IDENTITY_FIELDS) if field in expected)
         top_k_correct += any(_matches(candidate, expected, identity_fields) for candidate in predictions[:top_k])
+    safety = score_selective_safety(rows, field_matcher=_exact_field_match)
     return {
         "total_cases": len(rows),
         "predicted_cases": outcomes["PREDICTED"],
@@ -328,7 +524,18 @@ def score_visual_results(results: Iterable[Mapping[str, object]], *, top_k: int 
         "infrastructure_failure_rate": _rate(outcomes["INFRASTRUCTURE_FAILURE"], len(rows)),
         "latency": _latencies(latencies),
         "estimated_cost_usd": {"total": sum(costs), "mean_per_case": _rate(sum(costs), len(costs))},
+        **safety,
     }
+
+
+def _exact_field_match(
+    prediction: Mapping[str, object],
+    expected: Mapping[str, object],
+    field: str,
+) -> bool:
+    return field in prediction and field in expected and _normalized(
+        prediction[field]
+    ) == _normalized(expected[field])
 
 
 def audit_visual_manifest(manifest: VisualBenchmarkManifest) -> dict[str, object]:

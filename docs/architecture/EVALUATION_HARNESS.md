@@ -68,6 +68,22 @@ boundary, per-case results, aggregate metrics, and infrastructure failures.
 The human summary is a deterministic rendering of that report except for the
 explicit runtime metadata values already captured in it.
 
+Visual-provider reports also separate usefulness from safety. Field coverage
+measures how often each expected field was supplied. Selective accuracy
+measures correctness only among supplied fields, so abstention or partial
+answers cannot be mistaken for correct identification. Full-required-identity
+coverage and selective accuracy are reported independently.
+
+Provider source scores remain explicitly uncalibrated. Reports count missing
+and invalid scores separately, count incomplete and incorrect full identities
+above the fixed high-score threshold, combine them as a conservative
+unsafe-result rate, and show score-bin accuracy plus a weighted absolute-gap
+diagnostic. Scored findings require stable case IDs, and report case lists are
+deterministically ordered. Exact-match and canonical-match safety summaries
+remain separate. These are warning and comparison metrics only: they do not
+turn a heuristic score into a probability, authorize an acceptance threshold,
+or bypass collector review.
+
 Benchmark mismatches are data, not harness failures. The command exits nonzero
 only for manifest/output/infrastructure conditions that prevent a valid run.
 
