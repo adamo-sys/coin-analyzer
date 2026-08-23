@@ -178,6 +178,27 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
         factory.assert_not_called()
         self.assertEqual(gui.app.collection.items, [])
 
+    def test_supplied_attached_paths_skip_picker_but_keep_upload_disclosure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front, reverse = self._images(root)
+            gui = self._gui(CoinCollection(str(root / "collection.json")))
+            factory = Mock()
+            gui._visual_identity_provider_factory = factory
+            with (
+                patch("coin_collection_gui.filedialog.askopenfilename") as picker,
+                patch("coin_collection_gui.messagebox.askyesno", return_value=False) as disclosure,
+            ):
+                gui.import_coin_images_with_visual_ai(
+                    front_path=str(front),
+                    reverse_path=str(reverse),
+                )
+
+        picker.assert_not_called()
+        disclosure.assert_called_once()
+        factory.assert_not_called()
+        self.assertEqual(gui.app.collection.items, [])
+
     def test_cancelled_picker_never_creates_or_calls_provider(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             collection = CoinCollection(str(Path(temp) / "collection.json"))

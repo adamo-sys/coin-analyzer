@@ -512,7 +512,7 @@ Total Unique Dates: {total_unique_dates}
             source.release()
             raise
 
-    def import_coin_images_with_visual_ai(self):
+    def import_coin_images_with_visual_ai(self, front_path=None, reverse_path=None):
         """Send two explicitly selected images to Terra for human review."""
 
         if not self.capture_import_ready:
@@ -527,13 +527,13 @@ Total Unique Dates: {total_unique_dates}
             ("PNG images", "*.png"),
             ("All files", "*.*"),
         ]
-        front_path = filedialog.askopenfilename(
+        front_path = front_path or filedialog.askopenfilename(
             title="Select Obverse (Front) Coin Image for AI Review",
             filetypes=image_types,
         )
         if not front_path:
             return
-        reverse_path = filedialog.askopenfilename(
+        reverse_path = reverse_path or filedialog.askopenfilename(
             title="Select Reverse Coin Image for AI Review",
             filetypes=image_types,
         )
@@ -1229,6 +1229,14 @@ Total Unique Dates: {total_unique_dates}
         # Confidence display
         self.confidence_label = ttk.Label(detection_frame, text="", wraplength=250)
         self.confidence_label.pack(fill=tk.X)
+
+        self.visual_review_handoff_button = ttk.Button(
+            detection_frame,
+            text="Review Attached Front + Back with AI...",
+            command=self.review_attached_photos_with_visual_ai,
+            state=tk.DISABLED,
+        )
+        self.visual_review_handoff_button.pack(fill=tk.X, pady=(5, 0))
         
         # Optional identifier toggle
         identifier_frame = ttk.LabelFrame(left_panel, text="Optional: Advanced Identification", padding="10")
@@ -2283,6 +2291,12 @@ Total Unique Dates: {total_unique_dates}
             self.photo_tree.selection_set(str(self.selected_photo_index))
             self.photo_tree.focus(str(self.selected_photo_index))
         self.sync_selected_photo_edit_fields()
+        self._set_visual_review_handoff_available(
+            self.recognition_result_needs_paired_review(
+                getattr(self, "detection_result", None)
+            )
+            and self.paired_visual_review_paths(self.current_item_photos) is not None
+        )
 
     def sync_selected_photo_edit_fields(self):
         """Reflect selected photo metadata in the role and notes controls."""
@@ -2408,7 +2422,21 @@ Total Unique Dates: {total_unique_dates}
             text = f"Suggested Country: {result['country']}\n"
             text += f"Suggested Denomination: {result['denomination']}\n"
             text += f"Suggested Year: {result['year']}\n"
+
+            needs_review = self.recognition_result_needs_paired_review(result)
+            pair = self.paired_visual_review_paths(self.current_item_photos)
+            if needs_review and pair:
+                text += (
+                    "\nLocal evidence is incomplete. You may review the attached "
+                    "FRONT and BACK photos with AI."
+                )
+            elif needs_review:
+                text += (
+                    "\nLocal evidence is incomplete. Attach and label both FRONT "
+                    "and BACK photos to enable paired review."
+                )
             self.detection_label.config(text=text)
+            self._set_visual_review_handoff_available(bool(needs_review and pair))
             
             confidence_text = f"Denomination Evidence Score: {result['confidence']:.2%}\n"
             confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
@@ -2420,6 +2448,53 @@ Total Unique Dates: {total_unique_dates}
         else:
             self.detection_label.config(text=f"Detection failed: {result.get('error', 'Unknown error')}")
             self.confidence_label.config(text="")
+            self._set_visual_review_handoff_available(False)
+
+    @staticmethod
+    def recognition_result_needs_paired_review(result):
+        """Return whether a successful legacy result lacks a required identity field."""
+        if not isinstance(result, dict) or not result.get("success"):
+            return False
+        missing_markers = {"", "none", "unknown"}
+        return any(
+            str(result.get(field) or "").strip().lower() in missing_markers
+            for field in ("country", "denomination", "year")
+        )
+
+    @classmethod
+    def paired_visual_review_paths(cls, photos):
+        """Return explicitly labelled FRONT/BACK paths, or no pair."""
+        by_role = {}
+        for photo in cls.normalized_photo_state(photos):
+            if photo.role in (PhotoRole.FRONT, PhotoRole.BACK) and photo.role not in by_role:
+                by_role[photo.role] = photo.path
+        front_path = by_role.get(PhotoRole.FRONT)
+        reverse_path = by_role.get(PhotoRole.BACK)
+        if not front_path or not reverse_path:
+            return None
+        return front_path, reverse_path
+
+    def _set_visual_review_handoff_available(self, available):
+        """Keep the optional paired-review action fail-closed."""
+        button = getattr(self, "visual_review_handoff_button", None)
+        if button is not None:
+            button.config(state=tk.NORMAL if available else tk.DISABLED)
+
+    def review_attached_photos_with_visual_ai(self):
+        """Open the existing consent-controlled visual workflow for attached sides."""
+        pair = self.paired_visual_review_paths(self.current_item_photos)
+        if not pair:
+            self._set_visual_review_handoff_available(False)
+            messagebox.showwarning(
+                "Paired Photos Required",
+                "Attach and label one FRONT and one BACK photo before AI review.",
+                parent=self.root,
+            )
+            return
+        self.import_coin_images_with_visual_ai(
+            front_path=pair[0],
+            reverse_path=pair[1],
+        )
     
     def toggle_identifier(self):
         """Toggle advanced identifier."""

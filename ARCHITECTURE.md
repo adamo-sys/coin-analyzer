@@ -234,6 +234,14 @@ only bounded optional telemetry, and owns no persistence. It does not orchestrat
 or import `capture_import`; that mature package retains its independent workflow,
 durability, OCR, visual-identification, and review boundaries. See ADR-010.
 
+When the legacy detector returns an incomplete identity, the GUI may expose a
+user-controlled handoff to the existing paired-photo visual review action. The
+handoff is available only when explicitly labelled FRONT and BACK photos are
+attached. It neither invokes a provider automatically nor changes the legacy
+orchestration contract: the collector must start the action, accept the existing
+external-provider disclosure, review the proposal, and separately confirm any
+save. The recognition core remains independent of `capture_import`.
+
 ### Canadian references
 
 ```text
