@@ -67,6 +67,7 @@ from multi_device_workspace import (
 )
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
+from denomination_label_audit import audit_denomination_labels
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
@@ -341,6 +342,7 @@ class CoinCollectionGUI:
         reports_menu.add_command(label="Collection Dashboard", command=self.open_collection_dashboard)
         reports_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
         reports_menu.add_command(label="Collection Integrity Audit", command=self.open_collection_integrity_audit)
+        reports_menu.add_command(label="Denomination Label Audit", command=self.open_denomination_label_audit)
         reports_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         reports_menu.add_command(label="Photo Vault Audit", command=self.open_photo_vault_audit)
         reports_menu.add_command(label="Snapshot Report", command=self.open_snapshot_report)
@@ -3703,6 +3705,36 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_denomination_label_audit(self):
+        """Show denomination-label consistency without changing collection data."""
+        records = (
+            {"country": item.country, "denomination": item.denomination}
+            for item in self._collection_items()
+        )
+        report = audit_denomination_labels(records)
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Denomination Label Audit")
+        dialog.geometry("850x600")
+
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            main_frame,
+            text="Review only — this report cannot change collection data.",
+            padding=(0, 0, 0, 8),
+        ).pack(fill=tk.X)
+
+        text = tk.Text(main_frame, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_text())
+        text.config(state=tk.DISABLED)
+
+        ttk.Button(main_frame, text="Close", command=dialog.destroy).pack(
+            anchor=tk.W, pady=(10, 0)
+        )
 
     def open_portfolio_import_preview(self):
         """Preview a legacy portfolio workbook without importing collection data."""
