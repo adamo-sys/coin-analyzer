@@ -55,12 +55,16 @@ class VisualIdentityProposal:
     @property
     def initial_country(self) -> str:
         value = self.canonical_country.canonical_value
-        return value.display_name if value is not None else self.candidate.country
+        return value.display_name if value is not None else (self.candidate.country or "")
 
     @property
     def initial_denomination(self) -> str:
         value = self.canonical_denomination.canonical_value
-        return value.display_name if value is not None else self.candidate.denomination
+        return (
+            value.display_name
+            if value is not None
+            else (self.candidate.denomination or "")
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,8 +102,8 @@ class ConfirmedVisualIdentity:
                 (name, value)
                 for name, value in (
                     ("type_design", self.type_design.strip()),
-                    ("visual_raw_country", candidate.country),
-                    ("visual_raw_denomination", candidate.denomination),
+                    ("visual_raw_country", candidate.country or ""),
+                    ("visual_raw_denomination", candidate.denomination or ""),
                     (
                         "visual_canonical_country",
                         canonical_country.display_name
@@ -146,14 +150,14 @@ def create_visual_identity_proposal(
     if report.outcome != "CANDIDATES" or not report.candidates:
         raise VisualReviewError("The visual provider abstained; no coin was changed.")
     candidate = report.candidates[0]
-    country = canonicalize_jurisdiction(candidate.country)
+    country = canonicalize_jurisdiction(candidate.country or "")
     jurisdiction_id = (
         country.canonical_value.canonical_id
         if country.canonical_value is not None
         else None
     )
     denomination = canonicalize_denomination(
-        candidate.denomination,
+        candidate.denomination or "",
         jurisdiction_id=jurisdiction_id,
     )
     return VisualIdentityProposal(
@@ -238,7 +242,8 @@ class VisualIdentityReviewDialog:
             frame,
             text=(
                 f"Provider: {proposal.provider_id}  Model: {proposal.model_id}  "
-                f"Confidence: {candidate.confidence:.0%}"
+                "Provider source score (uncalibrated): "
+                f"{candidate.source_score:.0%}"
             ),
         ).grid(row=1, column=0, columnspan=2, sticky="w")
         ttk.Label(
@@ -251,6 +256,13 @@ class VisualIdentityReviewDialog:
             text="Supporting image roles: " + ", ".join(candidate.supporting_image_roles),
         ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
+        observed_text = ", ".join(candidate.observed_text) or "none supplied"
+        ttk.Label(
+            frame,
+            text="Separately transcribed visible text: " + observed_text,
+            wraplength=640,
+        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(0, 8))
+
         self.country = tk.StringVar(value=proposal.initial_country)
         self.denomination = tk.StringVar(value=proposal.initial_denomination)
         self.year = tk.StringVar(value=candidate.year or "")
@@ -262,7 +274,7 @@ class VisualIdentityReviewDialog:
                 ("Year", self.year),
                 ("Type / design", self.type_design),
             ),
-            start=4,
+            start=5,
         ):
             ttk.Label(frame, text=label + ":").grid(row=row, column=0, sticky="w")
             ttk.Entry(frame, textvariable=variable, width=52).grid(
@@ -270,11 +282,12 @@ class VisualIdentityReviewDialog:
             )
 
         raw = (
-            f"Raw provider values: {candidate.country}; {candidate.denomination}; "
+            f"Raw provider values: {candidate.country or 'unknown'}; "
+            f"{candidate.denomination or 'unknown'}; "
             f"{candidate.year or 'unknown'}; {candidate.type_design or 'unknown'}"
         )
         ttk.Label(frame, text=raw, wraplength=640).grid(
-            row=8, column=0, columnspan=2, sticky="w", pady=(10, 4)
+            row=9, column=0, columnspan=2, sticky="w", pady=(10, 4)
         )
         country_rules = ", ".join(proposal.canonical_country.normalization_rules) or "unmapped"
         denomination_rules = ", ".join(
@@ -287,9 +300,9 @@ class VisualIdentityReviewDialog:
                 + "; denomination: " + denomination_rules
             ),
             wraplength=640,
-        ).grid(row=9, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        ).grid(row=10, column=0, columnspan=2, sticky="w", pady=(0, 4))
         buttons = ttk.Frame(frame)
-        buttons.grid(row=10, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        buttons.grid(row=11, column=0, columnspan=2, sticky="e", pady=(10, 0))
         ttk.Button(buttons, text="Reject", command=self.reject).pack(side="left")
         ttk.Button(buttons, text="Defer", command=self.defer).pack(
             side="left", padx=8

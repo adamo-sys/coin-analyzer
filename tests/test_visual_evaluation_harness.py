@@ -126,6 +126,163 @@ class VisualEvaluationHarnessTests(unittest.TestCase):
         self.assertEqual(score["full_required_identity_accuracy"], 0.0)
         self.assertEqual(score["top_k_identity_recall"], 1.0)
 
+    def test_safety_metrics_separate_coverage_accuracy_and_high_score_errors(self) -> None:
+        expected = _case()["expected"]
+        rows = [
+            {
+                "case_id": "correct-full",
+                "outcome": "PREDICTED",
+                "identity_certain": True,
+                "expected": expected,
+                "predictions": [dict(expected)],
+                "ranked_candidates": [{**expected, "source_score": 0.95}],
+            },
+            {
+                "case_id": "partial-high-score",
+                "outcome": "PREDICTED",
+                "identity_certain": True,
+                "expected": expected,
+                "predictions": [{"country": "Canada"}],
+                "ranked_candidates": [{"country": "Canada", "source_score": 0.99}],
+            },
+            {
+                "case_id": "abstained",
+                "outcome": "ABSTAINED",
+                "identity_certain": True,
+                "expected": expected,
+                "predictions": [],
+                "ranked_candidates": [],
+            },
+        ]
+
+        metrics = score_visual_results(rows)
+
+        self.assertEqual(metrics["field_coverage"]["country"], 2 / 3)
+        self.assertEqual(metrics["field_coverage"]["full_required_identity"], 1 / 3)
+        self.assertEqual(metrics["selective_accuracy"]["country"], 1.0)
+        self.assertEqual(metrics["selective_accuracy"]["full_required_identity"], 1.0)
+        safety = metrics["source_score_safety"]
+        self.assertEqual(safety["high_score_predictions"], 2)
+        self.assertEqual(safety["high_score_incomplete"], 1)
+        self.assertEqual(safety["high_score_incomplete_case_ids"], ["partial-high-score"])
+        self.assertEqual(safety["high_score_incorrect"], 0)
+        self.assertEqual(safety["high_score_unsafe"], 1)
+        self.assertEqual(safety["semantics"], "uncalibrated_provider_source_score")
+
+    def test_safety_case_ids_are_deterministic_and_invalid_scores_are_reported(self) -> None:
+        expected = _case()["expected"]
+        rows = [
+            {
+                "case_id": case_id,
+                "outcome": "PREDICTED",
+                "identity_certain": True,
+                "expected": expected,
+                "predictions": [{"country": "Canada"}],
+                "ranked_candidates": [
+                    {"country": "Canada", "source_score": source_score}
+                ],
+            }
+            for case_id, source_score in (
+                ("z-case", 1.0),
+                ("a-case", 0.9),
+                ("ignored-nan", float("nan")),
+                ("ignored-range", 1.01),
+            )
+        ]
+
+        safety = score_visual_results(rows)["source_score_safety"]
+
+        self.assertEqual(safety["scored_predictions"], 2)
+        self.assertEqual(safety["missing_source_scores"], 0)
+        self.assertEqual(safety["invalid_source_scores"], 2)
+        self.assertEqual(
+            safety["invalid_source_score_case_ids"],
+            ["ignored-nan", "ignored-range"],
+        )
+        self.assertEqual(safety["high_score_predictions"], 2)
+        self.assertEqual(
+            safety["high_score_incomplete_case_ids"], ["a-case", "z-case"]
+        )
+
+    def test_source_score_bins_have_deterministic_boundaries(self) -> None:
+        expected = _case()["expected"]
+        rows = [
+            {
+                "case_id": f"boundary-{index}",
+                "outcome": "PREDICTED",
+                "identity_certain": True,
+                "expected": expected,
+                "predictions": [expected],
+                "ranked_candidates": [{**expected, "source_score": score}],
+            }
+            for index, score in enumerate((0.0, 0.699, 0.7, 0.899, 0.9, 1.0))
+        ]
+
+        bins = score_visual_results(rows)["source_score_safety"][
+            "calibration_diagnostic_only"
+        ]["bins"]
+
+        self.assertEqual([item["count"] for item in bins], [2, 2, 2])
+
+    def test_missing_source_score_is_distinct_from_invalid_score(self) -> None:
+        expected = _case()["expected"]
+        safety = score_visual_results(
+            [
+                {
+                    "case_id": "missing-score",
+                    "outcome": "PREDICTED",
+                    "identity_certain": True,
+                    "expected": expected,
+                    "predictions": [expected],
+                    "ranked_candidates": [expected],
+                }
+            ]
+        )["source_score_safety"]
+
+        self.assertEqual(safety["missing_source_scores"], 1)
+        self.assertEqual(safety["invalid_source_scores"], 0)
+
+    def test_scored_prediction_requires_auditable_case_id(self) -> None:
+        expected = _case()["expected"]
+        with self.assertRaisesRegex(ValueError, "non-empty case_id"):
+            score_visual_results(
+                [
+                    {
+                        "outcome": "PREDICTED",
+                        "identity_certain": True,
+                        "expected": expected,
+                        "predictions": [expected],
+                        "ranked_candidates": [
+                            {**expected, "source_score": 0.9}
+                        ],
+                    }
+                ]
+            )
+
+    def test_safety_metrics_have_explicit_empty_population_values(self) -> None:
+        metrics = score_visual_results(
+            [
+                {
+                    "case_id": "abstained",
+                    "outcome": "ABSTAINED",
+                    "identity_certain": True,
+                    "expected": _case()["expected"],
+                    "predictions": [],
+                    "ranked_candidates": [],
+                }
+            ]
+        )
+
+        safety = metrics["source_score_safety"]
+        self.assertEqual(safety["scored_predictions"], 0)
+        self.assertEqual(safety["missing_source_scores"], 0)
+        self.assertEqual(safety["invalid_source_scores"], 0)
+        self.assertIsNone(safety["high_score_unsafe_rate"])
+        self.assertIsNone(
+            safety["calibration_diagnostic_only"]["weighted_absolute_gap"]
+        )
+        self.assertIsNone(metrics["selective_accuracy"]["country"])
+
     def test_audit_reports_image_duplicates_and_concentration(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             manifest = load_visual_manifest(self._manifest(Path(temporary)))

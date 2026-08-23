@@ -6,6 +6,7 @@ import unittest
 
 from capture_import.visual_evaluation_harness import load_visual_manifest
 from capture_import.visual_evaluation_runner import (
+    render_visual_summary,
     retention_results,
     run_visual_benchmark,
 )
@@ -116,6 +117,40 @@ class VisualEvaluationRunnerTests(unittest.TestCase):
         self.assertEqual(report["canonical_metrics"]["country_accuracy"], 1.0)
         self.assertEqual(report["canonical_metrics"]["denomination_accuracy"], 1.0)
         self.assertEqual(report["canonical_metrics"]["full_required_identity_accuracy"], 1.0)
+
+    def test_runner_reports_selective_safety_without_treating_source_score_as_probability(self) -> None:
+        report = run_visual_benchmark(
+            self.one_case_manifest,
+            _Provider(),
+            clock=_Clock(1.0, 1.2),
+        )
+
+        row = report["cases"][0]
+        self.assertNotIn("source_score", row["predictions"][0])
+        self.assertEqual(row["ranked_candidates"][0]["source_score"], 0.9)
+        self.assertEqual(
+            row["ranked_candidates"][0]["source_score_semantics"],
+            "uncalibrated_provider_source_score",
+        )
+        for metrics in (report["exact_metrics"], report["canonical_metrics"]):
+            self.assertEqual(
+                metrics["source_score_safety"]["semantics"],
+                "uncalibrated_provider_source_score",
+            )
+            self.assertEqual(
+                metrics["field_coverage"]["full_required_identity"], 1.0
+            )
+            self.assertEqual(
+                metrics["source_score_safety"]["high_score_predictions"], 1
+            )
+
+        summary = render_visual_summary(report)
+        self.assertIn("Exact high-source-score incomplete identities: 0", summary)
+        self.assertIn("Exact high-source-score incorrect identities: 1", summary)
+        self.assertIn("Exact high-source-score unsafe rate: 100.0%", summary)
+        self.assertIn("Canonical high-source-score incomplete identities: 0", summary)
+        self.assertIn("Canonical high-source-score incorrect identities: 0", summary)
+        self.assertIn("Canonical high-source-score unsafe rate: 0.0%", summary)
 
     def test_raw_values_and_canonical_rule_provenance_are_preserved(self) -> None:
         report = run_visual_benchmark(

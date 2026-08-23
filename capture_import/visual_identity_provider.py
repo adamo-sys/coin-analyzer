@@ -6,6 +6,7 @@ import base64
 from dataclasses import dataclass
 import json
 import math
+import re
 from typing import Mapping, Protocol, runtime_checkable
 
 from inference_telemetry import TelemetrySink, instrument_inference
@@ -19,22 +20,30 @@ OPENAI_VISUAL_MAX_OUTPUT_TOKENS = 2000
 PREVIOUS_OPENAI_VISUAL_MAX_OUTPUT_TOKENS = 1200
 OPENAI_VISUAL_MAX_CANDIDATES = 3
 OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS = 2
+OPENAI_VISUAL_MAX_OBSERVED_TEXT = 6
+OPENAI_VISUAL_MAX_FIELD_EVIDENCE = 2
 OPENAI_VISUAL_COUNTRY_MAX_CHARS = 48
 OPENAI_VISUAL_DENOMINATION_MAX_CHARS = 40
 OPENAI_VISUAL_YEAR_MAX_CHARS = 16
 OPENAI_VISUAL_TYPE_DESIGN_MAX_CHARS = 80
 OPENAI_VISUAL_EVIDENCE_MAX_CHARS = 72
+OPENAI_VISUAL_OBSERVED_TEXT_MAX_CHARS = 48
+VISUAL_IDENTITY_SCAN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 OPENAI_VISUAL_PROMPT = (
     "Identify the single physical coin shown in these two photographs. The "
     "first image is the obverse and the second image is the reverse. Using "
     "only visible evidence in the images and your general knowledge, return "
     "up to three ranked composite identity candidates. Do not use external "
-    "tools or sources. Abstain if country and denomination cannot both be "
-    "proposed from the visible evidence. A candidate year or type/design may "
-    "be null when unsupported. Give a calibrated confidence from 0 to 1 and "
-    "brief bounded evidence based on visible legends, numerals, motifs, or "
-    "designs. State which image roles support each candidate."
+    "tools or sources. Transcribe short visible text separately from inferred "
+    "identity. Every identity field is independently nullable; preserve useful "
+    "partial findings instead of guessing. Abstain only when no identity field "
+    "can be proposed. Every proposed field needs field-specific visible "
+    "evidence; leave field evidence empty for fields you do not propose. A "
+    "proposed year must also occur verbatim in observed_text. "
+    "The 0-to-1 confidence value is an uncalibrated provider source score, not "
+    "a probability. Give brief bounded evidence based on visible legends, "
+    "numerals, motifs, or designs. State which image roles support each candidate."
 )
 
 OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
@@ -56,19 +65,19 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                     "year",
                     "type_design",
                     "confidence",
+                    "observed_text",
+                    "field_evidence",
                     "evidence_observations",
                     "supporting_image_roles",
                 ],
                 "properties": {
                     "rank": {"type": "integer", "minimum": 1, "maximum": 3},
                     "country": {
-                        "type": "string",
-                        "minLength": 1,
+                        "type": ["string", "null"],
                         "maxLength": OPENAI_VISUAL_COUNTRY_MAX_CHARS,
                     },
                     "denomination": {
-                        "type": "string",
-                        "minLength": 1,
+                        "type": ["string", "null"],
                         "maxLength": OPENAI_VISUAL_DENOMINATION_MAX_CHARS,
                     },
                     "year": {
@@ -80,10 +89,39 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                         "maxLength": OPENAI_VISUAL_TYPE_DESIGN_MAX_CHARS,
                     },
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "observed_text": {
+                        "type": "array",
+                        "maxItems": OPENAI_VISUAL_MAX_OBSERVED_TEXT,
+                        "uniqueItems": True,
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": OPENAI_VISUAL_OBSERVED_TEXT_MAX_CHARS,
+                        },
+                    },
+                    "field_evidence": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["country", "denomination", "year", "type_design"],
+                        "properties": {
+                            field: {
+                                "type": "array",
+                                "maxItems": OPENAI_VISUAL_MAX_FIELD_EVIDENCE,
+                                "uniqueItems": True,
+                                "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": OPENAI_VISUAL_EVIDENCE_MAX_CHARS,
+                                },
+                            }
+                            for field in ("country", "denomination", "year", "type_design")
+                        },
+                    },
                     "evidence_observations": {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS,
+                        "uniqueItems": True,
                         "items": {
                             "type": "string",
                             "minLength": 1,
@@ -94,6 +132,7 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": 2,
+                        "uniqueItems": True,
                         "items": {
                             "type": "string",
                             "enum": ["obverse", "reverse"],
@@ -140,8 +179,14 @@ class VisualIdentityRequest:
     images: tuple[VisualIdentityImage, VisualIdentityImage]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.scan_id, str) or not self.scan_id.strip():
-            raise VisualIdentityContractError("scan_id must be non-empty.")
+        if (
+            not isinstance(self.scan_id, str)
+            or VISUAL_IDENTITY_SCAN_ID_PATTERN.fullmatch(self.scan_id) is None
+        ):
+            raise VisualIdentityContractError(
+                "scan_id must contain only letters, numbers, underscores, or "
+                "hyphens and be at most 64 characters."
+            )
         if tuple(image.role for image in self.images) != ("obverse", "reverse"):
             raise VisualIdentityContractError(
                 "images must contain exactly obverse then reverse."
@@ -151,8 +196,8 @@ class VisualIdentityRequest:
 @dataclass(frozen=True, slots=True)
 class VisualIdentityCandidate:
     rank: int
-    country: str
-    denomination: str
+    country: str | None
+    denomination: str | None
     year: str | None
     type_design: str | None
     confidence: float
@@ -160,9 +205,24 @@ class VisualIdentityCandidate:
     supporting_image_roles: tuple[str, ...]
     provider_id: str
     model_id: str
+    observed_text: tuple[str, ...] = ()
+    field_evidence: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    @property
+    def source_score(self) -> float:
+        """Return the provider's uncalibrated source score."""
+
+        return self.confidence
+
+    def evidence_for(self, field: str) -> tuple[str, ...]:
+        return dict(self.field_evidence).get(field, ())
 
     def as_prediction(self) -> dict[str, str]:
-        prediction = {"country": self.country, "denomination": self.denomination}
+        prediction: dict[str, str] = {}
+        if self.country is not None:
+            prediction["country"] = self.country
+        if self.denomination is not None:
+            prediction["denomination"] = self.denomination
         if self.year is not None:
             prediction["year"] = self.year
         if self.type_design is not None:
@@ -225,6 +285,8 @@ class OpenAITerraVisualIdentityProvider:
             "previous_max_output_tokens": PREVIOUS_OPENAI_VISUAL_MAX_OUTPUT_TOKENS,
             "max_candidates": OPENAI_VISUAL_MAX_CANDIDATES,
             "max_evidence_observations": OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS,
+            "max_observed_text": OPENAI_VISUAL_MAX_OBSERVED_TEXT,
+            "max_field_evidence": OPENAI_VISUAL_MAX_FIELD_EVIDENCE,
             "evidence_observation_max_chars": OPENAI_VISUAL_EVIDENCE_MAX_CHARS,
             "country_max_chars": OPENAI_VISUAL_COUNTRY_MAX_CHARS,
             "denomination_max_chars": OPENAI_VISUAL_DENOMINATION_MAX_CHARS,
@@ -341,6 +403,8 @@ def _validated_candidate(raw: object) -> VisualIdentityCandidate:
         "year",
         "type_design",
         "confidence",
+        "observed_text",
+        "field_evidence",
         "evidence_observations",
         "supporting_image_roles",
     }
@@ -363,6 +427,31 @@ def _validated_candidate(raw: object) -> VisualIdentityCandidate:
         maximum_items=OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS,
         maximum_chars=OPENAI_VISUAL_EVIDENCE_MAX_CHARS,
     )
+    observed_text = _bounded_optional_string_list(
+        raw["observed_text"],
+        "observed text",
+        maximum_items=OPENAI_VISUAL_MAX_OBSERVED_TEXT,
+        maximum_chars=OPENAI_VISUAL_OBSERVED_TEXT_MAX_CHARS,
+    )
+    raw_field_evidence = raw["field_evidence"]
+    fields = ("country", "denomination", "year", "type_design")
+    if (
+        not isinstance(raw_field_evidence, Mapping)
+        or set(raw_field_evidence) != set(fields)
+    ):
+        raise VisualIdentityMalformedOutput("candidate field evidence is invalid.")
+    field_evidence = tuple(
+        (
+            field,
+            _bounded_optional_string_list(
+                raw_field_evidence[field],
+                f"{field} evidence",
+                maximum_items=OPENAI_VISUAL_MAX_FIELD_EVIDENCE,
+                maximum_chars=OPENAI_VISUAL_EVIDENCE_MAX_CHARS,
+            ),
+        )
+        for field in fields
+    )
     roles = raw["supporting_image_roles"]
     if (
         not isinstance(roles, list)
@@ -371,29 +460,50 @@ def _validated_candidate(raw: object) -> VisualIdentityCandidate:
         or any(role not in {"obverse", "reverse"} for role in roles)
     ):
         raise VisualIdentityMalformedOutput("supporting image roles are invalid.")
+    country = _optional_bounded_text(
+        raw["country"], "country", OPENAI_VISUAL_COUNTRY_MAX_CHARS
+    )
+    denomination = _optional_bounded_text(
+        raw["denomination"],
+        "denomination",
+        OPENAI_VISUAL_DENOMINATION_MAX_CHARS,
+    )
+    year = _optional_bounded_text(
+        raw["year"], "year", OPENAI_VISUAL_YEAR_MAX_CHARS
+    )
+    type_design = _optional_bounded_text(
+        raw["type_design"], "type_design", OPENAI_VISUAL_TYPE_DESIGN_MAX_CHARS
+    )
+    values = dict(zip(fields, (country, denomination, year, type_design)))
+    evidence_by_field = dict(field_evidence)
+    if not any(values.values()):
+        raise VisualIdentityMalformedOutput("candidate must propose at least one field.")
+    if any(
+        value is not None and not evidence_by_field[field]
+        for field, value in values.items()
+    ):
+        raise VisualIdentityMalformedOutput("every proposed field requires field evidence.")
+    if any(value is None and evidence_by_field[field] for field, value in values.items()):
+        raise VisualIdentityMalformedOutput(
+            "field evidence cannot support a field that was not proposed."
+        )
+    if year is not None and year not in observed_text:
+        raise VisualIdentityMalformedOutput(
+            "a proposed year must occur verbatim in observed text."
+        )
     return VisualIdentityCandidate(
         rank=rank,
-        country=_bounded_text(
-            raw["country"], "country", OPENAI_VISUAL_COUNTRY_MAX_CHARS
-        ),
-        denomination=_bounded_text(
-            raw["denomination"],
-            "denomination",
-            OPENAI_VISUAL_DENOMINATION_MAX_CHARS,
-        ),
-        year=_optional_bounded_text(
-            raw["year"], "year", OPENAI_VISUAL_YEAR_MAX_CHARS
-        ),
-        type_design=_optional_bounded_text(
-            raw["type_design"],
-            "type_design",
-            OPENAI_VISUAL_TYPE_DESIGN_MAX_CHARS,
-        ),
+        country=country,
+        denomination=denomination,
+        year=year,
+        type_design=type_design,
         confidence=float(confidence),
         evidence_observations=observations,
         supporting_image_roles=tuple(roles),
         provider_id=OPENAI_VISUAL_PROVIDER_ID,
         model_id=OPENAI_VISUAL_MODEL_ID,
+        observed_text=observed_text,
+        field_evidence=field_evidence,
     )
 
 
@@ -418,7 +528,25 @@ def _bounded_string_list(
 ) -> tuple[str, ...]:
     if not isinstance(value, list) or not 1 <= len(value) <= maximum_items:
         raise VisualIdentityMalformedOutput(f"candidate {name} are invalid.")
-    return tuple(_bounded_text(item, name, maximum_chars) for item in value)
+    result = tuple(_bounded_text(item, name, maximum_chars) for item in value)
+    if len(set(result)) != len(result):
+        raise VisualIdentityMalformedOutput(f"candidate {name} contain duplicates.")
+    return result
+
+
+def _bounded_optional_string_list(
+    value: object,
+    name: str,
+    *,
+    maximum_items: int,
+    maximum_chars: int,
+) -> tuple[str, ...]:
+    if not isinstance(value, list) or len(value) > maximum_items:
+        raise VisualIdentityMalformedOutput(f"candidate {name} are invalid.")
+    result = tuple(_bounded_text(item, name, maximum_chars) for item in value)
+    if len(set(result)) != len(result):
+        raise VisualIdentityMalformedOutput(f"candidate {name} contain duplicates.")
+    return result
 
 
 def _token_count(value: object) -> int | None:

@@ -102,6 +102,41 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
         self.assertEqual(proposal.model_id, "gpt-5.6-terra")
         self.assertIn("jurisdiction.official-long-name", proposal.canonical_country.normalization_rules)
 
+    def test_partial_proposal_keeps_unknown_fields_empty_for_operator_review(self) -> None:
+        report = _report()
+        candidate = report.candidates[0]
+        partial = VisualIdentityReport(
+            outcome="CANDIDATES",
+            candidates=(
+                VisualIdentityCandidate(
+                    rank=candidate.rank,
+                    country=None,
+                    denomination="Half Dollar",
+                    year=None,
+                    type_design=None,
+                    confidence=candidate.confidence,
+                    evidence_observations=candidate.evidence_observations,
+                    supporting_image_roles=candidate.supporting_image_roles,
+                    provider_id=candidate.provider_id,
+                    model_id=candidate.model_id,
+                    observed_text=("HALF DOLLAR",),
+                    field_evidence=(("denomination", ("HALF DOLLAR is visible",)),),
+                ),
+            ),
+            provider_id=report.provider_id,
+            model_id=report.model_id,
+            response_id=report.response_id,
+            input_tokens=report.input_tokens,
+            output_tokens=report.output_tokens,
+            raw_structured_result=report.raw_structured_result,
+        )
+
+        proposal = create_visual_identity_proposal(partial)
+
+        self.assertEqual(proposal.initial_country, "")
+        self.assertEqual(proposal.initial_denomination, "1/2 dollar")
+        self.assertIsNone(proposal.candidate.year)
+
     def test_operator_correction_becomes_existing_reviewed_coin_draft(self) -> None:
         proposal = create_visual_identity_proposal(_report())
         draft = ConfirmedVisualIdentity(
@@ -154,7 +189,8 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
         source = inspect.getsource(VisualIdentityReviewDialog.__init__)
         self.assertIn("AI-generated proposal", source)
         self.assertIn("Provider:", source)
-        self.assertIn("Confidence:", source)
+        self.assertIn("Provider source score (uncalibrated):", source)
+        self.assertIn("Separately transcribed visible text:", source)
         self.assertIn("Evidence:", source)
         self.assertIn("Raw provider values:", source)
         self.assertIn("Supporting image roles:", source)

@@ -65,12 +65,36 @@ canonical values, and normalization-rule provenance remain distinct. Unknown
 or historically ambiguous jurisdiction values remain unmapped, and no
 Benchmark v2 answer may create a canonical alias.
 
-The structured output contract is bounded to two evidence observations of at
-most 72 characters each, country at 48 characters, denomination at 40, year at
-16, type/design at 80, and three candidates. The output-token ceiling changes
+The structured output contract is bounded to two general evidence observations
+and two evidence items per proposed field at 72 characters each, up to six
+separately transcribed visible-text items at 48 characters each, country at 48
+characters, denomination at 40, year at 16, type/design at 80, and three
+candidates. Visible text may be empty when none is legible; this prevents the
+contract from pressuring the provider to invent a transcription. The
+output-token ceiling changes
 from 1,200 to 2,000 to provide bounded reasoning/output headroom; text
 verbosity remains low. Truncated or malformed output remains an infrastructure
 failure with billed usage retained.
+
+The production contract additionally separates **observed text** from inferred
+identity. Each proposed field must carry bounded, field-specific evidence, and
+an asserted year must occur verbatim in the separately transcribed visible
+text. A provider may return a partial candidate when only some fields are
+defensible; absent fields remain absent for the collector to review rather
+than being guessed. Evidence for an absent field is invalid, and repeated
+observations, field-evidence entries, or supporting roles are rejected rather
+than silently normalized. Evidence remains advisory and cannot authorize a
+save.
+
+Provider calls use an opaque, privacy-safe scan identifier containing only
+letters, digits, hyphens, and underscores, with a maximum length of 64
+characters. Paths and free-form text are rejected before a provider is called.
+
+The provider's numeric source score is retained only as uncalibrated,
+source-specific ranking evidence. It is not presented as a probability and is
+not converted into generic confidence. Evaluation may measure whether higher
+source scores correlate with correctness, but that diagnostic does not
+calibrate or validate the score.
 
 Prospective retention requires canonical country accuracy >= 75%, canonical
 denomination accuracy >= 70%, canonical full-required identity accuracy >=
@@ -135,7 +159,8 @@ existing OCR-assisted action remains a separate Tesseract PSM-11 workflow.
 
 Terra output enters a source-neutral visual review proposal. The review shows
 raw and canonical presentation values, normalization-rule provenance,
-provider/model, confidence, bounded evidence, and supporting image roles. The
+provider/model, an uncalibrated source score, bounded evidence, and supporting
+image roles. The
 operator may correct required identity fields, reject, or defer. A second
 explicit save confirmation is required before the proposal becomes the
 existing `ReviewedCoinDraft` and enters the established managed-photo and
@@ -149,6 +174,12 @@ configuration, provider/malformed output failures, cancellation, rejection,
 invalid review, or persistence failure must leave collection state unchanged.
 OCR evidence inside the visual dialog remains deferred until a separately
 approved source-neutral evidence presentation unit exists.
+
+The review now permits partial proposals while keeping the existing manual
+gate: country, denomination, and year must all be explicitly confirmed before
+the existing reviewed-draft boundary can be reached. No contract or metric in
+this amendment automatically accepts a provider result or changes collection
+persistence authority.
 
 ## Reproducing the headless experiments
 
