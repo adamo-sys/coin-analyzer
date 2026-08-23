@@ -1,8 +1,9 @@
 import ast
 from pathlib import Path
+import tempfile
 import unittest
 
-from coin_collection import CoinCollectionApp
+from coin_collection import CoinCollection, CoinCollectionApp
 from legacy_recognition_orchestration import (
     LEGACY_COIN_RECOGNITION,
     RecognitionCapabilityResult,
@@ -25,6 +26,15 @@ class InjectedOrchestrator:
 
 
 class LegacyRecognitionIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_directory = tempfile.TemporaryDirectory()
+        self.collection = CoinCollection(
+            str(Path(self.temp_directory.name) / "collection.json")
+        )
+
+    def tearDown(self):
+        self.temp_directory.cleanup()
+
     def test_app_delegates_and_preserves_historical_dictionary(self):
         result = RecognitionCapabilityResult(
             capability=LEGACY_COIN_RECOGNITION,
@@ -34,7 +44,10 @@ class LegacyRecognitionIntegrationTests(unittest.TestCase):
             source_metadata={"denomination_confidence": 72, "year_confidence": 63},
         )
         orchestrator = InjectedOrchestrator(result)
-        app = CoinCollectionApp(recognition_orchestrator=orchestrator)
+        app = CoinCollectionApp(
+            collection=self.collection,
+            recognition_orchestrator=orchestrator,
+        )
         app.current_image_path = "fixture.jpg"
 
         actual = app.run_denomination_detector()
@@ -58,7 +71,10 @@ class LegacyRecognitionIntegrationTests(unittest.TestCase):
         orchestrator = InjectedOrchestrator(
             RecognitionCapabilityResult(LEGACY_COIN_RECOGNITION, False)
         )
-        app = CoinCollectionApp(recognition_orchestrator=orchestrator)
+        app = CoinCollectionApp(
+            collection=self.collection,
+            recognition_orchestrator=orchestrator,
+        )
 
         self.assertEqual(
             {"success": False, "error": "No image uploaded"},

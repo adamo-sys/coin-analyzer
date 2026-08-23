@@ -55,26 +55,17 @@ class TestApiSpotPriceProvider(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        # Use a temporary cache file for testing
         self.original_cache_file = ApiSpotPriceProvider.CACHE_FILE
-        ApiSpotPriceProvider.CACHE_FILE = "data/test_silver_spot_cache.json"
-        # Clean up any existing test cache file
-        try:
-            if os.path.exists(ApiSpotPriceProvider.CACHE_FILE):
-                os.remove(ApiSpotPriceProvider.CACHE_FILE)
-        except:
-            pass
+        self.cache_directory = tempfile.TemporaryDirectory()
+        ApiSpotPriceProvider.CACHE_FILE = os.path.join(
+            self.cache_directory.name,
+            "silver_spot_cache.json",
+        )
     
     def tearDown(self):
         """Clean up test fixtures."""
-        # Restore original cache file path
         ApiSpotPriceProvider.CACHE_FILE = self.original_cache_file
-        # Clean up test cache file
-        try:
-            if os.path.exists(ApiSpotPriceProvider.CACHE_FILE):
-                os.remove(ApiSpotPriceProvider.CACHE_FILE)
-        except:
-            pass
+        self.cache_directory.cleanup()
     
     def test_default_spot_price(self):
         """Test default spot price when no cache."""
