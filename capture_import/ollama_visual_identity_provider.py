@@ -133,7 +133,7 @@ class OllamaVisualIdentityProvider:
         try:
             with self._opener(http_request, timeout=self._timeout_seconds) as response:
                 envelope = json.loads(response.read().decode("utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError, urlerror.URLError) as exc:
+        except (OSError, TimeoutError, UnicodeError, json.JSONDecodeError, urlerror.URLError) as exc:
             raise OllamaVisualIdentityError(f"local Ollama visual request failed: {exc}") from exc
         return self._decode(envelope)
 
@@ -243,4 +243,6 @@ def _string_tuple(
 
 
 def _optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
