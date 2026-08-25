@@ -7,7 +7,7 @@ import json
 import sys
 
 from capture_import.local_llm_resolver import LocalLLMResolver, ResolverEvidence
-from capture_import.local_llm_resolver_ollama import OllamaLocalResolverRuntime
+from capture_import.ollama_local_resolver_runtime import OllamaLocalResolverRuntime
 
 
 def _csv_tuple(value: str) -> tuple[str, ...]:
