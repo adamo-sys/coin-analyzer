@@ -46,6 +46,7 @@ def score_local_resolver_results(
 
     data = list(rows)
     certain = [row for row in data if row.get("identity_certain") is True]
+    uncertain = [row for row in data if row.get("identity_certain") is False]
     successes = [row for row in data if isinstance(row.get("result"), ResolverResult)]
     failures = sum(row.get("resolver_failure") is not None for row in data)
 
@@ -78,6 +79,22 @@ def score_local_resolver_results(
         for row in data
     ) + failures
 
+    uncertain_abstentions = 0
+    uncertain_non_abstaining = 0
+    unsupported_field_emissions = 0
+    unsupported_field_slots = len(uncertain) * len(_REQUIRED_FIELDS)
+    for row in uncertain:
+        result = row.get("result")
+        if not isinstance(result, ResolverResult):
+            continue
+        if result.abstain:
+            uncertain_abstentions += 1
+        else:
+            uncertain_non_abstaining += 1
+        unsupported_field_emissions += sum(
+            getattr(result, field) is not None for field in _REQUIRED_FIELDS
+        )
+
     latencies = [
         float(row["latency_seconds"])
         for row in data
@@ -86,9 +103,11 @@ def score_local_resolver_results(
     ]
 
     certain_denominator = len(certain)
+    uncertain_denominator = len(uncertain)
     return {
         "total_cases": len(data),
         "certain_scored_cases": certain_denominator,
+        "uncertain_cases": uncertain_denominator,
         "resolver_successes": len(successes),
         "resolver_failures": failures,
         "country_accuracy": _rate(correct["country"], certain_denominator),
@@ -97,6 +116,11 @@ def score_local_resolver_results(
         "full_identity_accuracy": _rate(full_correct, certain_denominator),
         "unresolved_rate": _rate(unresolved, len(data)),
         "false_positive_rate": _rate(false_positives, non_abstaining_certain),
+        "uncertain_case_abstention_rate": _rate(uncertain_abstentions, uncertain_denominator),
+        "uncertain_case_non_abstention_rate": _rate(uncertain_non_abstaining, uncertain_denominator),
+        "unsupported_field_emission_rate": _rate(
+            unsupported_field_emissions, unsupported_field_slots
+        ),
         "latency": {
             "mean_seconds": statistics.fmean(latencies) if latencies else None,
             "median_seconds": statistics.median(latencies) if latencies else None,
