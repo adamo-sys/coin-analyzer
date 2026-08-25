@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from capture_import.ollama_visual_identity_provider import (
-    OllamaVisualIdentityProvider,
-)
+from capture_import.ollama_visual_identity_provider import OllamaVisualIdentityProvider
 from capture_import.visual_identity_provider import (
     VisualIdentityImage,
     VisualIdentityMalformedOutput,
@@ -52,27 +50,23 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
                     "type_design": "Centennial quarter",
                     "confidence": 0.8,
                     "observed_text": ["CANADA", "1967"],
-                    "field_evidence": {
-                        "country": ["CANADA legend"],
-                        "denomination": ["quarter design"],
-                        "year": ["1967 visible"],
-                        "type_design": ["Centennial reverse"],
-                    },
                     "evidence_observations": ["Caribou reverse and 1967 date"],
                     "supporting_image_roles": ["obverse", "reverse"],
                 }
             ],
         }
-        seen = {}
+        seen: dict[str, object] = {}
 
         def opener(request, timeout):
             seen["timeout"] = timeout
             seen["body"] = json.loads(request.data.decode("utf-8"))
-            return _Response({
-                "message": {"content": json.dumps(raw)},
-                "prompt_eval_count": 123,
-                "eval_count": 45,
-            })
+            return _Response(
+                {
+                    "message": {"content": json.dumps(raw)},
+                    "prompt_eval_count": 123,
+                    "eval_count": 45,
+                }
+            )
 
         provider = OllamaVisualIdentityProvider(opener=opener, timeout_seconds=30)
         report = provider.identify(_request())
@@ -81,26 +75,32 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
         self.assertEqual(report.model_id, "qwen2.5vl:7b")
         self.assertEqual(report.input_tokens, 123)
         self.assertEqual(report.output_tokens, 45)
-        self.assertEqual(report.candidates[0].as_prediction(), {
-            "country": "Canada",
-            "denomination": "25 cents",
-            "year": "1967",
-            "type_design": "Centennial quarter",
-        })
+        self.assertEqual(
+            report.candidates[0].as_prediction(),
+            {
+                "country": "Canada",
+                "denomination": "25 cents",
+                "year": "1967",
+                "type_design": "Centennial quarter",
+            },
+        )
         self.assertEqual(seen["timeout"], 30.0)
-        self.assertEqual(len(seen["body"]["messages"][0]["images"]), 2)
-        self.assertEqual(seen["body"]["options"]["temperature"], 0)
+        body = seen["body"]
+        self.assertIsInstance(body, dict)
+        self.assertEqual(len(body["messages"][0]["images"]), 2)
+        self.assertEqual(body["options"]["temperature"], 0)
 
     def test_supports_clean_abstention(self) -> None:
         provider = OllamaVisualIdentityProvider(
-            opener=lambda *_args, **_kwargs: _Response({
-                "message": {
-                    "content": json.dumps({
-                        "outcome": "ABSTAINED",
-                        "candidates": [],
-                    })
+            opener=lambda *_args, **_kwargs: _Response(
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"outcome": "ABSTAINED", "candidates": []}
+                        )
+                    }
                 }
-            })
+            )
         )
         report = provider.identify(_request())
         self.assertEqual(report.outcome, "ABSTAINED")
@@ -118,35 +118,30 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
                     "type_design": None,
                     "confidence": 0.5,
                     "observed_text": ["CANADA"],
-                    "field_evidence": {
-                        "country": ["CANADA legend"],
-                        "denomination": ["quarter design"],
-                        "year": ["date claimed"],
-                        "type_design": [],
-                    },
                     "evidence_observations": ["Canadian design"],
                     "supporting_image_roles": ["obverse"],
                 }
             ],
         }
         provider = OllamaVisualIdentityProvider(
-            opener=lambda *_args, **_kwargs: _Response({
-                "message": {"content": json.dumps(raw)}
-            })
+            opener=lambda *_args, **_kwargs: _Response(
+                {"message": {"content": json.dumps(raw)}}
+            )
         )
         with self.assertRaisesRegex(VisualIdentityMalformedOutput, "year"):
             provider.identify(_request())
 
     def test_rejects_outcome_candidate_mismatch(self) -> None:
         provider = OllamaVisualIdentityProvider(
-            opener=lambda *_args, **_kwargs: _Response({
-                "message": {
-                    "content": json.dumps({
-                        "outcome": "CANDIDATES",
-                        "candidates": [],
-                    })
+            opener=lambda *_args, **_kwargs: _Response(
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"outcome": "CANDIDATES", "candidates": []}
+                        )
+                    }
                 }
-            })
+            )
         )
         with self.assertRaisesRegex(VisualIdentityMalformedOutput, "disagree"):
             provider.identify(_request())
