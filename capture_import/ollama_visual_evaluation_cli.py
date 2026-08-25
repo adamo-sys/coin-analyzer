@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
@@ -23,6 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", default="qwen2.5vl:7b")
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument(
+        "--case-id",
+        help="Run exactly one manifest case by id (benchmark-only diagnostic).",
+    )
+    parser.add_argument(
         "--json",
         type=Path,
         default=Path(f"artifacts/reruns/ollama-visual-{stamp}-report.json"),
@@ -35,9 +40,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _select_case(manifest, case_id: str | None):
+    if case_id is None:
+        return manifest
+    matches = tuple(case for case in manifest.cases if case.case_id == case_id)
+    if not matches:
+        available = ", ".join(case.case_id for case in manifest.cases)
+        raise SystemExit(f"unknown --case-id {case_id!r}; available: {available}")
+    return replace(manifest, cases=matches)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    manifest = load_visual_manifest(args.manifest)
+    manifest = _select_case(load_visual_manifest(args.manifest), args.case_id)
     provider = OllamaVisualIdentityProvider(
         model=args.model,
         timeout_seconds=args.timeout,
