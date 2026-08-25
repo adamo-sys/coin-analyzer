@@ -97,6 +97,47 @@ class LocalLLMResolverTests(unittest.TestCase):
         self.assertIsNone(result.year)
         self.assertIsNone(result.candidate_id)
 
+    def test_partial_identity_is_normalized_to_complete_abstention(self) -> None:
+        runtime = _FakeRuntime(
+            _response(
+                country="Canada",
+                denomination="10 cents",
+                year=None,
+                candidate_id="canada-unknown-10c",
+                reason="year is ambiguous",
+                abstain=False,
+            )
+        )
+
+        result = LocalLLMResolver(runtime, enabled=True).resolve(ResolverEvidence())
+
+        self.assertTrue(result.abstain)
+        self.assertIsNone(result.country)
+        self.assertIsNone(result.denomination)
+        self.assertIsNone(result.year)
+        self.assertIsNone(result.candidate_id)
+        self.assertEqual(result.reason, "year is ambiguous")
+
+    def test_model_declared_abstention_clears_identity_fields(self) -> None:
+        runtime = _FakeRuntime(
+            _response(
+                country="Canada",
+                denomination="10 cents",
+                year="1937",
+                candidate_id="canada-1937-10c",
+                reason="model chose to abstain",
+                abstain=True,
+            )
+        )
+
+        result = LocalLLMResolver(runtime, enabled=True).resolve(ResolverEvidence())
+
+        self.assertTrue(result.abstain)
+        self.assertIsNone(result.country)
+        self.assertIsNone(result.denomination)
+        self.assertIsNone(result.year)
+        self.assertIsNone(result.candidate_id)
+
     def test_malformed_json_fails_closed(self) -> None:
         runtime = _FakeRuntime("```json\n{}\n```")
 
@@ -132,3 +173,7 @@ class LocalLLMResolverTests(unittest.TestCase):
 
         self.assertIn("TimeoutError", str(raised.exception))
         self.assertEqual(len(runtime.calls), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
