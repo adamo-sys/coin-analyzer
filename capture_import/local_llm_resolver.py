@@ -16,6 +16,7 @@ _RESPONSE_KEYS = {
     "reason",
     "abstain",
 }
+_REQUIRED_IDENTITY_FIELDS = ("country", "denomination", "year")
 
 
 class LocalResolverError(RuntimeError):
@@ -152,12 +153,31 @@ def _parse_response(raw: object) -> ResolverResult:
     if not isinstance(abstain_raw, bool):
         raise LocalResolverResponseError("abstain must be boolean")
 
+    country = _optional_text(payload, "country")
+    denomination = _optional_text(payload, "denomination")
+    year = _optional_text(payload, "year")
+    candidate_id = _optional_text(payload, "candidate_id")
+
+    # Deterministic safety invariant: a usable identity requires all required
+    # identity fields. Any partial identity, or any model-declared abstention,
+    # is normalized to a complete abstention so downstream benchmark/advisory
+    # code never treats partial model output as a resolved coin.
+    missing_required_identity = any(
+        value is None for value in (country, denomination, year)
+    )
+    abstain = abstain_raw or missing_required_identity
+    if abstain:
+        country = None
+        denomination = None
+        year = None
+        candidate_id = None
+
     return ResolverResult(
-        country=_optional_text(payload, "country"),
-        denomination=_optional_text(payload, "denomination"),
-        year=_optional_text(payload, "year"),
-        candidate_id=_optional_text(payload, "candidate_id"),
+        country=country,
+        denomination=denomination,
+        year=year,
+        candidate_id=candidate_id,
         confidence=confidence,
         reason=reason_raw.strip(),
-        abstain=abstain_raw,
+        abstain=abstain,
     )
