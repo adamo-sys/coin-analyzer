@@ -52,6 +52,12 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
                     "type_design": "Centennial quarter",
                     "confidence": 0.8,
                     "observed_text": ["CANADA", "1967"],
+                    "field_evidence": {
+                        "country": ["CANADA legend"],
+                        "denomination": ["quarter design"],
+                        "year": ["1967 visible"],
+                        "type_design": ["Centennial reverse"],
+                    },
                     "evidence_observations": ["Caribou reverse and 1967 date"],
                     "supporting_image_roles": ["obverse", "reverse"],
                 }
@@ -88,9 +94,12 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
     def test_supports_clean_abstention(self) -> None:
         provider = OllamaVisualIdentityProvider(
             opener=lambda *_args, **_kwargs: _Response({
-                "message": {"content": json.dumps({
-                    "outcome": "ABSTAINED", "candidates": []
-                })
+                "message": {
+                    "content": json.dumps({
+                        "outcome": "ABSTAINED",
+                        "candidates": [],
+                    })
+                }
             })
         )
         report = provider.identify(_request())
@@ -109,6 +118,12 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
                     "type_design": None,
                     "confidence": 0.5,
                     "observed_text": ["CANADA"],
+                    "field_evidence": {
+                        "country": ["CANADA legend"],
+                        "denomination": ["quarter design"],
+                        "year": ["date claimed"],
+                        "type_design": [],
+                    },
                     "evidence_observations": ["Canadian design"],
                     "supporting_image_roles": ["obverse"],
                 }
@@ -125,9 +140,12 @@ class OllamaVisualIdentityProviderTests(unittest.TestCase):
     def test_rejects_outcome_candidate_mismatch(self) -> None:
         provider = OllamaVisualIdentityProvider(
             opener=lambda *_args, **_kwargs: _Response({
-                "message": {"content": json.dumps({
-                    "outcome": "CANDIDATES", "candidates": []
-                })
+                "message": {
+                    "content": json.dumps({
+                        "outcome": "CANDIDATES",
+                        "candidates": [],
+                    })
+                }
             })
         )
         with self.assertRaisesRegex(VisualIdentityMalformedOutput, "disagree"):
