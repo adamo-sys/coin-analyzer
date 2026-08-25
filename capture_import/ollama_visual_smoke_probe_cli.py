@@ -18,7 +18,7 @@ from typing import Sequence
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .visual_evaluation_harness import load_visual_manifest
 
@@ -26,6 +26,7 @@ from .visual_evaluation_harness import load_visual_manifest
 DEFAULT_MODEL = "qwen2.5vl:7b"
 DEFAULT_URL = "http://127.0.0.1:11434/api/chat"
 PROMPT = "Reply with one short sentence describing what is visible in this image."
+TRANSFORMS = ("original", "rotate180", "grayscale")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Downscale the selected image in memory so its longest side is at most this many pixels.",
     )
+    parser.add_argument(
+        "--transform",
+        choices=TRANSFORMS,
+        default="original",
+        help="Apply a diagnostic-only in-memory image transform before inference.",
+    )
     return parser
 
 
@@ -52,16 +59,36 @@ def _select_case(manifest, case_id: str):
     raise SystemExit(f"unknown --case-id {case_id!r}; available: {available}")
 
 
-def _image_bytes(path: Path, max_side: int | None) -> tuple[bytes, tuple[int, int], tuple[int, int]]:
+def _image_bytes(
+    path: Path,
+    max_side: int | None,
+    transform: str,
+) -> tuple[bytes, tuple[int, int], tuple[int, int]]:
     with Image.open(path) as source:
         original_size = source.size
-        if max_side is None or max(source.size) <= max_side:
-            return path.read_bytes(), original_size, original_size
         image = source.copy()
+
+    changed = False
+    if transform == "rotate180":
+        image = image.rotate(180, expand=False)
+        changed = True
+    elif transform == "grayscale":
+        image = ImageOps.grayscale(image)
+        changed = True
+    elif transform != "original":
+        raise ValueError(f"unsupported transform: {transform}")
+
+    if max_side is not None and max(image.size) > max_side:
         image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
-        output = io.BytesIO()
-        image.convert("RGB").save(output, format="JPEG", quality=90)
-        return output.getvalue(), original_size, image.size
+        changed = True
+
+    submitted_size = image.size
+    if not changed:
+        return path.read_bytes(), original_size, submitted_size
+
+    output = io.BytesIO()
+    image.convert("RGB").save(output, format="JPEG", quality=90)
+    return output.getvalue(), original_size, submitted_size
 
 
 def _probe(
@@ -72,9 +99,14 @@ def _probe(
     url: str,
     timeout: float,
     max_side: int | None,
+    transform: str,
 ) -> dict[str, object]:
     image = case.obverse if role == "obverse" else case.reverse
-    encoded_bytes, original_size, submitted_size = _image_bytes(image.path, max_side)
+    encoded_bytes, original_size, submitted_size = _image_bytes(
+        image.path,
+        max_side,
+        transform,
+    )
     payload = {
         "model": model,
         "stream": False,
@@ -103,6 +135,7 @@ def _probe(
             "case_id": case.case_id,
             "role": role,
             "model": model,
+            "transform": transform,
             "original_size": original_size,
             "submitted_size": submitted_size,
             "max_side": max_side,
@@ -119,6 +152,7 @@ def _probe(
         "case_id": case.case_id,
         "role": role,
         "model": model,
+        "transform": transform,
         "original_size": original_size,
         "submitted_size": submitted_size,
         "max_side": max_side,
@@ -144,6 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         url=str(args.url).strip(),
         timeout=float(args.timeout),
         max_side=args.max_side,
+        transform=args.transform,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0 if result.get("ok") is True else 1
