@@ -89,6 +89,25 @@ class LocalLLMResolverMetricsTests(unittest.TestCase):
         self.assertIsNone(metrics["full_identity_accuracy"])
         self.assertIsNone(metrics["false_positive_rate"])
 
+    def test_uncertain_case_metrics_reward_abstention_and_penalize_field_emission(self) -> None:
+        metrics = score_local_resolver_results(
+            [
+                _row(
+                    _result(country=None, denomination=None, year=None, abstain=True),
+                    certain=False,
+                ),
+                _row(
+                    _result(country="Canada", denomination=None, year=None, abstain=False),
+                    certain=False,
+                ),
+            ]
+        )
+
+        self.assertEqual(metrics["uncertain_cases"], 2)
+        self.assertEqual(metrics["uncertain_case_abstention_rate"], 0.5)
+        self.assertEqual(metrics["uncertain_case_non_abstention_rate"], 0.5)
+        self.assertAlmostEqual(metrics["unsupported_field_emission_rate"], 1 / 6)
+
     def test_runtime_failure_counts_failure_and_unresolved(self) -> None:
         metrics = score_local_resolver_results(
             [_row(None, failure={"type": "TimeoutError"}, latency=2.0)]
@@ -120,6 +139,9 @@ class LocalLLMResolverMetricsTests(unittest.TestCase):
         self.assertIsNone(metrics["country_accuracy"])
         self.assertIsNone(metrics["unresolved_rate"])
         self.assertIsNone(metrics["false_positive_rate"])
+        self.assertIsNone(metrics["uncertain_case_abstention_rate"])
+        self.assertIsNone(metrics["uncertain_case_non_abstention_rate"])
+        self.assertIsNone(metrics["unsupported_field_emission_rate"])
         self.assertEqual(
             metrics["latency"],
             {"mean_seconds": None, "median_seconds": None, "p95_seconds": None},
