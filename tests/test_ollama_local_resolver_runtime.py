@@ -90,7 +90,7 @@ class OllamaLocalResolverRuntimeTests(unittest.TestCase):
         ):
             result = runtime.invoke(request_json)
 
-        self.assertEqual(result, model_result)
+        self.assertEqual(json.loads(result), json.loads(model_result))
         self.assertEqual(captured["timeout"], 12.5)
         request = captured["request"]
         self.assertEqual(request.full_url, DEFAULT_OLLAMA_ENDPOINT)
@@ -102,8 +102,31 @@ class OllamaLocalResolverRuntimeTests(unittest.TestCase):
         self.assertEqual(payload["format"], "json")
         self.assertEqual(payload["options"], {"temperature": 0})
         self.assertIn("abstain=true", payload["system"])
+        self.assertIn("confidence=null", payload["system"])
         self.assertNotIn("expected", payload)
         self.assertNotIn("ground_truth", payload)
+
+    def test_uncalibrated_model_confidence_is_forced_to_null(self) -> None:
+        model_result = json.dumps(
+            {
+                "country": "Canada",
+                "denomination": "10 cents",
+                "year": "1937",
+                "candidate_id": None,
+                "confidence": 0.95,
+                "reason": "evidence agrees",
+                "abstain": False,
+            }
+        )
+        envelope = json.dumps({"response": model_result})
+
+        with patch(
+            "capture_import.ollama_local_resolver_runtime.urllib.request.urlopen",
+            return_value=_Response(envelope),
+        ):
+            result = OllamaLocalResolverRuntime().invoke(_resolver_request())
+
+        self.assertIsNone(json.loads(result)["confidence"])
 
     def test_custom_local_model_is_supported(self) -> None:
         runtime = OllamaLocalResolverRuntime(model="qwen-coin:latest")
@@ -185,6 +208,8 @@ class OllamaLocalResolverRuntimeTests(unittest.TestCase):
             "{}",
             json.dumps({"response": ""}),
             json.dumps({"response": {"country": "Canada"}}),
+            json.dumps({"response": "not-json"}),
+            json.dumps({"response": "[]"}),
         )
         runtime = OllamaLocalResolverRuntime()
         for body in invalid_bodies:
