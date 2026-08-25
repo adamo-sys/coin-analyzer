@@ -17,7 +17,8 @@ _SYSTEM_INSTRUCTION = (
     "Use only the evidence in the supplied request. Return exactly one JSON object "
     "matching response_contract, with no markdown or extra text. If the evidence is "
     "insufficient, set abstain=true and use null for unsupported identity fields. "
-    "Do not invent catalogue facts or ground truth."
+    "Set confidence=null because this Ollama runtime does not expose calibrated score "
+    "semantics. Do not invent catalogue facts or ground truth."
 )
 
 
@@ -113,4 +114,12 @@ class OllamaLocalResolverRuntime:
         model_response = envelope.get("response")
         if not isinstance(model_response, str) or not model_response.strip():
             raise OllamaRuntimeError("Ollama response envelope is missing a non-empty response")
-        return model_response.strip()
+
+        try:
+            payload = json.loads(model_response)
+        except json.JSONDecodeError as exc:
+            raise OllamaRuntimeError("Ollama model response is not valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise OllamaRuntimeError("Ollama model response must be a JSON object")
+        payload["confidence"] = None
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
