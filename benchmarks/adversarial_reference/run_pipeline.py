@@ -54,6 +54,7 @@ def main() -> int:
     for script in (
         "assemble_final_asset_candidate_plan.py",
         "select_numista_1956_reference_candidate.py",
+        "seed_final_two_dime_assets.py",
         "select_unique_final_assets.py",
         "report_unresolved_unique_asset_slots.py",
     ):
@@ -67,7 +68,6 @@ def main() -> int:
     unresolved = int(summary.get("slots_unresolved") or summary.get("unresolved_slots") or 0)
     unique = int(summary.get("selected_unique_sha256") or summary.get("unique_sha256") or selected)
 
-    # Be robust to schema drift by inspecting unresolved artifact directly.
     unresolved_payload = load("unresolved_unique_asset_slots.json")
     unresolved_rows = (
         unresolved_payload.get("unresolved")
@@ -96,7 +96,6 @@ def main() -> int:
         print(f"BLOCKED: expected 25 unique asset hashes, found {unique}.")
         return 5
 
-    # Run the existing provenance audit only once all slots are resolved.
     rc = run("audit_source_asset_independence.py")
     if rc:
         return rc
