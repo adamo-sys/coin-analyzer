@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Extract direct image candidates for the four unresolved Canadian dime slots.
 
-Consumes targeted_unique_dime_candidate_plan.json and fetches each page, extracting image-like
-URLs while filtering obvious UI/provider artifacts and already-known duplicate hashes. This is a
-pre-retrieval source acquisition step: it does not mutate source_inventory_v1.json and does not
-run retrieval scoring.
+Consumes targeted_unique_dime_candidate_plan.json and fetches each targeted page candidate,
+extracting image-like URLs while filtering obvious UI/provider artifacts and already-known
+duplicate hashes. This is a pre-retrieval source acquisition step: it does not mutate
+source_inventory_v1.json and does not run retrieval scoring.
 """
 from __future__ import annotations
 
@@ -60,20 +60,6 @@ class ImgParser(html.parser.HTMLParser):
 
 def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _page_url(row: dict) -> str:
-    for key in ("source_page_url", "page_url", "url"):
-        value = row.get(key)
-        if isinstance(value, str) and value.startswith(("http://", "https://")):
-            return value
-    for key in ("candidate", "page", "source"):
-        nested = row.get(key)
-        if isinstance(nested, dict):
-            value = _page_url(nested)
-            if value:
-                return value
-    return ""
 
 
 def _fetch_text(url: str) -> tuple[str, str]:
@@ -136,45 +122,82 @@ def main() -> int:
             continue
         case_id = str(row.get("case_id") or row.get("id") or "")
         side = str(row.get("side") or "")
-        page_url = _page_url(row)
-        print(f"[{i}/{len(rows)}] {case_id}.{side} | page={page_url or 'MISSING'}")
-        entry = {"case_id": case_id, "side": side, "source_page_url": page_url, "candidates": []}
-        if not page_url:
-            entry["status"] = "missing-page-url"
+        page_candidates = row.get("targeted_page_candidates") or []
+        if not isinstance(page_candidates, list):
+            page_candidates = []
+        manual_asset = row.get("manual_asset") if isinstance(row.get("manual_asset"), dict) else None
+
+        entry = {
+            "case_id": case_id,
+            "side": side,
+            "page_candidates": page_candidates,
+            "manual_asset": manual_asset,
+            "candidates": [],
+        }
+
+        # The 1955 reference is already a verified local manual asset. Keep it visible in
+        # this recovery artifact instead of pretending it needs web extraction.
+        if manual_asset:
+            entry["status"] = "manual-asset-available"
             results.append(entry)
+            print(f"[{i}/{len(rows)}] {case_id}.{side} | manual asset available")
             continue
-        try:
-            text, final_page = _fetch_text(page_url)
-            pages_fetched += 1
-            entry["final_page_url"] = final_page
-            urls = _candidate_urls(final_page, text)
-            candidates = []
-            for rank, url in enumerate(urls, 1):
-                hashed = _fetch_image_hash(url)
-                if not hashed:
-                    continue
-                sha, size, final_url = hashed
-                if sha in KNOWN_DUPLICATE_SHA256:
-                    rejected_known_dup += 1
-                    continue
-                candidates.append({
-                    "rank": rank,
-                    "asset_url": url,
-                    "final_url": final_url,
-                    "sha256": sha,
-                    "bytes": size,
+
+        print(f"[{i}/{len(rows)}] {case_id}.{side} | pages={len(page_candidates)}")
+        merged_candidates = []
+        seen_sha: set[str] = set()
+        page_attempts = []
+        for page_row in page_candidates:
+            if not isinstance(page_row, dict):
+                continue
+            page_url = str(page_row.get("source_page_url") or "")
+            if not page_url.startswith(("http://", "https://")):
+                page_attempts.append({"source_page_url": page_url, "status": "missing-page-url"})
+                continue
+            try:
+                text, final_page = _fetch_text(page_url)
+                pages_fetched += 1
+                urls = _candidate_urls(final_page, text)
+                found_here = 0
+                for rank, url in enumerate(urls, 1):
+                    hashed = _fetch_image_hash(url)
+                    if not hashed:
+                        continue
+                    sha, size, final_url = hashed
+                    if sha in KNOWN_DUPLICATE_SHA256:
+                        rejected_known_dup += 1
+                        continue
+                    if sha in seen_sha:
+                        continue
+                    seen_sha.add(sha)
+                    found_here += 1
+                    merged_candidates.append({
+                        "rank": rank,
+                        "asset_url": url,
+                        "final_url": final_url,
+                        "sha256": sha,
+                        "bytes": size,
+                        "source_page_url": final_page,
+                        "provider": page_row.get("provider"),
+                    })
+                page_attempts.append({
+                    "source_page_url": page_url,
+                    "final_page_url": final_page,
+                    "status": "fetched",
+                    "unique_candidates_found": found_here,
                 })
-            entry["candidates"] = candidates
-            entry["status"] = "candidates-found" if candidates else "no-unique-candidates"
-            total_candidates += len(candidates)
-        except Exception as exc:
-            page_errors += 1
-            entry["status"] = "fetch-error"
-            entry["error"] = str(exc)
+            except Exception as exc:
+                page_errors += 1
+                page_attempts.append({"source_page_url": page_url, "status": "fetch-error", "error": str(exc)})
+
+        entry["page_attempts"] = page_attempts
+        entry["candidates"] = merged_candidates
+        entry["status"] = "candidates-found" if merged_candidates else "no-unique-candidates"
+        total_candidates += len(merged_candidates)
         results.append(entry)
 
     output = {
-        "schema": "coin-analyzer-targeted-unique-dime-asset-candidates-v1",
+        "schema": "coin-analyzer-targeted-unique-dime-asset-candidates-v2",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "results": results,
@@ -182,8 +205,9 @@ def main() -> int:
             "targets": len(results),
             "pages_fetched": pages_fetched,
             "page_errors": page_errors,
+            "manual_asset_slots": sum(1 for r in results if r.get("status") == "manual-asset-available"),
             "slots_with_candidates": sum(1 for r in results if r.get("candidates")),
-            "slots_without_candidates": sum(1 for r in results if not r.get("candidates")),
+            "slots_without_candidates": sum(1 for r in results if not r.get("candidates") and r.get("status") != "manual-asset-available"),
             "unique_candidates_found": total_candidates,
             "known_duplicate_assets_rejected": rejected_known_dup,
         },
@@ -193,6 +217,7 @@ def main() -> int:
     print(f"Targets: {s['targets']}")
     print(f"Pages fetched: {s['pages_fetched']}")
     print(f"Page errors: {s['page_errors']}")
+    print(f"Manual asset slots: {s['manual_asset_slots']}")
     print(f"Slots with candidates: {s['slots_with_candidates']}")
     print(f"Slots without candidates: {s['slots_without_candidates']}")
     print(f"Unique candidates found: {s['unique_candidates_found']}")
