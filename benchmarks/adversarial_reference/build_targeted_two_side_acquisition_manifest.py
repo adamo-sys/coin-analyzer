@@ -33,10 +33,10 @@ def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def collect_pages() -> dict[tuple[str, str], list[dict]]:
+def collect_pages(sources: tuple[tuple[Path, str, str], ...] = SOURCES) -> dict[tuple[str, str], list[dict]]:
     pages: dict[tuple[str, str], list[dict]] = {}
     seen: set[tuple[str, str, str]] = set()
-    for path, key, source_artifact in SOURCES:
+    for path, key, source_artifact in sources:
         if not path.is_file():
             continue
         payload = load(path)
@@ -55,26 +55,28 @@ def collect_pages() -> dict[tuple[str, str], list[dict]]:
             if dedupe in seen:
                 continue
             seen.add(dedupe)
+            required_coin_sides = row.get("required_coin_sides")
+            if not isinstance(required_coin_sides, list):
+                required_coin_sides = None
             pages.setdefault((case_id, side), []).append({
                 "provider": row.get("provider"),
                 "source_page_url": url,
                 "identity_evidence": row.get("identity_evidence") or row.get("identity_note"),
                 "asset_note": row.get("asset_note") or row.get("independence_note"),
+                "license_or_permitted_use": row.get("license_or_permitted_use") or row.get("usage_note"),
+                "provenance_retrieved_at": row.get("provenance_retrieved_at") or row.get("retrieved_at"),
+                "source_record_id": row.get("source_record_id"),
+                "required_coin_sides": required_coin_sides,
                 "source_artifact": source_artifact,
             })
     return pages
 
 
-def main() -> int:
-    if not QUEUE.is_file():
-        raise SystemExit(f"missing two-side gap queue: {QUEUE}")
-
-    queue = load(QUEUE)
+def build_artifact(queue: dict, pages: dict[tuple[str, str], list[dict]]) -> dict:
     rows = queue.get("queue") or []
     if not isinstance(rows, list):
-        raise SystemExit("two_side_gap_acquisition_queue.json requires queue[]")
+        raise ValueError("two_side_gap_acquisition_queue.json requires queue[]")
 
-    pages = collect_pages()
     manifest_rows = []
     roles_with_pages = 0
     roles_without_pages = 0
@@ -114,7 +116,7 @@ def main() -> int:
 
     cases_with_known_pages = sorted({r["case_id"] for r in manifest_rows if r["page_candidates"]})
     cases_without_known_pages = sorted({r["case_id"] for r in manifest_rows if not r["page_candidates"]})
-    artifact = {
+    return {
         "schema": "coin-analyzer-targeted-two-side-acquisition-manifest-v1",
         "retrieval_scoring_run": False,
         "broad_search_sweep_required": False,
@@ -129,6 +131,17 @@ def main() -> int:
             "case_ids_still_requiring_page_discovery": cases_without_known_pages,
         },
     }
+
+
+def main() -> int:
+    if not QUEUE.is_file():
+        raise SystemExit(f"missing two-side gap queue: {QUEUE}")
+
+    queue = load(QUEUE)
+    try:
+        artifact = build_artifact(queue, collect_pages())
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     OUTPUT.write_text(json.dumps(artifact, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     s = artifact["summary"]
