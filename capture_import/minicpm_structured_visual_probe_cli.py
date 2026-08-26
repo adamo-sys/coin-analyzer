@@ -21,16 +21,34 @@ from .visual_evaluation_harness import load_visual_manifest
 
 DEFAULT_MODEL = "minicpm-v:8b"
 DEFAULT_URL = "http://127.0.0.1:11434/api/chat"
-PROMPT = (
-    "Identify the single physical coin shown in this image. Return JSON only "
-    "with exactly these keys: country, denomination, year, type_design, "
-    "visible_text, abstain. country, denomination, year, and type_design must "
-    "be strings or null. visible_text must be an array of at most six short "
-    "strings transcribed from the image. abstain must be boolean. Use visible "
-    "evidence plus general numismatic knowledge, but do not invent text. Leave "
-    "a field null when it cannot be determined. Set abstain true only when no "
-    "identity field is defensible."
+BASE_PROMPT = (
+    "Extract evidence from this single coin side. Return JSON only with exactly "
+    "these keys: country, denomination, year, type_design, visible_text, abstain. "
+    "country, denomination, year, and type_design must be strings or null. "
+    "visible_text must be an array of at most six short strings transcribed from "
+    "the image. abstain must be boolean. Do not infer a field merely from the "
+    "portrait, monarch, general coin style, or general numismatic knowledge. "
+    "Only emit a field when this image itself visibly supports it. Do not invent "
+    "or reconstruct text. Leave unsupported fields null. Set abstain true only "
+    "when no identity or design field is visibly defensible. "
 )
+ROLE_PROMPTS = {
+    "obverse": BASE_PROMPT + (
+        "This is the obverse. Prioritize portrait/effigy identity, issuer or "
+        "country only when supported by visible legend or unmistakable issuer "
+        "symbolism, and any date only when numerals are visibly present. Do not "
+        "supply denomination unless denomination text or an unmistakable "
+        "denomination symbol is visibly present on this side. A monarch portrait "
+        "alone does not establish country, denomination, or year."
+    ),
+    "reverse": BASE_PROMPT + (
+        "This is the reverse. Prioritize denomination, visible date, issuer or "
+        "country text/symbols, and reverse design. Country may be supplied when "
+        "the country or issuing authority is visibly written or uniquely "
+        "identified by explicit reverse-side evidence. Do not fill missing "
+        "fields from assumptions about what usually appears on the other side."
+    ),
+}
 EXPECTED_KEYS = {
     "country",
     "denomination",
@@ -106,6 +124,8 @@ def _validated_result(raw: object) -> dict[str, object]:
 
 
 def _probe(case, *, role: str, model: str, url: str, timeout: float) -> dict[str, object]:
+    if role not in ROLE_PROMPTS:
+        raise ValueError(f"unsupported role: {role}")
     image = case.obverse if role == "obverse" else case.reverse
     payload = {
         "model": model,
@@ -115,7 +135,7 @@ def _probe(case, *, role: str, model: str, url: str, timeout: float) -> dict[str
         "messages": [
             {
                 "role": "user",
-                "content": PROMPT,
+                "content": ROLE_PROMPTS[role],
                 "images": [base64.b64encode(image.path.read_bytes()).decode("ascii")],
             }
         ],
