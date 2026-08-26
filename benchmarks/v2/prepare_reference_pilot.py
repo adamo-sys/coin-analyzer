@@ -3,6 +3,8 @@
 The benchmark uses photographs independent from the frozen v2 query sources.
 Downloads are resumable, and blocked sources do not prevent a useful partial run:
 complete cached cases are emitted when at least MIN_COMPLETE_CASES are available.
+Generated manifests are invalidated before each build so a failed expansion cannot
+silently leave an older benchmark runnable under a misleading artifact name.
 """
 from __future__ import annotations
 
@@ -25,50 +27,20 @@ RETRIEVED_AT = date.today().isoformat()
 THUMB_WIDTH = 960
 MIN_COMPLETE_CASES = 8
 
-# Ten deliberately varied identities. Some Commons photographs show both sides in
-# one frame; using that same independent photograph for both role slots is
-# intentional and tests whether retrieval survives layout/background differences.
 SOURCES = {
-    "canada-5-cents-1964": {
-        "obverse": ("Canada $0.05 1964.jpg",),
-        "reverse": ("Canada $0.05 1964.jpg",),
-    },
-    "canada-10-cents-1955": {
-        "obverse": ("Canada $0.1 1955.jpg",),
-        "reverse": ("Canada $0.1 1955.jpg",),
-    },
-    "india-10-paise-1965": {
-        "obverse": ("10-paise-1965-obs.png",),
-        "reverse": ("10-paise-1965-rev.png",),
-    },
-    "india-1-rupee-1918": {
-        "obverse": ("Indian silver rupee 1918.JPG",),
-        "reverse": ("Indian silver rupee of 1918.JPG",),
-    },
-    "switzerland-2-francs-1980": {
-        "obverse": ("2 Swiss Francs (1980).jpg",),
-        "reverse": ("2 Swiss Francs (1980).jpg",),
-    },
-    "us-spanish-trail-half-dollar-1935": {
-        "obverse": ("Old Spanish Trail half dollar obverse.jpg",),
-        "reverse": ("Old Spanish Trail half dollar reverse.jpg",),
-    },
-    "us-elgin-half-dollar-1936": {
-        "obverse": ("Elgin (Illinois) Centennial half dollar obverse.jpg",),
-        "reverse": ("Elgin (Illinois) Centennial half dollar reverse.jpg",),
-    },
+    "canada-5-cents-1964": {"obverse": ("Canada $0.05 1964.jpg",), "reverse": ("Canada $0.05 1964.jpg",)},
+    "canada-10-cents-1955": {"obverse": ("Canada $0.1 1955.jpg",), "reverse": ("Canada $0.1 1955.jpg",)},
+    "india-10-paise-1965": {"obverse": ("10-paise-1965-obs.png",), "reverse": ("10-paise-1965-rev.png",)},
+    "india-1-rupee-1918": {"obverse": ("Indian silver rupee 1918.JPG",), "reverse": ("Indian silver rupee of 1918.JPG",)},
+    "switzerland-2-francs-1980": {"obverse": ("2 Swiss Francs (1980).jpg",), "reverse": ("2 Swiss Francs (1980).jpg",)},
+    "us-spanish-trail-half-dollar-1935": {"obverse": ("Old Spanish Trail half dollar obverse.jpg",), "reverse": ("Old Spanish Trail half dollar reverse.jpg",)},
+    "us-elgin-half-dollar-1936": {"obverse": ("Elgin (Illinois) Centennial half dollar obverse.jpg",), "reverse": ("Elgin (Illinois) Centennial half dollar reverse.jpg",)},
     "us-pilgrim-half-dollar-1920": {
         "obverse": ("Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg", "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (2 of 2).jpg"),
         "reverse": ("Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg", "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (2 of 2).jpg"),
     },
-    "australia-sixpence-1910": {
-        "obverse": ("1910-Australian-Sixpence-Obverse.jpg",),
-        "reverse": ("1910-Australian-Sixpence-Reverse.jpg",),
-    },
-    "indonesia-100-rupiah-1995": {
-        "obverse": ("IDR 100 Coin (obverse and reverse).jpg",),
-        "reverse": ("IDR 100 Coin (obverse and reverse).jpg",),
-    },
+    "australia-sixpence-1910": {"obverse": ("1910-Australian-Sixpence-Obverse.jpg",), "reverse": ("1910-Australian-Sixpence-Reverse.jpg",)},
+    "indonesia-100-rupiah-1995": {"obverse": ("IDR 100 Coin (obverse and reverse).jpg",), "reverse": ("IDR 100 Coin (obverse and reverse).jpg",)},
 }
 
 FALLBACK_URLS = {
@@ -106,6 +78,18 @@ def _all_titles() -> list[str]:
     return sorted({title for sides in SOURCES.values() for titles in sides.values() for title in titles})
 
 
+def _invalidate_generated_manifests() -> None:
+    removed = []
+    for path in (REFERENCE_MANIFEST, PILOT_BENCHMARK_MANIFEST):
+        if path.exists():
+            path.unlink()
+            removed.append(str(path))
+    if removed:
+        print("Invalidated stale generated manifests:", flush=True)
+        for path in removed:
+            print(f"  {path}", flush=True)
+
+
 def _pilot_benchmark(case_ids: set[str]) -> dict[str, object]:
     source = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
     cases = [case for case in source.get("cases", []) if case.get("id") in case_ids]
@@ -115,12 +99,22 @@ def _pilot_benchmark(case_ids: set[str]) -> dict[str, object]:
         raise RuntimeError("Benchmark v2 is missing reference cases: " + ", ".join(missing))
     payload = dict(source)
     payload["version"] = str(source.get("version") or "v2.0") + "+reference-10"
+    payload["reference_build"] = {
+        "target_cases": len(SOURCES),
+        "minimum_complete_cases": MIN_COMPLETE_CASES,
+        "complete_cases": len(cases),
+        "complete_case_ids": sorted(case_ids),
+    }
     payload["cases"] = cases
-    payload["notes"] = f"Independent-reference retrieval benchmark targeting 10 varied identities; {len(cases)} complete reference cases available in this build."
+    payload["notes"] = f"Independent-reference retrieval benchmark targeting {len(SOURCES)} varied identities; {len(cases)} complete reference cases available in this build."
     return payload
 
 
 def main() -> int:
+    # Do this before any network work. A failed build must never leave an older
+    # manifest that a later benchmark command can mistake for the current run.
+    _invalidate_generated_manifests()
+
     titles = _all_titles()
     metadata = _api_metadata(titles)
     missing_metadata = sorted(set(titles) - set(metadata))
@@ -139,8 +133,6 @@ def main() -> int:
         primary_url = str(info.get("thumburl") or original_url)
         retrieved_url = primary_url
         retrieval_source = "Wikimedia Commons"
-        # Stable title-derived filename avoids index renumbering corrupting the
-        # cache when the catalogue grows.
         safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
         path = REFERENCE_ROOT / "refs_v2" / safe_name
         if path.suffix.casefold() not in {".jpg", ".jpeg", ".png", ".webp"}:
@@ -204,7 +196,7 @@ def main() -> int:
         candidates.append(candidate)
 
     if len(candidates) < MIN_COMPLETE_CASES:
-        print(f"Only {len(candidates)} complete reference cases; need at least {MIN_COMPLETE_CASES}. No manifests written.", flush=True)
+        print(f"Only {len(candidates)} complete reference cases; need at least {MIN_COMPLETE_CASES}. Generated manifests remain absent.", flush=True)
         if skipped:
             print("Incomplete cases: " + ", ".join(skipped), flush=True)
         return 75
@@ -213,8 +205,11 @@ def main() -> int:
     reference_manifest = {
         "schema": "coin-analyzer-reference-image-catalogue",
         "version": "v2-independent-reference-10",
-        "description": f"Independent-photo reference benchmark targeting 10 varied Benchmark v2 identities; {len(candidates)} complete cases available.",
+        "description": f"Independent-photo reference benchmark targeting {len(SOURCES)} varied Benchmark v2 identities; {len(candidates)} complete cases available.",
         "target_cases": len(SOURCES),
+        "minimum_complete_cases": MIN_COMPLETE_CASES,
+        "complete_cases": len(candidates),
+        "complete_case_ids": sorted(complete_ids),
         "partial": len(candidates) < len(SOURCES),
         "skipped_cases": skipped,
         "unavailable_titles": sorted(unavailable),
