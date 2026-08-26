@@ -1,0 +1,62 @@
+{
+  "schema": "coin-analyzer-final-gap-page-candidates-v1",
+  "retrieval_results_inspected": false,
+  "inventory_modified": false,
+  "asset_independence_pending": true,
+  "items": [
+    {
+      "case_id": "india-1-rupee-1917",
+      "side": "query",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4851",
+      "identity_evidence": "British India George V silver 1 Rupee type; page explicitly lists 1917 Calcutta and Bombay issues.",
+      "asset_note": "Type page only; exact 1917 image asset must be verified before import."
+    },
+    {
+      "case_id": "india-1-rupee-1917",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "LiveAuctioneers",
+      "url": "https://www.liveauctioneers.com/price-result/1917-india-1-rupee-917-silver-coin/",
+      "identity_evidence": "Auction result explicitly identifies a 1917 India 1 Rupee 91.7% silver coin.",
+      "asset_note": "Independent provider from query page; image asset URL/hash still required."
+    },
+    {
+      "case_id": "india-1-rupee-1919",
+      "side": "query",
+      "status": "conflict-resolution-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4851",
+      "identity_evidence": "British India George V silver 1 Rupee type page explicitly lists 1919 Calcutta and Bombay issues.",
+      "asset_note": "Use only if an exact 1919 image can be established; page-level identity resolves type but not asset."
+    },
+    {
+      "case_id": "switzerland-2-francs-1980",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/189",
+      "identity_evidence": "Switzerland 2 Francs Helvetia standing page explicitly lists 1980 KM#21a.1 and reverse date 1980.",
+      "asset_note": "Reference image must be independent of frozen v2 query asset."
+    },
+    {
+      "case_id": "liberia-1-cent-1896",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/12425",
+      "identity_evidence": "Liberia 1 Cent type page explicitly identifies 1896 H and reverse ONE CENT 1896.",
+      "asset_note": "Numista credits Heritage Auctions; exact image asset and licensing/provenance need capture."
+    },
+    {
+      "case_id": "philippines-10-pesos-2015",
+      "side": "reference",
+      "status": "page-candidate-identity-review",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4519",
+      "identity_evidence": "Philippines regular 10 Piso type page lists a 2015 PI issue.",
+      "asset_note": "Do not substitute the separate 2015 Miguel Malvar commemorative (Numista N#81193) unless frozen v2 type design confirms that identity. Exact regular-issue asset remains pending."
+    }
+  ]
+}
