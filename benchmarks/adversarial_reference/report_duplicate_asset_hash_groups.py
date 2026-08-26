@@ -17,16 +17,27 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def main() -> int:
-    payload = _load(INPUT)
-    groups = payload.get("duplicate_sha256_groups") or payload.get("duplicate_hash_groups") or []
+def _groups(payload: dict) -> list[dict]:
+    # Current downloader writes a mapping under duplicate_sha256. Older diagnostics
+    # used alternate field names; keep those fallbacks so locally generated audits
+    # remain readable across revisions.
+    groups = (
+        payload.get("duplicate_sha256")
+        or payload.get("duplicate_sha256_groups")
+        or payload.get("duplicate_hash_groups")
+        or []
+    )
     if isinstance(groups, dict):
-        groups = [
+        return [
             {"sha256": sha256, "members": members}
             for sha256, members in groups.items()
         ]
-    if not isinstance(groups, list):
-        groups = []
+    return groups if isinstance(groups, list) else []
+
+
+def main() -> int:
+    payload = _load(INPUT)
+    groups = _groups(payload)
 
     normalized = []
     for idx, group in enumerate(groups, start=1):
