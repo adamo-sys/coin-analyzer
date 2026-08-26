@@ -28,10 +28,6 @@ def resolve_path(value: object) -> Path | None:
     return p if p.is_file() else None
 
 
-def slot_id(row: dict) -> str:
-    return str(row.get("slot_id") or row.get("slot") or row.get("id") or "")
-
-
 def local_path(row: dict) -> Path | None:
     for key in ("path", "asset_path", "local_path", "selected_path", "file"):
         p = resolve_path(row.get(key))
@@ -46,6 +42,19 @@ def local_path(row: dict) -> Path | None:
     return None
 
 
+def case_and_side(row: dict) -> tuple[str, str]:
+    case_id = str(row.get("case_id") or "")
+    side = str(row.get("side") or "")
+    if case_id and side in {"query", "reference"}:
+        return case_id, side
+    sid = str(row.get("slot_id") or row.get("slot") or row.get("id") or "")
+    if sid.endswith(".query"):
+        return sid[:-6], "query"
+    if sid.endswith(".reference"):
+        return sid[:-10], "reference"
+    return "", ""
+
+
 def main() -> int:
     payload = load(INPUT)
     rows = payload.get("rows") or payload.get("slots") or payload.get("results") or payload.get("selected") or []
@@ -55,11 +64,9 @@ def main() -> int:
     for row in rows if isinstance(rows, list) else []:
         if not isinstance(row, dict):
             continue
-        sid = slot_id(row)
-        if sid.endswith(".query"):
-            by_case.setdefault(sid[:-6], {})["query"] = row
-        elif sid.endswith(".reference"):
-            by_case.setdefault(sid[:-10], {})["reference"] = row
+        case_id, side = case_and_side(row)
+        if case_id and side:
+            by_case.setdefault(case_id, {})[side] = row
 
     out_rows = []
     compared = suspicious = unavailable = 0
@@ -96,7 +103,7 @@ def main() -> int:
             unavailable += 1
             out_rows.append({"case_id": case_id, "status": "compare-error", "error": str(exc), "query_path": str(q), "reference_path": str(r)})
 
-    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v1", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_discovered": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
+    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v2", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_discovered": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
     OUTPUT.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
     print(f"Cases discovered: {len(by_case)}")
     print(f"Query/reference pairs compared: {compared}")
