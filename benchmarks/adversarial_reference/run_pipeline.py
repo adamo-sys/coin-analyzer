@@ -56,6 +56,7 @@ def main() -> int:
         "seed_final_two_dime_assets.py",
         "select_unique_final_assets.py",
         "report_unresolved_unique_asset_slots.py",
+        "seed_remaining_pair_gaps.py",
         "assemble_full_pair_asset_set.py",
     ):
         rc = run(script)
