@@ -128,7 +128,12 @@ def main() -> int:
         print("This is a data-assembly gap, not a clean audit pass. Retrieval scoring remains disabled.")
         return 7
 
-    print("\nPREPARATION COMPLETE: candidate set resolved; provenance and perceptual-similarity audits passed with complete coverage.")
+    rc = run("create_pre_retrieval_freeze.py")
+    if rc:
+        print("\nFREEZE CREATION BLOCKED. Retrieval scoring remains disabled.")
+        return rc
+
+    print("\nFREEZE COMPLETE: 25-case benchmark inputs and pre-retrieval policy are locked in FREEZE.json.")
     print("Retrieval scoring was NOT run. source_inventory_v1.json was NOT modified.")
     return 0
 
