@@ -17,7 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 TARGETS = ROOT / "target_empty_asset_slots.json"
-PAGE_AUDIT = ROOT / "combined_page_coverage_audit.json"
+WEB_REVIEW = ROOT / "web_curated_gap_page_review.json"
+FINAL_REVIEW = ROOT / "final_gap_page_review.json"
 OUTPUT = ROOT / "targeted_empty_asset_candidates.json"
 USER_AGENT = "coin-analyzer-adversarial-benchmark/1.0"
 TIMEOUT = 30
@@ -37,30 +38,20 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _page_map(payload: dict) -> dict[tuple[str, str], str]:
+def _page_map(*payloads: dict) -> dict[tuple[str, str], str]:
     out: dict[tuple[str, str], str] = {}
-    for key in ("accepted", "covered", "slots", "items", "results"):
-        rows = payload.get(key)
-        if isinstance(rows, list):
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                case_id = str(row.get("case_id") or row.get("id") or "")
-                side = str(row.get("side") or "")
-                url = str(row.get("url") or row.get("page_url") or row.get("source_page_url") or "")
-                if case_id and side and url.startswith(("http://", "https://")):
-                    out[(case_id, side)] = url
-    cases = payload.get("cases")
-    if isinstance(cases, dict):
-        for case_id, case in cases.items():
-            if not isinstance(case, dict):
-                continue
-            for side in ("query", "reference"):
-                slot = case.get(side)
-                if isinstance(slot, dict):
-                    url = str(slot.get("url") or slot.get("page_url") or slot.get("source_page_url") or "")
-                    if url.startswith(("http://", "https://")):
-                        out[(str(case_id), side)] = url
+    for payload in payloads:
+        for key in ("accepted", "covered", "slots", "items", "results"):
+            rows = payload.get(key)
+            if isinstance(rows, list):
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    case_id = str(row.get("case_id") or row.get("id") or "")
+                    side = str(row.get("side") or "")
+                    url = str(row.get("url") or row.get("page_url") or row.get("source_page_url") or "")
+                    if case_id and side and url.startswith(("http://", "https://")):
+                        out[(case_id, side)] = url
     return out
 
 
@@ -128,7 +119,7 @@ def _score(case_id: str, url: str) -> tuple[int, list[str]]:
 
 def main() -> int:
     targets = _load(TARGETS)
-    pages = _page_map(_load(PAGE_AUDIT))
+    pages = _page_map(_load(WEB_REVIEW), _load(FINAL_REVIEW))
     results = []
     fetched = 0
     errors = 0
@@ -144,7 +135,7 @@ def main() -> int:
             continue
         page_url = pages.get(key, "")
         if not page_url:
-            results.append({"case_id": case_id, "side": side, "status": "source-page-not-found-in-audit", "candidates": []})
+            results.append({"case_id": case_id, "side": side, "status": "source-page-not-found-in-review-artifacts", "candidates": []})
             continue
         try:
             body = _fetch(page_url)
