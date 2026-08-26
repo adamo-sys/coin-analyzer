@@ -173,7 +173,7 @@ def main() -> int:
             })
         candidates = explicit_candidates + [c for c in (row.get("candidates") or []) if isinstance(c, dict)]
 
-        if selected is None and not manual:
+        if selected is None and candidates:
             for rank, candidate in enumerate(candidates, 1):
                 url = _candidate_url(candidate)
                 if not url:
@@ -222,7 +222,7 @@ def main() -> int:
         })
 
     output = {
-        "schema": "coin-analyzer-unique-final-assets-v2",
+        "schema": "coin-analyzer-unique-final-assets-v3",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "selection_policy": "assembled manual assets + explicit pre-retrieval targeted selections + pre-ranked candidate order with global SHA-256 uniqueness; no retrieval score used",
