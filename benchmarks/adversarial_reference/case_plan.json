@@ -1,0 +1,38 @@
+{
+  "schema": "coin-analyzer-adversarial-reference-case-plan-v1",
+  "protocol_version": "v1.0",
+  "target_cases": 25,
+  "success_gate": {
+    "top1_correct_required": 23,
+    "top1_accuracy_required": 0.92
+  },
+  "backend_freeze": "opencv-orb-plus-hsv-histogram-rotation-invariant",
+  "notes": "Identity list is frozen before reference acquisition and before any 25-case retrieval result is inspected. Existing Benchmark v2 identities may reuse their frozen query assets; added near-neighbour identities require independently sourced query and reference assets before FREEZE.json can be generated.",
+  "cases": [
+    {"id":"canada-5-cents-1964","primary_bucket":"same-monarch-portrait","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"canada-10-cents-1954","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"canada-10-cents-1955","primary_bucket":"same-country-denomination-nearby-year","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"canada-10-cents-1956","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"canada-25-cents-1966","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"canada-25-cents-1967","primary_bucket":"same-country-denomination-nearby-year","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"india-10-paise-1965","primary_bucket":"worn-toned-realistic","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"india-2-rupees-2012","primary_bucket":"distinctive-control","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"india-1-rupee-1917","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"india-1-rupee-1918","primary_bucket":"same-country-denomination-nearby-year","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"india-1-rupee-1919","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"switzerland-2-francs-1979","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"switzerland-2-francs-1980","primary_bucket":"same-country-denomination-nearby-year","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"switzerland-2-francs-1981","primary_bucket":"same-country-denomination-nearby-year","query_origin":"new-independent-query","status":"needs-query-and-reference"},
+    {"id":"us-spanish-trail-half-dollar-1935","primary_bucket":"visually-similar-commemorative","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"us-columbia-half-dollar-1936","primary_bucket":"visually-similar-commemorative","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"us-elgin-half-dollar-1936","primary_bucket":"visually-similar-commemorative","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"us-pilgrim-half-dollar-1920","primary_bucket":"visually-similar-commemorative","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"australia-sixpence-1910","primary_bucket":"same-monarch-portrait","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"belgian-congo-1-franc-1887","primary_bucket":"world-legend-layout-lookalike","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"indonesia-100-rupiah-1995","primary_bucket":"worn-toned-realistic","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"france-1-centime-1797","primary_bucket":"world-legend-layout-lookalike","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"philippines-10-pesos-2015","primary_bucket":"worn-toned-realistic","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"liberia-2-cents-1862","primary_bucket":"world-legend-layout-lookalike","query_origin":"benchmark-v2","status":"query-ready"},
+    {"id":"bhutan-half-rupee-1955","primary_bucket":"distinctive-control","query_origin":"benchmark-v2","status":"query-ready"}
+  ]
+}
