@@ -1,0 +1,61 @@
+{
+  "schema": "coin-analyzer-adversarial-reference-benchmark",
+  "version": "v1",
+  "status": "frozen-before-evaluation",
+  "target_cases": 25,
+  "success_gate": {
+    "top1_correct_min": 23,
+    "top1_accuracy_min": 0.92,
+    "notes": "Primary go/no-go gate for the unchanged reference-image retrieval backend."
+  },
+  "evaluation_policy": {
+    "retrieval_backend_frozen": "opencv-orb-plus-hsv-histogram-rotation-invariant",
+    "no_case_swapping_after_first_result": true,
+    "independent_query_and_reference_sources_required": true,
+    "exact_byte_leakage_forbidden": true,
+    "near_neighbor_competition_required": true,
+    "threshold_tuning_before_primary_top1_result_forbidden": true,
+    "notes": "Case composition and expected identities are frozen before retrieval results are inspected. Source acquisition may replace an unavailable image only with another independent image of the same frozen identity."
+  },
+  "difficulty_buckets": {
+    "same-country-same-era": "Coins sharing country, portrait era, or broad visual language.",
+    "same-denomination-near-year": "Same denomination/design family with nearby dates where available.",
+    "commemorative-near-neighbor": "Visually similar commemoratives competing directly.",
+    "world-similar-layout": "Different jurisdictions with similar metallic colour, legends, portraits, wreaths, or numeral layouts.",
+    "condition-domain-shift": "Worn, toned, rotated, non-studio, or differently cropped imagery."
+  },
+  "cases": [
+    {"id":"canada-5-cents-1964","expected":{"country":"Canada","denomination":"5 cents","year":"1964"},"buckets":["same-country-same-era","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"canada-10-cents-1955","expected":{"country":"Canada","denomination":"10 cents","year":"1955"},"buckets":["same-country-same-era","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"canada-25-cents-1967","expected":{"country":"Canada","denomination":"25 cents","year":"1967"},"buckets":["same-country-same-era","commemorative-near-neighbor"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"canada-25-cents-1965","expected":{"country":"Canada","denomination":"25 cents","year":"1965"},"buckets":["same-country-same-era","same-denomination-near-year"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"canada-25-cents-1966","expected":{"country":"Canada","denomination":"25 cents","year":"1966"},"buckets":["same-country-same-era","same-denomination-near-year"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"canada-10-cents-1954","expected":{"country":"Canada","denomination":"10 cents","year":"1954"},"buckets":["same-country-same-era","same-denomination-near-year"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"canada-10-cents-1956","expected":{"country":"Canada","denomination":"10 cents","year":"1956"},"buckets":["same-country-same-era","same-denomination-near-year"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"india-10-paise-1965","expected":{"country":"India","denomination":"10 paise","year":"1965"},"buckets":["condition-domain-shift","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"india-1-rupee-1918","expected":{"country":"India","denomination":"1 rupee","year":"1918"},"buckets":["condition-domain-shift","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"india-1-rupee-1917","expected":{"country":"India","denomination":"1 rupee","year":"1917"},"buckets":["same-denomination-near-year","same-country-same-era"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"india-1-rupee-1919","expected":{"country":"India","denomination":"1 rupee","year":"1919"},"buckets":["same-denomination-near-year","same-country-same-era"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"switzerland-2-francs-1980","expected":{"country":"Switzerland","denomination":"2 francs","year":"1980"},"buckets":["world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"switzerland-2-francs-1979","expected":{"country":"Switzerland","denomination":"2 francs","year":"1979"},"buckets":["same-denomination-near-year","same-country-same-era"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"switzerland-2-francs-1981","expected":{"country":"Switzerland","denomination":"2 francs","year":"1981"},"buckets":["same-denomination-near-year","same-country-same-era"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"us-spanish-trail-half-dollar-1935","expected":{"country":"United States","denomination":"50 cents","year":"1935"},"buckets":["commemorative-near-neighbor"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"us-columbia-half-dollar-1936","expected":{"country":"United States","denomination":"50 cents","year":"1936"},"buckets":["commemorative-near-neighbor"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"us-elgin-half-dollar-1936","expected":{"country":"United States","denomination":"50 cents","year":"1936"},"buckets":["commemorative-near-neighbor"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"us-pilgrim-half-dollar-1920","expected":{"country":"United States","denomination":"50 cents","year":"1920"},"buckets":["commemorative-near-neighbor"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"us-oregon-trail-half-dollar-1926","expected":{"country":"United States","denomination":"50 cents","year":"1926"},"buckets":["commemorative-near-neighbor"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"australia-sixpence-1910","expected":{"country":"Australia","denomination":"6 pence","year":"1910"},"buckets":["world-similar-layout","condition-domain-shift"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"australia-sixpence-1911","expected":{"country":"Australia","denomination":"6 pence","year":"1911"},"buckets":["same-denomination-near-year","same-country-same-era"],"source_status":"new-independent-query-and-reference-required"},
+    {"id":"indonesia-100-rupiah-1995","expected":{"country":"Indonesia","denomination":"100 rupiah","year":"1995"},"buckets":["world-similar-layout","condition-domain-shift"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"france-1-centime-1797","expected":{"country":"France","denomination":"1 centime","year":"1797"},"buckets":["condition-domain-shift","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"liberia-1-cent-1896","expected":{"country":"Liberia","denomination":"1 cent","year":"1896"},"buckets":["condition-domain-shift","world-similar-layout"],"source_status":"reuse-frozen-v2-query; independent-reference-required"},
+    {"id":"philippines-10-pesos-2015","expected":{"country":"Philippines","denomination":"10 pesos","year":"2015"},"buckets":["world-similar-layout","condition-domain-shift"],"source_status":"reuse-frozen-v2-query; independent-reference-required"}
+  ],
+  "counts": {
+    "cases": 25,
+    "same_denominator_or_close_visual_competition_cases": 16,
+    "reused_frozen_v2_query_identities": 15,
+    "new_identity_cases": 10
+  },
+  "notes": "This file freezes identity composition only. Image provenance manifests are filled separately before evaluation. Retrieval code must remain unchanged through the primary 25-case Top-1 run."
+}
