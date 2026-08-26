@@ -29,14 +29,10 @@ def resolve_path(value: object) -> Path | None:
 
 
 def local_path(row: dict) -> Path | None:
-    for key in ("path", "asset_path", "local_path", "selected_path", "file"):
-        p = resolve_path(row.get(key))
-        if p:
-            return p
-    selected = row.get("selected")
-    if isinstance(selected, dict):
+    selected = row.get("selected") if isinstance(row.get("selected"), dict) else {}
+    for source in (selected, row):
         for key in ("path", "asset_path", "local_path", "selected_path", "file"):
-            p = resolve_path(selected.get(key))
+            p = resolve_path(source.get(key))
             if p:
                 return p
     return None
@@ -86,7 +82,8 @@ def main() -> int:
             def ahash(path: Path) -> int:
                 with Image.open(path) as im:
                     im = im.convert("L").resize((16, 16))
-                    vals = list(im.getdata())
+                    getter = getattr(im, "get_flattened_data", None)
+                    vals = list(getter()) if callable(getter) else list(im.getdata())
                 mean = sum(vals) / len(vals)
                 bits = 0
                 for v in vals:
@@ -103,7 +100,7 @@ def main() -> int:
             unavailable += 1
             out_rows.append({"case_id": case_id, "status": "compare-error", "error": str(exc), "query_path": str(q), "reference_path": str(r)})
 
-    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v2", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_discovered": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
+    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v3", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_discovered": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
     OUTPUT.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
     print(f"Cases discovered: {len(by_case)}")
     print(f"Query/reference pairs compared: {compared}")
