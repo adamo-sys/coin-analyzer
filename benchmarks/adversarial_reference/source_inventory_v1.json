@@ -1,7 +1,8 @@
 {
   "schema": "coin-analyzer-adversarial-reference-source-inventory-v1",
-  "protocol_version": "v1.0",
+  "protocol_version": "v1.1",
   "case_plan": "case_plan.json",
+  "manifest": "manifest_v1.json",
   "status": "acquisition-not-started",
   "rules": {
     "preserve_all_frozen_cases": true,
@@ -20,11 +21,11 @@
     "independence_rationale"
   ],
   "cases": [
-    "canada-5-cents-1964", "canada-10-cents-1954", "canada-10-cents-1955", "canada-10-cents-1956", "canada-25-cents-1966",
-    "canada-25-cents-1967", "india-10-paise-1965", "india-2-rupees-2012", "india-1-rupee-1917", "india-1-rupee-1918",
+    "canada-5-cents-1964", "canada-10-cents-1954", "canada-10-cents-1955", "canada-10-cents-1956", "canada-25-cents-1965",
+    "canada-25-cents-1966", "canada-25-cents-1967", "india-10-paise-1965", "india-1-rupee-1917", "india-1-rupee-1918",
     "india-1-rupee-1919", "switzerland-2-francs-1979", "switzerland-2-francs-1980", "switzerland-2-francs-1981", "us-spanish-trail-half-dollar-1935",
-    "us-columbia-half-dollar-1936", "us-elgin-half-dollar-1936", "us-pilgrim-half-dollar-1920", "australia-sixpence-1910", "belgian-congo-1-franc-1887",
-    "indonesia-100-rupiah-1995", "france-1-centime-1797", "philippines-10-pesos-2015", "liberia-2-cents-1862", "bhutan-half-rupee-1955"
+    "us-columbia-half-dollar-1936", "us-elgin-half-dollar-1936", "us-pilgrim-half-dollar-1920", "us-oregon-trail-half-dollar-1926", "australia-sixpence-1910",
+    "australia-sixpence-1911", "indonesia-100-rupiah-1995", "france-1-centime-1797", "liberia-1-cent-1896", "philippines-10-pesos-2015"
   ],
   "source_slots": {
     "query": {"required": true, "provenance": null},
