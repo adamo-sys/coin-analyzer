@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Select unique final adversarial assets from the frozen candidate plan.
 
-This bounded pre-retrieval selector fixes two assembly issues observed in the first final
-pass: manual assets are resolved from either the benchmark root or manual_assets/, and
-candidate selection rejects SHA-256 values already assigned to another slot so the script
-falls through to later pre-ranked candidates. It does not use retrieval scores, mutate
-source_inventory_v1.json, or change case identities.
+This bounded pre-retrieval selector resolves manual assets from the assembled plan,
+accepts explicitly selected targeted assets when present, and rejects SHA-256 values
+already assigned to another slot so later pre-ranked candidates can be tried. It does
+not use retrieval scores, mutate source_inventory_v1.json, or change case identities.
 """
 from __future__ import annotations
 
@@ -21,9 +20,11 @@ ROOT = Path(__file__).resolve().parent
 INPUT = ROOT / "final_asset_candidate_plan.json"
 OUTPUT = ROOT / "unique_final_assets.json"
 ASSET_DIR = ROOT / "unique_final_assets"
+TARGETED_1956 = ROOT / "selected_numista_1956_reference.json"
 USER_AGENT = "coin-analyzer-adversarial-benchmark/1.0"
 TIMEOUT = 30
 MAX_BYTES = 20 * 1024 * 1024
+TARGETED_KEY = ("canada-10-cents-1956", "reference")
 
 
 def _load(path: Path) -> dict:
@@ -73,16 +74,46 @@ def _ext(url: str, content_type: str) -> str:
     return ".img"
 
 
+def _manual_from_row(row: dict) -> dict | None:
+    manual = row.get("manual_asset") if isinstance(row.get("manual_asset"), dict) else None
+    if manual:
+        return manual
+    if str(row.get("mode") or "") == "manual-local-asset":
+        return {
+            "local_path": row.get("local_path"),
+            "sha256": row.get("sha256"),
+            "bytes": row.get("bytes"),
+            "source_page_url": row.get("source_page_url"),
+            "provider": row.get("provider"),
+        }
+    return None
+
+
 def _manual_path(manual: dict) -> Path | None:
     rel = str(manual.get("local_path") or "")
     if not rel:
         return None
-    candidates = [ROOT / rel, ROOT / "manual_assets" / Path(rel).name]
+    raw = Path(rel)
+    candidates = [raw] if raw.is_absolute() else [ROOT / raw, ROOT / "manual_assets" / raw.name]
     for candidate in candidates:
         resolved = candidate.resolve()
         if resolved.is_file():
             return resolved
     return None
+
+
+def _targeted_1956_candidate() -> dict | None:
+    if not TARGETED_1956.is_file():
+        return None
+    payload = _load(TARGETED_1956)
+    case_id = str(payload.get("case_id") or "canada-10-cents-1956")
+    side = str(payload.get("side") or "reference")
+    if (case_id, side) != TARGETED_KEY:
+        return None
+    url = str(payload.get("asset_url") or payload.get("final_url") or "")
+    if not url.startswith(("http://", "https://")):
+        return None
+    return payload
 
 
 def main() -> int:
@@ -93,6 +124,7 @@ def main() -> int:
     attempts = 0
     failed_attempts = 0
     duplicate_rejections = 0
+    targeted = _targeted_1956_candidate()
 
     rows = list(_iter_slots(payload))
     for index, row in enumerate(rows, 1):
@@ -103,37 +135,46 @@ def main() -> int:
         selected = None
         attempt_rows = []
 
-        manual = row.get("manual_asset") if isinstance(row.get("manual_asset"), dict) else None
+        manual = _manual_from_row(row)
         if manual:
             path = _manual_path(manual)
             if path is not None:
                 data = path.read_bytes()
                 sha = hashlib.sha256(data).hexdigest()
-                prior = used_hashes.get(sha)
-                if prior is None:
-                    selected = {
-                        "mode": "manual",
-                        "local_path": str(path),
-                        "sha256": sha,
-                        "bytes": len(data),
-                        "source_page_url": manual.get("source_page_url"),
-                        "provider": manual.get("provider"),
-                    }
-                    used_hashes[sha] = {"case_id": case_id, "side": side}
-                    attempt_rows.append({"status": "manual-verified", "sha256": sha})
+                expected_sha = str(manual.get("sha256") or "")
+                if expected_sha and sha != expected_sha:
+                    attempt_rows.append({"status": "manual-sha-mismatch", "expected": expected_sha, "actual": sha})
                 else:
-                    duplicate_rejections += 1
-                    attempt_rows.append({"status": "manual-duplicate-rejected", "sha256": sha, "conflicts_with": prior})
+                    prior = used_hashes.get(sha)
+                    if prior is None:
+                        selected = {
+                            "mode": "manual",
+                            "local_path": str(path),
+                            "sha256": sha,
+                            "bytes": len(data),
+                            "source_page_url": manual.get("source_page_url"),
+                            "provider": manual.get("provider"),
+                        }
+                        used_hashes[sha] = {"case_id": case_id, "side": side}
+                        attempt_rows.append({"status": "manual-verified", "sha256": sha})
+                    else:
+                        duplicate_rejections += 1
+                        attempt_rows.append({"status": "manual-duplicate-rejected", "sha256": sha, "conflicts_with": prior})
             else:
                 attempt_rows.append({"status": "manual-missing", "local_path": manual.get("local_path")})
 
+        explicit_candidates: list[dict] = []
+        if selected is None and (case_id, side) == TARGETED_KEY and targeted:
+            explicit_candidates.append({
+                "asset_url": targeted.get("asset_url") or targeted.get("final_url"),
+                "expected_sha256": targeted.get("sha256"),
+                "expected_bytes": targeted.get("bytes"),
+                "source": "selected-numista-1956-reference",
+            })
+        candidates = explicit_candidates + [c for c in (row.get("candidates") or []) if isinstance(c, dict)]
+
         if selected is None and not manual:
-            candidates = row.get("candidates") or []
-            if not isinstance(candidates, list):
-                candidates = []
             for rank, candidate in enumerate(candidates, 1):
-                if not isinstance(candidate, dict):
-                    continue
                 url = _candidate_url(candidate)
                 if not url:
                     continue
@@ -141,16 +182,14 @@ def main() -> int:
                 try:
                     data, content_type, final_url = _download(url)
                     sha = hashlib.sha256(data).hexdigest()
+                    expected_sha = str(candidate.get("expected_sha256") or "")
+                    if expected_sha and sha != expected_sha:
+                        attempt_rows.append({"rank": rank, "status": "expected-sha-mismatch", "url": url, "expected": expected_sha, "actual": sha})
+                        continue
                     prior = used_hashes.get(sha)
                     if prior is not None:
                         duplicate_rejections += 1
-                        attempt_rows.append({
-                            "rank": rank,
-                            "status": "duplicate-rejected",
-                            "url": url,
-                            "sha256": sha,
-                            "conflicts_with": prior,
-                        })
+                        attempt_rows.append({"rank": rank, "status": "duplicate-rejected", "url": url, "sha256": sha, "conflicts_with": prior})
                         continue
                     ext = _ext(final_url, content_type)
                     filename = f"{case_id}__{side}__rank{rank}__{sha[:16]}{ext}"
@@ -183,10 +222,10 @@ def main() -> int:
         })
 
     output = {
-        "schema": "coin-analyzer-unique-final-assets-v1",
+        "schema": "coin-analyzer-unique-final-assets-v2",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
-        "selection_policy": "pre-ranked candidate order with global SHA-256 uniqueness; no retrieval score used",
+        "selection_policy": "assembled manual assets + explicit pre-retrieval targeted selections + pre-ranked candidate order with global SHA-256 uniqueness; no retrieval score used",
         "results": results,
         "summary": {
             "slots_seen": len(results),
