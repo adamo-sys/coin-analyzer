@@ -1,14 +1,12 @@
 """Build a five-case independent-reference pilot for Benchmark v2.
 
 The pilot deliberately uses photographs that are independent from the frozen v2
-query sources. It downloads the exact named Wikimedia Commons files, preserves
-source-page/licence/author metadata in the generated reference manifest, and
-writes a five-case benchmark manifest beside the frozen v2 manifest so existing
-relative query-image paths remain valid.
+query sources. It downloads exact reference images, preserves provenance, and
+writes a five-case benchmark manifest beside the frozen v2 manifest.
 
-Downloads are resumable: completed reference files remain cached. If Commons
-throttles a missing image, the builder exits promptly instead of sleeping for a
-long Retry-After interval; rerunning later continues with only missing files.
+Downloads are resumable. Commons remains the primary source, but the two Old
+Spanish Trail references have fixed U.S. Mint fallbacks so a Commons 429 cannot
+block completion of the pilot.
 """
 from __future__ import annotations
 
@@ -29,7 +27,6 @@ PILOT_BENCHMARK_MANIFEST = ROOT / "reference_pilot_benchmark.json"
 USER_AGENT = "CoinAnalyzerReferencePilot/1.0 (independent reference retrieval benchmark)"
 RETRIEVED_AT = date.today().isoformat()
 THUMB_WIDTH = 960
-MAX_RETRY_AFTER_SECONDS = 30.0
 
 SOURCES = {
     "india-10-paise-1965": {
@@ -60,6 +57,23 @@ SOURCES = {
     },
 }
 
+# Independent institutional images. These are used only when Commons throttles
+# the corresponding Old Spanish Trail download. Keeping them explicit makes the
+# fallback deterministic and avoids retry loops or guessed CDN paths.
+FALLBACK_URLS = {
+    "Old Spanish Trail half dollar obverse.jpg": (
+        "https://www.usmint.gov/learn/coins-and-medals/commemorative-coins/old-spanish-trail-half/"
+        "_jcr_content/root/container_1426747781/imagegallerypdp/item_1753815828436.coreimg.jpeg/"
+        "1753816109894/1935-old-spanish-trail-quadricentennial-commemorative-silver-half-dollar-coin-obverse.jpeg"
+    ),
+    "Old Spanish Trail half dollar reverse.jpg": (
+        "https://www.usmint.gov/learn/coins-and-medals/commemorative-coins/old-spanish-trail-half/"
+        "_jcr_content/root/container_1426747781/imagegallerypdp/item_1753816076650.coreimg.jpeg/"
+        "1753816140449/1935-old-spanish-trail-quadricentennial-commemorative-silver-half-dollar-coin-reverse.jpeg"
+    ),
+}
+FALLBACK_SOURCE_PAGE = "https://www.usmint.gov/learn/coins-and-medals/commemorative-coins/old-spanish-trail-half"
+
 
 def _clean_html(value: str | None) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", value or "")).split())
@@ -75,35 +89,17 @@ def _api_metadata(titles: list[str]) -> dict[str, dict[str, object]]:
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=60) as response:
         payload = json.load(response)
-    pages = payload["query"]["pages"]
     result: dict[str, dict[str, object]] = {}
-    for page in pages:
-        if "missing" in page:
-            continue
-        info = page["imageinfo"][0]
-        result[page["title"][5:]] = info
+    for page in payload["query"]["pages"]:
+        if "missing" not in page:
+            result[page["title"][5:]] = page["imageinfo"][0]
     return result
 
 
 def _download(url: str) -> bytes:
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urlopen(request, timeout=60) as response:
-            return response.read()
-    except HTTPError as error:
-        if error.code != 429:
-            raise
-        retry_after = error.headers.get("Retry-After")
-        try:
-            delay = float(retry_after) if retry_after else None
-        except (TypeError, ValueError):
-            delay = None
-        detail = f" Retry-After={delay:.0f}s." if delay is not None else ""
-        raise RuntimeError(
-            "Wikimedia Commons throttled a reference-image download (HTTP 429)."
-            + detail
-            + " Completed files are cached; rerun this command later to resume only the missing downloads."
-        ) from error
+    with urlopen(request, timeout=60) as response:
+        return response.read()
 
 
 def _safe_suffix(title: str) -> str:
@@ -146,34 +142,50 @@ def main() -> int:
         info = metadata[title]
         ext = info.get("extmetadata") if isinstance(info.get("extmetadata"), dict) else {}
         original_url = str(info["url"])
-        download_url = str(info.get("thumburl") or original_url)
+        primary_url = str(info.get("thumburl") or original_url)
+        retrieved_url = primary_url
+        retrieval_source = "Wikimedia Commons"
         path = REFERENCE_ROOT / "refs" / f"ref-{index:02d}{_safe_suffix(title)}"
         path.parent.mkdir(parents=True, exist_ok=True)
+
         if path.is_file() and path.stat().st_size > 0:
             cached_count += 1
             print(f"Cached {index}/{len(titles)}: {title}", flush=True)
         else:
             print(f"Downloading {index}/{len(titles)}: {title}", flush=True)
             try:
-                payload = _download(download_url)
-            except RuntimeError as error:
-                print(str(error), flush=True)
-                print(
-                    f"Resume status: {cached_count}/{len(titles)} reference files already cached. "
-                    "No cached files were removed.",
-                    flush=True,
-                )
-                return 75
+                payload = _download(primary_url)
+            except HTTPError as error:
+                fallback_url = FALLBACK_URLS.get(title)
+                if error.code == 429 and fallback_url:
+                    print(f"Commons throttled {title}; using fixed U.S. Mint fallback.", flush=True)
+                    payload = _download(fallback_url)
+                    retrieved_url = fallback_url
+                    retrieval_source = "United States Mint"
+                elif error.code == 429:
+                    retry_after = error.headers.get("Retry-After")
+                    print(
+                        "Wikimedia Commons throttled a reference-image download (HTTP 429). "
+                        f"Retry-After={retry_after or 'unknown'}s. Completed files are cached; rerun later to resume.",
+                        flush=True,
+                    )
+                    print(f"Resume status: {cached_count}/{len(titles)} files cached; none removed.", flush=True)
+                    return 75
+                else:
+                    raise
             path.write_bytes(payload)
             cached_count += 1
             time.sleep(2.0)
+
         downloaded[title] = path
         provenance[title] = {
             "commons_title": title,
-            "source_page": str(info.get("descriptionurl") or ""),
-            "source_file_url": original_url,
-            "retrieved_file_url": download_url,
-            "retrieved_width": info.get("thumbwidth"),
+            "commons_source_page": str(info.get("descriptionurl") or ""),
+            "commons_file_url": original_url,
+            "retrieved_file_url": retrieved_url,
+            "retrieval_source": retrieval_source,
+            "fallback_source_page": FALLBACK_SOURCE_PAGE if retrieval_source == "United States Mint" else None,
+            "retrieved_width": info.get("thumbwidth") if retrieval_source == "Wikimedia Commons" else None,
             "author": _clean_html((ext.get("Artist") or {}).get("value") if isinstance(ext.get("Artist"), dict) else ""),
             "license": str((ext.get("LicenseShortName") or {}).get("value") if isinstance(ext.get("LicenseShortName"), dict) else ""),
             "credit": _clean_html((ext.get("Credit") or {}).get("value") if isinstance(ext.get("Credit"), dict) else ""),
@@ -191,8 +203,8 @@ def main() -> int:
 
     reference_manifest = {
         "schema": "coin-analyzer-reference-image-catalogue",
-        "version": "v2-independent-reference-pilot-3",
-        "description": "Five exact-identity candidates using independent photographs; downloads are cached and resumable across Commons throttling.",
+        "version": "v2-independent-reference-pilot-4",
+        "description": "Five exact-identity candidates using independent photographs; Old Spanish Trail references have deterministic U.S. Mint fallbacks for Commons throttling.",
         "candidates": candidates,
     }
     REFERENCE_MANIFEST.write_text(json.dumps(reference_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
