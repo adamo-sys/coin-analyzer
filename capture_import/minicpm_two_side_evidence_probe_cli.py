@@ -2,15 +2,17 @@
 
 Each coin side is independently asked to extract only visibly supported evidence.
 A deterministic merge then combines compatible evidence and records provenance.
-Conflicting values remain unresolved rather than being guessed. This module is
-experimental and is not imported by production recognition, OCR, UI, review, or
-persistence code.
+For required identity fields, explicit visible-text support outranks unsupported
+model inference. Optional type/design disagreement never forces full-identity
+abstention. This module is experimental and is not imported by production
+recognition, OCR, UI, review, or persistence code.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from typing import Sequence
 
 from .minicpm_structured_visual_probe_cli import (
@@ -23,6 +25,7 @@ from .visual_evaluation_harness import load_visual_manifest
 
 
 FIELDS = ("country", "denomination", "year", "type_design")
+REQUIRED_FIELDS = ("country", "denomination", "year")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,10 +44,45 @@ def _normalized(value: object) -> str | None:
     return " ".join(value.casefold().split())
 
 
+def _searchable(value: object) -> str:
+    text = _normalized(value) or ""
+    return " ".join(re.findall(r"[a-z0-9]+", text))
+
+
+def _visible_text(result: dict[str, object]) -> list[str]:
+    values = result.get("visible_text")
+    if not isinstance(values, list):
+        return []
+    return [value.strip() for value in values if isinstance(value, str) and value.strip()]
+
+
+def _explicitly_supported(field: str, value: object, result: dict[str, object]) -> bool:
+    """Return whether the side's transcribed text explicitly supports a field.
+
+    This intentionally gives no explicit-text credit to type/design labels: design
+    can be visually recognizable without text, but it is optional and must not
+    decide whether a required identity is accepted.
+    """
+    if field == "type_design":
+        return False
+    needle = _searchable(value)
+    if not needle:
+        return False
+    haystack = " ".join(_searchable(item) for item in _visible_text(result))
+    if needle in haystack:
+        return True
+    # Denominations and years are often embedded in longer legends such as
+    # "CANADA 1867-1967". Token containment is sufficient for this diagnostic.
+    needle_tokens = needle.split()
+    haystack_tokens = haystack.split()
+    return bool(needle_tokens) and all(token in haystack_tokens for token in needle_tokens)
+
+
 def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) -> dict[str, object]:
     merged: dict[str, object] = {}
     provenance: dict[str, list[str]] = {}
     conflicts: dict[str, dict[str, object]] = {}
+    rejected_weaker_evidence: dict[str, dict[str, object]] = {}
 
     ob_result = obverse.get("result") if obverse.get("ok") is True else None
     rev_result = reverse.get("result") if reverse.get("ok") is True else None
@@ -56,10 +94,30 @@ def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) 
         rev_value = rev_result.get(field)
         ob_norm = _normalized(ob_value)
         rev_norm = _normalized(rev_value)
+        ob_explicit = _explicitly_supported(field, ob_value, ob_result)
+        rev_explicit = _explicitly_supported(field, rev_value, rev_result)
+
         if ob_norm and rev_norm and ob_norm != rev_norm:
-            merged[field] = None
-            provenance[field] = []
-            conflicts[field] = {"obverse": ob_value, "reverse": rev_value}
+            if field in REQUIRED_FIELDS and ob_explicit != rev_explicit:
+                winner_role = "obverse" if ob_explicit else "reverse"
+                winner_value = ob_value if ob_explicit else rev_value
+                loser_role = "reverse" if ob_explicit else "obverse"
+                loser_value = rev_value if ob_explicit else ob_value
+                merged[field] = winner_value
+                provenance[field] = [winner_role]
+                rejected_weaker_evidence[field] = {
+                    "accepted": {"source": winner_role, "value": winner_value, "explicit_visible_text": True},
+                    "rejected": {"source": loser_role, "value": loser_value, "explicit_visible_text": False},
+                }
+            else:
+                merged[field] = None
+                provenance[field] = []
+                conflicts[field] = {
+                    "obverse": ob_value,
+                    "reverse": rev_value,
+                    "obverse_explicit_visible_text": ob_explicit,
+                    "reverse_explicit_visible_text": rev_explicit,
+                }
         elif ob_norm and rev_norm:
             merged[field] = rev_value
             provenance[field] = ["obverse", "reverse"]
@@ -75,19 +133,18 @@ def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) 
 
     visible_text: list[dict[str, str]] = []
     for role, result in (("obverse", ob_result), ("reverse", rev_result)):
-        values = result.get("visible_text")
-        if isinstance(values, list):
-            for value in values:
-                if isinstance(value, str) and value.strip():
-                    visible_text.append({"text": value.strip(), "source": role})
+        for value in _visible_text(result):
+            visible_text.append({"text": value, "source": role})
 
-    required = (merged.get("country"), merged.get("denomination"), merged.get("year"))
+    required_missing = any(merged.get(field) is None for field in REQUIRED_FIELDS)
+    required_conflicts = {field: value for field, value in conflicts.items() if field in REQUIRED_FIELDS}
     return {
         "identity": merged,
         "provenance": provenance,
         "visible_text": visible_text,
         "conflicts": conflicts,
-        "abstain": bool(conflicts) or any(value is None for value in required),
+        "rejected_weaker_evidence": rejected_weaker_evidence,
+        "abstain": bool(required_conflicts) or required_missing,
     }
 
 
