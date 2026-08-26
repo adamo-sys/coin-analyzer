@@ -106,14 +106,21 @@ def _targeted_1956_candidate() -> dict | None:
     if not TARGETED_1956.is_file():
         return None
     payload = _load(TARGETED_1956)
-    case_id = str(payload.get("case_id") or "canada-10-cents-1956")
-    side = str(payload.get("side") or "reference")
+    selection = payload.get("selected") if isinstance(payload.get("selected"), dict) else payload
+    case_id = str(payload.get("case_id") or selection.get("case_id") or "canada-10-cents-1956")
+    side = str(payload.get("side") or selection.get("side") or "reference")
     if (case_id, side) != TARGETED_KEY:
         return None
-    url = str(payload.get("asset_url") or payload.get("final_url") or "")
+    url = str(selection.get("asset_url") or selection.get("final_url") or selection.get("source_url") or "")
     if not url.startswith(("http://", "https://")):
         return None
-    return payload
+    return {
+        "case_id": case_id,
+        "side": side,
+        "asset_url": url,
+        "sha256": selection.get("sha256") or payload.get("sha256"),
+        "bytes": selection.get("bytes") or payload.get("bytes"),
+    }
 
 
 def main() -> int:
@@ -166,7 +173,7 @@ def main() -> int:
         explicit_candidates: list[dict] = []
         if selected is None and (case_id, side) == TARGETED_KEY and targeted:
             explicit_candidates.append({
-                "asset_url": targeted.get("asset_url") or targeted.get("final_url"),
+                "asset_url": targeted.get("asset_url"),
                 "expected_sha256": targeted.get("sha256"),
                 "expected_bytes": targeted.get("bytes"),
                 "source": "selected-numista-1956-reference",
@@ -222,7 +229,7 @@ def main() -> int:
         })
 
     output = {
-        "schema": "coin-analyzer-unique-final-assets-v3",
+        "schema": "coin-analyzer-unique-final-assets-v4",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "selection_policy": "assembled manual assets + explicit pre-retrieval targeted selections + pre-ranked candidate order with global SHA-256 uniqueness; no retrieval score used",
