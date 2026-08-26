@@ -1,7 +1,7 @@
-"""Build an independent-reference pilot for Benchmark v2.
+"""Build an independent-reference benchmark for Benchmark v2.
 
-The pilot uses photographs independent from the frozen v2 query sources. Downloads
-are resumable, and a throttled/blocked source no longer prevents a useful pilot:
+The benchmark uses photographs independent from the frozen v2 query sources.
+Downloads are resumable, and blocked sources do not prevent a useful partial run:
 complete cached cases are emitted when at least MIN_COMPLETE_CASES are available.
 """
 from __future__ import annotations
@@ -23,16 +23,51 @@ PILOT_BENCHMARK_MANIFEST = ROOT / "reference_pilot_benchmark.json"
 USER_AGENT = "CoinAnalyzerReferencePilot/1.0 (independent reference retrieval benchmark)"
 RETRIEVED_AT = date.today().isoformat()
 THUMB_WIDTH = 960
-MIN_COMPLETE_CASES = 4
+MIN_COMPLETE_CASES = 8
 
+# Ten deliberately varied identities. Some Commons photographs show both sides in
+# one frame; using that same independent photograph for both role slots is
+# intentional and tests whether retrieval survives layout/background differences.
 SOURCES = {
-    "india-10-paise-1965": {"obverse": ("10-paise-1965-obs.png",), "reverse": ("10-paise-1965-rev.png",)},
-    "india-1-rupee-1918": {"obverse": ("Indian silver rupee 1918.JPG",), "reverse": ("Indian silver rupee of 1918.JPG",)},
-    "us-spanish-trail-half-dollar-1935": {"obverse": ("Old Spanish Trail half dollar obverse.jpg",), "reverse": ("Old Spanish Trail half dollar reverse.jpg",)},
-    "us-elgin-half-dollar-1936": {"obverse": ("Elgin (Illinois) Centennial half dollar obverse.jpg",), "reverse": ("Elgin (Illinois) Centennial half dollar reverse.jpg",)},
+    "canada-5-cents-1964": {
+        "obverse": ("Canada $0.05 1964.jpg",),
+        "reverse": ("Canada $0.05 1964.jpg",),
+    },
+    "canada-10-cents-1955": {
+        "obverse": ("Canada $0.1 1955.jpg",),
+        "reverse": ("Canada $0.1 1955.jpg",),
+    },
+    "india-10-paise-1965": {
+        "obverse": ("10-paise-1965-obs.png",),
+        "reverse": ("10-paise-1965-rev.png",),
+    },
+    "india-1-rupee-1918": {
+        "obverse": ("Indian silver rupee 1918.JPG",),
+        "reverse": ("Indian silver rupee of 1918.JPG",),
+    },
+    "switzerland-2-francs-1980": {
+        "obverse": ("2 Swiss Francs (1980).jpg",),
+        "reverse": ("2 Swiss Francs (1980).jpg",),
+    },
+    "us-spanish-trail-half-dollar-1935": {
+        "obverse": ("Old Spanish Trail half dollar obverse.jpg",),
+        "reverse": ("Old Spanish Trail half dollar reverse.jpg",),
+    },
+    "us-elgin-half-dollar-1936": {
+        "obverse": ("Elgin (Illinois) Centennial half dollar obverse.jpg",),
+        "reverse": ("Elgin (Illinois) Centennial half dollar reverse.jpg",),
+    },
     "us-pilgrim-half-dollar-1920": {
         "obverse": ("Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg", "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (2 of 2).jpg"),
         "reverse": ("Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg", "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (2 of 2).jpg"),
+    },
+    "australia-sixpence-1910": {
+        "obverse": ("1910-Australian-Sixpence-Obverse.jpg",),
+        "reverse": ("1910-Australian-Sixpence-Reverse.jpg",),
+    },
+    "indonesia-100-rupiah-1995": {
+        "obverse": ("IDR 100 Coin (obverse and reverse).jpg",),
+        "reverse": ("IDR 100 Coin (obverse and reverse).jpg",),
     },
 }
 
@@ -77,11 +112,11 @@ def _pilot_benchmark(case_ids: set[str]) -> dict[str, object]:
     found = {case.get("id") for case in cases}
     missing = sorted(case_ids - found)
     if missing:
-        raise RuntimeError("Benchmark v2 is missing pilot cases: " + ", ".join(missing))
+        raise RuntimeError("Benchmark v2 is missing reference cases: " + ", ".join(missing))
     payload = dict(source)
-    payload["version"] = str(source.get("version") or "v2.0") + "+reference-pilot"
+    payload["version"] = str(source.get("version") or "v2.0") + "+reference-10"
     payload["cases"] = cases
-    payload["notes"] = f"Independent-reference retrieval pilot with {len(cases)} complete reference cases; query images are unchanged Benchmark v2 derivatives."
+    payload["notes"] = f"Independent-reference retrieval benchmark targeting 10 varied identities; {len(cases)} complete reference cases available in this build."
     return payload
 
 
@@ -104,7 +139,12 @@ def main() -> int:
         primary_url = str(info.get("thumburl") or original_url)
         retrieved_url = primary_url
         retrieval_source = "Wikimedia Commons"
-        path = REFERENCE_ROOT / "refs" / f"ref-{index:02d}{_safe_suffix(title)}"
+        # Stable title-derived filename avoids index renumbering corrupting the
+        # cache when the catalogue grows.
+        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
+        path = REFERENCE_ROOT / "refs_v2" / safe_name
+        if path.suffix.casefold() not in {".jpg", ".jpeg", ".png", ".webp"}:
+            path = path.with_suffix(_safe_suffix(title))
         path.parent.mkdir(parents=True, exist_ok=True)
 
         if path.is_file() and path.stat().st_size > 0:
@@ -172,8 +212,9 @@ def main() -> int:
     complete_ids = {candidate["id"] for candidate in candidates}
     reference_manifest = {
         "schema": "coin-analyzer-reference-image-catalogue",
-        "version": "v2-independent-reference-pilot-5",
-        "description": f"Independent-photo reference pilot containing {len(candidates)} complete cases; incomplete network-blocked cases are omitted.",
+        "version": "v2-independent-reference-10",
+        "description": f"Independent-photo reference benchmark targeting 10 varied Benchmark v2 identities; {len(candidates)} complete cases available.",
+        "target_cases": len(SOURCES),
         "partial": len(candidates) < len(SOURCES),
         "skipped_cases": skipped,
         "unavailable_titles": sorted(unavailable),
@@ -183,7 +224,7 @@ def main() -> int:
     PILOT_BENCHMARK_MANIFEST.write_text(json.dumps(_pilot_benchmark(complete_ids), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     print(f"Wrote reference catalogue: {REFERENCE_MANIFEST}")
-    print(f"Wrote pilot benchmark: {PILOT_BENCHMARK_MANIFEST}")
+    print(f"Wrote benchmark manifest: {PILOT_BENCHMARK_MANIFEST}")
     print(f"Complete cases: {len(candidates)}/{len(SOURCES)}")
     if skipped:
         print("Skipped incomplete cases: " + ", ".join(skipped))
