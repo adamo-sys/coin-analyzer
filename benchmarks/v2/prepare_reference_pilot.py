@@ -6,9 +6,9 @@ source-page/licence/author metadata in the generated reference manifest, and
 writes a five-case benchmark manifest beside the frozen v2 manifest so existing
 relative query-image paths remain valid.
 
-Generated files are local benchmark artifacts and can be regenerated from this
-source inventory; the downloaded reference images are not required to live in
-Git history.
+Downloads are resumable: completed reference files remain cached. If Commons
+throttles a missing image, the builder exits promptly instead of sleeping for a
+long Retry-After interval; rerunning later continues with only missing files.
 """
 from __future__ import annotations
 
@@ -29,10 +29,8 @@ PILOT_BENCHMARK_MANIFEST = ROOT / "reference_pilot_benchmark.json"
 USER_AGENT = "CoinAnalyzerReferencePilot/1.0 (independent reference retrieval benchmark)"
 RETRIEVED_AT = date.today().isoformat()
 THUMB_WIDTH = 960
+MAX_RETRY_AFTER_SECONDS = 30.0
 
-# These are intentionally different photographs from the frozen Benchmark v2
-# query sources. The five cases were chosen because exact-identity independent
-# reusable photographs are available with clear Commons provenance.
 SOURCES = {
     "india-10-paise-1965": {
         "obverse": ("10-paise-1965-obs.png",),
@@ -50,10 +48,6 @@ SOURCES = {
         "obverse": ("Elgin (Illinois) Centennial half dollar obverse.jpg",),
         "reverse": ("Elgin (Illinois) Centennial half dollar reverse.jpg",),
     },
-    # The Bibliotheque nationale de France pair is independently photographed.
-    # Commons' numbered filenames do not encode side role, so both independent
-    # images are offered to each side scorer; the scorer chooses the stronger
-    # side match. This avoids inventing an obverse/reverse assignment.
     "us-pilgrim-half-dollar-1920": {
         "obverse": (
             "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg",
@@ -93,21 +87,23 @@ def _api_metadata(titles: list[str]) -> dict[str, dict[str, object]]:
 
 def _download(url: str) -> bytes:
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(7):
+    try:
+        with urlopen(request, timeout=60) as response:
+            return response.read()
+    except HTTPError as error:
+        if error.code != 429:
+            raise
+        retry_after = error.headers.get("Retry-After")
         try:
-            with urlopen(request, timeout=60) as response:
-                return response.read()
-        except HTTPError as error:
-            if error.code != 429 or attempt == 6:
-                raise
-            retry_after = error.headers.get("Retry-After")
-            try:
-                delay = max(5.0, float(retry_after)) if retry_after else 5.0 * (attempt + 1)
-            except (TypeError, ValueError):
-                delay = 5.0 * (attempt + 1)
-            print(f"Commons throttled download; retrying in {delay:.0f}s...", flush=True)
-            time.sleep(delay)
-    raise RuntimeError("unreachable download retry state")
+            delay = float(retry_after) if retry_after else None
+        except (TypeError, ValueError):
+            delay = None
+        detail = f" Retry-After={delay:.0f}s." if delay is not None else ""
+        raise RuntimeError(
+            "Wikimedia Commons throttled a reference-image download (HTTP 429)."
+            + detail
+            + " Completed files are cached; rerun this command later to resume only the missing downloads."
+        ) from error
 
 
 def _safe_suffix(title: str) -> str:
@@ -144,20 +140,32 @@ def main() -> int:
     REFERENCE_ROOT.mkdir(parents=True, exist_ok=True)
     downloaded: dict[str, Path] = {}
     provenance: dict[str, dict[str, object]] = {}
+    cached_count = 0
 
     for index, title in enumerate(titles, start=1):
         info = metadata[title]
         ext = info.get("extmetadata") if isinstance(info.get("extmetadata"), dict) else {}
-        # Wikimedia explicitly recommends thumbnail derivatives for automated
-        # consumers under throttling. Prefer the API-provided 960px derivative;
-        # fall back to the original only when no thumbnail URL is available.
         original_url = str(info["url"])
         download_url = str(info.get("thumburl") or original_url)
         path = REFERENCE_ROOT / "refs" / f"ref-{index:02d}{_safe_suffix(title)}"
         path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.is_file():
+        if path.is_file() and path.stat().st_size > 0:
+            cached_count += 1
+            print(f"Cached {index}/{len(titles)}: {title}", flush=True)
+        else:
             print(f"Downloading {index}/{len(titles)}: {title}", flush=True)
-            path.write_bytes(_download(download_url))
+            try:
+                payload = _download(download_url)
+            except RuntimeError as error:
+                print(str(error), flush=True)
+                print(
+                    f"Resume status: {cached_count}/{len(titles)} reference files already cached. "
+                    "No cached files were removed.",
+                    flush=True,
+                )
+                return 75
+            path.write_bytes(payload)
+            cached_count += 1
             time.sleep(2.0)
         downloaded[title] = path
         provenance[title] = {
@@ -183,8 +191,8 @@ def main() -> int:
 
     reference_manifest = {
         "schema": "coin-analyzer-reference-image-catalogue",
-        "version": "v2-independent-reference-pilot-2",
-        "description": "Five exact-identity candidates using photographs independent from Benchmark v2 query sources; Commons thumbnail derivatives used for rate-limit-friendly retrieval.",
+        "version": "v2-independent-reference-pilot-3",
+        "description": "Five exact-identity candidates using independent photographs; downloads are cached and resumable across Commons throttling.",
         "candidates": candidates,
     }
     REFERENCE_MANIFEST.write_text(json.dumps(reference_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
