@@ -44,6 +44,23 @@ SOURCES = {
     "indonesia-100-rupiah-1995": {"obverse": ("IDR 100 Coin (obverse and reverse).jpg",), "reverse": ("IDR 100 Coin (obverse and reverse).jpg",)},
 }
 
+# The original five-case pilot saved downloads as ref-01..ref-10 in this exact
+# sorted-title order. Keep the mapping explicit so those already-downloaded bytes
+# can be migrated deterministically without pretending the generic filenames
+# encode source identity.
+LEGACY_INDEXED_REFS = {
+    "10-paise-1965-obs.png": "ref-01.png",
+    "10-paise-1965-rev.png": "ref-02.png",
+    "Elgin (Illinois) Centennial half dollar obverse.jpg": "ref-03.jpg",
+    "Elgin (Illinois) Centennial half dollar reverse.jpg": "ref-04.jpg",
+    "Indian silver rupee 1918.JPG": "ref-05.jpg",
+    "Indian silver rupee of 1918.JPG": "ref-06.jpg",
+    "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (1 of 2).jpg": "ref-07.jpg",
+    "Monnaie - Etats-Unis, 1-2 dollar, 1920 - btv1b11336935m (2 of 2).jpg": "ref-08.jpg",
+    "Old Spanish Trail half dollar obverse.jpg": "ref-09.jpg",
+    "Old Spanish Trail half dollar reverse.jpg": "ref-10.jpg",
+}
+
 FALLBACK_URLS = {
     "Old Spanish Trail half dollar obverse.jpg": "https://www.usmint.gov/learn/coins-and-medals/commemorative-coins/old-spanish-trail-half/_jcr_content/root/container_1426747781/imagegallerypdp/item_1753815828436.coreimg.jpeg/1753816109894/1935-old-spanish-trail-quadricentennial-commemorative-silver-half-dollar-coin-obverse.jpeg",
     "Old Spanish Trail half dollar reverse.jpg": "https://www.usmint.gov/learn/coins-and-medals/commemorative-coins/old-spanish-trail-half/_jcr_content/root/container_1426747781/imagegallerypdp/item_1753816076650.coreimg.jpeg/1753816140449/1935-old-spanish-trail-quadricentennial-commemorative-silver-half-dollar-coin-reverse.jpeg",
@@ -88,16 +105,12 @@ def _stable_reference_path(title: str) -> Path:
 
 
 def _legacy_cached_reference(title: str) -> Path | None:
-    """Find an earlier pilot download whose basename is the exact Commons title.
-
-    Search only outside refs_v2 so the migration cannot select its own target.
-    Exact basename matching preserves the source identity rather than guessing by
-    case ID or image content.
-    """
-    target_name = Path(title).name.casefold()
     if not REFERENCE_ROOT.exists():
         return None
-    matches = [
+
+    # First prefer an exact-title cache if one exists.
+    target_name = Path(title).name.casefold()
+    exact_matches = [
         path
         for path in REFERENCE_ROOT.rglob("*")
         if path.is_file()
@@ -105,9 +118,23 @@ def _legacy_cached_reference(title: str) -> Path | None:
         and path.name.casefold() == target_name
         and path.stat().st_size > 0
     ]
-    if not matches:
+    if exact_matches:
+        return sorted(exact_matches, key=lambda path: path.as_posix().casefold())[0]
+
+    # Fall back to the known generic filename used by the original pilot.
+    legacy_name = LEGACY_INDEXED_REFS.get(title)
+    if not legacy_name:
         return None
-    return sorted(matches, key=lambda path: path.as_posix().casefold())[0]
+    indexed_matches = [
+        path
+        for path in REFERENCE_ROOT.rglob(legacy_name)
+        if path.is_file()
+        and "refs_v2" not in path.parts
+        and path.stat().st_size > 0
+    ]
+    if not indexed_matches:
+        return None
+    return sorted(indexed_matches, key=lambda path: path.as_posix().casefold())[0]
 
 
 def _invalidate_generated_manifests() -> None:
