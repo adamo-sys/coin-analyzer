@@ -107,12 +107,15 @@ def _validated_result(raw: object) -> dict[str, object]:
     if not isinstance(visible, list) or len(visible) > 6:
         raise ValueError("visible_text must be an array of at most six strings")
     visible_text: list[str] = []
+    seen_visible: set[str] = set()
     for item in visible:
         if not isinstance(item, str) or not item.strip() or len(item.strip()) > 48:
             raise ValueError("visible_text items must be non-empty strings <= 48 chars")
         text = item.strip()
-        if text in visible_text:
-            raise ValueError("visible_text must not contain duplicates")
+        key = text.casefold()
+        if key in seen_visible:
+            continue
+        seen_visible.add(key)
         visible_text.append(text)
 
     identity = (country, denomination, year, type_design)
