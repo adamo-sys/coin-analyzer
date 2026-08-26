@@ -59,6 +59,30 @@ TARGETS = [
         "asset_url": "https://katzauction.b-cdn.net/imgs/109/111p_vzp59.jpg",
         "usage_note": "public auction photograph; local benchmark use only",
     },
+    {
+        "case_id": "india-1-rupee-1918", "side": "reference", "provider": "NumisPoint",
+        "source_page_url": "https://www.numispoint.com/product/1918-one-rupee-king-george-v-calcutta-mint-aunc-gk-1037/",
+        "asset_url": "https://np-wp-images.s3.ap-south-1.amazonaws.com/2021/06/1918-One-Rupee-King-George-V-Calcutta-Mint-AUNC-GK-1037-rev.jpg",
+        "usage_note": "public dealer photograph; local benchmark use only",
+    },
+    {
+        "case_id": "india-1-rupee-1919", "side": "reference", "provider": "NumisPoint",
+        "source_page_url": "https://www.numispoint.com/product/1919-one-rupee-king-george-v-calcutta-mint-unc-coin-gk-1039/",
+        "asset_url": "https://np-wp-images.s3.ap-south-1.amazonaws.com/2023/10/1919-one-rupee-cal-2-rev.jpg",
+        "usage_note": "public dealer photograph; local benchmark use only",
+    },
+    {
+        "case_id": "switzerland-2-francs-1979", "side": "reference", "provider": "Cristiano Coins",
+        "source_page_url": "https://cristianocoins.it/it/europa-68/89253-switzerland-2-francs-1979.html",
+        "asset_url": "https://cristianocoins.it/131260-large_default/switzerland-2-francs-1979.jpg",
+        "usage_note": "public dealer photograph; local benchmark use only",
+    },
+    {
+        "case_id": "switzerland-2-francs-1981", "side": "reference", "provider": "Monetnik",
+        "source_page_url": "https://www.monetnik.ru/monety/mira/evropa/shvejcariya/shvejcariya-2-franka-844601/",
+        "asset_url": "https://cdn.monetnik.ru/storage/market-lot/01/76/844601/2977744_mainViewLot_2x.jpg",
+        "usage_note": "public dealer photograph; local benchmark use only",
+    },
 ]
 
 
@@ -104,7 +128,7 @@ def main() -> int:
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, OSError) as exc:
             blocked.append({**target, "error": str(exc)})
             print(f"  BLOCKED: {exc}")
-    artifact = {"schema": "coin-analyzer-remaining-pair-gap-assets-v1", "retrieval_scoring_run": False, "inventory_modified": False, "selections": selected, "blocked": blocked, "summary": {"targets": len(TARGETS), "selected": len(selected), "blocked": len(blocked)}}
+    artifact = {"schema": "coin-analyzer-remaining-pair-gap-assets-v2", "retrieval_scoring_run": False, "inventory_modified": False, "selections": selected, "blocked": blocked, "summary": {"targets": len(TARGETS), "selected": len(selected), "blocked": len(blocked)}}
     OUT.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
     print(f"Selected: {len(selected)}")
     print(f"Blocked: {len(blocked)}")
