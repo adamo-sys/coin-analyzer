@@ -50,7 +50,6 @@ def main() -> int:
     print("Adversarial reference pipeline: preparation mode")
     print("Guardrails: frozen cases; inventory unchanged; retrieval scoring disabled.")
 
-    # Rebuild the current deterministic preparation artifacts in dependency order.
     for script in (
         "assemble_final_asset_candidate_plan.py",
         "select_numista_1956_reference_candidate.py",
@@ -69,12 +68,7 @@ def main() -> int:
     unique = int(summary.get("selected_unique_sha256") or summary.get("unique_sha256") or selected)
 
     unresolved_payload = load("unresolved_unique_asset_slots.json")
-    unresolved_rows = (
-        unresolved_payload.get("unresolved")
-        or unresolved_payload.get("slots")
-        or unresolved_payload.get("results")
-        or []
-    )
+    unresolved_rows = unresolved_payload.get("unresolved") or unresolved_payload.get("slots") or unresolved_payload.get("results") or []
     if isinstance(unresolved_rows, list) and unresolved_rows:
         unresolved = len(unresolved_rows)
 
@@ -88,7 +82,6 @@ def main() -> int:
         print("The runner stopped before retrieval scoring, as designed.")
         print("Next engineering task: resolve only the remaining unique-asset slots, then rerun this same command.")
         return 3
-
     if selected and selected != 25:
         print(f"BLOCKED: expected 25 selected slots, found {selected}.")
         return 4
@@ -96,11 +89,20 @@ def main() -> int:
         print(f"BLOCKED: expected 25 unique asset hashes, found {unique}.")
         return 5
 
-    rc = run("audit_source_asset_independence.py")
-    if rc:
-        return rc
+    for script in ("audit_source_asset_independence.py", "audit_selected_asset_similarity.py"):
+        rc = run(script)
+        if rc:
+            print("\nPRE-FREEZE GATE BLOCKED. Retrieval scoring remains disabled.")
+            return rc
 
-    print("\nPREPARATION COMPLETE: candidate set resolved and independence audit executed.")
+    similarity = load("selected_asset_similarity_audit.json")
+    sim_summary = similarity.get("summary") or {}
+    suspicious = int(sim_summary.get("suspicious_pairs") or 0)
+    if suspicious:
+        print(f"BLOCKED: {suspicious} suspicious query/reference image pair(s) require review.")
+        return 6
+
+    print("\nPREPARATION COMPLETE: candidate set resolved; provenance and perceptual-similarity audits executed.")
     print("Retrieval scoring was NOT run. source_inventory_v1.json was NOT modified.")
     return 0
 
