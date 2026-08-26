@@ -47,13 +47,29 @@ def _extract_cases(payload: dict) -> dict:
 
 
 def _proposal_slot(case_entry: dict, side: str) -> dict | None:
-    value = case_entry.get(side)
+    """Accept both direct side slots and the proposal artifacts' nested mapping."""
+    if not isinstance(case_entry, dict):
+        return None
+    proposals = case_entry.get("proposals")
+    value = proposals.get(side) if isinstance(proposals, dict) else case_entry.get(side)
     if isinstance(value, dict):
         if value.get("status") in {"proposed", "seeded", "selected"}:
             return value
         if value.get("source_page_url") or value.get("asset_url"):
             return value
     return None
+
+
+def _seeded(inv_slot: object) -> bool:
+    if not isinstance(inv_slot, dict):
+        return False
+    status = inv_slot.get("status")
+    if status in {"seeded", "selected"}:
+        return True
+    # Older/local inventory artifacts can carry full provenance while retaining a
+    # different status token. Treat populated provenance as occupied so the audit
+    # does not report a known source slot as unresolved.
+    return bool(inv_slot.get("source_page_url") and inv_slot.get("asset_url"))
 
 
 def main() -> int:
@@ -72,7 +88,7 @@ def main() -> int:
     inventory_cases = inventory.get("case_sources", {}) if isinstance(inventory, dict) else {}
 
     result = {
-        "schema": "coin-analyzer-combined-source-proposals-v1",
+        "schema": "coin-analyzer-combined-source-proposals-v2",
         "retrieval_results_inspected": False,
         "inventory_mutated": False,
         "selection_policy": "combine pre-existing conservative proposals only; no retrieval-score feedback",
@@ -98,14 +114,14 @@ def main() -> int:
 
         for side in ("query", "reference"):
             inv_slot = inv_case.get(side) if isinstance(inv_case, dict) else None
-            if isinstance(inv_slot, dict) and inv_slot.get("status") == "seeded":
+            if _seeded(inv_slot):
                 out_case[side] = {"status": "already_seeded"}
                 result["summary"]["already_seeded_slots"] += 1
                 continue
 
             candidates: list[tuple[str, dict]] = []
-            cslot = _proposal_slot(commons_case, side) if isinstance(commons_case, dict) else None
-            oslot = _proposal_slot(openverse_case, side) if isinstance(openverse_case, dict) else None
+            cslot = _proposal_slot(commons_case, side)
+            oslot = _proposal_slot(openverse_case, side)
             if cslot:
                 candidates.append(("commons", cslot))
             if oslot:
