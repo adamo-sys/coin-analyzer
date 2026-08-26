@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 ASSET_DIR = ROOT / "targeted_final_two_assets"
 OUTPUT = ROOT / "selected_final_two_dime_assets.json"
-USER_AGENT = "coin-analyzer-adversarial-benchmark/1.0"
+USER_AGENT = "Mozilla/5.0 coin-analyzer-adversarial-benchmark/1.0"
 TIMEOUT = 30
 MAX_BYTES = 20 * 1024 * 1024
 
@@ -28,10 +28,10 @@ TARGETS = [
     {
         "case_id": "canada-10-cents-1954",
         "side": "reference",
-        "provider": "uCoin",
-        "source_page_url": "https://en.ucoin.net/coin/canada-10-cents-1953-1964/?tid=12286",
-        "asset_url": "https://i.ucoin.net/coin/36/854/36854253-1/canada-10-cents-1954.jpg",
-        "reason": "Independent public 1954 Canadian dime image surfaced by a fresh web search; selected before retrieval scoring to replace blocked/duplicate sources.",
+        "provider": "Numiscorner",
+        "source_page_url": "https://www.numiscorner.com/products/638081-canada-elizabeth-ii-10-cents-1954-royal-canadian-mint-silver-ef-40-45",
+        "asset_url": "https://www.numiscorner.com/cdn/shop/files/638081A_400x400%402x.progressive.jpg?v=1754057862",
+        "reason": "Independent public 1954 Canadian dime product image discovered before retrieval scoring; replaces blocked prior sources and the shared provider miniature.",
     },
     {
         "case_id": "canada-10-cents-1956",
@@ -45,7 +45,11 @@ TARGETS = [
 
 
 def _download(url: str) -> tuple[bytes, str, str]:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "image/*,*/*;q=0.8"})
+    req = urllib.request.Request(url, headers={
+        "User-Agent": USER_AGENT,
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "Referer": "https://www.numiscorner.com/" if "numiscorner.com" in url else "https://www.coinsandcanada.com/",
+    })
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         ctype = str(resp.headers.get("Content-Type") or "")
         final_url = str(resp.geturl() or url)
@@ -100,7 +104,7 @@ def main() -> int:
         print(f"  Asset: {path}")
 
     output = {
-        "schema": "coin-analyzer-selected-final-two-dime-assets-v2",
+        "schema": "coin-analyzer-selected-final-two-dime-assets-v3",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "selections": selected,
