@@ -1,0 +1,19 @@
+{
+  "schema": "coin-analyzer-curated-provider-page-candidates-v1",
+  "retrieval_results_inspected": false,
+  "selection_basis": "Manual web discovery by exact identity; page-level provenance only; no image retrieval scoring",
+  "items": [
+    {"case_id":"canada-10-cents-1954","side":"query","provider":"Numista","url":"https://en.numista.com/386","identity_note":"Canada 10 cents, Elizabeth II first portrait; page includes 1954 issue"},
+    {"case_id":"canada-10-cents-1954","side":"reference","provider":"Numista","url":"https://en.numista.com/386","identity_note":"Canada 10 cents, Elizabeth II first portrait; page includes 1954 issue"},
+    {"case_id":"canada-10-cents-1956","side":"query","provider":"Numista","url":"https://en.numista.com/386","identity_note":"Canada 10 cents, Elizabeth II first portrait; page includes 1956 issue"},
+    {"case_id":"canada-10-cents-1956","side":"reference","provider":"Numista","url":"https://en.numista.com/386","identity_note":"Canada 10 cents, Elizabeth II first portrait; page includes 1956 issue"},
+    {"case_id":"us-spanish-trail-half-dollar-1935","side":"reference","provider":"Numista","url":"https://en.numista.com/78899","identity_note":"1935 Old Spanish Trail half dollar"},
+    {"case_id":"us-columbia-half-dollar-1936","side":"reference","provider":"Numista","url":"https://en.numista.com/51963","identity_note":"1936 Columbia Sesquicentennial half dollar"},
+    {"case_id":"us-oregon-trail-half-dollar-1926","side":"query","provider":"Numista","url":"https://en.numista.com/9258","identity_note":"Oregon Trail Memorial half dollar; page includes 1926 issue"},
+    {"case_id":"us-oregon-trail-half-dollar-1926","side":"reference","provider":"Numista","url":"https://en.numista.com/9258","identity_note":"Oregon Trail Memorial half dollar; page includes 1926 issue"},
+    {"case_id":"australia-sixpence-1910","side":"reference","provider":"Numista","url":"https://en.numista.com/12497","identity_note":"1910 Australia Edward VII sixpence"},
+    {"case_id":"australia-sixpence-1911","side":"query","provider":"Numista","url":"https://en.numista.com/1563","identity_note":"Australia George V sixpence; page includes 1911 issue"},
+    {"case_id":"australia-sixpence-1911","side":"reference","provider":"Numista","url":"https://en.numista.com/1563","identity_note":"Australia George V sixpence; page includes 1911 issue"},
+    {"case_id":"indonesia-100-rupiah-1995","side":"reference","provider":"Numista","url":"https://en.numista.com/3084","identity_note":"Indonesia 100 rupiah; page includes 1995 issue"}
+  ]
+}
