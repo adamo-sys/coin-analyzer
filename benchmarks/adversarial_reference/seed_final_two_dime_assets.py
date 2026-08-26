@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Seed explicit independent assets for the final two unresolved Canadian dime slots.
 
-This is a bounded pre-retrieval acquisition step. It records two direct public image
-assets discovered independently of retrieval scoring, downloads and hashes them, and
-writes a local selection artifact consumed by the unique selector. It does not mutate
-source_inventory_v1.json and does not run retrieval scoring.
+This is a bounded pre-retrieval acquisition step. It records direct public image
+assets discovered independently of retrieval scoring, downloads and hashes any that
+are machine-accessible, and writes a local selection artifact consumed by the unique
+selector. HTTP blocking is treated as a recorded acquisition blocker, not a crash.
+It does not mutate source_inventory_v1.json and does not run retrieval scoring.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import mimetypes
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -68,15 +70,24 @@ def _ext(url: str, ctype: str) -> str:
 def main() -> int:
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
     selected = []
+    blocked = []
     for i, target in enumerate(TARGETS, 1):
         print(f"[{i}/{len(TARGETS)}] {target['case_id']}.{target['side']}")
-        data, ctype, final_url = _download(target["asset_url"])
+        try:
+            data, ctype, final_url = _download(target["asset_url"])
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            row = dict(target)
+            row.update({"status": "blocked", "error": str(exc)})
+            blocked.append(row)
+            print(f"  BLOCKED: {exc}")
+            continue
         sha = hashlib.sha256(data).hexdigest()
         ext = _ext(final_url, ctype)
         path = ASSET_DIR / f"{target['case_id']}__{target['side']}__{sha[:16]}{ext}"
         path.write_bytes(data)
         row = dict(target)
         row.update({
+            "status": "selected",
             "final_url": final_url,
             "content_type": ctype,
             "sha256": sha,
@@ -89,12 +100,20 @@ def main() -> int:
         print(f"  Asset: {path}")
 
     output = {
-        "schema": "coin-analyzer-selected-final-two-dime-assets-v1",
+        "schema": "coin-analyzer-selected-final-two-dime-assets-v2",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "selections": selected,
+        "blocked": blocked,
+        "summary": {
+            "targets": len(TARGETS),
+            "selected": len(selected),
+            "blocked": len(blocked),
+        },
     }
     OUTPUT.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
+    print(f"Selected: {len(selected)}")
+    print(f"Blocked: {len(blocked)}")
     print(f"Wrote selections: {OUTPUT}")
     print("source_inventory_v1.json unchanged; no retrieval scoring run.")
     return 0
