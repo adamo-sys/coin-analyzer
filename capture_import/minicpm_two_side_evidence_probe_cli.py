@@ -26,6 +26,9 @@ from .visual_evaluation_harness import load_visual_manifest
 
 FIELDS = ("country", "denomination", "year", "type_design")
 REQUIRED_FIELDS = ("country", "denomination", "year")
+ISSUER_ALIASES = {
+    "switzerland": ("helvetia",),
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,12 +60,7 @@ def _visible_text(result: dict[str, object]) -> list[str]:
 
 
 def _explicitly_supported(field: str, value: object, result: dict[str, object]) -> bool:
-    """Return whether the side's transcribed text explicitly supports a field.
-
-    This intentionally gives no explicit-text credit to type/design labels: design
-    can be visually recognizable without text, but it is optional and must not
-    decide whether a required identity is accepted.
-    """
+    """Return whether the side's transcribed text explicitly supports a field."""
     if field == "type_design":
         return False
     needle = _searchable(value)
@@ -71,16 +69,21 @@ def _explicitly_supported(field: str, value: object, result: dict[str, object]) 
     haystack = " ".join(_searchable(item) for item in _visible_text(result))
     if needle in haystack:
         return True
-    # Denominations and years are often embedded in longer legends such as
-    # "CANADA 1867-1967". Token containment is sufficient for this diagnostic.
     needle_tokens = needle.split()
     haystack_tokens = haystack.split()
-    return bool(needle_tokens) and all(token in haystack_tokens for token in needle_tokens)
+    if needle_tokens and all(token in haystack_tokens for token in needle_tokens):
+        return True
+    if field == "country":
+        for alias in ISSUER_ALIASES.get(needle, ()):
+            searchable_alias = _searchable(alias)
+            if searchable_alias and searchable_alias in haystack:
+                return True
+    return False
 
 
 def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) -> dict[str, object]:
-    merged: dict[str, object] = {}
-    provenance: dict[str, list[str]] = {}
+    merged: dict[str, object] = {field: None for field in FIELDS}
+    provenance: dict[str, list[str]] = {field: [] for field in FIELDS}
     conflicts: dict[str, dict[str, object]] = {}
     rejected_weaker_evidence: dict[str, dict[str, object]] = {}
 
@@ -110,8 +113,6 @@ def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) 
                     "rejected": {"source": loser_role, "value": loser_value, "explicit_visible_text": False},
                 }
             else:
-                merged[field] = None
-                provenance[field] = []
                 conflicts[field] = {
                     "obverse": ob_value,
                     "reverse": rev_value,
@@ -127,9 +128,10 @@ def _merge_side_results(obverse: dict[str, object], reverse: dict[str, object]) 
         elif rev_norm:
             merged[field] = rev_value
             provenance[field] = ["reverse"]
-        else:
-            merged[field] = None
-            provenance[field] = []
+
+    # Defensive invariant: identity/provenance always expose every contract field.
+    merged = {field: merged.get(field) for field in FIELDS}
+    provenance = {field: list(provenance.get(field, [])) for field in FIELDS}
 
     visible_text: list[dict[str, str]] = []
     for role, result in (("obverse", ob_result), ("reverse", rev_result)):
