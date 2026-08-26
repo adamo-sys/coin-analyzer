@@ -3,10 +3,11 @@
 
 This bounded pre-retrieval step combines:
 - frozen Benchmark v2 query images for reused identities;
-- query/reference assets already selected by the adversarial preparation flow.
+- query/reference assets already selected by the adversarial preparation flow;
+- explicitly seeded remaining pair-gap assets acquired before scoring.
 
 It does not alter case identities, mutate source_inventory_v1.json, or run retrieval
-scoring. Missing frozen-v2 query images remain explicit blockers.
+scoring. Missing assets remain explicit blockers.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent.parent
 MANIFEST = ROOT / "manifest_v1.json"
 SELECTED = ROOT / "unique_final_assets.json"
+SEEDED_GAPS = ROOT / "selected_remaining_pair_gap_assets.json"
 V2_MANIFEST = REPO / "benchmarks" / "v2" / "manifest.json"
 OUTPUT = ROOT / "full_pair_asset_set.json"
 
@@ -36,6 +38,43 @@ def selected_rows() -> dict[tuple[str, str], dict]:
         side = str(row.get("side") or "")
         if case_id and side in {"query", "reference"} and row.get("status") == "selected":
             out[(case_id, side)] = row
+    return out
+
+
+def seeded_gap_rows() -> dict[tuple[str, str], dict]:
+    if not SEEDED_GAPS.is_file():
+        return {}
+    payload = load(SEEDED_GAPS)
+    out: dict[tuple[str, str], dict] = {}
+    for row in payload.get("selections", []):
+        if not isinstance(row, dict):
+            continue
+        case_id = str(row.get("case_id") or "")
+        side = str(row.get("side") or "")
+        local_path = str(row.get("local_path") or "")
+        if not (case_id and side in {"query", "reference"} and local_path):
+            continue
+        path = Path(local_path)
+        if not path.is_absolute():
+            path = ROOT / path
+        if not path.is_file():
+            continue
+        out[(case_id, side)] = {
+            "case_id": case_id,
+            "side": side,
+            "status": "selected",
+            "selected": {
+                "mode": "seeded-gap-asset",
+                "local_path": str(path.resolve()),
+                "source_page_url": row.get("source_page_url"),
+                "source_url": row.get("asset_url"),
+                "final_url": row.get("final_url"),
+                "provider": row.get("provider"),
+                "sha256": row.get("sha256"),
+                "bytes": row.get("bytes"),
+                "usage_note": row.get("usage_note"),
+            },
+        }
     return out
 
 
@@ -75,6 +114,7 @@ def v2_queries() -> dict[str, dict]:
 def main() -> int:
     manifest = load(MANIFEST)
     selected = selected_rows()
+    gaps = seeded_gap_rows()
     v2 = v2_queries()
     rows = []
     missing = []
@@ -84,8 +124,8 @@ def main() -> int:
             continue
         case_id = str(case.get("id") or case.get("case_id") or "")
         source_status = str(case.get("source_status") or "")
-        query = selected.get((case_id, "query"))
-        reference = selected.get((case_id, "reference"))
+        query = selected.get((case_id, "query")) or gaps.get((case_id, "query"))
+        reference = selected.get((case_id, "reference")) or gaps.get((case_id, "reference"))
 
         if query is None and source_status.startswith("reuse-frozen-v2-query"):
             q = v2.get(case_id)
@@ -103,7 +143,7 @@ def main() -> int:
         rows.append({"case_id": case_id, "query": query, "reference": reference, "missing": missing_sides})
 
     artifact = {
-        "schema": "coin-analyzer-full-pair-asset-set-v1",
+        "schema": "coin-analyzer-full-pair-asset-set-v2",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "rows": rows,
