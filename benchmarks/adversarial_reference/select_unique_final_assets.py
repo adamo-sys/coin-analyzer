@@ -21,6 +21,7 @@ INPUT = ROOT / "final_asset_candidate_plan.json"
 OUTPUT = ROOT / "unique_final_assets.json"
 ASSET_DIR = ROOT / "unique_final_assets"
 TARGETED_1956 = ROOT / "selected_numista_1956_reference.json"
+TARGETED_FINAL_TWO = ROOT / "selected_final_two_dime_assets.json"
 USER_AGENT = "coin-analyzer-adversarial-benchmark/1.0"
 TIMEOUT = 30
 MAX_BYTES = 20 * 1024 * 1024
@@ -120,7 +121,24 @@ def _targeted_1956_candidate() -> dict | None:
         "asset_url": url,
         "sha256": selection.get("sha256") or payload.get("sha256"),
         "bytes": selection.get("bytes") or payload.get("bytes"),
+        "source_page_url": selection.get("source_page_url") or payload.get("source_page_url"),
+        "provider": selection.get("provider") or payload.get("provider"),
     }
+
+
+def _targeted_final_two() -> dict[tuple[str, str], dict]:
+    if not TARGETED_FINAL_TWO.is_file():
+        return {}
+    payload = _load(TARGETED_FINAL_TWO)
+    out: dict[tuple[str, str], dict] = {}
+    for row in payload.get("selections", []):
+        if not isinstance(row, dict):
+            continue
+        key = (str(row.get("case_id") or ""), str(row.get("side") or ""))
+        if not all(key):
+            continue
+        out[key] = row
+    return out
 
 
 def main() -> int:
@@ -132,6 +150,7 @@ def main() -> int:
     failed_attempts = 0
     duplicate_rejections = 0
     targeted = _targeted_1956_candidate()
+    final_two = _targeted_final_two()
 
     rows = list(_iter_slots(payload))
     for index, row in enumerate(rows, 1):
@@ -171,11 +190,23 @@ def main() -> int:
                 attempt_rows.append({"status": "manual-missing", "local_path": manual.get("local_path")})
 
         explicit_candidates: list[dict] = []
+        explicit = final_two.get((case_id, side))
+        if selected is None and explicit:
+            explicit_candidates.append({
+                "asset_url": explicit.get("asset_url") or explicit.get("final_url"),
+                "expected_sha256": explicit.get("sha256"),
+                "expected_bytes": explicit.get("bytes"),
+                "source_page_url": explicit.get("source_page_url"),
+                "provider": explicit.get("provider"),
+                "source": "selected-final-two-dime-assets",
+            })
         if selected is None and (case_id, side) == TARGETED_KEY and targeted:
             explicit_candidates.append({
                 "asset_url": targeted.get("asset_url"),
                 "expected_sha256": targeted.get("sha256"),
                 "expected_bytes": targeted.get("bytes"),
+                "source_page_url": targeted.get("source_page_url"),
+                "provider": targeted.get("provider"),
                 "source": "selected-numista-1956-reference",
             })
         candidates = explicit_candidates + [c for c in (row.get("candidates") or []) if isinstance(c, dict)]
@@ -211,6 +242,8 @@ def main() -> int:
                         "bytes": len(data),
                         "sha256": sha,
                         "local_path": str(path),
+                        "source_page_url": candidate.get("source_page_url"),
+                        "provider": candidate.get("provider"),
                         "candidate": candidate,
                     }
                     used_hashes[sha] = {"case_id": case_id, "side": side}
@@ -229,7 +262,7 @@ def main() -> int:
         })
 
     output = {
-        "schema": "coin-analyzer-unique-final-assets-v4",
+        "schema": "coin-analyzer-unique-final-assets-v5",
         "inventory_modified": False,
         "retrieval_scoring_run": False,
         "selection_policy": "assembled manual assets + explicit pre-retrieval targeted selections + pre-ranked candidate order with global SHA-256 uniqueness; no retrieval score used",
