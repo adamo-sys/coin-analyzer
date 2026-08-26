@@ -3,7 +3,9 @@
 
 This pre-freeze diagnostic never runs retrieval scoring and never mutates
 source_inventory_v1.json. It compares selected query/reference assets when both
-local paths are available and reports possible derivative-image reuse.
+local paths are available and reports possible derivative-image reuse. The frozen
+25-case manifest defines the case universe so cases with only one selected slot in
+unique_final_assets.json are still reported explicitly rather than disappearing.
 """
 from __future__ import annotations
 
@@ -12,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 INPUT = ROOT / "unique_final_assets.json"
+MANIFEST = ROOT / "manifest_v1.json"
 OUTPUT = ROOT / "selected_asset_similarity_audit.json"
 
 
@@ -51,6 +54,24 @@ def case_and_side(row: dict) -> tuple[str, str]:
     return "", ""
 
 
+def manifest_case_ids() -> list[str]:
+    if not MANIFEST.is_file():
+        return []
+    payload = load(MANIFEST)
+    out: list[str] = []
+    for key in ("cases", "items", "results"):
+        rows = payload.get(key)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if isinstance(row, dict):
+                case_id = str(row.get("case_id") or row.get("id") or "")
+                if case_id and case_id not in out:
+                    out.append(case_id)
+        break
+    return out
+
+
 def main() -> int:
     payload = load(INPUT)
     rows = payload.get("rows") or payload.get("slots") or payload.get("results") or payload.get("selected") or []
@@ -64,6 +85,10 @@ def main() -> int:
         if case_id and side:
             by_case.setdefault(case_id, {})[side] = row
 
+    case_ids = manifest_case_ids()
+    if not case_ids:
+        case_ids = sorted(by_case)
+
     out_rows = []
     compared = suspicious = unavailable = 0
     try:
@@ -71,11 +96,19 @@ def main() -> int:
     except Exception:
         Image = None
 
-    for case_id, pair in sorted(by_case.items()):
+    for case_id in case_ids:
+        pair = by_case.get(case_id, {})
         q = local_path(pair.get("query", {}))
         r = local_path(pair.get("reference", {}))
         if not q or not r or Image is None:
-            out_rows.append({"case_id": case_id, "status": "not-compared", "query_path": str(q) if q else None, "reference_path": str(r) if r else None})
+            missing = []
+            if not q:
+                missing.append("query")
+            if not r:
+                missing.append("reference")
+            if Image is None:
+                missing.append("pillow")
+            out_rows.append({"case_id": case_id, "status": "not-compared", "missing": missing, "query_path": str(q) if q else None, "reference_path": str(r) if r else None})
             unavailable += 1
             continue
         try:
@@ -100,9 +133,10 @@ def main() -> int:
             unavailable += 1
             out_rows.append({"case_id": case_id, "status": "compare-error", "error": str(exc), "query_path": str(q), "reference_path": str(r)})
 
-    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v3", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_discovered": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
+    artifact = {"schema": "coin-analyzer-selected-asset-similarity-audit-v4", "retrieval_results_inspected": False, "inventory_modified": False, "rows": out_rows, "summary": {"cases_expected": len(case_ids), "cases_with_selected_slots": len(by_case), "pairs_compared": compared, "suspicious_pairs": suspicious, "pairs_not_compared": unavailable}}
     OUTPUT.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
-    print(f"Cases discovered: {len(by_case)}")
+    print(f"Cases expected from frozen manifest: {len(case_ids)}")
+    print(f"Cases represented in selected assets: {len(by_case)}")
     print(f"Query/reference pairs compared: {compared}")
     print(f"Suspicious perceptual-similarity pairs: {suspicious}")
     print(f"Pairs not compared: {unavailable}")
