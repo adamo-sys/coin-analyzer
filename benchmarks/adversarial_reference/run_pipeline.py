@@ -107,6 +107,7 @@ def main() -> int:
         print(f"BLOCKED: {suspicious} suspicious query/reference image pair(s) require review.")
         return 6
     if expected and compared != expected:
+        run("report_similarity_coverage_gaps.py")
         print("\nPRE-FREEZE GATE BLOCKED: similarity coverage is incomplete.")
         print(f"Expected frozen cases: {expected}")
         print(f"Cases represented in selected assets: {represented}")
