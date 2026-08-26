@@ -28,6 +28,7 @@ REFERENCE_MANIFEST = REFERENCE_ROOT / "manifest.json"
 PILOT_BENCHMARK_MANIFEST = ROOT / "reference_pilot_benchmark.json"
 USER_AGENT = "CoinAnalyzerReferencePilot/1.0 (independent reference retrieval benchmark)"
 RETRIEVED_AT = date.today().isoformat()
+THUMB_WIDTH = 960
 
 # These are intentionally different photographs from the frozen Benchmark v2
 # query sources. The five cases were chosen because exact-identity independent
@@ -74,7 +75,8 @@ def _api_metadata(titles: list[str]) -> dict[str, dict[str, object]]:
     query = "|".join("File:" + title for title in titles)
     url = (
         "https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2"
-        "&prop=imageinfo&iiprop=url%7Cextmetadata&titles=" + quote(query)
+        "&prop=imageinfo&iiprop=url%7Cextmetadata"
+        f"&iiurlwidth={THUMB_WIDTH}&titles=" + quote(query)
     )
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=60) as response:
@@ -91,14 +93,20 @@ def _api_metadata(titles: list[str]) -> dict[str, dict[str, object]]:
 
 def _download(url: str) -> bytes:
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(5):
+    for attempt in range(7):
         try:
             with urlopen(request, timeout=60) as response:
                 return response.read()
         except HTTPError as error:
-            if error.code != 429 or attempt == 4:
+            if error.code != 429 or attempt == 6:
                 raise
-            time.sleep(4.0 * (attempt + 1))
+            retry_after = error.headers.get("Retry-After")
+            try:
+                delay = max(5.0, float(retry_after)) if retry_after else 5.0 * (attempt + 1)
+            except (TypeError, ValueError):
+                delay = 5.0 * (attempt + 1)
+            print(f"Commons throttled download; retrying in {delay:.0f}s...", flush=True)
+            time.sleep(delay)
     raise RuntimeError("unreachable download retry state")
 
 
@@ -140,17 +148,24 @@ def main() -> int:
     for index, title in enumerate(titles, start=1):
         info = metadata[title]
         ext = info.get("extmetadata") if isinstance(info.get("extmetadata"), dict) else {}
-        url = str(info["url"])
+        # Wikimedia explicitly recommends thumbnail derivatives for automated
+        # consumers under throttling. Prefer the API-provided 960px derivative;
+        # fall back to the original only when no thumbnail URL is available.
+        original_url = str(info["url"])
+        download_url = str(info.get("thumburl") or original_url)
         path = REFERENCE_ROOT / "refs" / f"ref-{index:02d}{_safe_suffix(title)}"
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.is_file():
-            path.write_bytes(_download(url))
-            time.sleep(0.5)
+            print(f"Downloading {index}/{len(titles)}: {title}", flush=True)
+            path.write_bytes(_download(download_url))
+            time.sleep(2.0)
         downloaded[title] = path
         provenance[title] = {
             "commons_title": title,
             "source_page": str(info.get("descriptionurl") or ""),
-            "source_file_url": url,
+            "source_file_url": original_url,
+            "retrieved_file_url": download_url,
+            "retrieved_width": info.get("thumbwidth"),
             "author": _clean_html((ext.get("Artist") or {}).get("value") if isinstance(ext.get("Artist"), dict) else ""),
             "license": str((ext.get("LicenseShortName") or {}).get("value") if isinstance(ext.get("LicenseShortName"), dict) else ""),
             "credit": _clean_html((ext.get("Credit") or {}).get("value") if isinstance(ext.get("Credit"), dict) else ""),
@@ -168,8 +183,8 @@ def main() -> int:
 
     reference_manifest = {
         "schema": "coin-analyzer-reference-image-catalogue",
-        "version": "v2-independent-reference-pilot-1",
-        "description": "Five exact-identity candidates using photographs independent from Benchmark v2 query sources.",
+        "version": "v2-independent-reference-pilot-2",
+        "description": "Five exact-identity candidates using photographs independent from Benchmark v2 query sources; Commons thumbnail derivatives used for rate-limit-friendly retrieval.",
         "candidates": candidates,
     }
     REFERENCE_MANIFEST.write_text(json.dumps(reference_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
