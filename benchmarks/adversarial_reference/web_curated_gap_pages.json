@@ -1,0 +1,66 @@
+{
+  "schema": "coin-analyzer-web-curated-gap-pages-v1",
+  "retrieval_results_inspected": false,
+  "inventory_modified": false,
+  "selection_basis": "direct web discovery of identity-specific provider pages; page-level only",
+  "items": [
+    {
+      "case_id": "canada-5-cents-1964",
+      "side": "reference",
+      "provider": "Coins and Canada",
+      "url": "https://www.coinsandcanada.com/coins-prices.php?canadian_coins=5-cents-1964-1964",
+      "identity_evidence": "page title explicitly identifies Canada 5 cents 1964",
+      "asset_status": "pending"
+    },
+    {
+      "case_id": "canada-10-cents-1955",
+      "side": "reference",
+      "provider": "Coins and Canada",
+      "url": "https://coinsandcanada.com/coins-prices.php?coin=10-cents-1955&currency=CAD&years=10-cents-1955-1955",
+      "identity_evidence": "page title and details explicitly identify Canada 10 cents 1955",
+      "asset_status": "pending"
+    },
+    {
+      "case_id": "canada-25-cents-1967",
+      "side": "reference",
+      "provider": "Coins and Canada",
+      "url": "https://www.coinsandcanada.com/coins-prices.php?coin=25-cents-1967&years=25-cents-1965-1998",
+      "identity_evidence": "page title and reverse description explicitly identify Canada 25 cents 1967",
+      "asset_status": "pending"
+    },
+    {
+      "case_id": "canada-25-cents-1965",
+      "side": "query",
+      "provider": "Coins and Canada",
+      "url": "https://coinsandcanada.com/coins-prices.php?coin=25-cents-1965&years=25-cents-1965-1989",
+      "identity_evidence": "page title explicitly identifies Canada 25 cents 1965",
+      "asset_status": "pending"
+    },
+    {
+      "case_id": "canada-25-cents-1965",
+      "side": "reference",
+      "provider": "Coins and Canada",
+      "url": "https://coinsandcanada.com/coins-prices.php?coin=25-cents-1965&issue=1&years=25-cents-1965-1965",
+      "identity_evidence": "separate not-intended-for-circulation page explicitly identifies Canada 25 cents 1965",
+      "asset_status": "pending",
+      "independence_note": "separate provider page only; actual image asset must still differ from query asset"
+    },
+    {
+      "case_id": "canada-25-cents-1966",
+      "side": "query",
+      "provider": "Coins and Canada",
+      "url": "https://coinsandcanada.com/coins-prices.php?coin=25-cents-1966&years=25-cents-1953-2011",
+      "identity_evidence": "page title explicitly identifies Canada 25 cents 1966",
+      "asset_status": "pending"
+    },
+    {
+      "case_id": "canada-25-cents-1966",
+      "side": "reference",
+      "provider": "Coins and Canada",
+      "url": "https://www.coinsandcanada.com/coins-prices.php?coin=25-cents-1966&issue=1&years=25-cents-1870-1992",
+      "identity_evidence": "separate not-intended-for-circulation page explicitly identifies Canada 25 cents 1966",
+      "asset_status": "pending",
+      "independence_note": "separate provider page only; actual image asset must still differ from query asset"
+    }
+  ]
+}
