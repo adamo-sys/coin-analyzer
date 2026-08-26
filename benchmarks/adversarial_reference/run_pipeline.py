@@ -56,6 +56,7 @@ def main() -> int:
         "seed_final_two_dime_assets.py",
         "select_unique_final_assets.py",
         "report_unresolved_unique_asset_slots.py",
+        "assemble_full_pair_asset_set.py",
     ):
         rc = run(script)
         if rc:
@@ -88,6 +89,16 @@ def main() -> int:
     if unique and unique != 25:
         print(f"BLOCKED: expected 25 unique asset hashes, found {unique}.")
         return 5
+
+    pair_set = load("full_pair_asset_set.json")
+    pair_summary = pair_set.get("summary") or {}
+    complete_pairs = int(pair_summary.get("complete_pairs") or 0)
+    incomplete_pairs = int(pair_summary.get("incomplete_pairs") or 0)
+    print("\n=== FULL PAIR ASSEMBLY CHECKPOINT ===")
+    print(f"Complete query/reference pairs: {complete_pairs}")
+    print(f"Incomplete pairs: {incomplete_pairs}")
+    if incomplete_pairs:
+        print("Full pair assembly remains incomplete. Retrieval scoring remains disabled.")
 
     for script in ("audit_source_asset_independence.py", "audit_selected_asset_similarity.py"):
         rc = run(script)
