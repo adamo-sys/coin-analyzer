@@ -87,16 +87,23 @@ def _nullable_text(value: object, *, field: str, limit: int) -> str | None:
 
 
 def _validated_result(raw: object) -> dict[str, object]:
-    if not isinstance(raw, Mapping) or set(raw) != EXPECTED_KEYS:
-        raise ValueError("structured result must contain exactly the required keys")
-    abstain = raw.get("abstain")
-    if not isinstance(abstain, bool):
-        raise ValueError("abstain must be boolean")
+    if not isinstance(raw, Mapping):
+        raise ValueError("structured result must be a JSON object")
+    unknown = set(raw) - EXPECTED_KEYS
+    if unknown:
+        raise ValueError(f"structured result contains unknown keys: {sorted(unknown)}")
+
+    raw_abstain = raw.get("abstain", False)
+    if not isinstance(raw_abstain, bool):
+        raise ValueError("abstain must be boolean when present")
+    abstain = raw_abstain
+
     country = _nullable_text(raw.get("country"), field="country", limit=48)
     denomination = _nullable_text(raw.get("denomination"), field="denomination", limit=40)
     year = _nullable_text(raw.get("year"), field="year", limit=16)
     type_design = _nullable_text(raw.get("type_design"), field="type_design", limit=80)
-    visible = raw.get("visible_text")
+
+    visible = raw.get("visible_text", [])
     if not isinstance(visible, list) or len(visible) > 6:
         raise ValueError("visible_text must be an array of at most six strings")
     visible_text: list[str] = []
