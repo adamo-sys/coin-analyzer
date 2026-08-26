@@ -28,10 +28,10 @@ TARGETS = [
     {
         "case_id": "canada-10-cents-1954",
         "side": "reference",
-        "provider": "Florinus",
-        "source_page_url": "https://www.florinus.lt/en/10-cents-elizabeth-ii-1953-1964-canada-silver-coin-type-4",
-        "asset_url": "https://www.florinus.lt/resized/7af5cec5fffb6cf6723662df8dfad8da-500x500-transparent/10-cents-elizabeth-ii-1953-1964-canada-silver-coin-type-4-.png",
-        "reason": "Independent public 1954 reverse image; selected before retrieval scoring to replace shared provider miniature.",
+        "provider": "Numicanada CDN",
+        "source_page_url": "https://www.numicanada.com/pieces-de-monnaie-valeur.php?annees=10-cents-1954-1954&piece=10-cents-1954",
+        "asset_url": "https://www.numicanada.com/medias/pieces-de-monnaie/image-10-cents-1954-g.jpg",
+        "reason": "Year-specific 1954 dime asset from the Numicanada coin page; selected before retrieval scoring to replace the blocked Florinus source and shared provider miniature.",
     },
     {
         "case_id": "canada-10-cents-1956",
