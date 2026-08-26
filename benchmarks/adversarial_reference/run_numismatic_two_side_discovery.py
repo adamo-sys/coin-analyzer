@@ -3,7 +3,7 @@
 
 Scoring blind: this script does not decode benchmark images and never invokes the
 retrieval backend. It consumes the provider-specific discovery plan and performs
-small, throttled HTML searches only against the listed numismatic/authoritative
+small, throttled HTML searches only for the listed numismatic/authoritative
 provider sites, preserving unresolved roles when no explicit side evidence is
 found.
 
@@ -24,7 +24,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parent
 PLAN = ROOT / "two_side_gap_numismatic_discovery_plan.json"
 OUTPUT = ROOT / "two_side_gap_numismatic_candidates.json"
-USER_AGENT = "CoinAnalyzerAdversarialNumismaticDiscovery/1.0"
+USER_AGENT = "CoinAnalyzerAdversarialNumismaticDiscovery/1.1"
 REQUEST_DELAY = 1.25
 MAX_SEARCHES = 486
 
@@ -43,12 +43,17 @@ def fetch_text(url: str) -> str:
 def extract_links(html: str, provider_domain: str) -> list[str]:
     links = []
     seen = set()
+    domain = provider_domain.casefold().strip()
+    # The planner's generic museum hint ("collections") is not a hostname and
+    # therefore cannot be safely enforced as a provider-domain filter here.
+    if "." not in domain:
+        return links
     for match in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I):
         raw = unescape(match.group(1)).strip()
         if not raw.startswith(("http://", "https://")):
             continue
         host = urlparse(raw).netloc.casefold()
-        if provider_domain.casefold() not in host:
+        if domain not in host:
             continue
         if raw not in seen:
             seen.add(raw)
@@ -56,11 +61,42 @@ def extract_links(html: str, provider_domain: str) -> list[str]:
     return links[:8]
 
 
-def search_url(query: str) -> str:
-    # DuckDuckGo HTML endpoint is used only as a bounded locator for exact
-    # provider-domain queries; the result catalogue still requires manual
-    # provenance review and explicit side verification before acceptance.
-    return "https://html.duckduckgo.com/html/?q=" + quote(query)
+def search_url(query: str, domain: str) -> str:
+    # DuckDuckGo HTML is only a bounded locator. Restrict the actual search to
+    # the provider domain as well as filtering returned links afterward.
+    scoped = f"site:{domain} {query}" if "." in domain else query
+    return "https://html.duckduckgo.com/html/?q=" + quote(scoped)
+
+
+def flatten_searches(plan: dict) -> list[dict]:
+    """Flatten v1 nested roles[].queries[] while retaining legacy compatibility."""
+    flattened = []
+    roles = plan.get("roles")
+    if isinstance(roles, list):
+        for role in roles:
+            if not isinstance(role, dict):
+                continue
+            queries = role.get("queries") or []
+            if not isinstance(queries, list):
+                continue
+            for query_row in queries:
+                if not isinstance(query_row, dict):
+                    continue
+                flattened.append({
+                    "case_id": role.get("case_id"),
+                    "source_group": role.get("source_group"),
+                    "coin_side": role.get("coin_side"),
+                    "expected": role.get("expected"),
+                    "provider": query_row.get("provider"),
+                    "domain": query_row.get("domain") or query_row.get("domain_hint"),
+                    "query": query_row.get("query"),
+                    "requirements": query_row.get("requirements"),
+                })
+        return flattened
+
+    # Compatibility with any earlier flat plan shape.
+    legacy = plan.get("searches") or plan.get("rows") or []
+    return legacy if isinstance(legacy, list) else []
 
 
 def main() -> int:
@@ -68,9 +104,12 @@ def main() -> int:
         raise SystemExit(f"missing discovery plan: {PLAN}")
 
     plan = load(PLAN)
-    searches = plan.get("searches") or plan.get("rows") or []
-    if not isinstance(searches, list):
-        raise SystemExit("discovery plan requires a list of searches")
+    searches = flatten_searches(plan)
+    if not searches:
+        raise SystemExit(
+            "discovery plan produced zero executable searches; expected nested roles[].queries[] "
+            "or legacy searches/rows"
+        )
 
     results = []
     attempted = 0
@@ -78,14 +117,15 @@ def main() -> int:
     failed = 0
     with_candidates = 0
 
-    for index, row in enumerate(searches[:MAX_SEARCHES], 1):
+    bounded = searches[:MAX_SEARCHES]
+    for index, row in enumerate(bounded, 1):
         if not isinstance(row, dict):
             continue
         case_id = str(row.get("case_id") or "")
         source_group = str(row.get("source_group") or row.get("side") or "")
         coin_side = str(row.get("coin_side") or row.get("role") or "")
         provider = str(row.get("provider") or "")
-        domain = str(row.get("domain") or "")
+        domain = str(row.get("domain") or row.get("domain_hint") or "")
         query = str(row.get("query") or "")
         if not query or not domain:
             continue
@@ -102,7 +142,7 @@ def main() -> int:
             "candidate_urls": [],
         }
         try:
-            html = fetch_text(search_url(query))
+            html = fetch_text(search_url(query, domain))
             candidates = extract_links(html, domain)
             record["candidate_urls"] = candidates
             record["status"] = "candidates" if candidates else "no-candidates"
@@ -114,9 +154,8 @@ def main() -> int:
             failed += 1
         results.append(record)
         print(
-            f"[{index}/{min(len(searches), MAX_SEARCHES)}] {case_id} "
-            f"{source_group}.{coin_side} | {provider} | {record['status']} "
-            f"| candidates={len(record['candidate_urls'])}",
+            f"[{index}/{len(bounded)}] {case_id} {source_group}.{coin_side} "
+            f"| {provider} | {record['status']} | candidates={len(record['candidate_urls'])}",
             flush=True,
         )
         time.sleep(REQUEST_DELAY)
