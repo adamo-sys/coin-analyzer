@@ -28,10 +28,10 @@ TARGETS = [
     {
         "case_id": "canada-10-cents-1954",
         "side": "reference",
-        "provider": "Numicanada CDN",
-        "source_page_url": "https://www.numicanada.com/pieces-de-monnaie-valeur.php?annees=10-cents-1954-1954&piece=10-cents-1954",
-        "asset_url": "https://www.numicanada.com/medias/pieces-de-monnaie/image-10-cents-1954-g.jpg",
-        "reason": "Year-specific 1954 dime asset from the Numicanada coin page; selected before retrieval scoring to replace the blocked Florinus source and shared provider miniature.",
+        "provider": "uCoin",
+        "source_page_url": "https://en.ucoin.net/coin/canada-10-cents-1953-1964/?tid=12286",
+        "asset_url": "https://i.ucoin.net/coin/36/854/36854253-1/canada-10-cents-1954.jpg",
+        "reason": "Independent public 1954 Canadian dime image surfaced by a fresh web search; selected before retrieval scoring to replace blocked/duplicate sources.",
     },
     {
         "case_id": "canada-10-cents-1956",
