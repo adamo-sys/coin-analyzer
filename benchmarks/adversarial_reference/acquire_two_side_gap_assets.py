@@ -125,6 +125,18 @@ def infer_suffix(url: str) -> str:
     return suffix if suffix in IMAGE_SUFFIXES else ".img"
 
 
+def normalize_queue_row(row: dict) -> tuple[str, str, str]:
+    case_id = str(row.get("case_id") or "")
+    side = str(row.get("side") or row.get("source_group") or "")
+    role = str(row.get("role") or row.get("coin_side") or "")
+    asset_role = str(row.get("asset_role") or "")
+    if asset_role in {"query.obverse", "query.reverse", "reference.obverse", "reference.reverse"}:
+        parsed_side, parsed_role = asset_role.split(".", 1)
+        side = side or parsed_side
+        role = role or parsed_role
+    return case_id, side, role
+
+
 def main() -> int:
     if not QUEUE.is_file():
         raise SystemExit(f"missing acquisition queue: {QUEUE}")
@@ -154,10 +166,8 @@ def main() -> int:
     for row in rows:
         if not isinstance(row, dict):
             continue
-        case_id = str(row.get("case_id") or "")
-        side = str(row.get("side") or "")
-        role = str(row.get("role") or "")
-        if side not in {"query", "reference"} or role not in {"obverse", "reverse"}:
+        case_id, side, role = normalize_queue_row(row)
+        if side not in {"query", "reference"} or role not in {"obverse", "reverse"} or not case_id:
             continue
         key = (case_id, side, role)
         old = previous.get(key)
@@ -179,7 +189,7 @@ def main() -> int:
             "attempts": [],
         }
 
-        for index, candidate in enumerate(candidates, 1):
+        for candidate in candidates:
             attempts += 1
             url = candidate["url"]
             try:
