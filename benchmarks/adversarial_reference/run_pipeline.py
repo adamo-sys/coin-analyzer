@@ -97,12 +97,25 @@ def main() -> int:
 
     similarity = load("selected_asset_similarity_audit.json")
     sim_summary = similarity.get("summary") or {}
+    expected = int(sim_summary.get("cases_expected") or 0)
+    represented = int(sim_summary.get("cases_with_selected_slots") or 0)
+    compared = int(sim_summary.get("pairs_compared") or 0)
     suspicious = int(sim_summary.get("suspicious_pairs") or 0)
+    not_compared = int(sim_summary.get("pairs_not_compared") or 0)
+
     if suspicious:
         print(f"BLOCKED: {suspicious} suspicious query/reference image pair(s) require review.")
         return 6
+    if expected and compared != expected:
+        print("\nPRE-FREEZE GATE BLOCKED: similarity coverage is incomplete.")
+        print(f"Expected frozen cases: {expected}")
+        print(f"Cases represented in selected assets: {represented}")
+        print(f"Pairs compared: {compared}")
+        print(f"Pairs not compared: {not_compared}")
+        print("This is a data-assembly gap, not a clean audit pass. Retrieval scoring remains disabled.")
+        return 7
 
-    print("\nPREPARATION COMPLETE: candidate set resolved; provenance and perceptual-similarity audits executed.")
+    print("\nPREPARATION COMPLETE: candidate set resolved; provenance and perceptual-similarity audits passed with complete coverage.")
     print("Retrieval scoring was NOT run. source_inventory_v1.json was NOT modified.")
     return 0
 
