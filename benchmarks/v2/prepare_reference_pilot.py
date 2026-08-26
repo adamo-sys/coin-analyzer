@@ -13,6 +13,7 @@ import html
 import json
 from pathlib import Path
 import re
+import shutil
 import time
 from urllib.error import HTTPError
 from urllib.parse import quote
@@ -78,6 +79,37 @@ def _all_titles() -> list[str]:
     return sorted({title for sides in SOURCES.values() for titles in sides.values() for title in titles})
 
 
+def _stable_reference_path(title: str) -> Path:
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
+    path = REFERENCE_ROOT / "refs_v2" / safe_name
+    if path.suffix.casefold() not in {".jpg", ".jpeg", ".png", ".webp"}:
+        path = path.with_suffix(_safe_suffix(title))
+    return path
+
+
+def _legacy_cached_reference(title: str) -> Path | None:
+    """Find an earlier pilot download whose basename is the exact Commons title.
+
+    Search only outside refs_v2 so the migration cannot select its own target.
+    Exact basename matching preserves the source identity rather than guessing by
+    case ID or image content.
+    """
+    target_name = Path(title).name.casefold()
+    if not REFERENCE_ROOT.exists():
+        return None
+    matches = [
+        path
+        for path in REFERENCE_ROOT.rglob("*")
+        if path.is_file()
+        and "refs_v2" not in path.parts
+        and path.name.casefold() == target_name
+        and path.stat().st_size > 0
+    ]
+    if not matches:
+        return None
+    return sorted(matches, key=lambda path: path.as_posix().casefold())[0]
+
+
 def _invalidate_generated_manifests() -> None:
     removed = []
     for path in (REFERENCE_MANIFEST, PILOT_BENCHMARK_MANIFEST):
@@ -111,8 +143,6 @@ def _pilot_benchmark(case_ids: set[str]) -> dict[str, object]:
 
 
 def main() -> int:
-    # Do this before any network work. A failed build must never leave an older
-    # manifest that a later benchmark command can mistake for the current run.
     _invalidate_generated_manifests()
 
     titles = _all_titles()
@@ -125,6 +155,7 @@ def main() -> int:
     downloaded: dict[str, Path] = {}
     provenance: dict[str, dict[str, object]] = {}
     unavailable: set[str] = set()
+    reused_legacy = 0
 
     for index, title in enumerate(titles, start=1):
         info = metadata[title]
@@ -133,38 +164,43 @@ def main() -> int:
         primary_url = str(info.get("thumburl") or original_url)
         retrieved_url = primary_url
         retrieval_source = "Wikimedia Commons"
-        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
-        path = REFERENCE_ROOT / "refs_v2" / safe_name
-        if path.suffix.casefold() not in {".jpg", ".jpeg", ".png", ".webp"}:
-            path = path.with_suffix(_safe_suffix(title))
+        cache_origin = "refs_v2"
+        path = _stable_reference_path(title)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         if path.is_file() and path.stat().st_size > 0:
             print(f"Cached {index}/{len(titles)}: {title}", flush=True)
         else:
-            print(f"Downloading {index}/{len(titles)}: {title}", flush=True)
-            try:
-                payload = _download(primary_url)
-            except HTTPError as error:
-                fallback_url = FALLBACK_URLS.get(title)
-                if error.code == 429 and fallback_url:
-                    print(f"Commons throttled {title}; trying fixed U.S. Mint fallback.", flush=True)
-                    try:
-                        payload = _download(fallback_url)
-                        retrieved_url = fallback_url
-                        retrieval_source = "United States Mint"
-                    except HTTPError as fallback_error:
-                        print(f"Fallback unavailable for {title} (HTTP {fallback_error.code}); marking reference unavailable.", flush=True)
+            legacy_path = _legacy_cached_reference(title)
+            if legacy_path is not None:
+                shutil.copy2(legacy_path, path)
+                reused_legacy += 1
+                cache_origin = "legacy-pilot-cache"
+                print(f"Reused legacy cache {index}/{len(titles)}: {title} <- {legacy_path.relative_to(REFERENCE_ROOT)}", flush=True)
+            else:
+                print(f"Downloading {index}/{len(titles)}: {title}", flush=True)
+                try:
+                    payload = _download(primary_url)
+                except HTTPError as error:
+                    fallback_url = FALLBACK_URLS.get(title)
+                    if error.code == 429 and fallback_url:
+                        print(f"Commons throttled {title}; trying fixed U.S. Mint fallback.", flush=True)
+                        try:
+                            payload = _download(fallback_url)
+                            retrieved_url = fallback_url
+                            retrieval_source = "United States Mint"
+                        except HTTPError as fallback_error:
+                            print(f"Fallback unavailable for {title} (HTTP {fallback_error.code}); marking reference unavailable.", flush=True)
+                            unavailable.add(title)
+                            continue
+                    elif error.code == 429:
+                        print(f"Commons throttled {title}; marking reference unavailable for this run.", flush=True)
                         unavailable.add(title)
                         continue
-                elif error.code == 429:
-                    print(f"Commons throttled {title}; marking reference unavailable for this run.", flush=True)
-                    unavailable.add(title)
-                    continue
-                else:
-                    raise
-            path.write_bytes(payload)
-            time.sleep(2.0)
+                    else:
+                        raise
+                path.write_bytes(payload)
+                time.sleep(2.0)
 
         downloaded[title] = path
         provenance[title] = {
@@ -173,6 +209,7 @@ def main() -> int:
             "commons_file_url": original_url,
             "retrieved_file_url": retrieved_url,
             "retrieval_source": retrieval_source,
+            "cache_origin": cache_origin,
             "fallback_source_page": FALLBACK_SOURCE_PAGE if retrieval_source == "United States Mint" else None,
             "retrieved_width": info.get("thumbwidth") if retrieval_source == "Wikimedia Commons" else None,
             "author": _clean_html((ext.get("Artist") or {}).get("value") if isinstance(ext.get("Artist"), dict) else ""),
@@ -197,6 +234,7 @@ def main() -> int:
 
     if len(candidates) < MIN_COMPLETE_CASES:
         print(f"Only {len(candidates)} complete reference cases; need at least {MIN_COMPLETE_CASES}. Generated manifests remain absent.", flush=True)
+        print(f"Legacy reference files reused this run: {reused_legacy}", flush=True)
         if skipped:
             print("Incomplete cases: " + ", ".join(skipped), flush=True)
         return 75
@@ -213,6 +251,7 @@ def main() -> int:
         "partial": len(candidates) < len(SOURCES),
         "skipped_cases": skipped,
         "unavailable_titles": sorted(unavailable),
+        "legacy_reference_files_reused": reused_legacy,
         "candidates": candidates,
     }
     REFERENCE_MANIFEST.write_text(json.dumps(reference_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -221,6 +260,7 @@ def main() -> int:
     print(f"Wrote reference catalogue: {REFERENCE_MANIFEST}")
     print(f"Wrote benchmark manifest: {PILOT_BENCHMARK_MANIFEST}")
     print(f"Complete cases: {len(candidates)}/{len(SOURCES)}")
+    print(f"Legacy reference files reused this run: {reused_legacy}")
     if skipped:
         print("Skipped incomplete cases: " + ", ".join(skipped))
     print(f"Available independent reference files: {len(downloaded)}/{len(titles)}")
