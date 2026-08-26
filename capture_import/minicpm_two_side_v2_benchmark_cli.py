@@ -22,6 +22,7 @@ from .visual_evaluation_harness import load_visual_manifest
 
 
 REQUIRED_FIELDS = ("country", "denomination", "year")
+INFRA_ERROR_NAMES = {"TimeoutError", "OSError", "URLError"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -76,6 +77,13 @@ def _select_cases(manifest, case_ids: Sequence[str] | None):
     return tuple(by_id[case_id] for case_id in requested)
 
 
+def _side_failure_class(side: Mapping[str, object]) -> str | None:
+    if side.get("ok") is True:
+        return None
+    error_name = str(side.get("error") or "")
+    return "infrastructure" if error_name in INFRA_ERROR_NAMES else "model_output"
+
+
 def _case_row(case, *, model: str, url: str, timeout: float) -> dict[str, object]:
     started = perf_counter()
     common = {"model": model, "url": url, "timeout": timeout}
@@ -84,7 +92,12 @@ def _case_row(case, *, model: str, url: str, timeout: float) -> dict[str, object
     merged = _merge_side_results(obverse, reverse)
     identity = merged.get("identity") if isinstance(merged, Mapping) else None
     identity = identity if isinstance(identity, Mapping) else {}
-    infrastructure_failure = obverse.get("ok") is not True or reverse.get("ok") is not True
+    side_failure_classes = {
+        "obverse": _side_failure_class(obverse),
+        "reverse": _side_failure_class(reverse),
+    }
+    infrastructure_failure = any(value == "infrastructure" for value in side_failure_classes.values())
+    model_output_failure = any(value == "model_output" for value in side_failure_classes.values())
     abstain = bool(merged.get("abstain")) if not infrastructure_failure else False
 
     exact = {}
@@ -95,6 +108,15 @@ def _case_row(case, *, model: str, url: str, timeout: float) -> dict[str, object
         exact[field] = predicted is not None and _norm(predicted) == _norm(expected)
         canonical[field] = predicted is not None and _canonical(field, predicted) == _canonical(field, expected)
 
+    optional_type_design_exact = None
+    if "type_design" in case.expected:
+        predicted_type = identity.get("type_design")
+        optional_type_design_exact = (
+            predicted_type is not None and _norm(predicted_type) == _norm(case.expected["type_design"])
+        )
+
+    full_required_exact = all(exact.values()) and not abstain and not infrastructure_failure
+    full_required_canonical = all(canonical.values()) and not abstain and not infrastructure_failure
     return {
         "case_id": case.case_id,
         "expected": dict(case.expected),
@@ -102,12 +124,17 @@ def _case_row(case, *, model: str, url: str, timeout: float) -> dict[str, object
         "difficulty": list(case.difficulty),
         "model": model,
         "infrastructure_failure": infrastructure_failure,
+        "model_output_failure": model_output_failure,
+        "side_failure_classes": side_failure_classes,
         "abstain": abstain,
         "identity": {field: identity.get(field) for field in (*REQUIRED_FIELDS, "type_design")},
         "exact": exact,
         "canonical": canonical,
-        "full_identity_exact": all(exact.values()) and not abstain and not infrastructure_failure,
-        "full_identity_canonical": all(canonical.values()) and not abstain and not infrastructure_failure,
+        "optional_type_design_exact": optional_type_design_exact,
+        "full_required_identity_exact": full_required_exact,
+        "full_required_identity_canonical": full_required_canonical,
+        "full_identity_exact": full_required_exact,
+        "full_identity_canonical": full_required_canonical,
         "latency_seconds": max(0.0, perf_counter() - started),
         "side_latency_seconds": {
             "obverse": obverse.get("latency_seconds"),
@@ -133,20 +160,28 @@ def _metrics(rows: list[dict[str, object]]) -> dict[str, object]:
         for field in REQUIRED_FIELDS
     }
     latency_values = [float(row["latency_seconds"]) for row in rows]
+    infra_count = sum(row.get("infrastructure_failure") is True for row in rows)
+    output_failure_count = sum(row.get("model_output_failure") is True for row in rows)
+    type_scored = [row for row in scored if row.get("optional_type_design_exact") is not None]
     return {
         "total_cases": len(rows),
         "certain_scored_cases": len(scored),
-        "infrastructure_failures": sum(row.get("infrastructure_failure") is True for row in rows),
-        "infrastructure_failure_rate": _rate(sum(row.get("infrastructure_failure") is True for row in rows), len(rows)),
+        "infrastructure_failures": infra_count,
+        "infrastructure_failure_rate": _rate(infra_count, len(rows)),
+        "model_output_failures": output_failure_count,
+        "model_output_failure_rate": _rate(output_failure_count, len(rows)),
         "abstentions": sum(row.get("abstain") is True for row in noninfra),
         "abstention_rate_noninfra": _rate(sum(row.get("abstain") is True for row in noninfra), len(noninfra)),
         "coverage_noninfra": _rate(len(supplied), len(noninfra)),
         "exact_accuracy": {field: _rate(exact_counts[field], len(scored)) for field in REQUIRED_FIELDS},
         "canonical_accuracy": {field: _rate(canonical_counts[field], len(scored)) for field in REQUIRED_FIELDS},
-        "full_identity_exact_accuracy": _rate(sum(row.get("full_identity_exact") is True for row in scored), len(scored)),
-        "full_identity_canonical_accuracy": _rate(sum(row.get("full_identity_canonical") is True for row in scored), len(scored)),
-        "selective_full_identity_exact_accuracy": _rate(sum(row.get("full_identity_exact") is True for row in supplied), len(supplied)),
-        "selective_full_identity_canonical_accuracy": _rate(sum(row.get("full_identity_canonical") is True for row in supplied), len(supplied)),
+        "full_required_identity_exact_accuracy": _rate(sum(row.get("full_required_identity_exact") is True for row in scored), len(scored)),
+        "full_required_identity_canonical_accuracy": _rate(sum(row.get("full_required_identity_canonical") is True for row in scored), len(scored)),
+        "full_identity_exact_accuracy": _rate(sum(row.get("full_required_identity_exact") is True for row in scored), len(scored)),
+        "full_identity_canonical_accuracy": _rate(sum(row.get("full_required_identity_canonical") is True for row in scored), len(scored)),
+        "selective_full_identity_exact_accuracy": _rate(sum(row.get("full_required_identity_exact") is True for row in supplied), len(supplied)),
+        "selective_full_identity_canonical_accuracy": _rate(sum(row.get("full_required_identity_canonical") is True for row in supplied), len(supplied)),
+        "optional_type_design_exact_accuracy": _rate(sum(row.get("optional_type_design_exact") is True for row in type_scored), len(type_scored)),
         "latency": _latency(latency_values),
     }
 
@@ -165,17 +200,19 @@ def _render(report: Mapping[str, object]) -> str:
         f"Model: {report['model']}",
         f"Cases: {m['total_cases']}",
         f"Infrastructure failures: {m['infrastructure_failures']} ({_pct(m['infrastructure_failure_rate'])})",
+        f"Model-output failures: {m['model_output_failures']} ({_pct(m['model_output_failure_rate'])})",
         f"Abstention rate (non-infra): {_pct(m['abstention_rate_noninfra'])}",
         f"Coverage (non-infra): {_pct(m['coverage_noninfra'])}",
         f"Exact country accuracy: {_pct(exact['country'])}",
         f"Exact denomination accuracy: {_pct(exact['denomination'])}",
         f"Exact year accuracy: {_pct(exact['year'])}",
-        f"Exact full required identity: {_pct(m['full_identity_exact_accuracy'])}",
+        f"Exact full required identity: {_pct(m['full_required_identity_exact_accuracy'])}",
         f"Canonical country accuracy: {_pct(canon['country'])}",
         f"Canonical denomination accuracy: {_pct(canon['denomination'])}",
         f"Canonical year accuracy: {_pct(canon['year'])}",
-        f"Canonical full required identity: {_pct(m['full_identity_canonical_accuracy'])}",
+        f"Canonical full required identity: {_pct(m['full_required_identity_canonical_accuracy'])}",
         f"Selective exact full identity: {_pct(m['selective_full_identity_exact_accuracy'])}",
+        f"Optional type/design exact accuracy: {_pct(m['optional_type_design_exact_accuracy'])}",
         f"Latency mean/median/p95: {latency['mean_seconds']:.3f}s / {latency['median_seconds']:.3f}s / {latency['p95_seconds']:.3f}s",
     ]
     return "\n".join(lines) + "\n"
@@ -195,13 +232,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         rows.append(row)
         identity = row["identity"]
         print(
-            f"{case.case_id} | infra={row['infrastructure_failure']} | abstain={row['abstain']} | "
-            f"{identity.get('country')} / {identity.get('denomination')} / {identity.get('year')} | "
-            f"{row['latency_seconds']:.3f}s",
+            f"{case.case_id} | infra={row['infrastructure_failure']} | output_fail={row['model_output_failure']} | "
+            f"abstain={row['abstain']} | {identity.get('country')} / {identity.get('denomination')} / "
+            f"{identity.get('year')} | {row['latency_seconds']:.3f}s",
             flush=True,
         )
     report = {
-        "schema": "coin-analyzer-minicpm-two-side-v2-benchmark-v1",
+        "schema": "coin-analyzer-minicpm-two-side-v2-benchmark-v2",
         "dataset_version": manifest.version,
         "model": model,
         "rows": rows,
