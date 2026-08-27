@@ -150,22 +150,16 @@ class VisualIdentityProviderTests(unittest.TestCase):
             properties["observed_text"]["maxItems"],
             OPENAI_VISUAL_MAX_OBSERVED_TEXT,
         )
-        self.assertTrue(properties["observed_text"]["uniqueItems"])
         self.assertNotIn("minItems", properties["observed_text"])
         for field in ("country", "denomination", "year", "type_design"):
             self.assertEqual(
                 properties["field_evidence"]["properties"][field]["maxItems"],
                 OPENAI_VISUAL_MAX_FIELD_EVIDENCE,
             )
-            self.assertTrue(
-                properties["field_evidence"]["properties"][field]["uniqueItems"]
-            )
         self.assertEqual(
             properties["evidence_observations"]["maxItems"],
             OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS,
         )
-        self.assertTrue(properties["evidence_observations"]["uniqueItems"])
-        self.assertTrue(properties["supporting_image_roles"]["uniqueItems"])
         self.assertEqual(
             properties["evidence_observations"]["items"]["maxLength"],
             OPENAI_VISUAL_EVIDENCE_MAX_CHARS,
@@ -173,6 +167,22 @@ class VisualIdentityProviderTests(unittest.TestCase):
         for field in ("country", "denomination", "year", "type_design"):
             self.assertEqual(properties[field]["type"], ["string", "null"])
             self.assertIn("maxLength", properties[field])
+
+    def test_openai_schema_uses_no_unsupported_unique_items_keywords(self) -> None:
+        schema = OpenAITerraVisualIdentityProvider(
+            client=_Client(_Response(_payload()))
+        ).configuration["structured_output_schema"]
+
+        def keys(value: object):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    yield key
+                    yield from keys(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from keys(child)
+
+        self.assertNotIn("uniqueItems", set(keys(schema)))
 
     def test_partial_candidate_preserves_only_supported_fields(self) -> None:
         payload = _payload()

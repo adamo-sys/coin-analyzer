@@ -92,7 +92,6 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                     "observed_text": {
                         "type": "array",
                         "maxItems": OPENAI_VISUAL_MAX_OBSERVED_TEXT,
-                        "uniqueItems": True,
                         "items": {
                             "type": "string",
                             "minLength": 1,
@@ -107,7 +106,6 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                             field: {
                                 "type": "array",
                                 "maxItems": OPENAI_VISUAL_MAX_FIELD_EVIDENCE,
-                                "uniqueItems": True,
                                 "items": {
                                     "type": "string",
                                     "minLength": 1,
@@ -121,7 +119,6 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": OPENAI_VISUAL_MAX_EVIDENCE_OBSERVATIONS,
-                        "uniqueItems": True,
                         "items": {
                             "type": "string",
                             "minLength": 1,
@@ -132,7 +129,6 @@ OPENAI_VISUAL_OUTPUT_SCHEMA: dict[str, object] = {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": 2,
-                        "uniqueItems": True,
                         "items": {
                             "type": "string",
                             "enum": ["obverse", "reverse"],

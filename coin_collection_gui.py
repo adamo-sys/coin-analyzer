@@ -8,6 +8,7 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
 import os
+import logging
 import queue
 import threading
 import cv2
@@ -121,6 +122,41 @@ from confirmed_observations import ConfirmedObservationRecord, ConfirmedObservat
 from capture_import.desktop_import_pipeline_selection import ImportPipelineMode
 from capture_import.errors import CaptureImportError, RecoveryRequired
 from capture_import.ui import CapturePackageImportDialog, build_default_import_services
+
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _visual_identity_failure_diagnostic(error):
+    """Return bounded provider metadata without rendering exception payloads."""
+
+    error_type = f"{type(error).__module__}.{type(error).__qualname__}"
+    parts = [f"error_type={error_type}"]
+    try:
+        status_code = getattr(error, "status_code", None)
+    except Exception:
+        status_code = None
+    if (
+        isinstance(status_code, int)
+        and not isinstance(status_code, bool)
+        and 100 <= status_code <= 599
+    ):
+        parts.append(f"status_code={status_code}")
+    try:
+        request_id = getattr(error, "request_id", None)
+    except Exception:
+        request_id = None
+    if (
+        isinstance(request_id, str)
+        and 1 <= len(request_id) <= 128
+        and all(
+            character.isascii()
+            and (character.isalnum() or character in "_-")
+            for character in request_id
+        )
+    ):
+        parts.append(f"request_id={request_id}")
+    return ", ".join(parts)
 
 
 GRADE_SUGGESTIONS = (
@@ -601,8 +637,12 @@ Total Unique Dates: {total_unique_dates}
                 parent=self.root,
             )
             return
-        except Exception:
+        except Exception as error:
             source.release()
+            _LOGGER.warning(
+                "OpenAI visual identity provider failure: %s",
+                _visual_identity_failure_diagnostic(error),
+            )
             messagebox.showerror(
                 "AI Identity Service Unavailable",
                 (
