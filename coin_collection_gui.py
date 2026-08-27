@@ -301,7 +301,7 @@ class CoinCollectionGUI:
             state=self.capture_import_menu_state(),
         )
         file_menu.add_command(
-            label="OCR-Assisted Coin Images...",
+            label="Import Coin Images...",
             command=self.import_coin_images_with_ocr,
             state=self.capture_import_menu_state(),
         )
@@ -870,6 +870,7 @@ Total Unique Dates: {total_unique_dates}
 
         from capture_import.reviewed_coin_collection_entry import (
             ReviewedCoinCollectionEntryError,
+            ReviewedCoinRecoveryRequiredError,
             create_reviewed_coin_draft,
             persist_reviewed_coin,
         )
@@ -943,10 +944,19 @@ Total Unique Dates: {total_unique_dates}
                     else None
                 ),
             )
-        except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
+        except ReviewedCoinRecoveryRequiredError as error:
+            messagebox.showerror(
+                "Reviewed Coin Recovery Required",
+                error.safe_message,
+                parent=self._ocr_review_parent,
+            )
+            self._release_ocr_managed_photo_source()
+            return
+        except (ReviewedCoinCollectionEntryError, TypeError, ValueError):
             messagebox.showerror(
                 "Collection Save Failed",
-                str(error),
+                "The reviewed coin could not be saved. "
+                "No collection changes were confirmed.",
                 parent=self._ocr_review_parent,
             )
             self._release_ocr_managed_photo_source()

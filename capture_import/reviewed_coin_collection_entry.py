@@ -66,6 +66,18 @@ class ReviewedCoinPersistenceError(ReviewedCoinCollectionEntryError):
     """The existing collection persistence operation failed."""
 
 
+class ReviewedCoinRecoveryRequiredError(ReviewedCoinPersistenceError):
+    """A reviewed save failed without proving a clean terminal state."""
+
+    safe_message = (
+        "The reviewed coin save did not reach a proven clean state. "
+        "Recovery or operator attention is required."
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.safe_message)
+
+
 @dataclass(frozen=True, slots=True)
 class ReviewedCoinDraft:
     """The single canonical collection record awaiting confirmation."""
@@ -331,9 +343,7 @@ def _persist_reviewed_coin_with_managed_photos(
             except Exception as failure:
                 cleanup_error = failure
         if cleanup_error is not None:
-            raise ReviewedCoinPersistenceError(
-                "Managed-photo rollback requires recovery."
-            ) from cleanup_error
+            raise ReviewedCoinRecoveryRequiredError() from cleanup_error
         if isinstance(error, ReviewedCoinCollectionEntryError):
             raise
         raise ReviewedCoinPersistenceError(

@@ -10,8 +10,16 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+from PIL import Image
+
+import capture_import.reviewed_coin_collection_entry as reviewed_entry
 from capture_import.desktop_import_pipeline_selection import ImportPipelineMode
 from capture_import.desktop_ocr_review_handoff import DesktopOCRReviewHandoff
+from capture_import.image_store import ManagedCollectionImageStore
+from capture_import.snapshot import CapturePackageSnapshotService
+from capture_import.standalone_image_intake import (
+    create_temporary_capture_package,
+)
 from capture_import.ui import CapturePackageImportDialog
 from capture_import.workflow_ocr_stage import OCRMetadataExtractionStage
 from capture_import.workflow_pipeline import ProcessingPipeline
@@ -51,13 +59,23 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
             import_mode=ImportPipelineMode.OCR_ENABLED,
         )
 
-    def test_file_menu_exposes_ocr_assisted_action(self) -> None:
+    def test_file_menu_exposes_primary_image_import_action(self) -> None:
         menu_source = inspect.getsource(CoinCollectionGUI.create_menu_bar)
 
         self.assertIn("OCR-Assisted Capture Package...", menu_source)
         self.assertIn("self.import_capture_package_with_ocr", menu_source)
-        self.assertIn("OCR-Assisted Coin Images...", menu_source)
+        self.assertIn('label="Import Coin Images..."', menu_source)
         self.assertIn("self.import_coin_images_with_ocr", menu_source)
+
+    def test_default_capture_package_action_remains_non_ocr(self) -> None:
+        gui = self.gui()
+        gui._open_capture_package_import = Mock()
+
+        gui.import_capture_package()
+
+        gui._open_capture_package_import.assert_called_once_with(
+            import_mode=ImportPipelineMode.DEFAULT,
+        )
 
     def test_production_entry_passes_real_mode_and_handoff_callback(self) -> None:
         gui = self.gui()
@@ -379,6 +397,265 @@ class CoinCollectionGUIOCRIntegrationTests(unittest.TestCase):
         self.assertEqual(reopened.items[0].year, "1968")
         gui.refresh_collection_list.assert_called_once_with()
         success.assert_called_once()
+
+    def test_fixture_backed_corrected_save_reopens_with_valid_managed_photos(
+        self,
+    ) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=review,
+            review_controller=handoff.review_controller,
+        )
+        conflict_model.enter_corrected(value="1969")
+        raw_years = {
+            candidate.normalized_value
+            for candidate in handoff.report.candidates
+            if candidate.field_name == "year"
+        }
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front = root / "fixture-front.jpg"
+            reverse = root / "fixture-reverse.png"
+            Image.new("RGB", (64, 64), "red").save(front, format="JPEG")
+            Image.new("RGB", (64, 64), "blue").save(reverse, format="PNG")
+            source = create_temporary_capture_package(
+                front_path=front,
+                reverse_path=reverse,
+            )
+            source_path = source.path
+            storage = root / "collection.json"
+            collection = CoinCollection(str(storage))
+            images = ManagedCollectionImageStore(
+                root / "managed",
+                collection_path_prefix="managed",
+            )
+            snapshots = CapturePackageSnapshotService(root / "snapshots")
+            gui.app.collection = collection
+            gui._ocr_review_handoff = handoff
+            gui._ocr_review_parent = object()
+            gui._ocr_managed_photo_source = source
+            real_persist = reviewed_entry.persist_reviewed_coin
+
+            def persist_in_fixture(**kwargs):
+                return real_persist(
+                    **kwargs,
+                    managed_image_store=images,
+                    snapshot_service=snapshots,
+                    import_lock_path=root / "import.lock",
+                )
+
+            with (
+                patch(
+                    "coin_collection_gui.messagebox.askyesno",
+                    return_value=True,
+                ) as confirm,
+                patch("coin_collection_gui.messagebox.showinfo") as success,
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "persist_reviewed_coin",
+                    side_effect=persist_in_fixture,
+                ),
+            ):
+                gui._confirm_and_save_ocr_review(
+                    review,
+                    conflict_model.resolutions,
+                )
+
+            reopened = CoinCollection(str(storage))
+            self.assertEqual(len(reopened.items), 1)
+            persisted = reopened.items[0]
+            managed_paths = [
+                images.root.joinpath(*Path(photo.path).parts[1:])
+                for photo in persisted.photos
+            ]
+
+            self.assertEqual(persisted.country, "Canada")
+            self.assertEqual(persisted.denomination, "25 cents")
+            self.assertEqual(persisted.year, "1969")
+            self.assertNotIn(persisted.year, raw_years)
+            self.assertEqual(
+                [photo.role.value for photo in persisted.photos],
+                ["FRONT", "BACK"],
+            )
+            self.assertEqual(persisted.image_path, persisted.photos[0].path)
+            self.assertTrue(all(path.is_file() for path in managed_paths))
+            self.assertFalse(source_path.exists())
+            confirmation_message = confirm.call_args.args[1]
+            self.assertIn("Country: Canada", confirmation_message)
+            self.assertIn("Denomination: 25 cents", confirmation_message)
+            self.assertIn("Year: 1969", confirmation_message)
+            gui.refresh_collection_list.assert_called_once_with()
+            success.assert_called_once()
+
+    def test_recovery_required_save_failure_is_distinct_and_non_mutating(
+        self,
+    ) -> None:
+        recovery_error_type = getattr(
+            reviewed_entry,
+            "ReviewedCoinRecoveryRequiredError",
+            None,
+        )
+        self.assertIsNotNone(
+            recovery_error_type,
+            "The reviewed-save boundary needs a typed recovery state.",
+        )
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=review,
+            review_controller=handoff.review_controller,
+        )
+        conflict_model.select_existing(value="1968")
+        with tempfile.TemporaryDirectory() as temp:
+            collection = CoinCollection(str(Path(temp) / "collection.json"))
+            gui.app.collection = collection
+            gui._ocr_review_handoff = handoff
+            gui._ocr_review_parent = object()
+            source = SimpleNamespace(path=Path(temp) / "source.ca-package")
+            source.release = Mock()
+            gui._ocr_managed_photo_source = source
+
+            with (
+                patch(
+                    "coin_collection_gui.messagebox.askyesno",
+                    return_value=True,
+                ),
+                patch("coin_collection_gui.messagebox.showerror") as error,
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "persist_reviewed_coin",
+                    side_effect=recovery_error_type(),
+                ),
+            ):
+                gui._confirm_and_save_ocr_review(
+                    review,
+                    conflict_model.resolutions,
+                )
+
+        error.assert_called_once_with(
+            "Reviewed Coin Recovery Required",
+            "The reviewed coin save did not reach a proven clean state. "
+            "Recovery or operator attention is required.",
+            parent=gui._ocr_review_parent,
+        )
+        source.release.assert_called_once_with()
+        self.assertEqual(collection.items, [])
+        gui.refresh_collection_list.assert_not_called()
+
+    def test_real_managed_photo_cleanup_failure_emits_recovery_state(
+        self,
+    ) -> None:
+        private_detail = r"C:\private-collection\managed\coin-photo.jpg"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front = root / "fixture-front.jpg"
+            reverse = root / "fixture-reverse.png"
+            Image.new("RGB", (64, 64), "red").save(front, format="JPEG")
+            Image.new("RGB", (64, 64), "blue").save(reverse, format="PNG")
+            source = create_temporary_capture_package(
+                front_path=front,
+                reverse_path=reverse,
+            )
+            collection = CoinCollection(str(root / "collection.json"))
+            images = ManagedCollectionImageStore(root / "managed")
+
+            with (
+                patch.object(collection, "add_item", return_value=False),
+                patch.object(
+                    images,
+                    "cleanup",
+                    side_effect=OSError(private_detail),
+                ) as cleanup,
+                self.assertRaises(
+                    reviewed_entry.ReviewedCoinRecoveryRequiredError
+                ) as raised,
+            ):
+                reviewed_entry.persist_reviewed_coin(
+                    collection=collection,
+                    draft=reviewed_entry.ReviewedCoinDraft(
+                        "coin-1",
+                        "Canada",
+                        "25 cents",
+                        "1969",
+                    ),
+                    source_package_path=source.path,
+                    managed_image_store=images,
+                    snapshot_service=CapturePackageSnapshotService(
+                        root / "snapshots"
+                    ),
+                    import_lock_path=root / "import.lock",
+                )
+
+            remaining_managed_files = [
+                path for path in images.root.rglob("*") if path.is_file()
+            ]
+            source.release()
+
+        cleanup.assert_called_once()
+        self.assertEqual(
+            str(raised.exception),
+            reviewed_entry.ReviewedCoinRecoveryRequiredError.safe_message,
+        )
+        self.assertNotIn(private_detail, str(raised.exception))
+        self.assertIsInstance(raised.exception.__cause__, OSError)
+        self.assertEqual(collection.items, [])
+        self.assertTrue(remaining_managed_files)
+
+    def test_clean_save_failure_redacts_private_exception_detail(self) -> None:
+        gui = self.gui()
+        _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
+        _candidate_model, review = _complete_candidate_review(handoff)
+        conflict_model = OCRConflictReviewModel(
+            report=handoff.report,
+            review=review,
+            review_controller=handoff.review_controller,
+        )
+        conflict_model.select_existing(value="1968")
+        private_detail = r"C:\private-collection\collection.json"
+        with tempfile.TemporaryDirectory() as temp:
+            collection = CoinCollection(str(Path(temp) / "collection.json"))
+            gui.app.collection = collection
+            gui._ocr_review_handoff = handoff
+            gui._ocr_review_parent = object()
+            source = SimpleNamespace(path=Path(temp) / "source.ca-package")
+            source.release = Mock()
+            gui._ocr_managed_photo_source = source
+
+            with (
+                patch(
+                    "coin_collection_gui.messagebox.askyesno",
+                    return_value=True,
+                ),
+                patch("coin_collection_gui.messagebox.showerror") as error,
+                patch(
+                    "capture_import.reviewed_coin_collection_entry."
+                    "persist_reviewed_coin",
+                    side_effect=reviewed_entry.ReviewedCoinPersistenceError(
+                        private_detail
+                    ),
+                ),
+            ):
+                gui._confirm_and_save_ocr_review(
+                    review,
+                    conflict_model.resolutions,
+                )
+
+        error.assert_called_once_with(
+            "Collection Save Failed",
+            "The reviewed coin could not be saved. "
+            "No collection changes were confirmed.",
+            parent=gui._ocr_review_parent,
+        )
+        self.assertNotIn(private_detail, error.call_args.args[1])
+        source.release.assert_called_once_with()
+        self.assertEqual(collection.items, [])
+        gui.refresh_collection_list.assert_not_called()
 
     def test_conflict_dialog_hands_completed_resolutions_to_save_seam(self) -> None:
         gui = self.gui()
