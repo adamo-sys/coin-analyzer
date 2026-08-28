@@ -236,6 +236,10 @@ class VisualIdentityReport:
     input_tokens: int | None
     output_tokens: int | None
     raw_structured_result: Mapping[str, object]
+    # Evaluation-only retained candidates may include candidates hidden by a
+    # public abstention. Production providers leave this empty and preserve
+    # their existing public outcome.
+    diagnostic_candidates: tuple[VisualIdentityCandidate, ...] = ()
 
 
 @runtime_checkable

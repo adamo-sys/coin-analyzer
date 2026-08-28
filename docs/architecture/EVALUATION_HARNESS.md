@@ -95,3 +95,20 @@ only for manifest/output/infrastructure conditions that prevent a valid run.
 - GUI automation
 - statistical-significance claims for Benchmark v1
 - process-crash recovery changes
+
+### Multimodal diagnostic replay amendment
+
+Every successfully evaluated multimodal row retains its complete, ordered
+`diagnostic_candidates` collection even when the provider's public outcome is
+`ABSTAINED`. Each entry has a stable row-local `candidate_id`, and the row
+records `best_candidate_id` independently of the public prediction. Public
+`predictions` continue to follow the provider outcome and therefore remain
+empty for an abstention.
+
+Threshold-frontier replay resolves the candidate named by
+`best_candidate_id`; it must not infer a candidate from public predictions or
+list position. A missing, duplicate, stale, or otherwise invalid candidate
+reference, or an invalid source score, makes that row explicitly unscorable
+for replay. Diagnostic retention and replay are evaluation-only: they do not
+change provider output, candidate ordering, recognition thresholds, review
+rules, persistence semantics, or production recognition behavior.

@@ -257,6 +257,97 @@ def _rate(numerator: int, denominator: int) -> float | None:
     return None if denominator == 0 else numerator / denominator
 
 
+
+
+def replay_threshold_frontier(
+    rows: Iterable[Mapping[str, object]],
+    thresholds: Iterable[float],
+) -> list[dict[str, object]]:
+    """Replay uncalibrated source-score cutoffs from retained diagnostics.
+
+    Candidate resolution is deliberately ID-based and fail-closed. The
+    original public outcome is irrelevant to replay, so an abstained row with
+    valid retained diagnostics remains fully scorable.
+    """
+
+    source_rows = list(rows)
+    points: list[dict[str, object]] = []
+    for threshold in thresholds:
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, (int, float))
+            or not math.isfinite(threshold)
+            or not 0 <= threshold <= 1
+        ):
+            raise ValueError("thresholds must be finite numbers from 0 through 1.")
+        replayed: list[dict[str, object]] = []
+        unscorable_case_ids: list[str] = []
+        for row in source_rows:
+            candidate = _best_diagnostic_candidate(row)
+            case_id = str(row.get("case_id") or "")
+            if candidate is None:
+                unscorable_case_ids.append(case_id)
+                continue
+            score = candidate.get("source_score")
+            if (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(score)
+                or not 0 <= score <= 1
+            ):
+                unscorable_case_ids.append(case_id)
+                continue
+            prediction = {
+                field: candidate[field]
+                for field in (*REQUIRED_IDENTITY_FIELDS, *OPTIONAL_IDENTITY_FIELDS)
+                if _has_value(candidate.get(field))
+            }
+            predicted = score >= threshold
+            replayed.append(
+                {
+                    **row,
+                    "outcome": "PREDICTED" if predicted else "ABSTAINED",
+                    "predictions": [prediction] if predicted else [],
+                    "ranked_candidates": [candidate] if predicted else [],
+                }
+            )
+        metrics = score_visual_results(replayed)
+        points.append(
+            {
+                "threshold": float(threshold),
+                "scorable_cases": len(replayed),
+                "unscorable_cases": len(unscorable_case_ids),
+                "unscorable_case_ids": sorted(unscorable_case_ids),
+                "predicted_cases": metrics["predicted_cases"],
+                "abstained_cases": metrics["abstained_cases"],
+                "full_required_identity_accuracy": metrics[
+                    "full_required_identity_accuracy"
+                ],
+            }
+        )
+    return points
+
+
+def _best_diagnostic_candidate(
+    row: Mapping[str, object],
+) -> Mapping[str, object] | None:
+    candidate_id = row.get("best_candidate_id")
+    candidates = row.get("diagnostic_candidates")
+    if (
+        not isinstance(candidate_id, str)
+        or not candidate_id
+        or not isinstance(candidates, list)
+    ):
+        return None
+    matches = [
+        candidate
+        for candidate in candidates
+        if isinstance(candidate, Mapping)
+        and candidate.get("candidate_id") == candidate_id
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _latencies(values: list[float]) -> dict[str, float | None]:
     if not values:
         return {"mean_seconds": None, "median_seconds": None, "p95_seconds": None}
