@@ -112,3 +112,29 @@ reference, or an invalid source score, makes that row explicitly unscorable
 for replay. Diagnostic retention and replay are evaluation-only: they do not
 change provider output, candidate ordering, recognition thresholds, review
 rules, persistence semantics, or production recognition behavior.
+
+#### Real-World Desktop Acceptance Set v1 foundation
+
+The Real-World Desktop Acceptance Set is an offline paired-image evaluation
+inventory. Each case names one physical specimen, exactly one obverse image and
+one reverse image, an explicit expected action (`identify` or `abstain`), frozen
+image-byte SHA-256 values, capture-condition metadata, a privacy classification,
+and reserved attribution fields.
+
+The v1 foundation reserves `mint`, `mint_mark`, `variety`, and
+`catalog_reference` as explicit nullable fields. This contract does not infer,
+repair, or populate those fields. An `identify` case requires complete
+country/denomination/year ground truth. An `abstain` case may retain known
+identity fields, but this foundation does not manufacture missing labels.
+
+Manifest loading is local-only and fail-closed for malformed identifiers,
+unsafe relative paths, stale hashes, missing image bytes, unsupported privacy
+classes, duplicate case identifiers, malformed image roles, and non-null
+reserved attribution. The deterministic audit reports inventory counts,
+expected-action and privacy balance, capture-condition distributions, and exact
+duplicate image hashes.
+
+This foundation does not execute recognition providers, OCR, fusion, scoring,
+GUI review, persistence, durability workflows, or threshold selection. It does
+not add a real manifest or real benchmark images. Corpus assembly and execution
+are separately authorized work.

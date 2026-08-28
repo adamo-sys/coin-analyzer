@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Real-World Desktop Acceptance Set v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "cases"],
+  "properties": {
+    "schema": {"const": "coin-analyzer-real-world-desktop-acceptance-set"},
+    "version": {"const": "1"},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id", "specimen_id", "expected_action", "expected_identity",
+          "reserved_attribution", "capture_conditions",
+          "privacy_classification", "images", "notes"
+        ],
+        "properties": {
+          "case_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+          "specimen_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+          "expected_action": {"enum": ["identify", "abstain"]},
+          "expected_identity": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["country", "denomination", "year"],
+            "properties": {
+              "country": {"type": ["string", "null"]},
+              "denomination": {"type": ["string", "null"]},
+              "year": {"type": ["string", "null"]}
+            }
+          },
+          "reserved_attribution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mint", "mint_mark", "variety", "catalog_reference"],
+            "properties": {
+              "mint": {"type": "null"},
+              "mint_mark": {"type": "null"},
+              "variety": {"type": "null"},
+              "catalog_reference": {"type": "null"}
+            }
+          },
+          "capture_conditions": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {"type": "string"}
+          },
+          "privacy_classification": {"type": "string"},
+          "images": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "role", "path", "sha256", "author",
+                "license", "source_reference"
+              ],
+              "properties": {
+                "role": {"enum": ["obverse", "reverse"]},
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$)).+$"
+                },
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "author": {"type": ["string", "null"]},
+                "license": {"type": ["string", "null"]},
+                "source_reference": {"type": ["string", "null"]}
+              }
+            }
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    }
+  }
+}
