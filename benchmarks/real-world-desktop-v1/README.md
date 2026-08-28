@@ -63,3 +63,9 @@ case normalization, maps only explicit `CAN` and Canadian 25-cent aliases, and
 requires a four-ASCII-digit Gregorian year. `CA`, `CDN`, fuzzy values, inferred
 identity, and general fractional currency equivalence fail closed. Any mapping
 change requires a new policy version and benchmark rescore.
+
+The provider-independent scorer accepts one already-recorded public outcome per
+case and never invokes recognition. It reports canonical complete identity,
+normalized exact-string diagnostics, action correctness, availability, and
+infrastructure failures with exact specimen-weighted and case-weighted
+denominators. It defines no threshold and makes no collection decision.

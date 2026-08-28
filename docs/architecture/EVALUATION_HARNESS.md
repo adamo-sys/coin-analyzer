@@ -276,3 +276,28 @@ all-or-nothing: country, denomination, and year must each map and must all equal
 the reference canonical identity. Any partial, malformed, ambiguous, unknown,
 or unmapped value fails closed. The exact normalized-string result remains a
 separately labeled diagnostic.
+
+### Provider-independent acceptance scoring
+
+The scoring boundary consumes one immutable public provider outcome for every
+validated manifest case; it does not call a provider or inspect diagnostic
+candidates. Missing, duplicate, extra, or non-deterministically ordered case
+results fail closed. Public outcomes are `identify`, `abstain`, `unavailable`,
+or `infrastructure_failure`. Only `identify` may carry a proposed identity, and
+a partial identity remains valid diagnostic input but cannot receive complete-
+identity credit.
+
+The deterministic report makes specimen weighting primary. For each metric,
+eligible case booleans are averaged within specimen and those specimen values
+are averaged equally. The reduced rational numerator and denominator are
+reported alongside the specimen count. Case-weighted integer counts remain a
+labeled diagnostic. Complete-identity correctness is measured on frozen
+`identify` cases; expected abstentions remain in action correctness instead of
+being treated as identified identities.
+
+Unavailable provider outcomes count as incorrect where the case otherwise
+belongs in a metric and are separately visible through provider availability.
+Infrastructure failures are listed explicitly and excluded from stated metric
+denominators. Provider source scores may be retained only as finite,
+uncalibrated diagnostics. System confidence is always null, and this report
+defines no acceptance threshold or automatic production decision.
