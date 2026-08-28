@@ -245,3 +245,34 @@ Stability reporting lists all 50 calls (10 cases by five calls), per-case
 outcome distributions, action consistency, canonical complete-identity
 consistency where applicable, exact denominators, and relevant-cohort coverage.
 It does not convert repeatability into confidence or correctness.
+
+### Desktop acceptance canonicalization policy v1
+
+`canonicalization-policy-v1.json` is the separately versioned authoritative
+mapping artifact. Acceptance manifests bind its exact bytes by SHA-256. A
+mapping change requires a new policy version and a rescore; mappings must not be
+embedded or extended inside scoring code.
+
+Diagnostic normalization applies Unicode NFKC, trims surrounding whitespace,
+collapses internal whitespace, and casefolds. It preserves punctuation. This
+normalization is representation-only and does not itself establish semantic
+equivalence.
+
+For v1, `CAN` is the project-owned canonical jurisdiction identifier. Only the
+artifact's explicit normalized aliases `can` and `canada` map to `CAN`. In
+particular, `CA`, `CDN`, misspellings, punctuation variants not listed by the
+artifact, and inferred nationality words remain unmapped.
+
+Denominations canonicalize only after jurisdiction context has independently
+canonicalized. Under `CAN`, the artifact explicitly maps `25 cent`, `25 cents`,
+and `quarter` to the common canonical unit `25 cents`. No general arithmetic,
+currency-symbol, fraction, fuzzy, or cross-jurisdiction equivalence exists;
+`1/4 dollar` therefore remains unmapped.
+
+Years are accepted only when diagnostic normalization yields exactly four ASCII
+digits from `0001` through `9999`. The policy does not parse dates, Roman
+numerals, two-digit years, or infer a missing year. Complete identity credit is
+all-or-nothing: country, denomination, and year must each map and must all equal
+the reference canonical identity. Any partial, malformed, ambiguous, unknown,
+or unmapped value fails closed. The exact normalized-string result remains a
+separately labeled diagnostic.

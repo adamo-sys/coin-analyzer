@@ -56,3 +56,10 @@ OCR, fusion, ranking, GUI, persistence, durability, and production thresholds
 remain separate. Provider scores are uncalibrated, system confidence is
 unavailable, output is advisory, evidence precedes inference, variety is outside
 v1 correctness, and collection decisions still require human confirmation.
+
+`canonicalization-policy-v1.json` is the frozen representation-only policy for
+the authoritative identity metric. It preserves punctuation during NFKC/space/
+case normalization, maps only explicit `CAN` and Canadian 25-cent aliases, and
+requires a four-ASCII-digit Gregorian year. `CA`, `CDN`, fuzzy values, inferred
+identity, and general fractional currency equivalence fail closed. Any mapping
+change requires a new policy version and benchmark rescore.

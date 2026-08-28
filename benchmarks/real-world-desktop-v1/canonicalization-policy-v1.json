@@ -1,0 +1,27 @@
+{
+  "schema": "coin-analyzer-desktop-acceptance-canonicalization-policy",
+  "policy_id": "coin-analyzer-desktop-acceptance-canonicalization",
+  "version": "1.0.0",
+  "diagnostic_normalization": [
+    "unicode_nfkc",
+    "trim_surrounding_whitespace",
+    "collapse_internal_whitespace",
+    "casefold",
+    "preserve_punctuation"
+  ],
+  "jurisdiction_aliases": [
+    {"normalized": "can", "canonical": "CAN"},
+    {"normalized": "canada", "canonical": "CAN"}
+  ],
+  "denomination_aliases": [
+    {"jurisdiction": "CAN", "normalized": "25 cent", "canonical": "25 cents"},
+    {"jurisdiction": "CAN", "normalized": "25 cents", "canonical": "25 cents"},
+    {"jurisdiction": "CAN", "normalized": "quarter", "canonical": "25 cents"}
+  ],
+  "year_policy": {
+    "calendar": "proleptic-gregorian",
+    "format": "four-character-ascii",
+    "minimum": "0001",
+    "maximum": "9999"
+  }
+}
