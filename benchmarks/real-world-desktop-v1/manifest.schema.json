@@ -1,80 +1,151 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Real-World Desktop Acceptance Set v1",
+  "title": "Frozen Real-World Desktop Acceptance Set v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "version", "cases"],
+  "required": ["schema", "version", "canonicalization_policy", "freeze", "stability_relevant_cohorts", "cases"],
   "properties": {
     "schema": {"const": "coin-analyzer-real-world-desktop-acceptance-set"},
-    "version": {"const": "1"},
-    "cases": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "case_id", "specimen_id", "expected_action", "expected_identity",
-          "reserved_attribution", "capture_conditions",
-          "privacy_classification", "images", "notes"
-        ],
-        "properties": {
-          "case_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
-          "specimen_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
-          "expected_action": {"enum": ["identify", "abstain"]},
-          "expected_identity": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["country", "denomination", "year"],
-            "properties": {
-              "country": {"type": ["string", "null"]},
-              "denomination": {"type": ["string", "null"]},
-              "year": {"type": ["string", "null"]}
-            }
-          },
-          "reserved_attribution": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["mint", "mint_mark", "variety", "catalog_reference"],
-            "properties": {
-              "mint": {"type": "null"},
-              "mint_mark": {"type": "null"},
-              "variety": {"type": "null"},
-              "catalog_reference": {"type": "null"}
-            }
-          },
-          "capture_conditions": {
-            "type": "object",
-            "minProperties": 1,
-            "additionalProperties": {"type": "string"}
-          },
-          "privacy_classification": {"type": "string"},
-          "images": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "role", "path", "sha256", "author",
-                "license", "source_reference"
-              ],
-              "properties": {
-                "role": {"enum": ["obverse", "reverse"]},
-                "path": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$)).+$"
-                },
-                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-                "author": {"type": ["string", "null"]},
-                "license": {"type": ["string", "null"]},
-                "source_reference": {"type": ["string", "null"]}
-              }
-            }
-          },
-          "notes": {"type": "string"}
+    "version": {"const": "1.0.0"},
+    "canonicalization_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policy_id", "version", "path", "sha256"],
+      "properties": {
+        "policy_id": {"const": "coin-analyzer-desktop-acceptance-canonicalization"},
+        "version": {"const": "1.0.0"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "freeze": {
+      "type": "object", "additionalProperties": false,
+      "required": ["corpus_version", "frozen_at_utc", "manifest_sha256", "schema_sha256", "ground_truth_sha256", "action_sha256", "transformation_ledger_sha256", "near_duplicate_review"],
+      "properties": {
+        "corpus_version": {"const": "1.0.0"},
+        "frozen_at_utc": {"$ref": "#/$defs/utc"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "ground_truth_sha256": {"$ref": "#/$defs/sha256"},
+        "action_sha256": {"$ref": "#/$defs/sha256"},
+        "transformation_ledger_sha256": {"$ref": "#/$defs/sha256"},
+        "near_duplicate_review": {
+          "type": "object", "additionalProperties": false,
+          "required": ["reviewer_id", "reviewed_at_utc", "method", "evidence_reference", "result"],
+          "properties": {
+            "reviewer_id": {"$ref": "#/$defs/identifier"},
+            "reviewed_at_utc": {"$ref": "#/$defs/utc"},
+            "method": {"$ref": "#/$defs/nonempty"},
+            "evidence_reference": {"$ref": "#/$defs/nonempty"},
+            "result": {"const": "no_unresolved_matches"}
+          }
         }
+      }
+    },
+    "stability_relevant_cohorts": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "cases": {
+      "type": "array", "minItems": 30, "maxItems": 30,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "nonempty": {"type": "string", "minLength": 1, "pattern": ".*\\S.*"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "case_id": {"type": "string", "pattern": "^case-[0-9]{3}$"},
+    "specimen_id": {"type": "string", "pattern": "^specimen-[0-9]{3}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["country", "denomination", "year"],
+      "properties": {
+        "country": {"$ref": "#/$defs/nonempty"},
+        "denomination": {"$ref": "#/$defs/nonempty"},
+        "year": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "reserved": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mint", "mint_mark", "variety", "catalog_reference"],
+      "properties": {"mint": {"type": "null"}, "mint_mark": {"type": "null"}, "variety": {"type": "null"}, "catalog_reference": {"type": "null"}}
+    },
+    "reviewer_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer_id", "decision", "evidence_reference"],
+      "properties": {"reviewer_id": {"$ref": "#/$defs/identifier"}, "decision": {"$ref": "#/$defs/identity"}, "evidence_reference": {"$ref": "#/$defs/nonempty"}}
+    },
+    "reviewer_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer_id", "decision", "evidence_reference"],
+      "properties": {"reviewer_id": {"$ref": "#/$defs/identifier"}, "decision": {"enum": ["identify", "abstain"]}, "evidence_reference": {"$ref": "#/$defs/nonempty"}}
+    },
+    "identity_review": {
+      "type": "object", "additionalProperties": false, "required": ["reviewers", "adjudication"],
+      "properties": {
+        "reviewers": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/reviewer_identity"}},
+        "adjudication": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["adjudicator_id", "decision", "rationale", "evidence_reference"], "properties": {"adjudicator_id": {"$ref": "#/$defs/identifier"}, "decision": {"$ref": "#/$defs/identity"}, "rationale": {"$ref": "#/$defs/nonempty"}, "evidence_reference": {"$ref": "#/$defs/nonempty"}}}]}
+      }
+    },
+    "action_review": {
+      "type": "object", "additionalProperties": false, "required": ["reviewers", "adjudication"],
+      "properties": {
+        "reviewers": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/reviewer_action"}},
+        "adjudication": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["adjudicator_id", "decision", "rationale", "evidence_reference"], "properties": {"adjudicator_id": {"$ref": "#/$defs/identifier"}, "decision": {"enum": ["identify", "abstain"]}, "rationale": {"$ref": "#/$defs/nonempty"}, "evidence_reference": {"$ref": "#/$defs/nonempty"}}}]}
+      }
+    },
+    "image": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "path", "sha256", "provenance", "transformation", "provider_eligibility"],
+      "properties": {
+        "role": {"enum": ["obverse", "reverse"]},
+        "path": {"$ref": "#/$defs/nonempty"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "provenance": {
+          "type": "object", "additionalProperties": false,
+          "required": ["author", "license", "source_reference", "capture_reference"],
+          "properties": {"author": {"$ref": "#/$defs/nonempty"}, "license": {"$ref": "#/$defs/nonempty"}, "source_reference": {"$ref": "#/$defs/nonempty"}, "capture_reference": {"$ref": "#/$defs/nonempty"}}
+        },
+        "transformation": {
+          "type": "object", "additionalProperties": false,
+          "required": ["operation", "source_sha256", "parameters", "rationale"],
+          "properties": {
+            "operation": {"enum": ["none", "format_conversion", "orientation_rotation", "color_profile_normalization"]},
+            "source_sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+            "parameters": {"type": "object", "additionalProperties": {"type": "string"}},
+            "rationale": {"$ref": "#/$defs/nonempty"}
+          }
+        },
+        "provider_eligibility": {
+          "type": "object", "additionalProperties": false,
+          "required": ["eligible", "privacy_approved", "license_approved", "authorization_reference"],
+          "properties": {"eligible": {"const": true}, "privacy_approved": {"const": true}, "license_approved": {"const": true}, "authorization_reference": {"$ref": "#/$defs/nonempty"}}
+        }
+      }
+    },
+    "case": {
+      "type": "object", "additionalProperties": false,
+      "required": ["case_id", "specimen_id", "repeated_case_id", "expected_action", "expected_identity", "reserved_attribution", "capture_conditions", "capture_difference_fields", "capture_difference_rationale", "cohorts", "stability", "privacy_classification", "prior_benchmark_use", "ground_truth_review", "action_review", "images", "notes"],
+      "properties": {
+        "case_id": {"$ref": "#/$defs/case_id"}, "specimen_id": {"$ref": "#/$defs/specimen_id"},
+        "repeated_case_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/case_id"}]},
+        "expected_action": {"enum": ["identify", "abstain"]}, "expected_identity": {"$ref": "#/$defs/identity"},
+        "reserved_attribution": {"$ref": "#/$defs/reserved"},
+        "capture_conditions": {
+          "type": "object", "additionalProperties": false,
+          "required": ["background", "device", "distance", "lighting", "orientation"],
+          "properties": {"background": {"$ref": "#/$defs/nonempty"}, "device": {"$ref": "#/$defs/nonempty"}, "distance": {"$ref": "#/$defs/nonempty"}, "lighting": {"$ref": "#/$defs/nonempty"}, "orientation": {"$ref": "#/$defs/nonempty"}}
+        },
+        "capture_difference_fields": {"anyOf": [{"type": "null"}, {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["background", "device", "distance", "lighting", "orientation"]}}]},
+        "capture_difference_rationale": {"type": ["string", "null"]},
+        "cohorts": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "stability": {"type": "boolean"},
+        "privacy_classification": {"enum": ["public_reference", "synthetic", "private_local"]},
+        "prior_benchmark_use": {"type": "object", "additionalProperties": false, "required": ["used", "details"], "properties": {"used": {"type": "boolean"}, "details": {"type": ["string", "null"]}}},
+        "ground_truth_review": {"$ref": "#/$defs/identity_review"}, "action_review": {"$ref": "#/$defs/action_review"},
+        "images": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/image"}},
+        "notes": {"type": "string"}
       }
     }
   }

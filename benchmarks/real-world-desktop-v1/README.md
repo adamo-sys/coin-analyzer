@@ -5,10 +5,10 @@ real-world desktop acceptance set. It intentionally contains no manifest and no
 images yet. Dataset assembly and recognition execution are separate, explicitly
 authorized units of work.
 
-`manifest.schema.json` documents the v1 foundation. Runtime loading additionally
-checks safe relative paths, exact image-byte SHA-256 values, deterministic case
-ordering, unique case IDs, image roles, privacy classifications, and reserved
-attribution placeholders.
+`manifest.schema.json` documents strict contract version `1.0.0`. Runtime
+loading additionally checks cross-case composition, safe relative paths, exact
+image-byte SHA-256 values, deterministic ordering, reviewer decisions,
+eligibility, leakage controls, stability coverage, and all freeze digests.
 
 Every case reserves nullable `mint`, `mint_mark`, `variety`, and
 `catalog_reference` fields. They remain `null` in this foundation unless a later

@@ -180,6 +180,15 @@ expected action, and the transformation ledger. Paths are sanitized,
 non-semantic relative identifiers. Post-freeze image-byte or label changes
 create a new corpus version; an existing version is never silently rewritten.
 
+Digest projections use UTF-8 JSON with sorted object keys, no insignificant
+whitespace, preserved Unicode, and no non-finite numbers. The schema digest is
+over the exact schema bytes. Ground-truth, action, and transformation digests
+bind their respective ordered case projections, including review evidence for
+labels and actions. The manifest digest binds the complete manifest after the
+four subordinate digests are populated, with only `manifest_sha256` itself
+omitted. The separately versioned canonicalization artifact is byte-hashed and
+verified before a manifest is accepted.
+
 Every image has an explicit transformation ledger, including an explicit
 `none` record when it is an original capture. Permitted transformations are
 representation-only operations declared by the frozen schema. Benchmark-
