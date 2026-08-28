@@ -138,3 +138,101 @@ This foundation does not execute recognition providers, OCR, fusion, scoring,
 GUI review, persistence, durability workflows, or threshold selection. It does
 not add a real manifest or real benchmark images. Corpus assembly and execution
 are separately authorized work.
+
+### Real-World Desktop Acceptance Set v1 frozen protocol
+
+The v1 authoring scaffold is unpublished: the repository contains neither a
+real acceptance manifest nor acceptance images. The strict contract may
+therefore replace the scaffold without a migration path. Compatibility is
+desirable for synthetic authoring tools, but no nonexistent corpus format is a
+published compatibility obligation.
+
+#### Corpus composition and independence
+
+The frozen corpus contains exactly 30 paired-image cases: 24 with expected
+action `identify` and 6 with expected action `abstain`. It represents at least
+24 distinct physical specimens. A specimen may appear in at most two cases,
+and a repeated specimen must use independently captured image pairs under
+materially different declared capture conditions. Repeated cases identify one
+another reciprocally.
+
+Every case records complete provenance-backed country, denomination, and year
+ground truth, including abstain cases. Known identity and expected action are
+different judgments: abstention never erases known identity. Before any
+recognition call, two named independent reviewers review ground truth and
+expected action independently. Disagreement requires a named adjudicator,
+rationale, and final decision; agreement records that adjudication was not
+required. Ground-truth evidence and action evidence are separately recorded so
+that difficult imagery cannot be used to weaken identity truth.
+
+The corpus declares cohorts needed for deterministic breakdowns, including
+expected action and capture-condition cohorts. Exactly 10 cases, each from a
+different specimen, form the stability subset. That subset covers both
+expected actions and every cohort designated as relevant to stability. Each
+stability case receives five independent provider calls during a separately
+authorized execution.
+
+#### Freeze, transformation, and leakage controls
+
+The freeze records exact image bytes and lowercase SHA-256 digests, a canonical
+manifest digest, the schema digest, and separate digests for ground truth,
+expected action, and the transformation ledger. Paths are sanitized,
+non-semantic relative identifiers. Post-freeze image-byte or label changes
+create a new corpus version; an existing version is never silently rewritten.
+
+Every image has an explicit transformation ledger, including an explicit
+`none` record when it is an original capture. Permitted transformations are
+representation-only operations declared by the frozen schema. Benchmark-
+specific enhancement, sharpening, denoising, synthetic relighting, compositing,
+and semantic or benchmark-specific cropping are forbidden.
+
+Preflight fails closed on duplicate bytes, duplicate obverse/reverse pairs,
+same-side byte reuse, unsafe or semantic paths, missing or stale hashes,
+specimen-limit violations, non-reciprocal repeated-specimen declarations, and
+missing external near-duplicate review. Near-duplicate review is a recorded
+human/tool-assisted leakage check, not an automatic assertion that distinct
+bytes depict distinct captures.
+
+Privacy classification is separate from copyright/license status and from
+provider authorization. Provider eligibility is an explicit per-image and
+per-case decision derived only from recorded privacy, licensing, and provider-
+use declarations; missing, ambiguous, private, or uncertain authorization
+fails closed. Prior benchmark or model-development use is declared before
+freeze and is never inferred from provenance.
+
+#### Execution and authority boundaries
+
+The v1 execution view is paired-image multimodal visual-provider evaluation.
+OCR, fusion, ranking, GUI behavior, persistence, durability, and production
+thresholds remain separate evaluation views. Acceptance code must not tune or
+branch production behavior, and no acceptance image may be used for provider,
+prompt, ranking, or threshold optimization.
+
+Provider output is advisory evidence. Evidence must precede inference, system
+confidence is unavailable in v1, and provider source scores remain
+uncalibrated rather than being interpreted as probabilities. Variety
+attribution is outside v1 correctness, and `mint`, `mint_mark`, `variety`, and
+`catalog_reference` remain null-only. Human confirmation remains required for
+collection decisions and persistence.
+
+#### Identity and metric semantics
+
+The authoritative headline identity metric uses the separately versioned,
+frozen canonical-equivalence policy. Exact normalized-string matching is a
+diagnostic only. Complete identity credit requires country, denomination, and
+year all to be present, canonicalizable, and equal; partial proposals receive
+no complete-identity credit. Unknown, malformed, ambiguous, or unmapped values
+fail closed rather than receiving inferred credit.
+
+Reports state exact numerators and denominators. Specimen-weighted reporting is
+primary so that a specimen represented twice does not receive twice the weight
+of a specimen represented once. Case-weighted results remain a labeled
+diagnostic. Action correctness, complete-identity correctness, provider
+availability, and infrastructure failure are reported separately; an
+infrastructure failure is never counted as an abstention or silently removed
+from an unstated denominator.
+
+Stability reporting lists all 50 calls (10 cases by five calls), per-case
+outcome distributions, action consistency, canonical complete-identity
+consistency where applicable, exact denominators, and relevant-cohort coverage.
+It does not convert repeatability into confidence or correctness.
