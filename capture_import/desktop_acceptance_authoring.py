@@ -194,6 +194,16 @@ def evaluate_readiness(payload: Mapping[str, object]) -> ReadinessReport:
     for specimen_id, rows in sorted(by_specimen.items()):
         if len(rows) > 2:
             blockers.add(f"{specimen_id} appears in {len(rows)} cases; maximum is 2")
+        elif len(rows) == 1:
+            repeated = rows[0]["repeated_capture"]
+            assert isinstance(repeated, Mapping)
+            if (
+                repeated["repeated_case_id"] is not None
+                or repeated["capture_difference_fields"] != []
+                or repeated["capture_difference_rationale"] != ""
+            ):
+                case_id = rows[0]["case_id"]
+                blockers.add(f"{case_id} singleton case cannot declare repetition")
         elif len(rows) == 2:
             first_capture = rows[0]["capture"]
             second_capture = rows[1]["capture"]
@@ -202,6 +212,37 @@ def evaluate_readiness(payload: Mapping[str, object]) -> ReadinessReport:
                 blockers.add(f"{specimen_id} repeated cases require complete capture metadata")
             elif _capture_conditions(first_capture) == _capture_conditions(second_capture):
                 blockers.add(f"{specimen_id} repeated cases require materially different capture conditions")
+
+            first_id = rows[0]["case_id"]
+            second_id = rows[1]["case_id"]
+            first_repeat = rows[0]["repeated_capture"]
+            second_repeat = rows[1]["repeated_capture"]
+            assert isinstance(first_repeat, Mapping) and isinstance(second_repeat, Mapping)
+
+            if first_repeat["repeated_case_id"] != second_id or second_repeat["repeated_case_id"] != first_id:
+                blockers.add(f"{specimen_id} repeated cases must declare reciprocal repeated_case_id values")
+
+            if not _nonempty_text(first_repeat["capture_difference_rationale"]) or not _nonempty_text(
+                second_repeat["capture_difference_rationale"]
+            ):
+                blockers.add(f"{specimen_id} repeated cases require capture difference rationale")
+
+            if _capture_complete(first_capture) and _capture_complete(second_capture):
+                first_conditions = first_capture["capture_conditions"]
+                second_conditions = second_capture["capture_conditions"]
+                assert isinstance(first_conditions, Mapping) and isinstance(second_conditions, Mapping)
+                actual_differences = [
+                    field
+                    for field in CAPTURE_FIELDS
+                    if first_conditions[field] != second_conditions[field]
+                ]
+                for row, metadata in ((rows[0], first_repeat), (rows[1], second_repeat)):
+                    declared = metadata["capture_difference_fields"]
+                    if declared != actual_differences:
+                        blockers.add(
+                            f"{row['case_id']}.repeated_capture.capture_difference_fields "
+                            "must exactly match differing capture conditions"
+                        )
 
     if len(stability_cases) != 10:
         blockers.add(f"stability subset requires exactly 10 cases; found {len(stability_cases)}")
@@ -282,6 +323,7 @@ def prepare_for_freeze(payload: Mapping[str, object]) -> dict[str, object]:
                 },
                 "ground_truth_review": _copy_json_value(raw["ground_truth_review"]),
                 "action_review": _copy_json_value(raw["action_review"]),
+                "repeated_capture": _copy_json_value(raw["repeated_capture"]),
                 "near_duplicate_review": dict(raw["near_duplicate_review"]),
                 "notes": raw["notes"],
             }
@@ -341,7 +383,7 @@ def _validate_case_shape(raw: object, index: int) -> None:
     required = {
         "case_id", "specimen_id", "expected_action", "candidate_identity", "cohorts",
         "provenance", "provider_eligibility", "ground_truth_review", "action_review",
-        "capture", "near_duplicate_review", "stability", "notes",
+        "capture", "repeated_capture", "near_duplicate_review", "stability", "notes",
     }
     if set(raw) != required:
         raise DesktopAcceptanceAuthoringError(f"cases[{index}] has unexpected or missing fields")
@@ -365,6 +407,29 @@ def _validate_case_shape(raw: object, index: int) -> None:
     conditions = capture["capture_conditions"]
     if not isinstance(conditions, Mapping) or set(conditions) != set(CAPTURE_FIELDS):
         raise DesktopAcceptanceAuthoringError(f"cases[{index}].capture.capture_conditions has invalid shape")
+    repeated = raw["repeated_capture"]
+    if not isinstance(repeated, Mapping) or set(repeated) != {
+        "repeated_case_id", "capture_difference_fields", "capture_difference_rationale"
+    }:
+        raise DesktopAcceptanceAuthoringError(f"cases[{index}].repeated_capture has invalid shape")
+    repeated_case_id = repeated["repeated_case_id"]
+    if repeated_case_id is not None and (
+        not isinstance(repeated_case_id, str) or not _CASE_ID.fullmatch(repeated_case_id)
+    ):
+        raise DesktopAcceptanceAuthoringError(f"cases[{index}].repeated_capture.repeated_case_id is invalid")
+    difference_fields = repeated["capture_difference_fields"]
+    if (
+        not isinstance(difference_fields, list)
+        or any(field not in CAPTURE_FIELDS for field in difference_fields)
+        or len(difference_fields) != len(set(difference_fields))
+    ):
+        raise DesktopAcceptanceAuthoringError(
+            f"cases[{index}].repeated_capture.capture_difference_fields is invalid"
+        )
+    if not isinstance(repeated["capture_difference_rationale"], str):
+        raise DesktopAcceptanceAuthoringError(
+            f"cases[{index}].repeated_capture.capture_difference_rationale must be a string"
+        )
     duplicate = raw["near_duplicate_review"]
     if not isinstance(duplicate, Mapping) or set(duplicate) != {"status", "evidence_reference"}:
         raise DesktopAcceptanceAuthoringError(f"cases[{index}].near_duplicate_review has invalid shape")

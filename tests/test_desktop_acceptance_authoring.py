@@ -92,6 +92,18 @@ def ready_plan() -> dict[str, object]:
             "ground_truth_review": _review(identity, f"gt-{number}"),
             "action_review": _review(action, f"action-{number}"),
             "capture": _capture(number),
+            "repeated_capture": {
+                "repeated_case_id": (
+                    f"case-{number + 24:03d}" if number <= 6
+                    else f"case-{number - 24:03d}" if number >= 25
+                    else None
+                ),
+                "capture_difference_fields": ["orientation"] if number <= 6 or number >= 25 else [],
+                "capture_difference_rationale": (
+                    "Independent recapture with changed orientation."
+                    if number <= 6 or number >= 25 else ""
+                ),
+            },
             "near_duplicate_review": {
                 "status": "complete",
                 "evidence_reference": f"fixture:near-duplicate:{number}",
@@ -205,6 +217,44 @@ class DesktopAcceptanceAuthoringTests(unittest.TestCase):
         report = evaluate_readiness(payload)
         self.assertFalse(report.ready_for_freeze)
         self.assertTrue(any("materially different capture conditions" in item for item in report.blockers))
+
+    def test_singleton_case_cannot_declare_repetition(self) -> None:
+        payload = ready_plan()
+        payload["cases"][6]["repeated_capture"]["repeated_case_id"] = "case-008"
+        payload["cases"][6]["repeated_capture"]["capture_difference_fields"] = ["orientation"]
+        payload["cases"][6]["repeated_capture"]["capture_difference_rationale"] = "Invalid singleton declaration."
+        report = evaluate_readiness(payload)
+        self.assertFalse(report.ready_for_freeze)
+        self.assertTrue(any("singleton case cannot declare repetition" in item for item in report.blockers))
+
+    def test_repeated_specimen_requires_reciprocal_case_ids(self) -> None:
+        payload = ready_plan()
+        payload["cases"][24]["repeated_capture"]["repeated_case_id"] = "case-002"
+        report = evaluate_readiness(payload)
+        self.assertFalse(report.ready_for_freeze)
+        self.assertTrue(any("reciprocal repeated_case_id" in item for item in report.blockers))
+
+    def test_repeated_specimen_requires_exact_difference_fields(self) -> None:
+        payload = ready_plan()
+        payload["cases"][24]["repeated_capture"]["capture_difference_fields"] = ["lighting"]
+        report = evaluate_readiness(payload)
+        self.assertFalse(report.ready_for_freeze)
+        self.assertTrue(any("must exactly match differing capture conditions" in item for item in report.blockers))
+
+    def test_repeated_specimen_requires_difference_fields_in_contract_order(self) -> None:
+        payload = ready_plan()
+        payload["cases"][0]["capture"]["capture_conditions"]["lighting"] = "hard"
+        payload["cases"][24]["repeated_capture"]["capture_difference_fields"] = ["orientation", "lighting"]
+        report = evaluate_readiness(payload)
+        self.assertFalse(report.ready_for_freeze)
+        self.assertTrue(any("must exactly match differing capture conditions" in item for item in report.blockers))
+
+    def test_repeated_specimen_requires_difference_rationale(self) -> None:
+        payload = ready_plan()
+        payload["cases"][24]["repeated_capture"]["capture_difference_rationale"] = ""
+        report = evaluate_readiness(payload)
+        self.assertFalse(report.ready_for_freeze)
+        self.assertTrue(any("capture difference rationale" in item for item in report.blockers))
 
     def test_incomplete_abstain_ground_truth_fails(self) -> None:
         payload = ready_plan()
