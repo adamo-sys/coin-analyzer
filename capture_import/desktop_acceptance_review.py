@@ -11,16 +11,29 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
-from typing import Mapping, TypeAlias
+from typing import Mapping, Sequence, TypeAlias
 from urllib.parse import unquote, urlsplit
 
 
 REVIEW_EXECUTION_SCHEMA = "coin-analyzer-desktop-acceptance-review-execution"
 REVIEW_EXECUTION_VERSION = "1.0.0"
+REVIEW_PACKET_SCHEMA = "coin-analyzer-desktop-acceptance-review-packet"
+REVIEW_PACKET_VERSION = "1.0.0"
 REVIEW_STATES = frozenset({"unresolved", "complete"})
 ELIGIBILITY_STATES = frozenset({"unresolved", "approved", "rejected"})
 EXPECTED_ACTIONS = frozenset({"identify", "abstain"})
 ELIGIBILITY_FIELDS = ("privacy", "licensing", "provider_authorization")
+GROUND_TRUTH_TRACK = "ground_truth"
+ACTION_TRACK = "expected_action"
+IDENTITY_FIELDS = ("country", "denomination", "year")
+GROUND_TRUTH_INSTRUCTIONS = (
+    "Determine country or jurisdiction, denomination, and year from the permitted evidence.",
+    "Record the decision independently without seeking candidate or peer decisions.",
+)
+ACTION_INSTRUCTIONS = (
+    "Determine whether the resolved identity is within the frozen v1 domain.",
+    "Base the decision only on the supplied domain and canonicalization references.",
+)
 
 _CASE_ID = re.compile(r"^case-[0-9]{3}$")
 _SPECIMEN_ID = re.compile(r"^specimen-[0-9]{3}$")
@@ -159,6 +172,61 @@ class ReviewExecutionRecord:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class GroundTruthReviewerPacket:
+    schema: str
+    version: str
+    track: str
+    case_id: str
+    specimen_id: str
+    reviewer_id: str
+    evidence_references: tuple[str, ...]
+    identity_fields: tuple[str, ...]
+    instructions: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "version": self.version,
+            "track": self.track,
+            "case_id": self.case_id,
+            "specimen_id": self.specimen_id,
+            "reviewer_id": self.reviewer_id,
+            "evidence_references": list(self.evidence_references),
+            "identity_fields": list(self.identity_fields),
+            "instructions": list(self.instructions),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ActionReviewerPacket:
+    schema: str
+    version: str
+    track: str
+    case_id: str
+    specimen_id: str
+    reviewer_id: str
+    resolved_identity: IdentityDecision
+    domain_references: tuple[str, ...]
+    instructions: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "version": self.version,
+            "track": self.track,
+            "case_id": self.case_id,
+            "specimen_id": self.specimen_id,
+            "reviewer_id": self.reviewer_id,
+            "resolved_identity": self.resolved_identity.as_dict(),
+            "domain_references": list(self.domain_references),
+            "instructions": list(self.instructions),
+        }
+
+
+ReviewerPacket: TypeAlias = GroundTruthReviewerPacket | ActionReviewerPacket
+
+
 def load_review_execution_record(
     path: str | Path, authoring_state: Mapping[str, object]
 ) -> ReviewExecutionRecord:
@@ -229,6 +297,270 @@ def normalized_review_execution_json(
     validated = validate_review_execution_record(record.as_dict(), authoring_state)
     return json.dumps(
         validated.as_dict(),
+        allow_nan=False,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ) + "\n"
+
+
+def generate_ground_truth_packet(
+    authoring_state: Mapping[str, object],
+    case_id: str,
+    reviewer_id: str,
+    evidence_references: Sequence[str],
+) -> GroundTruthReviewerPacket:
+    """Generate one deterministic packet without exposing roster answers."""
+    authoring_case = _authoring_case(authoring_state, case_id)
+    payload = {
+        "schema": REVIEW_PACKET_SCHEMA,
+        "version": REVIEW_PACKET_VERSION,
+        "track": GROUND_TRUTH_TRACK,
+        "case_id": case_id,
+        "specimen_id": authoring_case["specimen_id"],
+        "reviewer_id": reviewer_id,
+        "evidence_references": _copy_supplied_references(evidence_references),
+        "identity_fields": list(IDENTITY_FIELDS),
+        "instructions": list(GROUND_TRUTH_INSTRUCTIONS),
+    }
+    packet = validate_reviewer_packet(payload, authoring_state)
+    assert isinstance(packet, GroundTruthReviewerPacket)
+    return packet
+
+
+def generate_action_packet(
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+    case_id: str,
+    reviewer_id: str,
+    domain_references: Sequence[str],
+) -> ActionReviewerPacket:
+    """Generate an action packet only from independently resolved ground truth."""
+    validated_execution = _revalidate_execution_record(execution_record, authoring_state)
+    execution_case = _execution_case(validated_execution, case_id)
+    resolved_identity = _resolved_ground_truth(execution_case.ground_truth_review, case_id)
+    payload = {
+        "schema": REVIEW_PACKET_SCHEMA,
+        "version": REVIEW_PACKET_VERSION,
+        "track": ACTION_TRACK,
+        "case_id": case_id,
+        "specimen_id": execution_case.specimen_id,
+        "reviewer_id": reviewer_id,
+        "resolved_identity": resolved_identity.as_dict(),
+        "domain_references": _copy_supplied_references(domain_references),
+        "instructions": list(ACTION_INSTRUCTIONS),
+    }
+    packet = validate_reviewer_packet(payload, authoring_state, validated_execution)
+    assert isinstance(packet, ActionReviewerPacket)
+    return packet
+
+
+def validate_reviewer_packet(
+    payload: object,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord | None = None,
+) -> ReviewerPacket:
+    """Strictly validate a reviewer-facing packet and its blinding boundary."""
+    raw = _require_mapping(payload, "reviewer packet")
+    if raw.get("schema") != REVIEW_PACKET_SCHEMA or raw.get("version") != REVIEW_PACKET_VERSION:
+        raise DesktopAcceptanceReviewError("unsupported review packet schema/version")
+    track = raw.get("track")
+    if track == GROUND_TRUTH_TRACK:
+        return _validate_ground_truth_packet(raw, authoring_state)
+    if track == ACTION_TRACK:
+        if execution_record is None:
+            raise DesktopAcceptanceReviewError(
+                "action packet validation requires a validated execution record"
+            )
+        validated_execution = _revalidate_execution_record(execution_record, authoring_state)
+        return _validate_action_packet(raw, authoring_state, validated_execution)
+    raise DesktopAcceptanceReviewError("reviewer packet track is unsupported")
+
+
+def normalized_reviewer_packet_json(
+    packet: ReviewerPacket,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord | None = None,
+) -> str:
+    """Revalidate and serialize one packet in deterministic machine form."""
+    if not isinstance(packet, (GroundTruthReviewerPacket, ActionReviewerPacket)):
+        raise TypeError("packet must be a reviewer packet")
+    validated = validate_reviewer_packet(packet.as_dict(), authoring_state, execution_record)
+    return _normalized_json(validated.as_dict())
+
+
+def _validate_ground_truth_packet(
+    raw: Mapping[str, object], authoring_state: Mapping[str, object]
+) -> GroundTruthReviewerPacket:
+    label = "ground-truth packet"
+    _require_exact_keys(
+        raw,
+        {
+            "schema",
+            "version",
+            "track",
+            "case_id",
+            "specimen_id",
+            "reviewer_id",
+            "evidence_references",
+            "identity_fields",
+            "instructions",
+        },
+        label,
+    )
+    case_id, specimen_id, reviewer_id = _validate_packet_header(
+        raw, authoring_state, label
+    )
+    evidence = _validate_evidence_references(
+        raw["evidence_references"], f"{label}.evidence_references", required=True
+    )
+    identity_fields = _require_exact_string_list(
+        raw["identity_fields"], IDENTITY_FIELDS, f"{label}.identity_fields"
+    )
+    instructions = _require_exact_string_list(
+        raw["instructions"], GROUND_TRUTH_INSTRUCTIONS, f"{label}.instructions"
+    )
+    packet = GroundTruthReviewerPacket(
+        REVIEW_PACKET_SCHEMA,
+        REVIEW_PACKET_VERSION,
+        GROUND_TRUTH_TRACK,
+        case_id,
+        specimen_id,
+        reviewer_id,
+        evidence,
+        identity_fields,
+        instructions,
+    )
+    return packet
+
+
+def _validate_action_packet(
+    raw: Mapping[str, object],
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> ActionReviewerPacket:
+    label = "action packet"
+    _require_exact_keys(
+        raw,
+        {
+            "schema",
+            "version",
+            "track",
+            "case_id",
+            "specimen_id",
+            "reviewer_id",
+            "resolved_identity",
+            "domain_references",
+            "instructions",
+        },
+        label,
+    )
+    case_id, specimen_id, reviewer_id = _validate_packet_header(
+        raw, authoring_state, label
+    )
+    execution_case = _execution_case(execution_record, case_id)
+    expected_identity = _resolved_ground_truth(execution_case.ground_truth_review, case_id)
+    supplied_identity = _validate_decision(
+        raw["resolved_identity"], "identity", f"{label}.resolved_identity"
+    )
+    assert isinstance(supplied_identity, IdentityDecision)
+    if supplied_identity != expected_identity:
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolved_identity does not match completed ground truth"
+        )
+    domain_references = _validate_evidence_references(
+        raw["domain_references"], f"{label}.domain_references", required=True
+    )
+    instructions = _require_exact_string_list(
+        raw["instructions"], ACTION_INSTRUCTIONS, f"{label}.instructions"
+    )
+    packet = ActionReviewerPacket(
+        REVIEW_PACKET_SCHEMA,
+        REVIEW_PACKET_VERSION,
+        ACTION_TRACK,
+        case_id,
+        specimen_id,
+        reviewer_id,
+        supplied_identity,
+        domain_references,
+        instructions,
+    )
+    return packet
+
+
+def _validate_packet_header(
+    raw: Mapping[str, object], authoring_state: Mapping[str, object], label: str
+) -> tuple[str, str, str]:
+    case_id = _require_matching_text(raw["case_id"], _CASE_ID, f"{label}.case_id")
+    authoring_case = _authoring_case(authoring_state, case_id)
+    specimen_id = _require_matching_text(
+        raw["specimen_id"], _SPECIMEN_ID, f"{label}.specimen_id"
+    )
+    if specimen_id != authoring_case["specimen_id"]:
+        raise DesktopAcceptanceReviewError(f"{label}.specimen_id does not match authoring state")
+    reviewer_id = _validate_reviewer_id(raw["reviewer_id"], f"{label}.reviewer_id")
+    return case_id, specimen_id, reviewer_id
+
+
+def _authoring_case(
+    authoring_state: Mapping[str, object], case_id: str
+) -> Mapping[str, object]:
+    _authoring_roster(authoring_state)
+    raw_cases = authoring_state["cases"]
+    assert isinstance(raw_cases, list)
+    for raw_case in raw_cases:
+        assert isinstance(raw_case, Mapping)
+        if raw_case["case_id"] == case_id:
+            return raw_case
+    raise DesktopAcceptanceReviewError(f"case is not present in authoring state: {case_id}")
+
+
+def _execution_case(record: ReviewExecutionRecord, case_id: str) -> ReviewCaseRecord:
+    for case in record.cases:
+        if case.case_id == case_id:
+            return case
+    raise DesktopAcceptanceReviewError(f"case is not present in execution record: {case_id}")
+
+
+def _resolved_ground_truth(track: ReviewTrack, case_id: str) -> IdentityDecision:
+    if track.state != "complete":
+        raise DesktopAcceptanceReviewError(
+            f"{case_id}.ground_truth_review must be complete before action packet generation"
+        )
+    if track.adjudication is not None:
+        decision = track.adjudication.decision
+    else:
+        decision = track.submissions[0].decision
+    if not isinstance(decision, IdentityDecision):
+        raise DesktopAcceptanceReviewError(f"{case_id}.ground_truth_review has invalid identity")
+    return decision
+
+
+def _revalidate_execution_record(
+    record: ReviewExecutionRecord, authoring_state: Mapping[str, object]
+) -> ReviewExecutionRecord:
+    if not isinstance(record, ReviewExecutionRecord):
+        raise DesktopAcceptanceReviewError("execution record must be validated and immutable")
+    return validate_review_execution_record(record.as_dict(), authoring_state)
+
+
+def _copy_supplied_references(value: Sequence[str]) -> list[str]:
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise DesktopAcceptanceReviewError("evidence references must be a supplied sequence")
+    return list(value)
+
+
+def _require_exact_string_list(
+    value: object, expected: tuple[str, ...], label: str
+) -> tuple[str, ...]:
+    if not isinstance(value, list) or tuple(value) != expected:
+        raise DesktopAcceptanceReviewError(f"{label} does not match the packet contract")
+    return expected
+
+
+def _normalized_json(value: object) -> str:
+    return json.dumps(
+        value,
         allow_nan=False,
         ensure_ascii=True,
         separators=(",", ":"),
