@@ -171,6 +171,70 @@ Evidence references may be reused when the same durable evidence supports more
 than one decision or case, but every submission and approval must declare its
 own explicit linkage. Reference reuse does not imply review completion.
 
+### Evidence-resolution catalog
+
+Sanitized reference syntax does not establish that evidence exists. Review and
+provenance readiness therefore requires an explicit, immutable evidence-resolution
+catalog supplied to the Unit 4 reporting layer. There is no permissive default.
+The catalog has schema
+`coin-analyzer-desktop-acceptance-evidence-resolution`, version `1.0.0`, and an
+array of entries containing exactly:
+
+- `evidence_reference`, the sanitized reference used by authoring or execution;
+  and
+- `resolution_record`, a sanitized repository-relative path to the durable
+  attestation that resolves the reference.
+
+Catalog entries must have unique `evidence_reference` values and normalize in
+lexical `(evidence_reference, resolution_record)` order. Conflicting or duplicate
+entries are invalid. A resolution record must be a permitted regular repository
+file under one of these benchmark-owned roots:
+
+- `benchmarks/real-world-desktop-v1/reviews/`; or
+- `benchmarks/real-world-desktop-v1/evidence/`.
+
+Resolution paths use canonical POSIX-style repository-relative spelling. Empty
+or dot segments, traversal, absolute or drive-qualified paths, backslashes,
+credentials, URI schemes, repository escape, symlink or reparse escape, and
+protected/private locations are invalid. Validation resolves paths against an
+explicit repository root rather than the process working directory. It must not
+inspect protected collection material.
+
+Each `resolution_record` has exactly one canonical repository spelling. Every
+path component must exactly match the corresponding on-disk repository entry;
+case-insensitive aliases and silent normalization are invalid. Windows alternate
+data-stream syntax, trailing-dot or trailing-space aliases, and Windows-invalid
+filename characters are prohibited even when the host filesystem would resolve
+them to an existing target.
+
+HTTPS, policy, terms, inventory, and other namespaced references resolve only
+through their dated sanitized repository attestation. Readiness validation must
+not contact a live URL. In particular, `inventory:` references attest to the
+sanitized inventory linkage and do not expose or read private collection data.
+
+The canonical catalog digest is lowercase SHA-256 over UTF-8 canonical JSON
+containing only `schema`, `version`, and the normalized `entries`. Canonical JSON
+uses sorted object keys, compact separators, ASCII escaping, and no trailing
+newline. The digest field itself is not part of the hashed payload. This digest
+binds the reference-to-resolution-record mapping; Git history remains the
+version authority for the attestation file contents.
+
+Unit 4 resolves only evidence that contributes to readiness:
+
+- authoring provenance evidence;
+- submissions and any adjudication for a completed ground-truth track;
+- submissions and any adjudication for a completed expected-action track; and
+- evidence for approved privacy, licensing, and provider authorization.
+
+A well-formed catalog that lacks any such reference adds the stable category
+blocker `ground_truth_evidence_unresolved`,
+`expected_action_evidence_unresolved`, `provenance_evidence_unresolved`,
+`privacy_evidence_unresolved`, `licensing_evidence_unresolved`, or
+`provider_authorization_evidence_unresolved`, as applicable. Exact unresolved
+references may accompany those blockers in sorted machine-readable diagnostics.
+Missing resolution does not alter the underlying reviewer decision,
+adjudication, approval, or evidence reference.
+
 ## Reconciliation
 
 Reconciliation occurs only after the blinded human decisions for a track have
@@ -192,6 +256,25 @@ adjudication, resolved awaiting reconciliation, reconciliation blocked, and
 reconciled states, together with unresolved provenance and provider-eligibility
 gates. Reports are advisory views of the execution record and must not themselves
 change review state.
+
+### Aggregate readiness ownership
+
+Desktop acceptance v1 requires exactly 30 case records. The shared
+`DESKTOP_ACCEPTANCE_V1_CASE_COUNT` authoring invariant is the sole numeric source
+for that requirement; case identities and case-to-specimen mappings continue to
+derive exclusively from validated authoring state. A Unit 4 report with any
+other cardinality contains the deterministic aggregate blocker
+`corpus_case_count_mismatch:expected=30:actual=N`.
+
+Unit 4 is the sole review/provenance readiness authority. Overall readiness
+requires no aggregate blockers and every supplied case to satisfy the existing
+case-level review, reconciliation, provenance, eligibility, and evidence-resolution
+requirements. Unit 5 must consume Unit 4 overall readiness, case blockers,
+aggregate blockers, unresolved-reference diagnostics, and catalog digest
+without independently counting cases or resolving evidence. Unit 5 may also
+verify that its derived identity and action reconciliation records are matched;
+any inconsistency with Unit 4 fails closed. A blocked diagnostic artifact remains
+permitted, but it is not a successful reconciled handoff.
 
 ## Repeated specimens
 

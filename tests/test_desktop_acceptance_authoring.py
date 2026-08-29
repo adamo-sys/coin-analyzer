@@ -9,6 +9,7 @@ import unittest
 from capture_import.desktop_acceptance_authoring import (
     AUTHORING_SCHEMA,
     AUTHORING_VERSION,
+    DESKTOP_ACCEPTANCE_V1_CASE_COUNT,
     DesktopAcceptanceAuthoringError,
     evaluate_readiness,
     prepare_for_freeze,
@@ -143,7 +144,12 @@ class DesktopAcceptanceAuthoringTests(unittest.TestCase):
         report = evaluate_readiness(payload)
         self.assertFalse(report.ready_for_freeze)
         self.assertEqual(report.summary["cases"], 0)
-        self.assertTrue(any("exactly 30" in item for item in report.blockers))
+        self.assertTrue(
+            any(
+                f"exactly {DESKTOP_ACCEPTANCE_V1_CASE_COUNT}" in item
+                for item in report.blockers
+            )
+        )
 
     def test_unresolved_provider_authorization_fails_closed(self) -> None:
         payload = ready_plan()

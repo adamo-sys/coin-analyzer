@@ -2,20 +2,24 @@
 
 This module validates human-originated review records, generates blinded
 reviewer packets, and derives advisory progress reports.  It does not mutate
-authoring state, export reconciliation results, or authorize recognition,
+authoring state, apply reconciliation results, or authorize recognition,
 photography, or benchmark execution.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Mapping, Sequence, TypeAlias
 from urllib.parse import unquote, urlsplit
 
-from capture_import.desktop_acceptance_authoring import validate_authoring_plan
+from capture_import.desktop_acceptance_authoring import (
+    DESKTOP_ACCEPTANCE_V1_CASE_COUNT,
+    validate_authoring_plan,
+)
 
 
 REVIEW_EXECUTION_SCHEMA = "coin-analyzer-desktop-acceptance-review-execution"
@@ -24,6 +28,14 @@ REVIEW_PACKET_SCHEMA = "coin-analyzer-desktop-acceptance-review-packet"
 REVIEW_PACKET_VERSION = "1.0.0"
 REVIEW_PROGRESS_SCHEMA = "coin-analyzer-desktop-acceptance-review-progress"
 REVIEW_PROGRESS_VERSION = "1.0.0"
+REVIEW_RECONCILIATION_SCHEMA = "coin-analyzer-desktop-acceptance-review-reconciliation"
+REVIEW_RECONCILIATION_VERSION = "1.0.0"
+EVIDENCE_RESOLUTION_SCHEMA = "coin-analyzer-desktop-acceptance-evidence-resolution"
+EVIDENCE_RESOLUTION_VERSION = "1.0.0"
+EVIDENCE_ATTESTATION_ROOTS = (
+    "benchmarks/real-world-desktop-v1/evidence/",
+    "benchmarks/real-world-desktop-v1/reviews/",
+)
 REVIEW_STATES = frozenset({"unresolved", "complete"})
 ELIGIBILITY_STATES = frozenset({"unresolved", "approved", "rejected"})
 EXPECTED_ACTIONS = frozenset({"identify", "abstain"})
@@ -244,6 +256,56 @@ ReviewerPacket: TypeAlias = GroundTruthReviewerPacket | ActionReviewerPacket
 
 
 @dataclass(frozen=True, slots=True)
+class EvidenceResolutionEntry:
+    evidence_reference: str
+    resolution_record: str
+
+    def _as_dict(self) -> dict[str, str]:
+        return {
+            "evidence_reference": self.evidence_reference,
+            "resolution_record": self.resolution_record,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceResolutionCatalog:
+    schema: str
+    version: str
+    entries: tuple[EvidenceResolutionEntry, ...]
+    digest: str
+
+    def _payload_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "version": self.version,
+            "entries": [entry._as_dict() for entry in self.entries],
+        }
+
+    def _as_dict(self) -> dict[str, object]:
+        return {**self._payload_dict(), "digest": self.digest}
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceResolutionDiagnostics:
+    ground_truth: tuple[str, ...]
+    expected_action: tuple[str, ...]
+    provenance: tuple[str, ...]
+    privacy: tuple[str, ...]
+    licensing: tuple[str, ...]
+    provider_authorization: tuple[str, ...]
+
+    def _as_dict(self) -> dict[str, list[str]]:
+        return {
+            "ground_truth": list(self.ground_truth),
+            "expected_action": list(self.expected_action),
+            "provenance": list(self.provenance),
+            "privacy": list(self.privacy),
+            "licensing": list(self.licensing),
+            "provider_authorization": list(self.provider_authorization),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CaseReviewProgress:
     case_id: str
     specimen_id: str
@@ -255,6 +317,7 @@ class CaseReviewProgress:
     provenance_ready: bool
     review_provenance_ready: bool
     blockers: tuple[str, ...]
+    unresolved_evidence: EvidenceResolutionDiagnostics
 
     def _as_dict(self) -> dict[str, object]:
         return {
@@ -278,6 +341,7 @@ class CaseReviewProgress:
             "provenance_ready": self.provenance_ready,
             "review_provenance_ready": self.review_provenance_ready,
             "blockers": list(self.blockers),
+            "unresolved_evidence": self.unresolved_evidence._as_dict(),
         }
 
 
@@ -285,11 +349,17 @@ class CaseReviewProgress:
 class ReviewProgressReport:
     schema: str
     version: str
+    evidence_catalog_digest: str
+    aggregate_blockers: tuple[str, ...]
     cases: tuple[CaseReviewProgress, ...]
 
     @property
     def review_provenance_ready(self) -> bool:
-        return bool(self.cases) and all(case.review_provenance_ready for case in self.cases)
+        return (
+            not self.aggregate_blockers
+            and bool(self.cases)
+            and all(case.review_provenance_ready for case in self.cases)
+        )
 
     def _as_dict(self) -> dict[str, object]:
         ground_truth_counts = {state: 0 for state in GROUND_TRUTH_PROGRESS_STATES}
@@ -313,6 +383,8 @@ class ReviewProgressReport:
         return {
             "schema": self.schema,
             "version": self.version,
+            "evidence_catalog_digest": self.evidence_catalog_digest,
+            "aggregate_blockers": list(self.aggregate_blockers),
             "total_cases": len(self.cases),
             "ground_truth_status_counts": ground_truth_counts,
             "expected_action_status_counts": action_counts,
@@ -322,6 +394,119 @@ class ReviewProgressReport:
             },
             "provider_eligibility_state_counts": eligibility_counts,
             "review_provenance_ready": self.review_provenance_ready,
+            "cases": [case._as_dict() for case in self.cases],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CaseReviewReconciliation:
+    case_id: str
+    specimen_id: str
+    candidate_identity: IdentityDecision | None
+    resolved_identity: IdentityDecision | None
+    identity_status: str
+    candidate_expected_action: str | None
+    resolved_expected_action: str | None
+    expected_action_status: str
+    ground_truth_evidence_references: tuple[str, ...]
+    expected_action_evidence_references: tuple[str, ...]
+    provenance_evidence_references: tuple[str, ...]
+    privacy_state: str
+    privacy_evidence_references: tuple[str, ...]
+    licensing_state: str
+    licensing_evidence_references: tuple[str, ...]
+    provider_authorization_state: str
+    provider_authorization_evidence_references: tuple[str, ...]
+    review_provenance_reconciled: bool
+    blockers: tuple[str, ...]
+    unresolved_evidence: EvidenceResolutionDiagnostics
+
+    def _as_dict(self) -> dict[str, object]:
+        return {
+            "case_id": self.case_id,
+            "specimen_id": self.specimen_id,
+            "candidate_identity": (
+                None if self.candidate_identity is None else self.candidate_identity.as_dict()
+            ),
+            "resolved_identity": (
+                None if self.resolved_identity is None else self.resolved_identity.as_dict()
+            ),
+            "identity_reconciliation_status": self.identity_status,
+            "candidate_expected_action": self.candidate_expected_action,
+            "resolved_expected_action": self.resolved_expected_action,
+            "expected_action_reconciliation_status": self.expected_action_status,
+            "evidence_links": {
+                "ground_truth": list(self.ground_truth_evidence_references),
+                "expected_action": list(self.expected_action_evidence_references),
+                "provenance": list(self.provenance_evidence_references),
+                "provider_eligibility": {
+                    "privacy": {
+                        "state": self.privacy_state,
+                        "evidence_references": list(self.privacy_evidence_references),
+                    },
+                    "licensing": {
+                        "state": self.licensing_state,
+                        "evidence_references": list(self.licensing_evidence_references),
+                    },
+                    "provider_authorization": {
+                        "state": self.provider_authorization_state,
+                        "evidence_references": list(
+                            self.provider_authorization_evidence_references
+                        ),
+                    },
+                },
+            },
+            "review_provenance_reconciled": self.review_provenance_reconciled,
+            "blockers": list(self.blockers),
+            "unresolved_evidence": self.unresolved_evidence._as_dict(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewReconciliationHandoff:
+    schema: str
+    version: str
+    evidence_catalog_digest: str
+    unit4_review_provenance_ready: bool
+    aggregate_blockers: tuple[str, ...]
+    cases: tuple[CaseReviewReconciliation, ...]
+
+    @property
+    def review_provenance_reconciled(self) -> bool:
+        return (
+            self.unit4_review_provenance_ready
+            and not self.aggregate_blockers
+            and bool(self.cases)
+            and all(
+                case.review_provenance_reconciled
+                and case.identity_status == "matched"
+                and case.expected_action_status == "matched"
+                for case in self.cases
+            )
+        )
+
+    @property
+    def blockers(self) -> tuple[str, ...]:
+        case_blockers = tuple(
+            f"{case.case_id}:{blocker}"
+            for case in self.cases
+            for blocker in case.blockers
+        )
+        return self.aggregate_blockers + case_blockers
+
+    def _as_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "version": self.version,
+            "scope": "review_provenance_reconciliation_only",
+            "evidence_catalog_digest": self.evidence_catalog_digest,
+            "unit4_review_provenance_ready": self.unit4_review_provenance_ready,
+            "aggregate_blockers": list(self.aggregate_blockers),
+            "review_provenance_reconciled": self.review_provenance_reconciled,
+            "authoring_mutation_applied": False,
+            "freeze_preparation_authorized": False,
+            "benchmark_execution_approved": False,
+            "blockers": list(self.blockers),
             "cases": [case._as_dict() for case in self.cases],
         }
 
@@ -488,31 +673,125 @@ def normalized_reviewer_packet_json(
     return _normalized_json(validated.as_dict())
 
 
+def validate_evidence_resolution_catalog(
+    payload: object, repository_root: str | Path
+) -> EvidenceResolutionCatalog:
+    """Validate an explicit local evidence-resolution catalog without dereferencing evidence."""
+    root = _require_mapping(payload, "evidence-resolution catalog")
+    _require_exact_keys(
+        root, {"schema", "version", "entries"}, "evidence-resolution catalog"
+    )
+    if (
+        root["schema"] != EVIDENCE_RESOLUTION_SCHEMA
+        or root["version"] != EVIDENCE_RESOLUTION_VERSION
+    ):
+        raise DesktopAcceptanceReviewError(
+            "unsupported evidence-resolution catalog schema/version"
+        )
+    raw_entries = root["entries"]
+    if not isinstance(raw_entries, list):
+        raise DesktopAcceptanceReviewError(
+            "evidence-resolution catalog entries must be an array"
+        )
+    validated_root = _validated_repository_root(repository_root)
+    entries: list[EvidenceResolutionEntry] = []
+    seen: set[str] = set()
+    for index, value in enumerate(raw_entries):
+        label = f"evidence-resolution catalog entries[{index}]"
+        raw_entry = _require_mapping(value, label)
+        _require_exact_keys(
+            raw_entry, {"evidence_reference", "resolution_record"}, label
+        )
+        evidence_reference = _validate_evidence_reference(
+            raw_entry["evidence_reference"], f"{label}.evidence_reference"
+        )
+        if evidence_reference in seen:
+            raise DesktopAcceptanceReviewError(
+                f"duplicate evidence-resolution reference: {evidence_reference}"
+            )
+        seen.add(evidence_reference)
+        resolution_record = _validate_resolution_record(
+            raw_entry["resolution_record"], validated_root, label
+        )
+        entries.append(EvidenceResolutionEntry(evidence_reference, resolution_record))
+    entries.sort(key=lambda entry: (entry.evidence_reference, entry.resolution_record))
+    canonical_payload = {
+        "schema": EVIDENCE_RESOLUTION_SCHEMA,
+        "version": EVIDENCE_RESOLUTION_VERSION,
+        "entries": [entry._as_dict() for entry in entries],
+    }
+    digest = hashlib.sha256(_canonical_json(canonical_payload).encode("utf-8")).hexdigest()
+    return EvidenceResolutionCatalog(
+        EVIDENCE_RESOLUTION_SCHEMA,
+        EVIDENCE_RESOLUTION_VERSION,
+        tuple(entries),
+        digest,
+    )
+
+
+def normalized_evidence_resolution_catalog_json(
+    catalog: EvidenceResolutionCatalog, repository_root: str | Path
+) -> str:
+    """Revalidate and serialize a catalog with its canonical payload digest."""
+    validated = _revalidate_evidence_resolution_catalog(catalog, repository_root)
+    return _normalized_json(validated._as_dict())
+
+
 def build_review_progress_report(
     authoring_state: Mapping[str, object],
     execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
 ) -> ReviewProgressReport:
     """Derive immutable review/provenance progress without changing source state."""
     validated_authoring = validate_authoring_plan(authoring_state)
     validated_execution = _revalidate_execution_record(
         execution_record, validated_authoring
     )
+    validated_catalog = _revalidate_evidence_resolution_catalog(
+        evidence_catalog, repository_root
+    )
+    resolved_references = {
+        entry.evidence_reference for entry in validated_catalog.entries
+    }
     authoring_cases = _authoring_cases_for_reporting(validated_authoring)
     cases = tuple(
-        _derive_case_progress(authoring_cases[case.case_id], case)
+        _derive_case_progress(
+            authoring_cases[case.case_id], case, resolved_references
+        )
         for case in validated_execution.cases
     )
-    return ReviewProgressReport(REVIEW_PROGRESS_SCHEMA, REVIEW_PROGRESS_VERSION, cases)
+    aggregate_blockers = ()
+    if len(cases) != DESKTOP_ACCEPTANCE_V1_CASE_COUNT:
+        aggregate_blockers = (
+            "corpus_case_count_mismatch:"
+            f"expected={DESKTOP_ACCEPTANCE_V1_CASE_COUNT}:actual={len(cases)}",
+        )
+    return ReviewProgressReport(
+        REVIEW_PROGRESS_SCHEMA,
+        REVIEW_PROGRESS_VERSION,
+        validated_catalog.digest,
+        aggregate_blockers,
+        cases,
+    )
 
 
 def normalized_review_progress_json(
     report: ReviewProgressReport,
     authoring_state: Mapping[str, object],
     execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
 ) -> str:
     """Revalidate and serialize one progress report deterministically."""
     return _normalized_json(
-        validated_review_progress_dict(report, authoring_state, execution_record)
+        validated_review_progress_dict(
+            report,
+            authoring_state,
+            execution_record,
+            evidence_catalog,
+            repository_root,
+        )
     )
 
 
@@ -520,9 +799,17 @@ def validated_review_progress_dict(
     report: ReviewProgressReport,
     authoring_state: Mapping[str, object],
     execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
 ) -> dict[str, object]:
     """Return a machine-readable report only after source-state revalidation."""
-    validated = _revalidate_progress_report(report, authoring_state, execution_record)
+    validated = _revalidate_progress_report(
+        report,
+        authoring_state,
+        execution_record,
+        evidence_catalog,
+        repository_root,
+    )
     return validated._as_dict()
 
 
@@ -530,14 +817,25 @@ def render_review_progress_report(
     report: ReviewProgressReport,
     authoring_state: Mapping[str, object],
     execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
 ) -> str:
     """Render the same validated progress state as concise deterministic text."""
-    data = validated_review_progress_dict(report, authoring_state, execution_record)
+    data = validated_review_progress_dict(
+        report,
+        authoring_state,
+        execution_record,
+        evidence_catalog,
+        repository_root,
+    )
     ready_text = "yes" if data["review_provenance_ready"] else "no"
     lines = [
         "Desktop acceptance review/provenance progress",
         f"Overall ready: {ready_text}",
         f"Total cases: {data['total_cases']}",
+        f"Evidence catalog digest: {data['evidence_catalog_digest']}",
+        "Aggregate blockers: "
+        + (",".join(data["aggregate_blockers"]) or "none"),
         "Ground truth: "
         + _format_counts(data["ground_truth_status_counts"], GROUND_TRUTH_PROGRESS_STATES),
         "Expected action: "
@@ -574,6 +872,77 @@ def render_review_progress_report(
             f"blockers={blocker_text}"
         )
     return "\n".join(lines) + "\n"
+
+
+def build_review_reconciliation_handoff(
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
+) -> ReviewReconciliationHandoff:
+    """Derive reconciliation diagnostics without applying authoring mutations."""
+    progress = build_review_progress_report(
+        authoring_state, execution_record, evidence_catalog, repository_root
+    )
+    validated_authoring = validate_authoring_plan(authoring_state)
+    validated_execution = _revalidate_execution_record(
+        execution_record, validated_authoring
+    )
+    authoring_cases = _authoring_cases_for_reporting(validated_authoring)
+    progress_cases = {case.case_id: case for case in progress.cases}
+    cases = tuple(
+        _derive_case_reconciliation(
+            authoring_cases[execution_case.case_id],
+            execution_case,
+            progress_cases[execution_case.case_id],
+        )
+        for execution_case in validated_execution.cases
+    )
+    return ReviewReconciliationHandoff(
+        REVIEW_RECONCILIATION_SCHEMA,
+        REVIEW_RECONCILIATION_VERSION,
+        progress.evidence_catalog_digest,
+        progress.review_provenance_ready,
+        progress.aggregate_blockers,
+        cases,
+    )
+
+
+def validated_review_reconciliation_dict(
+    handoff: ReviewReconciliationHandoff,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
+) -> dict[str, object]:
+    """Return a reconciliation artifact only after full source revalidation."""
+    validated = _revalidate_reconciliation_handoff(
+        handoff,
+        authoring_state,
+        execution_record,
+        evidence_catalog,
+        repository_root,
+    )
+    return validated._as_dict()
+
+
+def normalized_review_reconciliation_json(
+    handoff: ReviewReconciliationHandoff,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
+) -> str:
+    """Serialize one revalidated reconciliation artifact deterministically."""
+    return _normalized_json(
+        validated_review_reconciliation_dict(
+            handoff,
+            authoring_state,
+            execution_record,
+            evidence_catalog,
+            repository_root,
+        )
+    )
 
 
 def _validate_ground_truth_packet(
@@ -778,7 +1147,9 @@ def _authoring_cases_for_reporting(
 
 
 def _derive_case_progress(
-    authoring_case: Mapping[str, object], execution_case: ReviewCaseRecord
+    authoring_case: Mapping[str, object],
+    execution_case: ReviewCaseRecord,
+    resolved_references: set[str],
 ) -> CaseReviewProgress:
     ground_truth_status = _track_progress_status(execution_case.ground_truth_review)
     if execution_case.ground_truth_review.state != "complete":
@@ -820,6 +1191,56 @@ def _derive_case_progress(
         if state != "approved":
             blockers.append(f"{field}_{state}")
 
+    ground_truth_evidence = (
+        _track_evidence_references(execution_case.ground_truth_review)
+        if ground_truth_status == "complete"
+        else ()
+    )
+    action_evidence = (
+        _track_evidence_references(execution_case.action_review)
+        if action_status == "complete"
+        else ()
+    )
+    provenance_evidence = (
+        (provenance["evidence_reference"],) if evidence_ready else ()
+    )
+    unresolved_by_category = {
+        "ground_truth": _unresolved_references(
+            ground_truth_evidence, resolved_references
+        ),
+        "expected_action": _unresolved_references(
+            action_evidence, resolved_references
+        ),
+        "provenance": _unresolved_references(
+            provenance_evidence, resolved_references
+        ),
+    }
+    for field in ELIGIBILITY_FIELDS:
+        decision = getattr(execution_case.provider_eligibility, field)
+        references = decision.evidence_references if decision.state == "approved" else ()
+        unresolved_by_category[field] = _unresolved_references(
+            references, resolved_references
+        )
+    for category in (
+        "ground_truth",
+        "expected_action",
+        "provenance",
+        "privacy",
+        "licensing",
+        "provider_authorization",
+    ):
+        if unresolved_by_category[category]:
+            blockers.append(f"{category}_evidence_unresolved")
+
+    unresolved_evidence = EvidenceResolutionDiagnostics(
+        ground_truth=unresolved_by_category["ground_truth"],
+        expected_action=unresolved_by_category["expected_action"],
+        provenance=unresolved_by_category["provenance"],
+        privacy=unresolved_by_category["privacy"],
+        licensing=unresolved_by_category["licensing"],
+        provider_authorization=unresolved_by_category["provider_authorization"],
+    )
+
     return CaseReviewProgress(
         case_id=execution_case.case_id,
         specimen_id=execution_case.specimen_id,
@@ -831,7 +1252,14 @@ def _derive_case_progress(
         provenance_ready=provenance_ready,
         review_provenance_ready=not blockers,
         blockers=tuple(blockers),
+        unresolved_evidence=unresolved_evidence,
     )
+
+
+def _unresolved_references(
+    references: Sequence[str], resolved_references: set[str]
+) -> tuple[str, ...]:
+    return tuple(sorted(set(references) - resolved_references))
 
 
 def _track_progress_status(track: ReviewTrack) -> str:
@@ -877,13 +1305,121 @@ def _revalidate_progress_report(
     report: ReviewProgressReport,
     authoring_state: Mapping[str, object],
     execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
 ) -> ReviewProgressReport:
     if not isinstance(report, ReviewProgressReport):
         raise TypeError("report must be a ReviewProgressReport")
-    expected = build_review_progress_report(authoring_state, execution_record)
+    expected = build_review_progress_report(
+        authoring_state, execution_record, evidence_catalog, repository_root
+    )
     if report != expected:
         raise DesktopAcceptanceReviewError(
             "review progress report does not match supplied authoring/execution state"
+        )
+    return expected
+
+
+def _derive_case_reconciliation(
+    authoring_case: Mapping[str, object],
+    execution_case: ReviewCaseRecord,
+    progress_case: CaseReviewProgress,
+) -> CaseReviewReconciliation:
+    candidate_identity = _candidate_identity(authoring_case)
+    if progress_case.ground_truth_status == "complete":
+        resolved_identity = _resolved_track_decision(
+            execution_case.ground_truth_review
+        )
+        assert isinstance(resolved_identity, IdentityDecision)
+        identity_status = (
+            "matched" if resolved_identity == candidate_identity else "mismatched"
+        )
+    else:
+        resolved_identity = None
+        identity_status = "blocked"
+
+    candidate_action_value = authoring_case.get("expected_action")
+    candidate_action = (
+        candidate_action_value
+        if isinstance(candidate_action_value, str)
+        and candidate_action_value in EXPECTED_ACTIONS
+        else None
+    )
+    if progress_case.action_status == "complete":
+        resolved_action = _resolved_track_decision(execution_case.action_review)
+        assert isinstance(resolved_action, str)
+        action_status = "matched" if resolved_action == candidate_action else "mismatched"
+    else:
+        resolved_action = None
+        action_status = "blocked"
+
+    provenance = _require_mapping(
+        authoring_case.get("provenance"),
+        f"authoring state {execution_case.case_id}.provenance",
+    )
+    provenance_reference = provenance["evidence_reference"]
+    provenance_references = (
+        (provenance_reference,)
+        if _nonempty_authoring_text(provenance_reference)
+        else ()
+    )
+    eligibility = execution_case.provider_eligibility
+    return CaseReviewReconciliation(
+        case_id=execution_case.case_id,
+        specimen_id=execution_case.specimen_id,
+        candidate_identity=candidate_identity,
+        resolved_identity=resolved_identity,
+        identity_status=identity_status,
+        candidate_expected_action=candidate_action,
+        resolved_expected_action=resolved_action,
+        expected_action_status=action_status,
+        ground_truth_evidence_references=_track_evidence_references(
+            execution_case.ground_truth_review
+        ),
+        expected_action_evidence_references=_track_evidence_references(
+            execution_case.action_review
+        ),
+        provenance_evidence_references=provenance_references,
+        privacy_state=eligibility.privacy.state,
+        privacy_evidence_references=eligibility.privacy.evidence_references,
+        licensing_state=eligibility.licensing.state,
+        licensing_evidence_references=eligibility.licensing.evidence_references,
+        provider_authorization_state=eligibility.provider_authorization.state,
+        provider_authorization_evidence_references=(
+            eligibility.provider_authorization.evidence_references
+        ),
+        review_provenance_reconciled=progress_case.review_provenance_ready,
+        blockers=progress_case.blockers,
+        unresolved_evidence=progress_case.unresolved_evidence,
+    )
+
+
+def _track_evidence_references(track: ReviewTrack) -> tuple[str, ...]:
+    references = {
+        reference
+        for submission in track.submissions
+        for reference in submission.evidence_references
+    }
+    if track.adjudication is not None:
+        references.update(track.adjudication.evidence_references)
+    return tuple(sorted(references))
+
+
+def _revalidate_reconciliation_handoff(
+    handoff: ReviewReconciliationHandoff,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+    evidence_catalog: EvidenceResolutionCatalog,
+    repository_root: str | Path,
+) -> ReviewReconciliationHandoff:
+    if not isinstance(handoff, ReviewReconciliationHandoff):
+        raise TypeError("handoff must be a ReviewReconciliationHandoff")
+    expected = build_review_reconciliation_handoff(
+        authoring_state, execution_record, evidence_catalog, repository_root
+    )
+    if handoff != expected:
+        raise DesktopAcceptanceReviewError(
+            "review reconciliation handoff does not match supplied authoring/execution state"
         )
     return expected
 
@@ -893,14 +1429,123 @@ def _format_counts(counts: object, states: tuple[str, ...]) -> str:
     return ", ".join(f"{state}={mapping[state]}" for state in states)
 
 
-def _normalized_json(value: object) -> str:
+def _revalidate_evidence_resolution_catalog(
+    catalog: EvidenceResolutionCatalog, repository_root: str | Path
+) -> EvidenceResolutionCatalog:
+    if not isinstance(catalog, EvidenceResolutionCatalog):
+        raise TypeError("evidence_catalog must be an EvidenceResolutionCatalog")
+    expected = validate_evidence_resolution_catalog(
+        catalog._payload_dict(), repository_root
+    )
+    if catalog != expected:
+        raise DesktopAcceptanceReviewError(
+            "evidence-resolution catalog does not match its validated canonical form"
+        )
+    return expected
+
+
+def _validated_repository_root(repository_root: str | Path) -> Path:
+    try:
+        root = Path(repository_root).resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise DesktopAcceptanceReviewError(
+            f"evidence repository root is unavailable: {error}"
+        ) from error
+    if not root.is_dir():
+        raise DesktopAcceptanceReviewError("evidence repository root must be a directory")
+    return root
+
+
+def _validate_resolution_record(
+    value: object, repository_root: Path, label: str
+) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record must be normalized non-empty text"
+        )
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record contains control characters"
+        )
+    if (
+        "\\" in value
+        or "@" in value
+        or "://" in value
+        or _OBVIOUS_CREDENTIAL.search(value)
+    ):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record must be a sanitized repository-relative path"
+        )
+    if value.startswith("/") or _WINDOWS_DRIVE_PATH.match(value):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record must be repository-relative"
+        )
+    lexical_parts = value.split("/")
+    if any(part in {"", ".", ".."} for part in lexical_parts):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record contains an unsafe path segment"
+        )
+    invalid_windows_characters = frozenset('<>:"|?*')
+    reserved_windows_names = frozenset(
+        {"CON", "PRN", "AUX", "NUL"}
+        | {f"COM{number}" for number in range(1, 10)}
+        | {f"LPT{number}" for number in range(1, 10)}
+    )
+    if any(
+        part.endswith((".", " "))
+        or any(character in invalid_windows_characters for character in part)
+        or part.split(".", 1)[0].upper() in reserved_windows_names
+        for part in lexical_parts
+    ):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record contains a non-canonical Windows path segment"
+        )
+    path = PurePosixPath(value)
+    if not any(value.startswith(root) for root in EVIDENCE_ATTESTATION_ROOTS):
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record is outside permitted attestation roots"
+        )
+    current = repository_root
+    try:
+        for part in path.parts:
+            exact_matches = [entry for entry in current.iterdir() if entry.name == part]
+            if len(exact_matches) != 1:
+                raise DesktopAcceptanceReviewError(
+                    f"{label}.resolution_record does not use exact on-disk spelling"
+                )
+            current = exact_matches[0]
+            is_junction = getattr(current, "is_junction", lambda: False)
+            if current.is_symlink() or is_junction():
+                raise DesktopAcceptanceReviewError(
+                    f"{label}.resolution_record may not traverse links or reparse points"
+                )
+        resolved = current.resolve(strict=True)
+        resolved.relative_to(repository_root)
+    except DesktopAcceptanceReviewError:
+        raise
+    except (OSError, RuntimeError, ValueError) as error:
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record does not resolve to a repository file"
+        ) from error
+    if not resolved.is_file():
+        raise DesktopAcceptanceReviewError(
+            f"{label}.resolution_record must resolve to a regular file"
+        )
+    return value
+
+
+def _canonical_json(value: object) -> str:
     return json.dumps(
         value,
         allow_nan=False,
         ensure_ascii=True,
         separators=(",", ":"),
         sort_keys=True,
-    ) + "\n"
+    )
+
+
+def _normalized_json(value: object) -> str:
+    return _canonical_json(value) + "\n"
 
 
 def _authoring_roster(authoring_state: object) -> dict[str, str]:

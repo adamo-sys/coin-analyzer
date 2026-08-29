@@ -19,6 +19,7 @@ from typing import Mapping, Sequence
 
 AUTHORING_SCHEMA = "coin-analyzer-desktop-acceptance-authoring-plan"
 AUTHORING_VERSION = "1.0.0"
+DESKTOP_ACCEPTANCE_V1_CASE_COUNT = 30
 FREEZE_PREPARATION_SCHEMA = "coin-analyzer-desktop-acceptance-freeze-preparation"
 FREEZE_PREPARATION_VERSION = "1.0.0"
 EXPECTED_ACTIONS = frozenset({"identify", "abstain"})
@@ -78,8 +79,11 @@ def evaluate_readiness(payload: Mapping[str, object]) -> ReadinessReport:
     stability_cohorts = payload["stability_relevant_cohorts"]
     assert isinstance(stability_cohorts, list)
 
-    if len(cases) != 30:
-        blockers.add(f"corpus requires exactly 30 cases; found {len(cases)}")
+    if len(cases) != DESKTOP_ACCEPTANCE_V1_CASE_COUNT:
+        blockers.add(
+            "corpus requires exactly "
+            f"{DESKTOP_ACCEPTANCE_V1_CASE_COUNT} cases; found {len(cases)}"
+        )
 
     case_ids: list[str] = []
     actions: Counter[str] = Counter()
