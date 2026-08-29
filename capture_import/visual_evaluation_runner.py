@@ -103,7 +103,22 @@ def run_visual_benchmark(
             continue
 
         elapsed = max(0.0, clock() - started)
-        predictions = [candidate.as_prediction() for candidate in provider_report.candidates]
+        public_candidates = (
+            provider_report.candidates
+            if provider_report.outcome == "CANDIDATES"
+            else ()
+        )
+        diagnostic_candidates = (
+            provider_report.diagnostic_candidates or provider_report.candidates
+        )
+        predictions = [candidate.as_prediction() for candidate in public_candidates]
+        ranked_diagnostics = [
+            {
+                "candidate_id": f"candidate-{index}",
+                **_candidate_record(candidate),
+            }
+            for index, candidate in enumerate(diagnostic_candidates, start=1)
+        ]
         row: dict[str, object] = {
             "case_id": case.case_id,
             "identity_certain": case.identity_certain,
@@ -115,8 +130,14 @@ def run_visual_benchmark(
             ),
             "predictions": predictions,
             "ranked_candidates": [
-                _candidate_record(candidate) for candidate in provider_report.candidates
+                _candidate_record(candidate) for candidate in public_candidates
             ],
+            "diagnostic_candidates": ranked_diagnostics,
+            "best_candidate_id": (
+                ranked_diagnostics[0]["candidate_id"]
+                if ranked_diagnostics
+                else None
+            ),
             "raw_structured_provider_result": dict(
                 provider_report.raw_structured_result
             ),
@@ -195,6 +216,8 @@ def _failure_row(
         "expected": dict(case.expected),
         "outcome": "INFRASTRUCTURE_FAILURE",
         "predictions": [],
+        "diagnostic_candidates": [],
+        "best_candidate_id": None,
         "canonicalized_expected": _canonicalized_identity(case.expected),
         "canonicalized_predictions": [],
         "exact_scores": None,

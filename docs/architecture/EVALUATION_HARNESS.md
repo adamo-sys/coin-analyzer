@@ -95,3 +95,209 @@ only for manifest/output/infrastructure conditions that prevent a valid run.
 - GUI automation
 - statistical-significance claims for Benchmark v1
 - process-crash recovery changes
+
+### Multimodal diagnostic replay amendment
+
+Every successfully evaluated multimodal row retains its complete, ordered
+`diagnostic_candidates` collection even when the provider's public outcome is
+`ABSTAINED`. Each entry has a stable row-local `candidate_id`, and the row
+records `best_candidate_id` independently of the public prediction. Public
+`predictions` continue to follow the provider outcome and therefore remain
+empty for an abstention.
+
+Threshold-frontier replay resolves the candidate named by
+`best_candidate_id`; it must not infer a candidate from public predictions or
+list position. A missing, duplicate, stale, or otherwise invalid candidate
+reference, or an invalid source score, makes that row explicitly unscorable
+for replay. Diagnostic retention and replay are evaluation-only: they do not
+change provider output, candidate ordering, recognition thresholds, review
+rules, persistence semantics, or production recognition behavior.
+
+#### Real-World Desktop Acceptance Set v1 foundation
+
+The Real-World Desktop Acceptance Set is an offline paired-image evaluation
+inventory. Each case names one physical specimen, exactly one obverse image and
+one reverse image, an explicit expected action (`identify` or `abstain`), frozen
+image-byte SHA-256 values, capture-condition metadata, a privacy classification,
+and reserved attribution fields.
+
+The v1 foundation reserves `mint`, `mint_mark`, `variety`, and
+`catalog_reference` as explicit nullable fields. This contract does not infer,
+repair, or populate those fields. An `identify` case requires complete
+country/denomination/year ground truth. An `abstain` case may retain known
+identity fields, but this foundation does not manufacture missing labels.
+
+Manifest loading is local-only and fail-closed for malformed identifiers,
+unsafe relative paths, stale hashes, missing image bytes, unsupported privacy
+classes, duplicate case identifiers, malformed image roles, and non-null
+reserved attribution. The deterministic audit reports inventory counts,
+expected-action and privacy balance, capture-condition distributions, and exact
+duplicate image hashes.
+
+This foundation does not execute recognition providers, OCR, fusion, scoring,
+GUI review, persistence, durability workflows, or threshold selection. It does
+not add a real manifest or real benchmark images. Corpus assembly and execution
+are separately authorized work.
+
+### Real-World Desktop Acceptance Set v1 frozen protocol
+
+The v1 authoring scaffold is unpublished: the repository contains neither a
+real acceptance manifest nor acceptance images. The strict contract may
+therefore replace the scaffold without a migration path. Compatibility is
+desirable for synthetic authoring tools, but no nonexistent corpus format is a
+published compatibility obligation.
+
+#### Corpus composition and independence
+
+The frozen corpus contains exactly 30 paired-image cases: 24 with expected
+action `identify` and 6 with expected action `abstain`. It represents at least
+24 distinct physical specimens. A specimen may appear in at most two cases,
+and a repeated specimen must use independently captured image pairs under
+materially different declared capture conditions. Repeated cases identify one
+another reciprocally.
+
+Every case records complete provenance-backed country, denomination, and year
+ground truth, including abstain cases. Known identity and expected action are
+different judgments: abstention never erases known identity. Before any
+recognition call, two named independent reviewers review ground truth and
+expected action independently. Disagreement requires a named adjudicator,
+rationale, and final decision; agreement records that adjudication was not
+required. Ground-truth evidence and action evidence are separately recorded so
+that difficult imagery cannot be used to weaken identity truth.
+
+The corpus declares cohorts needed for deterministic breakdowns, including
+expected action and capture-condition cohorts. Exactly 10 cases, each from a
+different specimen, form the stability subset. That subset covers both
+expected actions and every cohort designated as relevant to stability. Each
+stability case receives five independent provider calls during a separately
+authorized execution.
+
+#### Freeze, transformation, and leakage controls
+
+The freeze records exact image bytes and lowercase SHA-256 digests, a canonical
+manifest digest, the schema digest, and separate digests for ground truth,
+expected action, and the transformation ledger. Paths are sanitized,
+non-semantic relative identifiers. Post-freeze image-byte or label changes
+create a new corpus version; an existing version is never silently rewritten.
+
+Digest projections use UTF-8 JSON with sorted object keys, no insignificant
+whitespace, preserved Unicode, and no non-finite numbers. The schema digest is
+over the exact schema bytes. Ground-truth, action, and transformation digests
+bind their respective ordered case projections, including review evidence for
+labels and actions. The manifest digest binds the complete manifest after the
+four subordinate digests are populated, with only `manifest_sha256` itself
+omitted. The separately versioned canonicalization artifact is byte-hashed and
+verified before a manifest is accepted.
+
+Every image has an explicit transformation ledger, including an explicit
+`none` record when it is an original capture. Permitted transformations are
+representation-only operations declared by the frozen schema. Benchmark-
+specific enhancement, sharpening, denoising, synthetic relighting, compositing,
+and semantic or benchmark-specific cropping are forbidden.
+
+Preflight fails closed on duplicate bytes, duplicate obverse/reverse pairs,
+same-side byte reuse, unsafe or semantic paths, missing or stale hashes,
+specimen-limit violations, non-reciprocal repeated-specimen declarations, and
+missing external near-duplicate review. Near-duplicate review is a recorded
+human/tool-assisted leakage check, not an automatic assertion that distinct
+bytes depict distinct captures.
+
+Privacy classification is separate from copyright/license status and from
+provider authorization. Provider eligibility is an explicit per-image and
+per-case decision derived only from recorded privacy, licensing, and provider-
+use declarations; missing, ambiguous, private, or uncertain authorization
+fails closed. Prior benchmark or model-development use is declared before
+freeze and is never inferred from provenance.
+
+#### Execution and authority boundaries
+
+The v1 execution view is paired-image multimodal visual-provider evaluation.
+OCR, fusion, ranking, GUI behavior, persistence, durability, and production
+thresholds remain separate evaluation views. Acceptance code must not tune or
+branch production behavior, and no acceptance image may be used for provider,
+prompt, ranking, or threshold optimization.
+
+Provider output is advisory evidence. Evidence must precede inference, system
+confidence is unavailable in v1, and provider source scores remain
+uncalibrated rather than being interpreted as probabilities. Variety
+attribution is outside v1 correctness, and `mint`, `mint_mark`, `variety`, and
+`catalog_reference` remain null-only. Human confirmation remains required for
+collection decisions and persistence.
+
+#### Identity and metric semantics
+
+The authoritative headline identity metric uses the separately versioned,
+frozen canonical-equivalence policy. Exact normalized-string matching is a
+diagnostic only. Complete identity credit requires country, denomination, and
+year all to be present, canonicalizable, and equal; partial proposals receive
+no complete-identity credit. Unknown, malformed, ambiguous, or unmapped values
+fail closed rather than receiving inferred credit.
+
+Reports state exact numerators and denominators. Specimen-weighted reporting is
+primary so that a specimen represented twice does not receive twice the weight
+of a specimen represented once. Case-weighted results remain a labeled
+diagnostic. Action correctness, complete-identity correctness, provider
+availability, and infrastructure failure are reported separately; an
+infrastructure failure is never counted as an abstention or silently removed
+from an unstated denominator.
+
+Stability reporting lists all 50 calls (10 cases by five calls), per-case
+outcome distributions, action consistency, canonical complete-identity
+consistency where applicable, exact denominators, and relevant-cohort coverage.
+It does not convert repeatability into confidence or correctness.
+
+### Desktop acceptance canonicalization policy v1
+
+`canonicalization-policy-v1.json` is the separately versioned authoritative
+mapping artifact. Acceptance manifests bind its exact bytes by SHA-256. A
+mapping change requires a new policy version and a rescore; mappings must not be
+embedded or extended inside scoring code.
+
+Diagnostic normalization applies Unicode NFKC, trims surrounding whitespace,
+collapses internal whitespace, and casefolds. It preserves punctuation. This
+normalization is representation-only and does not itself establish semantic
+equivalence.
+
+For v1, `CAN` is the project-owned canonical jurisdiction identifier. Only the
+artifact's explicit normalized aliases `can` and `canada` map to `CAN`. In
+particular, `CA`, `CDN`, misspellings, punctuation variants not listed by the
+artifact, and inferred nationality words remain unmapped.
+
+Denominations canonicalize only after jurisdiction context has independently
+canonicalized. Under `CAN`, the artifact explicitly maps `25 cent`, `25 cents`,
+and `quarter` to the common canonical unit `25 cents`. No general arithmetic,
+currency-symbol, fraction, fuzzy, or cross-jurisdiction equivalence exists;
+`1/4 dollar` therefore remains unmapped.
+
+Years are accepted only when diagnostic normalization yields exactly four ASCII
+digits from `0001` through `9999`. The policy does not parse dates, Roman
+numerals, two-digit years, or infer a missing year. Complete identity credit is
+all-or-nothing: country, denomination, and year must each map and must all equal
+the reference canonical identity. Any partial, malformed, ambiguous, unknown,
+or unmapped value fails closed. The exact normalized-string result remains a
+separately labeled diagnostic.
+
+### Provider-independent acceptance scoring
+
+The scoring boundary consumes one immutable public provider outcome for every
+validated manifest case; it does not call a provider or inspect diagnostic
+candidates. Missing, duplicate, extra, or non-deterministically ordered case
+results fail closed. Public outcomes are `identify`, `abstain`, `unavailable`,
+or `infrastructure_failure`. Only `identify` may carry a proposed identity, and
+a partial identity remains valid diagnostic input but cannot receive complete-
+identity credit.
+
+The deterministic report makes specimen weighting primary. For each metric,
+eligible case booleans are averaged within specimen and those specimen values
+are averaged equally. The reduced rational numerator and denominator are
+reported alongside the specimen count. Case-weighted integer counts remain a
+labeled diagnostic. Complete-identity correctness is measured on frozen
+`identify` cases; expected abstentions remain in action correctness instead of
+being treated as identified identities.
+
+Unavailable provider outcomes count as incorrect where the case otherwise
+belongs in a metric and are separately visible through provider availability.
+Infrastructure failures are listed explicitly and excluded from stated metric
+denominators. Provider source scores may be retained only as finite,
+uncalibrated diagnostics. System confidence is always null, and this report
+defines no acceptance threshold or automatic production decision.

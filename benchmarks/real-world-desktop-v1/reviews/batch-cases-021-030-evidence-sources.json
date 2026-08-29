@@ -1,0 +1,25 @@
+{
+  "schema": "desktop-acceptance-evidence-preparation",
+  "version": "1.0.0",
+  "status": "prepared_unresolved",
+  "review_state": "unresolved",
+  "cases": [
+    {"case_id":"case-021","specimen_id":"specimen-021","inventory_id":"S021","candidate_identity":{"jurisdiction":"Canada","denomination":"5 cents","year":"2024"},"candidate_action":"identify","evidence_status":"prepared_for_independent_review"},
+    {"case_id":"case-022","specimen_id":"specimen-022","inventory_id":"S022","candidate_identity":{"jurisdiction":"Canada","denomination":"10 cents","year":"2004"},"candidate_action":"identify","evidence_status":"prepared_for_independent_review"},
+    {"case_id":"case-023","specimen_id":"specimen-023","inventory_id":"S023","candidate_identity":{"jurisdiction":"Canada","denomination":"25 cents","year":"2013"},"candidate_action":"identify","evidence_status":"prepared_for_independent_review"},
+    {"case_id":"case-024","specimen_id":"specimen-024","inventory_id":"S024","candidate_identity":{"jurisdiction":"Canada","denomination":"1 dollar","year":"2015"},"candidate_action":"identify","evidence_status":"prepared_for_independent_review"},
+    {"case_id":"case-025","specimen_id":"specimen-025","inventory_id":"S025","candidate_identity":{"jurisdiction":"Canada","denomination":"2 dollars","year":"2001"},"candidate_action":"identify","evidence_status":"prepared_for_independent_review"},
+    {"case_id":"case-026","specimen_id":"specimen-026","inventory_id":"S026","candidate_identity":{"jurisdiction":"United States","denomination":"1 dollar","year":"1980"},"candidate_action":"abstain","evidence_status":"prepared_for_independent_review","domain_note":"foreign jurisdiction deliberately outside frozen v1 Canadian mapping"},
+    {"case_id":"case-027","specimen_id":"specimen-027","inventory_id":"S027","candidate_identity":{"jurisdiction":"Mexico","denomination":"1 peso","year":"1996"},"candidate_action":"abstain","evidence_status":"prepared_for_independent_review","domain_note":"foreign jurisdiction deliberately outside frozen v1 Canadian mapping"},
+    {"case_id":"case-028","specimen_id":"specimen-006","inventory_id":"S006","candidate_identity":{"jurisdiction":"Canada","denomination":"1 cent","year":"1859"},"candidate_action":"identify","repeat_of":"case-006","capture_metadata_status":"pending_photography"},
+    {"case_id":"case-029","specimen_id":"specimen-011","inventory_id":"S011","candidate_identity":{"jurisdiction":"Canada","denomination":"1 dollar","year":"2024"},"candidate_action":"identify","repeat_of":"case-011","capture_metadata_status":"pending_photography"},
+    {"case_id":"case-030","specimen_id":"specimen-012","inventory_id":"S012","candidate_identity":{"jurisdiction":"Canada","denomination":"25 cents","year":"2000"},"candidate_action":"identify","repeat_of":"case-012","capture_metadata_status":"pending_photography"}
+  ],
+  "reviewers":{"ground_truth":"unresolved","expected_action":"unresolved"},
+  "physical_specimen_linkage":"unresolved",
+  "image_rights":"unresolved",
+  "provider_eligibility":{"privacy":"unresolved","licensing":"unresolved","provider_authorization":"unresolved"},
+  "authoring_plan_modified":false,
+  "recognition_used_as_evidence":false,
+  "official_capture_started":false
+}

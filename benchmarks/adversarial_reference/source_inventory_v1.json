@@ -1,0 +1,39 @@
+{
+  "schema": "coin-analyzer-adversarial-reference-source-inventory-v1",
+  "protocol_version": "v1.1",
+  "case_plan": "case_plan.json",
+  "manifest": "manifest_v1.json",
+  "status": "acquisition-not-started",
+  "rules": {
+    "preserve_all_frozen_cases": true,
+    "drop_unavailable_cases": false,
+    "require_query_reference_independence": true,
+    "require_provenance_before_runnable_manifest": true,
+    "inspect_retrieval_results_during_acquisition": false
+  },
+  "required_source_fields": [
+    "source_page_url",
+    "asset_url",
+    "provider",
+    "creator_or_credit",
+    "license_or_usage_note",
+    "retrieved_at",
+    "independence_rationale"
+  ],
+  "cases": [
+    "canada-5-cents-1964", "canada-10-cents-1954", "canada-10-cents-1955", "canada-10-cents-1956", "canada-25-cents-1965",
+    "canada-25-cents-1966", "canada-25-cents-1967", "india-10-paise-1965", "india-1-rupee-1917", "india-1-rupee-1918",
+    "india-1-rupee-1919", "switzerland-2-francs-1979", "switzerland-2-francs-1980", "switzerland-2-francs-1981", "us-spanish-trail-half-dollar-1935",
+    "us-columbia-half-dollar-1936", "us-elgin-half-dollar-1936", "us-pilgrim-half-dollar-1920", "us-oregon-trail-half-dollar-1926", "australia-sixpence-1910",
+    "australia-sixpence-1911", "indonesia-100-rupiah-1995", "france-1-centime-1797", "liberia-1-cent-1896", "philippines-10-pesos-2015"
+  ],
+  "source_slots": {
+    "query": {"required": true, "provenance": null},
+    "reference": {"required": true, "provenance": null}
+  },
+  "output_contract": {
+    "runnable_manifest_requires_all_required_provenance": true,
+    "unavailable_case_state": "unavailable",
+    "freeze_file": "FREEZE.json"
+  }
+}

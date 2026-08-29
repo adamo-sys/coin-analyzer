@@ -27,7 +27,7 @@ from capture_import.visual_identity_provider import (
     VisualIdentityReport,
 )
 from coin_collection import CoinCollection
-from coin_collection_gui import CoinCollectionGUI
+from coin_collection_gui import CoinCollectionGUI, _visual_identity_failure_diagnostic
 
 
 def _report(*, outcome: str = "CANDIDATES") -> VisualIdentityReport:
@@ -272,6 +272,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
             gui = self._gui(collection)
             gui._visual_identity_provider_factory = lambda: _Provider(error=RuntimeError(secret))
             with (
+                self.assertLogs("coin_collection_gui", level="WARNING") as logs,
                 patch("coin_collection_gui.filedialog.askopenfilename", side_effect=[str(front), str(reverse)]),
                 patch("coin_collection_gui.messagebox.askyesno", return_value=True),
                 patch("coin_collection_gui.messagebox.showerror") as error,
@@ -280,7 +281,23 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
 
         self.assertEqual(collection.items, [])
         self.assertNotIn(secret, repr(error.call_args))
+        self.assertNotIn(secret, repr(logs.output))
+        self.assertIn("error_type=builtins.RuntimeError", logs.output[0])
         self.assertIn("No collection data was changed", error.call_args.args[1])
+
+    def test_provider_failure_diagnostic_keeps_only_safe_support_metadata(self) -> None:
+        failure = RuntimeError("sk-secret raw image data:image/jpeg;base64,sensitive")
+        failure.status_code = 400
+        failure.request_id = "req_safe-123"
+
+        diagnostic = _visual_identity_failure_diagnostic(failure)
+
+        self.assertEqual(
+            diagnostic,
+            "error_type=builtins.RuntimeError, status_code=400, request_id=req_safe-123",
+        )
+        self.assertNotIn("secret", diagnostic)
+        self.assertNotIn("base64", diagnostic)
 
     def test_malformed_provider_output_is_zero_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

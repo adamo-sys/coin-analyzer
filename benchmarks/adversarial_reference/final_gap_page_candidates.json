@@ -1,0 +1,192 @@
+{
+  "schema": "coin-analyzer-final-gap-page-candidates-v1",
+  "retrieval_results_inspected": false,
+  "inventory_modified": false,
+  "asset_independence_pending": true,
+  "items": [
+    {
+      "case_id": "india-1-rupee-1917",
+      "side": "query",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4851",
+      "identity_evidence": "British India George V silver 1 Rupee type; page explicitly lists 1917 Calcutta and Bombay issues.",
+      "asset_note": "Type page only; exact 1917 image asset must be verified before import."
+    },
+    {
+      "case_id": "india-1-rupee-1917",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "LiveAuctioneers",
+      "url": "https://www.liveauctioneers.com/price-result/1917-india-1-rupee-917-silver-coin/",
+      "identity_evidence": "Auction result explicitly identifies a 1917 India 1 Rupee 91.7% silver coin.",
+      "asset_note": "Independent provider from query page; image asset URL/hash still required."
+    },
+    {
+      "case_id": "india-1-rupee-1919",
+      "side": "query",
+      "status": "conflict-resolution-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4851",
+      "identity_evidence": "British India George V silver 1 Rupee type page explicitly lists 1919 Calcutta and Bombay issues.",
+      "asset_note": "Use only if an exact 1919 image can be established; page-level identity resolves type but not asset."
+    },
+    {
+      "case_id": "switzerland-2-francs-1980",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/189",
+      "identity_evidence": "Switzerland 2 Francs Helvetia standing page explicitly lists 1980 KM#21a.1 and reverse date 1980.",
+      "asset_note": "Reference image must be independent of frozen v2 query asset."
+    },
+    {
+      "case_id": "liberia-1-cent-1896",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Numista",
+      "url": "https://en.numista.com/12425",
+      "identity_evidence": "Liberia 1 Cent type page explicitly identifies 1896 H and reverse ONE CENT 1896.",
+      "asset_note": "Numista credits Heritage Auctions; exact image asset and licensing/provenance need capture."
+    },
+    {
+      "case_id": "philippines-10-pesos-2015",
+      "side": "reference",
+      "status": "page-candidate-identity-review",
+      "provider": "Numista",
+      "url": "https://en.numista.com/4519",
+      "identity_evidence": "Philippines regular 10 Piso type page lists a 2015 PI issue.",
+      "asset_note": "Do not substitute the separate 2015 Miguel Malvar commemorative (Numista N#81193) unless frozen v2 type design confirms that identity. Exact regular-issue asset remains pending."
+    },
+    {
+      "case_id": "india-10-paise-1965",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "NumisCorner",
+      "url": "https://www.numiscorner.com/products/380570-coin-india-republic-10-paise-1965-vf-30-35-copper-nickel-km-25",
+      "source_record_id": "NumisCorner catalog 380570",
+      "identity_evidence": "Textual product metadata identifies India-Republic, 10 Paise, 1965, copper-nickel, KM#25.",
+      "asset_note": "Page-level provenance only; exact side-specific asset URLs and independence from the frozen query source must be established before acquisition. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "india-1-rupee-1918",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "NumisPoint",
+      "url": "https://www.numispoint.com/product/1918-one-rupee-king-george-v-calcutta-mint-aunc-gk-1037/",
+      "source_record_id": "GK 1037 / Pridmore 214",
+      "identity_evidence": "Textual product metadata identifies a 1918 British India One Rupee, George V, Calcutta mint, silver coin and separately describes its obverse and reverse.",
+      "asset_note": "Page-level provenance only; exact obverse and reverse asset URLs and independence from the query source remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "india-1-rupee-1919",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "NumisPoint",
+      "url": "https://www.numispoint.com/product/1919-one-rupee-king-george-v-calcutta-mint-unc-coin-gk-1039/",
+      "source_record_id": "GK 1039 / Pridmore 215",
+      "identity_evidence": "Textual product metadata identifies a 1919 British India One Rupee, George V, Calcutta mint, silver coin and separately describes its obverse and reverse.",
+      "asset_note": "Independent provider from the Numista query page; exact side-specific asset URLs and source independence remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "switzerland-2-francs-1979",
+      "side": "query",
+      "status": "page-candidate",
+      "provider": "NumisCorner",
+      "url": "https://www.numiscorner.com/products/1166336-switzerland-2-francs-1979-bern-copper-nickel-ms-60-62-km-21a-1",
+      "source_record_id": "NumisCorner catalog 1166336",
+      "identity_evidence": "Textual product metadata identifies Switzerland, 2 Francs, 1979, Bern, copper-nickel, KM#21a.1 and describes Standing Helvetia and the value within a wreath.",
+      "asset_note": "Prospective query page; exact obverse and reverse asset URLs remain required. It must stay independent from the Cristiano Coins reference source. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "switzerland-2-francs-1979",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Cristiano Coins",
+      "url": "https://cristianocoins.it/it/europa-68/89253-switzerland-2-francs-1979.html",
+      "source_record_id": "Cristiano Coins product 89253",
+      "identity_evidence": "Textual product metadata identifies Switzerland, 2 Francs, 1979, copper-nickel, KM#21a.1.",
+      "asset_note": "Independent provider from the NumisCorner query page; exact obverse and reverse asset URLs remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "switzerland-2-francs-1981",
+      "side": "query",
+      "status": "page-candidate",
+      "provider": "NumisCorner",
+      "url": "https://www.numiscorner.com/products/419913-switzerland-2-francs-1981-bern-au-55-58-copper-nickel-km-21a-1",
+      "source_record_id": "NumisCorner catalog 419913",
+      "identity_evidence": "Textual product metadata identifies Switzerland, 2 Francs, 1981, Bern, copper-nickel, KM#21a.1 and describes Standing Helvetia and the value within a wreath.",
+      "asset_note": "Prospective query page; exact obverse and reverse asset URLs remain required. It must stay independent from the Monetnik reference source. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "switzerland-2-francs-1981",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Monetnik",
+      "url": "https://www.monetnik.ru/monety/mira/evropa/shvejcariya/shvejcariya-2-franka-844601/",
+      "source_record_id": "Monetnik product 844601",
+      "identity_evidence": "Textual product metadata identifies Switzerland, 2 Francs, 1981, Bern mint, copper-nickel and names the obverse and reverse artists.",
+      "asset_note": "Independent provider from the NumisCorner query page; exact obverse and reverse asset URLs remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "us-elgin-half-dollar-1936",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "CoinsCatalog.NET",
+      "url": "https://coinscatalog.net/usa/coin-silver-half-dollar-elgin-ill-centennial-km-180-commemorative-coins",
+      "source_record_id": "KM#180",
+      "identity_evidence": "Textual catalog metadata identifies the United States 1936 Elgin Centennial silver half dollar, KM#180, and separately describes its obverse and reverse.",
+      "asset_note": "Page-level provenance only; exact side-specific asset URLs and independence from the query source remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "us-pilgrim-half-dollar-1920",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Money Metals Exchange",
+      "url": "https://www.moneymetals.com/1920-pilgrim-half-dollar-almost-uncirculated-90-silver-3617-oz-asw/2337",
+      "source_record_id": "Money Metals product 2337",
+      "identity_evidence": "Textual product metadata identifies the United States Mint 1920 Pilgrim commemorative half dollar and separately describes the Bradford obverse and Mayflower reverse.",
+      "asset_note": "Page-level provenance only; exact side-specific asset URLs and independence from the query source remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    },
+    {
+      "case_id": "france-1-centime-1797",
+      "side": "reference",
+      "status": "page-candidate",
+      "provider": "Katz Auction",
+      "url": "https://katzauction.com/lot/494980",
+      "source_record_id": "Katz Auction 109 lot 567 / page lot 494980",
+      "identity_evidence": "Textual auction metadata identifies France 1 Centime 1797 (L'An 6), mint A.",
+      "asset_note": "Independent auction source from the frozen Wikimedia Commons query; exact obverse and reverse asset URLs remain required. No image content was inspected.",
+      "license_or_permitted_use": "No explicit image reuse license was found in the textual page metadata; permission or another defensible use basis must be confirmed before acquisition.",
+      "provenance_retrieved_at": "2026-08-26",
+      "required_coin_sides": ["obverse", "reverse"]
+    }
+  ]
+}
