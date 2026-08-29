@@ -1,0 +1,46 @@
+{
+  "schema": "desktop-acceptance-evidence-preparation",
+  "version": "1.0.0",
+  "review_state": "unresolved",
+  "cases": [
+    {
+      "case_id": "case-003",
+      "specimen_id": "specimen-003",
+      "candidate_identity": {"country": "Newfoundland", "denomination": "10 cents", "year": "1890"},
+      "candidate_action": "abstain",
+      "identity_sources": [
+        "https://www.coinsandcanada.com/coins-prices-newfoundland.php/coins-prices-trends-history-value.php?coin=nf-10-newfoundland-10-cents-1890&currency=CAD&id_coin=4584&issue=1&years=nf-10-newfoundland-10-cents-1864-1896",
+        "https://www.colonialacres.com/products/1890-newfoundland-10-cents-vg-f-vg-10"
+      ],
+      "reviewers": "unresolved",
+      "provider_eligibility": "unresolved"
+    },
+    {
+      "case_id": "case-004",
+      "specimen_id": "specimen-004",
+      "candidate_identity": {"country": "Canada", "denomination": "1 dollar", "year": "2010"},
+      "candidate_action": "identify",
+      "identity_sources": [
+        "https://www.mint.ca/en/shop/coins/2010/limited-edition-proof-dollar--75th-anniversary-of-the-first-canadian-silver-dollar-2010",
+        "https://en.numista.com/31469"
+      ],
+      "date_interpretation": "2010 is candidate issue year; 1935 is commemorative/reference dating on the double-dated anniversary design",
+      "reviewers": "unresolved",
+      "provider_eligibility": "unresolved"
+    },
+    {
+      "case_id": "case-005",
+      "specimen_id": "specimen-005",
+      "candidate_identity": {"country": "Canada", "denomination": "5 cents", "year": "1899"},
+      "candidate_action": "identify",
+      "identity_sources": [
+        "https://www.coinsandcanada.com/coins-prices.php?coin=5-cents-1899&years=5-cents-1858-1901",
+        "https://www.colonialacres.com/products/1899-canada-5-cents-unc-ms-62"
+      ],
+      "reviewers": "unresolved",
+      "provider_eligibility": "unresolved"
+    }
+  ],
+  "authoring_plan_modified": false,
+  "recognition_used_as_evidence": false
+}
