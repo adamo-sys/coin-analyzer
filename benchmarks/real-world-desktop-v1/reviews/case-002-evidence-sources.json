@@ -1,0 +1,51 @@
+{
+  "case_id": "case-002",
+  "specimen_id": "specimen-002",
+  "inventory_reference": "S002",
+  "status": "prepared_unresolved",
+  "candidate_identity": {
+    "jurisdiction": "Canada",
+    "denomination": "1 dollar",
+    "year": "1946"
+  },
+  "candidate_expected_action": "identify",
+  "ground_truth_evidence": [
+    {
+      "source_id": "bank-of-canada-museum-ncc-1964.0049.00003.000",
+      "url": "https://www.bankofcanadamuseum.ca/collection/artefact/view/1964.0049.00003.000/canada-george-vi-1-dollar-1946",
+      "supports": ["jurisdiction", "denomination", "year"],
+      "reviewer_record": false
+    },
+    {
+      "source_id": "royal-canadian-mint-one-dollar-history",
+      "url": "https://www.mint.ca/en-us/discover/canadian-circulation/1-dollar",
+      "supports": ["denomination", "year", "official_issue"],
+      "reviewer_record": false
+    },
+    {
+      "source_id": "numista-n449",
+      "url": "https://en.numista.com/449",
+      "supports": ["jurisdiction", "denomination", "year", "type_cross_check"],
+      "reviewer_record": false
+    }
+  ],
+  "expected_action_evidence": [
+    {
+      "source_id": "canonicalization-policy-v1",
+      "repository_path": "benchmarks/real-world-desktop-v1/canonicalization-policy-v1.json",
+      "supports": ["canada_maps_to_CAN", "one_dollar_supported_for_CAN", "1946_valid_year_format", "candidate_identify_representability"],
+      "reviewer_record": false
+    }
+  ],
+  "physical_specimen_linkage": "unresolved",
+  "ground_truth_review": "unresolved",
+  "expected_action_review": "unresolved",
+  "image_rights_basis": "unresolved",
+  "provider_eligibility": {
+    "privacy": "unresolved",
+    "licensing": "unresolved",
+    "provider_authorization": "unresolved"
+  },
+  "recognition_used": false,
+  "official_capture_started": false
+}
