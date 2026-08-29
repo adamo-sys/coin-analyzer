@@ -27,6 +27,34 @@ _NORMALIZATION = (
     "preserve_punctuation",
 )
 _ASCII_YEAR = re.compile(r"^[0-9]{4}$", flags=re.ASCII)
+_EXPECTED_JURISDICTIONS = {
+    "can": "CAN",
+    "canada": "CAN",
+}
+_EXPECTED_DENOMINATIONS = {
+    ("CAN", "$1"): "1 dollar",
+    ("CAN", "$2"): "2 dollars",
+    ("CAN", "1 cent"): "1 cent",
+    ("CAN", "1 cents"): "1 cent",
+    ("CAN", "1 dollar"): "1 dollar",
+    ("CAN", "10 cent"): "10 cents",
+    ("CAN", "10 cents"): "10 cents",
+    ("CAN", "2 dollar"): "2 dollars",
+    ("CAN", "2 dollars"): "2 dollars",
+    ("CAN", "25 cent"): "25 cents",
+    ("CAN", "25 cents"): "25 cents",
+    ("CAN", "5 cent"): "5 cents",
+    ("CAN", "5 cents"): "5 cents",
+    ("CAN", "50 cent"): "50 cents",
+    ("CAN", "50 cents"): "50 cents",
+    ("CAN", "cent"): "1 cent",
+    ("CAN", "dime"): "10 cents",
+    ("CAN", "half dollar"): "50 cents",
+    ("CAN", "loonie"): "1 dollar",
+    ("CAN", "nickel"): "5 cents",
+    ("CAN", "quarter"): "25 cents",
+    ("CAN", "toonie"): "2 dollars",
+}
 
 
 class DesktopAcceptanceCanonicalizationError(ValueError):
@@ -88,15 +116,11 @@ def load_desktop_acceptance_canonicalization_policy(
         payload["denomination_aliases"], ("jurisdiction", "normalized"),
         "denomination_aliases",
     )
-    if jurisdictions != {"can": "CAN", "canada": "CAN"}:
+    if jurisdictions != _EXPECTED_JURISDICTIONS:
         raise DesktopAcceptanceCanonicalizationError(
             "v1 jurisdiction mapping does not match the frozen policy."
         )
-    if denominations != {
-        ("CAN", "25 cent"): "25 cents",
-        ("CAN", "25 cents"): "25 cents",
-        ("CAN", "quarter"): "25 cents",
-    }:
+    if denominations != _EXPECTED_DENOMINATIONS:
         raise DesktopAcceptanceCanonicalizationError(
             "v1 denomination mapping does not match the frozen policy."
         )
