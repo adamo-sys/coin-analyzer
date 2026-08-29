@@ -35,7 +35,7 @@ class DesktopAcceptanceCanonicalizationTests(unittest.TestCase):
                 self.assertEqual(canonicalize_country(value, self.policy), "CAN")
 
     def test_rejects_deliberately_unmapped_country_aliases(self):
-        for value in ("CA", "CDN", "Canadian", "Canada!", "United States", None, ""):
+        for value in ("CA", "CDN", "Canadian", "Canada!", "United States", "Newfoundland", None, ""):
             with self.subTest(value=value):
                 self.assertIsNone(canonicalize_country(value, self.policy))
 
@@ -63,17 +63,55 @@ class DesktopAcceptanceCanonicalizationTests(unittest.TestCase):
                     "quarter", canonical_country=context, policy=self.policy
                 ))
 
-    def test_maps_only_explicit_denomination_representations(self):
-        for value in ("25 cents", "25 CENT", "quarter"):
+    def test_maps_frozen_canadian_denomination_representations(self):
+        cases = {
+            "cent": "1 cent",
+            "1 cent": "1 cent",
+            "nickel": "5 cents",
+            "5 CENT": "5 cents",
+            "dime": "10 cents",
+            "10 cent": "10 cents",
+            "quarter": "25 cents",
+            "25 CENTS": "25 cents",
+            "half dollar": "50 cents",
+            "50 cent": "50 cents",
+            "loonie": "1 dollar",
+            "$1": "1 dollar",
+            "1 dollar": "1 dollar",
+            "toonie": "2 dollars",
+            "$2": "2 dollars",
+            "2 dollars": "2 dollars",
+        }
+        for value, expected in cases.items():
             with self.subTest(value=value):
-                self.assertEqual(canonicalize_denomination(
-                    value, canonical_country="CAN", policy=self.policy
-                ), "25 cents")
-        for value in ("1/4 dollar", "0.25 dollar", "$0.25", "twenty-five cents", "25c"):
+                self.assertEqual(
+                    canonicalize_denomination(value, canonical_country="CAN", policy=self.policy),
+                    expected,
+                )
+
+    def test_rejects_unmapped_denomination_representations(self):
+        for value in (
+            "penny", "five-cent piece", "ten cents coin", "1/4 dollar", "0.25 dollar",
+            "$0.25", "twenty-five cents", "25c", "50c", "one dollar", "two dollars",
+        ):
             with self.subTest(value=value):
                 self.assertIsNone(canonicalize_denomination(
                     value, canonical_country="CAN", policy=self.policy
                 ))
+
+    def test_policy_version_cannot_silently_add_denomination_alias(self):
+        payload = json.loads(DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
+        payload["denomination_aliases"].append(
+            {"jurisdiction": "CAN", "normalized": "two dollars", "canonical": "2 dollars"}
+        )
+        payload["denomination_aliases"].sort(key=lambda row: (row["jurisdiction"], row["normalized"]))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "policy.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(
+                DesktopAcceptanceCanonicalizationError, "frozen policy"
+            ):
+                load_desktop_acceptance_canonicalization_policy(path)
 
     def test_year_requires_four_ascii_gregorian_digits_after_nfkc(self):
         self.assertEqual(canonicalize_year("１９６４"), "1964")
@@ -87,6 +125,11 @@ class DesktopAcceptanceCanonicalizationTests(unittest.TestCase):
         self.assertEqual(
             canonicalize_complete_identity(identity, self.policy).to_dict(),
             {"country": "CAN", "denomination": "25 cents", "year": "1964"},
+        )
+        dollar = {"country": "CAN", "denomination": "loonie", "year": "2024"}
+        self.assertEqual(
+            canonicalize_complete_identity(dollar, self.policy).to_dict(),
+            {"country": "CAN", "denomination": "1 dollar", "year": "2024"},
         )
         for partial in (
             {"country": "Canada", "denomination": "quarter"},

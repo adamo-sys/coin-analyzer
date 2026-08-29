@@ -14,9 +14,28 @@
     {"normalized": "canada", "canonical": "CAN"}
   ],
   "denomination_aliases": [
+    {"jurisdiction": "CAN", "normalized": "$1", "canonical": "1 dollar"},
+    {"jurisdiction": "CAN", "normalized": "$2", "canonical": "2 dollars"},
+    {"jurisdiction": "CAN", "normalized": "1 cent", "canonical": "1 cent"},
+    {"jurisdiction": "CAN", "normalized": "1 cents", "canonical": "1 cent"},
+    {"jurisdiction": "CAN", "normalized": "1 dollar", "canonical": "1 dollar"},
+    {"jurisdiction": "CAN", "normalized": "10 cent", "canonical": "10 cents"},
+    {"jurisdiction": "CAN", "normalized": "10 cents", "canonical": "10 cents"},
+    {"jurisdiction": "CAN", "normalized": "2 dollar", "canonical": "2 dollars"},
+    {"jurisdiction": "CAN", "normalized": "2 dollars", "canonical": "2 dollars"},
     {"jurisdiction": "CAN", "normalized": "25 cent", "canonical": "25 cents"},
     {"jurisdiction": "CAN", "normalized": "25 cents", "canonical": "25 cents"},
-    {"jurisdiction": "CAN", "normalized": "quarter", "canonical": "25 cents"}
+    {"jurisdiction": "CAN", "normalized": "5 cent", "canonical": "5 cents"},
+    {"jurisdiction": "CAN", "normalized": "5 cents", "canonical": "5 cents"},
+    {"jurisdiction": "CAN", "normalized": "50 cent", "canonical": "50 cents"},
+    {"jurisdiction": "CAN", "normalized": "50 cents", "canonical": "50 cents"},
+    {"jurisdiction": "CAN", "normalized": "cent", "canonical": "1 cent"},
+    {"jurisdiction": "CAN", "normalized": "dime", "canonical": "10 cents"},
+    {"jurisdiction": "CAN", "normalized": "half dollar", "canonical": "50 cents"},
+    {"jurisdiction": "CAN", "normalized": "loonie", "canonical": "1 dollar"},
+    {"jurisdiction": "CAN", "normalized": "nickel", "canonical": "5 cents"},
+    {"jurisdiction": "CAN", "normalized": "quarter", "canonical": "25 cents"},
+    {"jurisdiction": "CAN", "normalized": "toonie", "canonical": "2 dollars"}
   ],
   "year_policy": {
     "calendar": "proleptic-gregorian",
