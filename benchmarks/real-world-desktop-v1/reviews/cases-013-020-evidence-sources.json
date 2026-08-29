@@ -1,0 +1,25 @@
+{
+  "status": "prepared_unresolved",
+  "cases": [
+    {"case_id":"case-013","specimen_id":"specimen-013","inventory":"S013","candidate_identity":{"jurisdiction":"Canada","denomination":"25 cents","year":"2008"},"candidate_action":"identify"},
+    {"case_id":"case-014","specimen_id":"specimen-014","inventory":"S014","candidate_identity":{"jurisdiction":"Canada","denomination":"25 cents","year":"2023"},"candidate_action":"identify"},
+    {"case_id":"case-015","specimen_id":"specimen-015","inventory":"S015","candidate_identity":{"jurisdiction":"Canada","denomination":"50 cents","year":"1944"},"candidate_action":"identify","scope_note":"rotated die outside v1 headline scoring"},
+    {"case_id":"case-016","specimen_id":"specimen-016","inventory":"S016","candidate_identity":{"jurisdiction":"Newfoundland","denomination":"5 cents","year":"1945"},"candidate_action":"abstain","scope_note":"Newfoundland intentionally unmapped by frozen v1 jurisdiction policy; mintmark note outside headline scoring"},
+    {"case_id":"case-017","specimen_id":"specimen-017","inventory":"S017","candidate_identity":{"jurisdiction":"Canada","denomination":"25 cents","year":"2005"},"candidate_action":"identify"},
+    {"case_id":"case-018","specimen_id":"specimen-018","inventory":"S018","candidate_identity":{"jurisdiction":"Canada","denomination":"10 cents","year":"2023"},"candidate_action":"identify"},
+    {"case_id":"case-019","specimen_id":"specimen-019","inventory":"S019","candidate_identity":{"jurisdiction":"Canada","denomination":"1 cent","year":"1859"},"candidate_action":"identify","scope_note":"variety attribution outside v1 headline scoring"},
+    {"case_id":"case-020","specimen_id":"specimen-020","inventory":"S020","candidate_identity":{"jurisdiction":"Canada","denomination":"5 cents","year":"1923"},"candidate_action":"identify","stability_case":true}
+  ],
+  "prepared_sources": [
+    {"publisher":"Royal Canadian Mint","title":"25 cents","url":"https://www.mint.ca/en-us/discover/canadian-circulation/25-cents","supports":["case-013","case-014","case-017"]},
+    {"publisher":"Royal Canadian Mint","title":"10 cents","url":"https://www.mint.ca/en-us/discover/canadian-circulation/10-cents","supports":["case-018"]},
+    {"publisher":"Royal Canadian Mint","title":"Classic Uncirculated Coin Set (2023)","url":"https://www.mint.ca/en-us/shopping/archives/2023/classic-uncirculated-coin-set-pack-246276","supports":["case-014","case-018"]},
+    {"publisher":"coin-analyzer repository","title":"canonicalization-policy-v1.json","path":"benchmarks/real-world-desktop-v1/canonicalization-policy-v1.json","supports_expected_action":"all cases, subject to independent human review"}
+  ],
+  "review_state":{"ground_truth":"unresolved","expected_action":"unresolved"},
+  "physical_specimen_linkage":"unresolved",
+  "image_rights":"unresolved",
+  "provider_eligibility":{"privacy":"unresolved","licensing":"unresolved","provider_authorization":"unresolved"},
+  "recognition_used":false,
+  "official_capture_started":false
+}
