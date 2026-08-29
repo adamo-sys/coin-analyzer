@@ -58,13 +58,19 @@ def load_authoring_plan(path: str | Path) -> Mapping[str, object]:
         payload = json.loads(plan_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise DesktopAcceptanceAuthoringError(f"cannot read authoring plan: {error}") from error
+    return validate_authoring_plan(payload)
+
+
+def validate_authoring_plan(payload: object) -> Mapping[str, object]:
+    """Validate an in-memory authoring plan using the authoritative shape contract."""
     _validate_plan_shape(payload)
+    assert isinstance(payload, Mapping)
     return payload
 
 
 def evaluate_readiness(payload: Mapping[str, object]) -> ReadinessReport:
     """Return deterministic fail-closed readiness diagnostics for an authoring plan."""
-    _validate_plan_shape(payload)
+    validate_authoring_plan(payload)
     blockers: set[str] = set()
     warnings: set[str] = set()
     cases = payload["cases"]

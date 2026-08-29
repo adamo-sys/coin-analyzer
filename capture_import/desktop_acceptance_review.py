@@ -1,8 +1,9 @@
-"""Strict review-execution records for desktop acceptance v1.
+"""Deterministic desktop acceptance review records, packets, and reporting.
 
-This module validates human-originated review records.  It does not generate
-packets, reconcile decisions with the authoring plan, mutate authoring state, or
-authorize recognition, photography, or benchmark execution.
+This module validates human-originated review records, generates blinded
+reviewer packets, and derives advisory progress reports.  It does not mutate
+authoring state, export reconciliation results, or authorize recognition,
+photography, or benchmark execution.
 """
 
 from __future__ import annotations
@@ -14,11 +15,15 @@ import re
 from typing import Mapping, Sequence, TypeAlias
 from urllib.parse import unquote, urlsplit
 
+from capture_import.desktop_acceptance_authoring import validate_authoring_plan
+
 
 REVIEW_EXECUTION_SCHEMA = "coin-analyzer-desktop-acceptance-review-execution"
 REVIEW_EXECUTION_VERSION = "1.0.0"
 REVIEW_PACKET_SCHEMA = "coin-analyzer-desktop-acceptance-review-packet"
 REVIEW_PACKET_VERSION = "1.0.0"
+REVIEW_PROGRESS_SCHEMA = "coin-analyzer-desktop-acceptance-review-progress"
+REVIEW_PROGRESS_VERSION = "1.0.0"
 REVIEW_STATES = frozenset({"unresolved", "complete"})
 ELIGIBILITY_STATES = frozenset({"unresolved", "approved", "rejected"})
 EXPECTED_ACTIONS = frozenset({"identify", "abstain"})
@@ -33,6 +38,17 @@ GROUND_TRUTH_INSTRUCTIONS = (
 ACTION_INSTRUCTIONS = (
     "Determine whether the resolved identity is within the frozen v1 domain.",
     "Base the decision only on the supplied domain and canonicalization references.",
+)
+GROUND_TRUTH_PROGRESS_STATES = (
+    "unassigned",
+    "awaiting_submissions",
+    "disagreement_awaiting_adjudication",
+    "unresolved",
+    "complete",
+)
+ACTION_PROGRESS_STATES = (
+    "blocked_by_ground_truth",
+    *GROUND_TRUTH_PROGRESS_STATES,
 )
 
 _CASE_ID = re.compile(r"^case-[0-9]{3}$")
@@ -227,6 +243,89 @@ class ActionReviewerPacket:
 ReviewerPacket: TypeAlias = GroundTruthReviewerPacket | ActionReviewerPacket
 
 
+@dataclass(frozen=True, slots=True)
+class CaseReviewProgress:
+    case_id: str
+    specimen_id: str
+    ground_truth_status: str
+    action_status: str
+    privacy_state: str
+    licensing_state: str
+    provider_authorization_state: str
+    provenance_ready: bool
+    review_provenance_ready: bool
+    blockers: tuple[str, ...]
+
+    def _as_dict(self) -> dict[str, object]:
+        return {
+            "case_id": self.case_id,
+            "specimen_id": self.specimen_id,
+            "ground_truth_status": self.ground_truth_status,
+            "action_status": self.action_status,
+            "adjudication_needed": {
+                "ground_truth": (
+                    self.ground_truth_status == "disagreement_awaiting_adjudication"
+                ),
+                "expected_action": (
+                    self.action_status == "disagreement_awaiting_adjudication"
+                ),
+            },
+            "provider_eligibility": {
+                "privacy": self.privacy_state,
+                "licensing": self.licensing_state,
+                "provider_authorization": self.provider_authorization_state,
+            },
+            "provenance_ready": self.provenance_ready,
+            "review_provenance_ready": self.review_provenance_ready,
+            "blockers": list(self.blockers),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewProgressReport:
+    schema: str
+    version: str
+    cases: tuple[CaseReviewProgress, ...]
+
+    @property
+    def review_provenance_ready(self) -> bool:
+        return bool(self.cases) and all(case.review_provenance_ready for case in self.cases)
+
+    def _as_dict(self) -> dict[str, object]:
+        ground_truth_counts = {state: 0 for state in GROUND_TRUTH_PROGRESS_STATES}
+        action_counts = {state: 0 for state in ACTION_PROGRESS_STATES}
+        eligibility_counts = {
+            field: {state: 0 for state in sorted(ELIGIBILITY_STATES)}
+            for field in ELIGIBILITY_FIELDS
+        }
+        ground_truth_adjudications = 0
+        action_adjudications = 0
+        for case in self.cases:
+            ground_truth_counts[case.ground_truth_status] += 1
+            action_counts[case.action_status] += 1
+            eligibility_counts["privacy"][case.privacy_state] += 1
+            eligibility_counts["licensing"][case.licensing_state] += 1
+            eligibility_counts["provider_authorization"][case.provider_authorization_state] += 1
+            if case.ground_truth_status == "disagreement_awaiting_adjudication":
+                ground_truth_adjudications += 1
+            if case.action_status == "disagreement_awaiting_adjudication":
+                action_adjudications += 1
+        return {
+            "schema": self.schema,
+            "version": self.version,
+            "total_cases": len(self.cases),
+            "ground_truth_status_counts": ground_truth_counts,
+            "expected_action_status_counts": action_counts,
+            "adjudication_needed_counts": {
+                "ground_truth": ground_truth_adjudications,
+                "expected_action": action_adjudications,
+            },
+            "provider_eligibility_state_counts": eligibility_counts,
+            "review_provenance_ready": self.review_provenance_ready,
+            "cases": [case._as_dict() for case in self.cases],
+        }
+
+
 def load_review_execution_record(
     path: str | Path, authoring_state: Mapping[str, object]
 ) -> ReviewExecutionRecord:
@@ -387,6 +486,94 @@ def normalized_reviewer_packet_json(
         raise TypeError("packet must be a reviewer packet")
     validated = validate_reviewer_packet(packet.as_dict(), authoring_state, execution_record)
     return _normalized_json(validated.as_dict())
+
+
+def build_review_progress_report(
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> ReviewProgressReport:
+    """Derive immutable review/provenance progress without changing source state."""
+    validated_authoring = validate_authoring_plan(authoring_state)
+    validated_execution = _revalidate_execution_record(
+        execution_record, validated_authoring
+    )
+    authoring_cases = _authoring_cases_for_reporting(validated_authoring)
+    cases = tuple(
+        _derive_case_progress(authoring_cases[case.case_id], case)
+        for case in validated_execution.cases
+    )
+    return ReviewProgressReport(REVIEW_PROGRESS_SCHEMA, REVIEW_PROGRESS_VERSION, cases)
+
+
+def normalized_review_progress_json(
+    report: ReviewProgressReport,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> str:
+    """Revalidate and serialize one progress report deterministically."""
+    return _normalized_json(
+        validated_review_progress_dict(report, authoring_state, execution_record)
+    )
+
+
+def validated_review_progress_dict(
+    report: ReviewProgressReport,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> dict[str, object]:
+    """Return a machine-readable report only after source-state revalidation."""
+    validated = _revalidate_progress_report(report, authoring_state, execution_record)
+    return validated._as_dict()
+
+
+def render_review_progress_report(
+    report: ReviewProgressReport,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> str:
+    """Render the same validated progress state as concise deterministic text."""
+    data = validated_review_progress_dict(report, authoring_state, execution_record)
+    ready_text = "yes" if data["review_provenance_ready"] else "no"
+    lines = [
+        "Desktop acceptance review/provenance progress",
+        f"Overall ready: {ready_text}",
+        f"Total cases: {data['total_cases']}",
+        "Ground truth: "
+        + _format_counts(data["ground_truth_status_counts"], GROUND_TRUTH_PROGRESS_STATES),
+        "Expected action: "
+        + _format_counts(data["expected_action_status_counts"], ACTION_PROGRESS_STATES),
+    ]
+    adjudications = data["adjudication_needed_counts"]
+    assert isinstance(adjudications, Mapping)
+    lines.append(
+        "Adjudication needed: "
+        f"ground_truth={adjudications['ground_truth']}, "
+        f"expected_action={adjudications['expected_action']}"
+    )
+    eligibility_counts = data["provider_eligibility_state_counts"]
+    assert isinstance(eligibility_counts, Mapping)
+    for field in ELIGIBILITY_FIELDS:
+        counts = eligibility_counts[field]
+        assert isinstance(counts, Mapping)
+        lines.append(
+            f"Eligibility {field}: "
+            + _format_counts(counts, tuple(sorted(ELIGIBILITY_STATES)))
+        )
+    lines.append("Cases:")
+    raw_cases = data["cases"]
+    assert isinstance(raw_cases, list)
+    for case in raw_cases:
+        assert isinstance(case, Mapping)
+        blockers = case["blockers"]
+        assert isinstance(blockers, list)
+        blocker_text = ",".join(blockers) if blockers else "none"
+        readiness = "ready" if case["review_provenance_ready"] else "blocked"
+        lines.append(
+            f"- {case['case_id']} {case['specimen_id']}: {readiness}; "
+            f"gt={case['ground_truth_status']}; action={case['action_status']}; "
+            f"blockers={blocker_text}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _validate_ground_truth_packet(
@@ -556,6 +743,154 @@ def _require_exact_string_list(
     if not isinstance(value, list) or tuple(value) != expected:
         raise DesktopAcceptanceReviewError(f"{label} does not match the packet contract")
     return expected
+
+
+def _authoring_cases_for_reporting(
+    authoring_state: Mapping[str, object],
+) -> dict[str, Mapping[str, object]]:
+    roster = _authoring_roster(authoring_state)
+    raw_cases = authoring_state["cases"]
+    assert isinstance(raw_cases, list)
+    cases: dict[str, Mapping[str, object]] = {}
+    for index, value in enumerate(raw_cases):
+        case = _require_mapping(value, f"authoring state cases[{index}]")
+        case_id = case.get("case_id")
+        assert isinstance(case_id, str) and case_id in roster
+        if "candidate_identity" not in case or "expected_action" not in case:
+            raise DesktopAcceptanceReviewError(
+                f"authoring state {case_id} lacks candidate review values"
+            )
+        provenance = _require_mapping(
+            case.get("provenance"), f"authoring state {case_id}.provenance"
+        )
+        _require_exact_keys(
+            provenance,
+            {"ownership_or_source", "evidence_reference", "notes"},
+            f"authoring state {case_id}.provenance",
+        )
+        for field in ("ownership_or_source", "evidence_reference", "notes"):
+            if not isinstance(provenance[field], str):
+                raise DesktopAcceptanceReviewError(
+                    f"authoring state {case_id}.provenance.{field} must be text"
+                )
+        cases[case_id] = case
+    return cases
+
+
+def _derive_case_progress(
+    authoring_case: Mapping[str, object], execution_case: ReviewCaseRecord
+) -> CaseReviewProgress:
+    ground_truth_status = _track_progress_status(execution_case.ground_truth_review)
+    if execution_case.ground_truth_review.state != "complete":
+        action_status = "blocked_by_ground_truth"
+    else:
+        action_status = _track_progress_status(execution_case.action_review)
+
+    blockers: list[str] = []
+    if ground_truth_status != "complete":
+        blockers.append(f"ground_truth_{ground_truth_status}")
+    elif _resolved_track_decision(execution_case.ground_truth_review) != _candidate_identity(
+        authoring_case
+    ):
+        blockers.append("ground_truth_reconciliation_mismatch")
+
+    if action_status != "complete":
+        blockers.append(f"action_{action_status}")
+    elif _resolved_track_decision(execution_case.action_review) != authoring_case.get(
+        "expected_action"
+    ):
+        blockers.append("action_reconciliation_mismatch")
+
+    provenance = _require_mapping(
+        authoring_case.get("provenance"),
+        f"authoring state {execution_case.case_id}.provenance",
+    )
+    ownership_ready = _nonempty_authoring_text(provenance["ownership_or_source"])
+    evidence_ready = _nonempty_authoring_text(provenance["evidence_reference"])
+    if not ownership_ready:
+        blockers.append("provenance_ownership_or_source_unresolved")
+    if not evidence_ready:
+        blockers.append("provenance_evidence_unresolved")
+    provenance_ready = ownership_ready and evidence_ready
+
+    eligibility_states: dict[str, str] = {}
+    for field in ELIGIBILITY_FIELDS:
+        state = getattr(execution_case.provider_eligibility, field).state
+        eligibility_states[field] = state
+        if state != "approved":
+            blockers.append(f"{field}_{state}")
+
+    return CaseReviewProgress(
+        case_id=execution_case.case_id,
+        specimen_id=execution_case.specimen_id,
+        ground_truth_status=ground_truth_status,
+        action_status=action_status,
+        privacy_state=eligibility_states["privacy"],
+        licensing_state=eligibility_states["licensing"],
+        provider_authorization_state=eligibility_states["provider_authorization"],
+        provenance_ready=provenance_ready,
+        review_provenance_ready=not blockers,
+        blockers=tuple(blockers),
+    )
+
+
+def _track_progress_status(track: ReviewTrack) -> str:
+    if track.state == "complete":
+        return "complete"
+    if not track.submissions:
+        return "unassigned"
+    if len(track.submissions) == 1:
+        return "awaiting_submissions"
+    if (
+        track.submissions[0].decision != track.submissions[1].decision
+        and track.adjudication is None
+    ):
+        return "disagreement_awaiting_adjudication"
+    return "unresolved"
+
+
+def _resolved_track_decision(track: ReviewTrack) -> ReviewDecision:
+    if track.state != "complete":
+        raise DesktopAcceptanceReviewError("cannot resolve an incomplete review track")
+    if track.adjudication is not None:
+        return track.adjudication.decision
+    return track.submissions[0].decision
+
+
+def _candidate_identity(authoring_case: Mapping[str, object]) -> IdentityDecision | None:
+    identity = authoring_case.get("candidate_identity")
+    if not isinstance(identity, Mapping) or set(identity) != set(IDENTITY_FIELDS):
+        return None
+    values = tuple(identity.get(field) for field in IDENTITY_FIELDS)
+    if not all(_nonempty_authoring_text(value) for value in values):
+        return None
+    country, denomination, year = values
+    assert isinstance(country, str) and isinstance(denomination, str) and isinstance(year, str)
+    return IdentityDecision(country, denomination, year)
+
+
+def _nonempty_authoring_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _revalidate_progress_report(
+    report: ReviewProgressReport,
+    authoring_state: Mapping[str, object],
+    execution_record: ReviewExecutionRecord,
+) -> ReviewProgressReport:
+    if not isinstance(report, ReviewProgressReport):
+        raise TypeError("report must be a ReviewProgressReport")
+    expected = build_review_progress_report(authoring_state, execution_record)
+    if report != expected:
+        raise DesktopAcceptanceReviewError(
+            "review progress report does not match supplied authoring/execution state"
+        )
+    return expected
+
+
+def _format_counts(counts: object, states: tuple[str, ...]) -> str:
+    mapping = _require_mapping(counts, "progress counts")
+    return ", ".join(f"{state}={mapping[state]}" for state in states)
 
 
 def _normalized_json(value: object) -> str:

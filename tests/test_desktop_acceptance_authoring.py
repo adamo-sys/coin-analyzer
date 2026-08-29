@@ -13,6 +13,7 @@ from capture_import.desktop_acceptance_authoring import (
     evaluate_readiness,
     prepare_for_freeze,
     readiness_json,
+    validate_authoring_plan,
 )
 from capture_import.desktop_acceptance_set import (
     DesktopAcceptanceManifestError,
@@ -121,6 +122,17 @@ def ready_plan() -> dict[str, object]:
 
 
 class DesktopAcceptanceAuthoringTests(unittest.TestCase):
+    def test_in_memory_validation_reuses_shape_contract_without_mutation(self) -> None:
+        payload = ready_plan()
+        before = deepcopy(payload)
+        self.assertIs(validate_authoring_plan(payload), payload)
+        self.assertEqual(payload, before)
+
+        malformed = deepcopy(payload)
+        malformed["schema"] = "unsupported"
+        with self.assertRaisesRegex(DesktopAcceptanceAuthoringError, "schema/version"):
+            validate_authoring_plan(malformed)
+
     def test_empty_authoring_state_is_not_ready(self) -> None:
         payload = {
             "schema": AUTHORING_SCHEMA,
