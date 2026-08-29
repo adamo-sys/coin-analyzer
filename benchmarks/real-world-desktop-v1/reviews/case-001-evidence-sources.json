@@ -1,0 +1,39 @@
+{
+  "case_id": "case-001",
+  "specimen_id": "specimen-001",
+  "status": "evidence-prepared-reviews-unresolved",
+  "candidate_identity": {
+    "country": "Newfoundland",
+    "denomination": "1 cent",
+    "year": "1890"
+  },
+  "candidate_expected_action": "abstain",
+  "ground_truth_sources": [
+    {
+      "source_id": "numista-n3958",
+      "url": "https://en.numista.com/3958",
+      "supports": ["jurisdiction", "denomination", "year/type existence"]
+    },
+    {
+      "source_id": "coinsandcanada-newfoundland-1-cent",
+      "url": "https://www.coinsandcanada.com/coins-prices-newfoundland.php?canadian_coins=nf-1-newfoundland-1-cent-1864-1947&currency=USD",
+      "supports": ["jurisdiction/catalogue series", "denomination", "1890 issue existence"]
+    }
+  ],
+  "expected_action_source": {
+    "repository_path": "benchmarks/real-world-desktop-v1/canonicalization-policy-v1.json",
+    "policy_version": "1.0.0",
+    "finding": "Only can and canada canonicalize to CAN; Newfoundland has no jurisdiction alias and therefore fails closed outside the v1 identify domain."
+  },
+  "unresolved": [
+    "physical specimen linkage",
+    "ground truth reviewer A",
+    "ground truth reviewer B",
+    "expected action reviewer A",
+    "expected action reviewer B",
+    "privacy",
+    "licensing",
+    "provider authorization",
+    "image rights basis"
+  ]
+}
