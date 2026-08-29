@@ -47,7 +47,7 @@ class _Runtime:
         abstain = denomination is None or year is None
         return json.dumps(
             {
-                "country": "Canada" if "CANAD" in ocr else None,
+                "country": "Canada" if "CANAD" in ocr or "CANAOA" in ocr else None,
                 "denomination": denomination,
                 "year": year,
                 "candidate_id": None,
