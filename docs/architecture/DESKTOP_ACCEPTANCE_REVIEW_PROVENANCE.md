@@ -31,6 +31,70 @@ readiness. Evidence-preparation notes and source ledgers are supporting inputs;
 they are not reviewer decisions and must not be interpreted as completed review
 state.
 
+### Canonical persistence layout
+
+The authoritative persisted machine-readable `ReviewExecutionRecord` for the
+v1 review workflow is:
+
+`benchmarks/real-world-desktop-v1/reviews/execution/review-execution-v1.json`
+
+This record is the sole persisted machine authority for human-review workflow
+state, including submissions, adjudications, track completion, and provider
+eligibility decisions. It may advance only through controlled, validated
+workflow updates. Such an update must preserve every previously submitted
+reviewer decision and adjudication as immutable audit evidence; reconciliation,
+report generation, or later transcription must not rewrite that evidence.
+
+The authoritative evidence-reference-to-resolution mapping for v1 is:
+
+`benchmarks/real-world-desktop-v1/reviews/evidence/evidence-resolution-v1.json`
+
+This catalog is the sole persisted machine authority for reviewed evidence
+resolution state. It maps each accepted `evidence_reference` to its durable
+`resolution_record` under the evidence-resolution contract. Adding or reviewing
+a mapping does not change the referenced human decision, adjudication, approval,
+or source evidence, and a derived report must not create, infer, or rebind a
+catalog entry.
+
+Reviewer-facing packets are persisted beneath:
+
+`benchmarks/real-world-desktop-v1/reviews/packets/<batch-and-track-specific-directory>/`
+
+Each leaf directory is a bounded human-review artifact set for one explicitly
+identified batch and track. Packet production and controlled delivery must
+preserve the active track's sequencing and blindness requirements. A packet
+directory must not expose candidate answers, peer submissions, adjudication
+results, or other material prohibited by the blinded-packet contract merely
+because other repository artifacts exist.
+
+The canonical derived v1 reporting artifacts are:
+
+- progress report:
+  `benchmarks/real-world-desktop-v1/reviews/reports/unit-4-progress-v1.json`;
+- reconciliation handoff:
+  `benchmarks/real-world-desktop-v1/reviews/reports/unit-4-reconciliation-handoff-v1.json`.
+
+Both reports are deterministic derived views of validated authoring state, the
+authoritative execution record, and the authoritative evidence-resolution
+catalog. They are not sources of truth for reviewer or adjudicator decisions,
+must not be edited to advance workflow state, and do not authorize authoring
+mutation, freeze preparation, photography, recognition, or benchmark execution.
+They may be regenerated only from their validated authoritative inputs.
+
+Human-returned reviewer and adjudicator source evidence remains immutable and
+separate from the transcribed execution record, the evidence-resolution catalog,
+reviewer packets, and derived reports. Transcription preserves the source
+decision; it does not replace or retroactively amend the human-returned artifact.
+Any correction requires an explicit, auditable review or adjudication action
+rather than alteration of the original human evidence.
+
+The `-v1` artifact names bind these canonical locations to their compatible v1
+persistence schemas. A file at one of these locations must not be silently
+overwritten with an incompatible schema or meaning. Any future incompatible
+persistence format requires an explicitly versioned successor filename and an
+explicit architecture amendment; compatible regeneration or controlled state
+advancement must continue to pass the corresponding schema validator.
+
 Generation and validation must be deterministic: identical authoring, evidence,
 assignment, and submission inputs produce byte-equivalent normalized records,
 packets, and reports. Malformed, incomplete, ambiguous, or internally
