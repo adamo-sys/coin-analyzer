@@ -1629,9 +1629,35 @@ class CoinCollectionApp:
                          purchase_source: Optional[str] = None,
                          shipping_cost: Optional[Decimal] = None,
                          buyers_premium: Optional[Decimal] = None,
-                         tax: Optional[Decimal] = None) -> bool:
-        """Add current coin to collection."""
-        if not self.current_image_path:
+                         tax: Optional[Decimal] = None,
+                         item_type: ItemType = ItemType.COIN,
+                         issuer: str = "",
+                         title: str = "",
+                         reference: str = "",
+                         disposition: Disposition = Disposition.UNDECIDED,
+                         identification_status: IdentificationStatus | None = None) -> bool:
+        """Add one manually reviewed numismatic item to the collection."""
+        try:
+            normalized_item_type = CoinItem._closed_enum(
+                ItemType, item_type, "item_type"
+            )
+            normalized_disposition = CoinItem._closed_enum(
+                Disposition, disposition, "disposition"
+            )
+            normalized_status = (
+                None
+                if identification_status is None
+                else CoinItem._closed_enum(
+                    IdentificationStatus,
+                    identification_status,
+                    "identification_status",
+                )
+            )
+        except ValueError as error:
+            self.collection.last_save_error = str(error)
+            return False
+
+        if not self.current_image_path and normalized_item_type is ItemType.COIN:
             print("No image uploaded")
             return False
         
@@ -1681,6 +1707,12 @@ class CoinCollectionApp:
             shipping_cost=shipping_cost,
             buyers_premium=buyers_premium,
             tax=tax,
+            item_type=normalized_item_type,
+            issuer=str(issuer or "").strip(),
+            title=str(title or "").strip(),
+            reference=str(reference or "").strip(),
+            disposition=normalized_disposition,
+            identification_status=normalized_status,
         )
         
         if not self.collection.add_item(item):

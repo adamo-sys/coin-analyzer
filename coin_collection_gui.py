@@ -17,7 +17,10 @@ from collector_cloud import CollectorCloud
 from coin_collection import (
     CoinCollectionApp,
     CoinItem,
+    Disposition,
+    IdentificationStatus,
     ItemPhoto,
+    ItemType,
     PhotoRole,
     normalize_acquisition_values,
     serialize_money,
@@ -1046,6 +1049,43 @@ Total Unique Dates: {total_unique_dates}
         return normalize_acquisition_values(values)
 
     @classmethod
+    def manual_item_values_from_text(cls, values):
+        """Map manual form text to validated authoritative record values."""
+        item_type = CoinItem._closed_enum(
+            ItemType, values.get("item_type", ItemType.COIN.value), "item_type"
+        )
+        disposition = CoinItem._closed_enum(
+            Disposition,
+            values.get("disposition", Disposition.UNDECIDED.value),
+            "disposition",
+        )
+        identity = {
+            name: str(values.get(name) or "").strip()
+            for name in ("country", "denomination", "year")
+        }
+        raw_status = values.get("identification_status")
+        identification_status = (
+            CoinItem._derived_identification_status(**identity)
+            if raw_status is None or not str(raw_status).strip()
+            else CoinItem._closed_enum(
+                IdentificationStatus, raw_status, "identification_status"
+            )
+        )
+        mapped = {
+            **identity,
+            "grade": str(values.get("grade") or "").strip(),
+            "notes": str(values.get("notes") or "").strip(),
+            "issuer": str(values.get("issuer") or "").strip(),
+            "title": str(values.get("title") or "").strip(),
+            "reference": str(values.get("reference") or "").strip(),
+            "item_type": item_type,
+            "disposition": disposition,
+            "identification_status": identification_status,
+        }
+        mapped.update(cls.acquisition_values_from_text(values))
+        return mapped
+
+    @classmethod
     def acquisition_total_text(cls, values):
         """Return live total text without allowing a calculated value to become input."""
         try:
@@ -1118,7 +1158,7 @@ Total Unique Dates: {total_unique_dates}
             ("Date (YYYY-MM-DD):", "acquisition_date"),
             ("Price:", "purchase_price"),
             ("Currency:", "purchase_currency"),
-            ("Source:", "purchase_source"),
+            ("Source / Vendor:", "purchase_source"),
             ("Shipping:", "shipping_cost"),
             ("Buyer's Premium:", "buyers_premium"),
             ("Tax:", "tax"),
@@ -1308,57 +1348,104 @@ Total Unique Dates: {total_unique_dates}
         right_panel.rowconfigure(1, weight=1)
         
         # Edit form
-        edit_frame = ttk.LabelFrame(right_panel, text="Coin Details", padding="10")
+        edit_frame = ttk.LabelFrame(right_panel, text="Item Details", padding="10")
         edit_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         edit_frame.columnconfigure(1, weight=1)
+
+        type_frame = ttk.Frame(edit_frame)
+        type_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5))
+        type_frame.columnconfigure(1, weight=1)
+        type_frame.columnconfigure(3, weight=1)
+
+        ttk.Label(type_frame, text="Item Type:").grid(row=0, column=0, sticky=tk.W)
+        self.item_type_var = tk.StringVar(value=ItemType.COIN.value)
+        ttk.Combobox(
+            type_frame,
+            textvariable=self.item_type_var,
+            values=[value.value for value in ItemType],
+            state="readonly",
+        ).grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 12))
+        ttk.Label(type_frame, text="Disposition:").grid(row=0, column=2, sticky=tk.W)
+        self.disposition_var = tk.StringVar(value=Disposition.UNDECIDED.value)
+        ttk.Combobox(
+            type_frame,
+            textvariable=self.disposition_var,
+            values=[value.value for value in Disposition],
+            state="readonly",
+        ).grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(5, 0))
+
+        ttk.Label(type_frame, text="Issuer:").grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+        self.issuer_var = tk.StringVar()
+        ttk.Entry(type_frame, textvariable=self.issuer_var).grid(
+            row=1, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=(5, 0)
+        )
+        ttk.Label(type_frame, text="Identification:").grid(row=1, column=2, sticky=tk.W, pady=(5, 0))
+        self.identification_status_var = tk.StringVar()
+        ttk.Combobox(
+            type_frame,
+            textvariable=self.identification_status_var,
+            values=["", *[value.value for value in IdentificationStatus]],
+            state="readonly",
+        ).grid(row=1, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=(5, 0))
+
+        ttk.Label(type_frame, text="Title:").grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+        self.title_var = tk.StringVar()
+        ttk.Entry(type_frame, textvariable=self.title_var).grid(
+            row=2, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=(5, 0)
+        )
+        ttk.Label(type_frame, text="Reference:").grid(row=2, column=2, sticky=tk.W, pady=(5, 0))
+        self.reference_var = tk.StringVar()
+        ttk.Entry(type_frame, textvariable=self.reference_var).grid(
+            row=2, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=(5, 0)
+        )
         
         # Form fields
-        ttk.Label(edit_frame, text="Country:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(edit_frame, text="Country:").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.country_var = tk.StringVar()
         self.country_combo = ttk.Combobox(
             edit_frame,
             textvariable=self.country_var,
             values=self.get_entry_suggestions("country"),
         )
-        self.country_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.country_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         self.country_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('country', self.country_var.get()))
         self.country_combo.bind('<<ComboboxSelected>>', lambda e: self.on_country_changed())
         
-        ttk.Label(edit_frame, text="Denomination:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(edit_frame, text="Denomination:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.denomination_var = tk.StringVar()
         self.denomination_combo = ttk.Combobox(
             edit_frame,
             textvariable=self.denomination_var,
             values=self.get_entry_suggestions("denomination"),
         )
-        self.denomination_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.denomination_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         self.denomination_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('denomination', self.denomination_var.get()))
         self.denomination_combo.bind('<<ComboboxSelected>>', lambda e: self.on_denomination_changed())
         
-        ttk.Label(edit_frame, text="Year:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(edit_frame, text="Year / Date / Series:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.year_var = tk.StringVar()
         self.year_combo = ttk.Combobox(
             edit_frame,
             textvariable=self.year_var,
             values=self.get_entry_suggestions("year"),
         )
-        self.year_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.year_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         self.year_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('year', self.year_var.get()))
         
-        ttk.Label(edit_frame, text="Grade:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(edit_frame, text="Grade / Condition:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.grade_var = tk.StringVar()
         self.grade_combo = ttk.Combobox(edit_frame, textvariable=self.grade_var, values=GRADE_SUGGESTIONS)
-        self.grade_combo.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.grade_combo.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
-        ttk.Label(edit_frame, text="Notes:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(edit_frame, text="Notes:").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.notes_text = tk.Text(edit_frame, height=3, wrap=tk.WORD)
-        self.notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        self.notes_text.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
 
         acquisition_expanded = tk.BooleanVar(value=False)
         acquisition_button = ttk.Button(edit_frame, text="Acquisition Details ▸")
-        acquisition_button.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
+        acquisition_button.grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
         acquisition_frame = ttk.LabelFrame(edit_frame, text="Acquisition Details", padding="4")
-        acquisition_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        acquisition_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
         self.acquisition_button = acquisition_button
         self.acquisition_frame = acquisition_frame
         self.acquisition_controls = self.create_acquisition_fields(
@@ -1381,7 +1468,7 @@ Total Unique Dates: {total_unique_dates}
         
         # Action buttons
         action_frame = ttk.Frame(edit_frame)
-        action_frame.grid(row=7, column=0, columnspan=2, pady=(10, 0))
+        action_frame.grid(row=8, column=0, columnspan=2, pady=(10, 0))
         
         ttk.Button(action_frame, text="Use Detection Results", command=self.use_detection_results).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Save to Collection", command=self.save_to_collection).pack(side=tk.LEFT, padx=(0, 5))
@@ -2218,11 +2305,18 @@ Total Unique Dates: {total_unique_dates}
         """Build details text shared by the gallery window and tests."""
         details = [
             f"ID: {item.id}",
+            f"Item Type: {item.item_type.value}",
+            f"Disposition: {item.disposition.value}",
+            f"Identification Status: {item.identification_status.value}",
+            f"Updated At: {item.updated_at or 'Not recorded'}",
             f"Image: {item.primary_image_path}",
             f"Country: {item.country}",
+            f"Issuer: {item.issuer}",
             f"Denomination: {item.denomination}",
-            f"Year: {item.year}",
-            f"Grade: {item.grade}",
+            f"Year / Date / Series: {item.year}",
+            f"Title: {item.title}",
+            f"Reference: {item.reference}",
+            f"Grade / Condition: {item.grade}",
             f"Notes: {item.notes}",
             f"Date Added: {item.date_added}",
         ]
@@ -2230,10 +2324,7 @@ Total Unique Dates: {total_unique_dates}
             details.extend([
                 "",
                 "--- Numista Details ---",
-                f"Title: {item.title}",
                 f"Numista N#: {item.numista_n}",
-                f"Reference: {item.reference}",
-                f"Issuer: {item.issuer}",
                 f"Currency: {item.currency}",
                 f"Face Value: {item.face_value}",
                 f"Quantity: {item.quantity}",
@@ -2288,7 +2379,7 @@ Total Unique Dates: {total_unique_dates}
     def upload_image(self):
         """Attach one or more coin photos."""
         file_paths = filedialog.askopenfilenames(
-            title="Select Coin Photos",
+            title="Select Item Photos",
             filetypes=[
                 ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
                 ("All files", "*.*"),
@@ -2649,9 +2740,14 @@ Total Unique Dates: {total_unique_dates}
             print(f"Error logging detection: {str(e)}")
     
     def save_to_collection(self):
-        """Save current coin to collection."""
+        """Save the current manually reviewed item to the collection."""
         self.sync_current_image_path_from_photos()
-        if not self.app.current_image_path:
+        item_type_text = (
+            self.item_type_var.get()
+            if hasattr(self, "item_type_var")
+            else ItemType.COIN.value
+        )
+        if not self.app.current_image_path and item_type_text == ItemType.COIN.value:
             messagebox.showwarning("Warning", "Please upload an image first")
             return
         
@@ -2671,9 +2767,30 @@ Total Unique Dates: {total_unique_dates}
                 if hasattr(self, "acquisition_controls")
                 else {"purchase_currency": "CAD"}
             )
-            acquisition = self.acquisition_values_from_text(acquisition_text)
+            form_values = self.manual_item_values_from_text({
+                **acquisition_text,
+                "item_type": item_type_text,
+                "disposition": (
+                    self.disposition_var.get()
+                    if hasattr(self, "disposition_var")
+                    else Disposition.UNDECIDED.value
+                ),
+                "identification_status": (
+                    self.identification_status_var.get()
+                    if hasattr(self, "identification_status_var")
+                    else ""
+                ),
+                "country": country,
+                "issuer": self.issuer_var.get() if hasattr(self, "issuer_var") else "",
+                "denomination": denomination,
+                "year": year,
+                "title": self.title_var.get() if hasattr(self, "title_var") else "",
+                "reference": self.reference_var.get() if hasattr(self, "reference_var") else "",
+                "grade": grade,
+                "notes": notes,
+            })
         except ValueError as error:
-            messagebox.showwarning("Invalid Acquisition Details", str(error))
+            messagebox.showwarning("Invalid Item Details", str(error))
             return
         
         # Never auto-save detector results as truth - manual fields are source of truth
@@ -2682,7 +2799,30 @@ Total Unique Dates: {total_unique_dates}
         photos = self.normalized_photo_state(self.current_item_photos)
         add_kwargs = {"photos": photos}
         if hasattr(self, "acquisition_controls"):
-            add_kwargs.update(acquisition)
+            add_kwargs.update({
+                key: form_values[key]
+                for key in (
+                    "acquisition_date",
+                    "purchase_price",
+                    "purchase_currency",
+                    "purchase_source",
+                    "shipping_cost",
+                    "buyers_premium",
+                    "tax",
+                )
+            })
+        if hasattr(self, "item_type_var"):
+            add_kwargs.update({
+                key: form_values[key]
+                for key in (
+                    "item_type",
+                    "issuer",
+                    "title",
+                    "reference",
+                    "disposition",
+                    "identification_status",
+                )
+            })
         if self.app.add_to_collection(
             country,
             denomination,
@@ -2703,11 +2843,11 @@ Total Unique Dates: {total_unique_dates}
                 self.record_detection_observation_after_save(country, denomination, year, photos)
                 self.log_correction(country, denomination, year)
             
-            messagebox.showinfo("Success", "Coin added to collection")
+            messagebox.showinfo("Success", "Item added to collection")
             self.clear_form()
             self.refresh_collection_list()
         else:
-            messagebox.showerror("Error", "Failed to add coin to collection")
+            messagebox.showerror("Error", "Failed to add item to collection")
 
     def record_detection_observation_after_save(self, country, denomination, year, photos):
         """Persist a confirmed detection outcome after collection persistence succeeds."""
@@ -2774,6 +2914,15 @@ Total Unique Dates: {total_unique_dates}
     
     def clear_form(self):
         """Clear form fields."""
+        if hasattr(self, "item_type_var"):
+            self.item_type_var.set(ItemType.COIN.value)
+        if hasattr(self, "disposition_var"):
+            self.disposition_var.set(Disposition.UNDECIDED.value)
+        if hasattr(self, "identification_status_var"):
+            self.identification_status_var.set("")
+        for name in ("issuer_var", "title_var", "reference_var"):
+            if hasattr(self, name):
+                getattr(self, name).set("")
         self.country_var.set("")
         self.denomination_var.set("")
         self.year_var.set("")
@@ -4536,7 +4685,7 @@ Total Unique Dates: {total_unique_dates}
         """Open a scoped edit dialog that includes item-owned photo metadata."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Edit Item")
-        dialog.geometry("720x650")
+        dialog.geometry("780x760")
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -4545,8 +4694,14 @@ Total Unique Dates: {total_unique_dates}
         form = ttk.Frame(dialog, padding="10")
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
-        form.rowconfigure(8, weight=1)
+        form.rowconfigure(9, weight=1)
 
+        item_type_var = tk.StringVar(value=item.item_type.value)
+        disposition_var = tk.StringVar(value=item.disposition.value)
+        identification_status_var = tk.StringVar(value=item.identification_status.value)
+        issuer_var = tk.StringVar(value=item.issuer)
+        title_var = tk.StringVar(value=item.title)
+        reference_var = tk.StringVar(value=item.reference)
         country_var = tk.StringVar(value=item.country)
         denomination_var = tk.StringVar(value=item.denomination)
         year_var = tk.StringVar(value=item.year)
@@ -4554,13 +4709,37 @@ Total Unique Dates: {total_unique_dates}
         role_var = tk.StringVar(value=PhotoRole.OTHER.value)
         note_var = tk.StringVar()
 
+        type_frame = ttk.Frame(form)
+        type_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 8))
+        type_frame.columnconfigure(1, weight=1)
+        type_frame.columnconfigure(3, weight=1)
+        compact_fields = (
+            (0, 0, "Item Type:", item_type_var, [value.value for value in ItemType]),
+            (0, 2, "Disposition:", disposition_var, [value.value for value in Disposition]),
+            (1, 0, "Identification:", identification_status_var, [value.value for value in IdentificationStatus]),
+        )
+        for row_index, column, label, variable, values in compact_fields:
+            ttk.Label(type_frame, text=label).grid(row=row_index, column=column, sticky=tk.W, pady=3)
+            ttk.Combobox(
+                type_frame,
+                textvariable=variable,
+                values=values,
+                state="readonly",
+            ).grid(row=row_index, column=column + 1, sticky=(tk.W, tk.E), padx=(5, 12 if column == 0 else 0), pady=3)
+        ttk.Label(type_frame, text="Issuer:").grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(type_frame, textvariable=issuer_var).grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=3)
+        ttk.Label(type_frame, text="Title:").grid(row=1, column=2, sticky=tk.W, pady=3)
+        ttk.Entry(type_frame, textvariable=title_var).grid(row=1, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=3)
+        ttk.Label(type_frame, text="Reference:").grid(row=2, column=2, sticky=tk.W, pady=3)
+        ttk.Entry(type_frame, textvariable=reference_var).grid(row=2, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=3)
+
         fields = [
             ("Country:", country_var, self.get_entry_suggestions("country")),
             ("Denomination:", denomination_var, self.get_entry_suggestions("denomination")),
             ("Year:", year_var, self.get_entry_suggestions("year")),
             ("Grade:", grade_var, GRADE_SUGGESTIONS),
         ]
-        for row_index, (label, variable, values) in enumerate(fields):
+        for row_index, (label, variable, values) in enumerate(fields, start=1):
             ttk.Label(form, text=label).grid(row=row_index, column=0, sticky=tk.W, pady=4)
             ttk.Combobox(form, textvariable=variable, values=values).grid(
                 row=row_index,
@@ -4570,16 +4749,16 @@ Total Unique Dates: {total_unique_dates}
                 padx=(5, 0),
             )
 
-        ttk.Label(form, text="Notes:").grid(row=4, column=0, sticky=tk.NW, pady=4)
+        ttk.Label(form, text="Notes:").grid(row=5, column=0, sticky=tk.NW, pady=4)
         notes_text = tk.Text(form, height=4)
-        notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
+        notes_text.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
         notes_text.insert(tk.END, item.notes)
 
         acquisition_expanded = tk.BooleanVar(value=item.has_acquisition_details())
         acquisition_button = ttk.Button(form)
-        acquisition_button.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        acquisition_button.grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
         acquisition_frame = ttk.LabelFrame(form, text="Acquisition Details", padding="4")
-        acquisition_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        acquisition_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
         acquisition_controls = self.create_acquisition_fields(
             acquisition_frame,
             {
@@ -4609,7 +4788,7 @@ Total Unique Dates: {total_unique_dates}
         set_edit_acquisition_visibility()
 
         photo_frame = ttk.LabelFrame(form, text="Photos", padding="10")
-        photo_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        photo_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         photo_frame.columnconfigure(0, weight=1)
 
         edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
@@ -4648,7 +4827,7 @@ Total Unique Dates: {total_unique_dates}
 
         def add_edit_photos():
             paths = filedialog.askopenfilenames(
-                title="Select Coin Photos",
+                title="Select Item Photos",
                 filetypes=[
                     ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
                     ("All files", "*.*"),
@@ -4713,26 +4892,34 @@ Total Unique Dates: {total_unique_dates}
         note_entry.bind("<Return>", update_edit_notes)
 
         button_frame = ttk.Frame(form)
-        button_frame.grid(row=9, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+        button_frame.grid(row=10, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
 
         def save_edit():
             try:
-                acquisition = self.acquisition_values_from_text(acquisition_controls["values"]())
+                form_values = self.manual_item_values_from_text({
+                    **acquisition_controls["values"](),
+                    "item_type": item_type_var.get(),
+                    "disposition": disposition_var.get(),
+                    "identification_status": identification_status_var.get(),
+                    "country": country_var.get(),
+                    "issuer": issuer_var.get(),
+                    "denomination": denomination_var.get(),
+                    "year": year_var.get(),
+                    "title": title_var.get(),
+                    "reference": reference_var.get(),
+                    "grade": grade_var.get(),
+                    "notes": notes_text.get("1.0", tk.END),
+                })
             except ValueError as error:
-                messagebox.showwarning("Invalid Acquisition Details", str(error), parent=dialog)
+                messagebox.showwarning("Invalid Item Details", str(error), parent=dialog)
                 return
             photos = self.normalized_photo_state(edit_photos["photos"])
             primary = next((photo for photo in photos if photo.is_primary), None)
             updates = {
-                "country": country_var.get().strip(),
-                "denomination": denomination_var.get().strip(),
-                "year": year_var.get().strip(),
-                "grade": grade_var.get().strip(),
-                "notes": notes_text.get("1.0", tk.END).strip(),
+                **form_values,
                 "photos": photos,
                 "image_path": primary.path if primary else "",
             }
-            updates.update(acquisition)
             if not self.app.collection.update_item(item.id, updates):
                 messagebox.showerror(
                     "Save Failed",
