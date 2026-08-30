@@ -173,11 +173,41 @@ serialization. See:
 The primary collection file is local runtime data, excluded from Git, created on
 the first successful save, and backed up independently by the collector.
 
+### Primary collection load-state contract
+
+Loading the authoritative `data/collection.json` document has exactly three
+semantic outcomes:
+
+| State | Meaning | Permitted behavior |
+|---|---|---|
+| `MISSING` | No authoritative collection file exists. | Initialize a new empty in-memory collection. Normal mutation may create the authoritative file on its first successful save. |
+| `VALID` | The authoritative file exists and its complete contents load and validate successfully. | Permit normal read and collection-mutation operations. |
+| `INVALID_OR_UNSUPPORTED` | The authoritative file exists but cannot be read, parsed, or trusted as a supported collection document. | Fail closed, preserve the source file unchanged, expose the load failure to the caller and GUI, and prohibit ordinary collection mutation. |
+
+`INVALID_OR_UNSUPPORTED` includes malformed JSON, an invalid root structure,
+structurally invalid records, duplicate authoritative item IDs, an unsupported
+future schema or version once versioning exists, and any other condition that
+prevents the existing authoritative state from being trusted. It must never be
+converted into, displayed as, or saved over with an apparently empty replacement
+collection.
+
+While this state is active, add, update, delete, and save operations must fail
+without rewriting the authoritative file. Diagnostics may describe the failure
+but must not repair, normalize, migrate, or otherwise alter the source as a side
+effect of loading. Returning to normal operation requires an explicit safe
+recovery action followed by a successful load and validation; ordinary mutation
+is not a recovery mechanism. A missing file remains categorically distinct from
+an unreadable, malformed, invalid, or unsupported existing file.
+
+This state boundary is compatible with later versioned collection formats: an
+unsupported version is another fail-closed load outcome. The schema, migration,
+and recovery procedures for such a future format are outside this contract.
+
 ### Local store ownership
 
 | Data | Default owner/path | Notes |
 |---|---|---|
-| Primary collection | `CoinCollection` / `data/collection.json` | Authoritative local collection document; missing file means an empty collection |
+| Primary collection | `CoinCollection` / `data/collection.json` | Authoritative local collection document; only the `MISSING` load state may initialize a new empty collection |
 | Application/session state | `PersistenceManager` / `collection_data/app_state/app_state.json` | Workflow context and selected report/application state |
 | Photo Inbox state | `PhotoInboxManager` / `data/photo_inbox_state.json` | Local runtime queue/grouping state; excluded from Git |
 | Confirmed observations | `ConfirmedObservationStore` / `collection_data/app_state/confirmed_observations.json` | Collector-confirmed evidence, atomically written and separate from collection records |
