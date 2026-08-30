@@ -669,7 +669,8 @@ class DefaultCompositionIntegrationTests(unittest.TestCase):
             terminal_bytes = terminal_files[0].read_bytes()
             collection_bytes = (self.root / "collection.json").read_bytes()
             collection_value = json.loads(collection_bytes)
-            photos = collection_value[0]["photos"]
+            self.assertEqual(collection_value["schema_version"], 1)
+            photos = collection_value["items"][0]["photos"]
             provenance = [photo["capture_import_media"] for photo in photos]
             self.assertTrue(
                 all(

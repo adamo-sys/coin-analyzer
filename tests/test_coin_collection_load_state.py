@@ -99,7 +99,7 @@ class CollectionLoadStateTests(unittest.TestCase):
 
         collection = self.assert_invalid_source_is_unchanged(source)
 
-        self.assertIn("root must be an array", collection.load_error)
+        self.assertIn("must contain exactly", collection.load_error)
         self.assertFalse(collection.save_collection())
         self.assertEqual(source, self.path.read_bytes())
 

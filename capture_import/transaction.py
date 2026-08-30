@@ -10,7 +10,11 @@ from pathlib import Path
 from typing import Callable, TYPE_CHECKING
 from uuid import uuid4
 
-from coin_collection import CoinCollection, CoinItem
+from coin_collection import (
+    CoinCollection,
+    CoinItem,
+    deserialize_collection_payload,
+)
 
 if TYPE_CHECKING:
     from .schema3_runtime import Schema3PackageImportRecoveryService
@@ -468,12 +472,7 @@ class PackageImportTransactionService:
         try:
             with path.open("r", encoding="utf-8") as handle:
                 payload = json.load(handle)
-            if not isinstance(payload, list):
-                raise ValueError("collection root must be an array")
-            items = [CoinItem.from_dict(value) for value in payload]
-            identifiers = [item.id for item in items]
-            if any(not value for value in identifiers) or len(set(identifiers)) != len(identifiers):
-                raise ValueError("collection IDs are invalid")
+            _, _, items = deserialize_collection_payload(payload)
             return items
         except (OSError, ValueError, json.JSONDecodeError) as error:
             raise CollectionCommitFailed(error) from error
@@ -508,6 +507,7 @@ class PackageImportTransactionService:
                     purchase_price=proposal.purchase_price,
                     purchase_currency=proposal.purchase_currency,
                     purchase_source=proposal.purchase_source,
+                    updated_at=canonical_timestamp,
                 )
             )
         return tuple(result)

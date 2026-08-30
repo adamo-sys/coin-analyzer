@@ -538,7 +538,8 @@ class ConcreteRepositoryCapabilityTests(unittest.TestCase):
         )
 
     def _read(self) -> list[dict[str, object]]:
-        return json.loads(self.path.read_text(encoding="utf-8"))
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        return payload["items"] if isinstance(payload, dict) else payload
 
     def _repository(self) -> CoinCollection:
         return CoinCollection(str(self.path))
@@ -574,7 +575,11 @@ class ConcreteRepositoryCapabilityTests(unittest.TestCase):
         self.assertEqual(records[0]["year"], "1967")
         self.assertEqual(records[0]["denomination"], "")
         self.assertEqual(records[0]["future_field"], {"preserve": True})
-        self.assertEqual(records[1], {"id": "record-2", "country": "France"})
+        self.assertEqual(records[1]["id"], "record-2")
+        self.assertEqual(records[1]["country"], "France")
+        self.assertEqual(records[1]["item_type"], "COIN")
+        self.assertEqual(records[1]["disposition"], "UNDECIDED")
+        self.assertEqual(records[1]["identification_status"], "PARTIAL")
 
     def test_absent_and_empty_are_exactly_distinct(self) -> None:
         self._write([{"id": "record-1", "country": ""}])

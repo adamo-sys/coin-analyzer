@@ -143,7 +143,7 @@ class TestCSVImport(unittest.TestCase):
         self.assertEqual('USD', item.purchase_currency)
         self.assertEqual(Decimal('135.8650'), item.total_cost)
         with open(self.collection_path, 'r', encoding='utf-8') as handle:
-            self.assertNotIn('total_cost', json.load(handle)[0])
+            self.assertNotIn('total_cost', json.load(handle)["items"][0])
 
     def test_csv_import_accepts_blank_acquisition_values(self):
         blank_csv = os.path.join(self.test_dir, "blank_acquisition.csv")

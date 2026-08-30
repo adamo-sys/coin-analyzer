@@ -7,11 +7,11 @@ import json
 import csv
 import os
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional, Set
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from uuid import UUID, uuid4
 import cv2
 import numpy as np
@@ -53,6 +53,58 @@ class CollectionLoadState(str, Enum):
     MISSING = "MISSING"
     VALID = "VALID"
     INVALID_OR_UNSUPPORTED = "INVALID_OR_UNSUPPORTED"
+
+
+class CollectionFormat(str, Enum):
+    """Supported authoritative collection serialization formats."""
+
+    LEGACY_V0 = "LEGACY_V0"
+    V1 = "V1"
+
+
+class ItemType(str, Enum):
+    COIN = "COIN"
+    BANKNOTE = "BANKNOTE"
+
+
+class Disposition(str, Enum):
+    KEEP = "KEEP"
+    UPGRADE = "UPGRADE"
+    SELL_TRADE = "SELL_TRADE"
+    UNDECIDED = "UNDECIDED"
+
+
+class IdentificationStatus(str, Enum):
+    IDENTIFIED = "IDENTIFIED"
+    PARTIAL = "PARTIAL"
+    UNIDENTIFIED = "UNIDENTIFIED"
+
+
+COLLECTION_SCHEMA_VERSION = 1
+
+
+def utc_now_rfc3339() -> str:
+    """Return the current UTC instant in the collection timestamp format."""
+
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
+        "+00:00", "Z"
+    )
+
+
+def validate_utc_rfc3339(value: Any, field_name: str = "updated_at") -> str:
+    """Validate a normalized UTC RFC 3339 timestamp ending in Z."""
+
+    if not isinstance(value, str) or re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z", value
+    ) is None:
+        raise ValueError(f"{field_name} must be a UTC RFC 3339 timestamp ending in Z")
+    try:
+        datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError:
+        raise ValueError(
+            f"{field_name} must be a real UTC RFC 3339 timestamp ending in Z"
+        ) from None
+    return value
 
 
 def parse_optional_money(value: Any, field_name: str = "monetary value") -> Optional[Decimal]:
@@ -339,11 +391,58 @@ class CoinItem:
     shipping_cost: Optional[Decimal] = None
     buyers_premium: Optional[Decimal] = None
     tax: Optional[Decimal] = None
+    item_type: ItemType = ItemType.COIN
+    disposition: Disposition = Disposition.UNDECIDED
+    identification_status: IdentificationStatus | None = None
+    updated_at: Optional[str] = None
+    _initialize_updated_at: InitVar[bool] = True
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, _initialize_updated_at: bool) -> None:
         self.image_path = str(self.image_path or "").strip()
         self.photos = self._coerce_photos(self.photos)
+        self.item_type = self._closed_enum(ItemType, self.item_type, "item_type")
+        self.disposition = self._closed_enum(
+            Disposition, self.disposition, "disposition"
+        )
+        if self.identification_status is None:
+            self.identification_status = self._derived_identification_status(
+                self.country, self.denomination, self.year
+            )
+        else:
+            self.identification_status = self._closed_enum(
+                IdentificationStatus,
+                self.identification_status,
+                "identification_status",
+            )
+        if self.updated_at is not None:
+            self.updated_at = validate_utc_rfc3339(self.updated_at)
+        elif _initialize_updated_at:
+            self.updated_at = utc_now_rfc3339()
         self.normalize_acquisition_fields()
+
+    @staticmethod
+    def _closed_enum(enum_type, value: Any, field_name: str):
+        if isinstance(value, enum_type):
+            return value
+        if not isinstance(value, str):
+            raise ValueError(f"{field_name} must be a supported string value")
+        try:
+            return enum_type(value)
+        except ValueError:
+            raise ValueError(f"{field_name} has an unsupported value") from None
+
+    @staticmethod
+    def _derived_identification_status(
+        country: Any, denomination: Any, year: Any
+    ) -> IdentificationStatus:
+        populated = sum(
+            bool(str(value or "").strip()) for value in (country, denomination, year)
+        )
+        if populated == 3:
+            return IdentificationStatus.IDENTIFIED
+        if populated:
+            return IdentificationStatus.PARTIAL
+        return IdentificationStatus.UNIDENTIFIED
 
     def normalize_acquisition_fields(self) -> None:
         """Normalize and validate all optional acquisition fields in place."""
@@ -373,6 +472,17 @@ class CoinItem:
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         self.sync_image_path_from_primary()
+        item_type = self._closed_enum(ItemType, self.item_type, "item_type")
+        disposition = self._closed_enum(
+            Disposition, self.disposition, "disposition"
+        )
+        identification_status = self._closed_enum(
+            IdentificationStatus,
+            self.identification_status,
+            "identification_status",
+        )
+        if self.updated_at is not None:
+            validate_utc_rfc3339(self.updated_at)
         data = {
             "id": self.id,
             "image_path": self.image_path,
@@ -395,6 +505,9 @@ class CoinItem:
             "comments": self.comments,
             "from_numista": self.from_numista,
             "photos": [photo.to_dict() for photo in self.normalized_photos()],
+            "item_type": item_type.value,
+            "disposition": disposition.value,
+            "identification_status": identification_status.value,
         }
         optional_acquisition = {
             "acquisition_date": self.acquisition_date,
@@ -404,6 +517,7 @@ class CoinItem:
             "shipping_cost": serialize_money(self.shipping_cost),
             "buyers_premium": serialize_money(self.buyers_premium),
             "tax": serialize_money(self.tax),
+            "updated_at": self.updated_at,
         }
         data.update({key: value for key, value in optional_acquisition.items() if value is not None})
         return data
@@ -442,6 +556,13 @@ class CoinItem:
             "shipping_cost": data.get("shipping_cost"),
             "buyers_premium": data.get("buyers_premium"),
             "tax": data.get("tax"),
+            "item_type": data.get("item_type", ItemType.COIN.value),
+            "disposition": data.get(
+                "disposition", Disposition.UNDECIDED.value
+            ),
+            "identification_status": data.get("identification_status"),
+            "updated_at": data.get("updated_at"),
+            "_initialize_updated_at": False,
         }
         return cls(**known)
 
@@ -511,6 +632,96 @@ class CoinItem:
             return default
 
 
+def deserialize_collection_payload(
+    payload: Any,
+) -> tuple[CollectionFormat, list[dict[str, Any]], list[CoinItem]]:
+    """Validate and deserialize one supported authoritative collection payload."""
+
+    if isinstance(payload, list):
+        collection_format = CollectionFormat.LEGACY_V0
+        records = payload
+    elif isinstance(payload, dict):
+        if set(payload) != {"schema_version", "items"}:
+            raise ValueError(
+                "V1 collection root must contain exactly schema_version and items"
+            )
+        schema_version = payload["schema_version"]
+        if type(schema_version) is not int or schema_version != COLLECTION_SCHEMA_VERSION:
+            raise ValueError("collection schema_version is unsupported")
+        records = payload["items"]
+        if not isinstance(records, list):
+            raise ValueError("V1 collection items must be an array")
+        collection_format = CollectionFormat.V1
+    else:
+        raise ValueError("collection JSON root must be a LEGACY_V0 array or V1 object")
+
+    loaded_items: list[CoinItem] = []
+    seen_ids: set[str] = set()
+    required_v1_fields = {
+        "item_type",
+        "disposition",
+        "identification_status",
+    }
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(f"collection record {index} must be an object")
+        item_id = record.get("id")
+        if not isinstance(item_id, str) or not item_id.strip():
+            raise ValueError(
+                f"collection record {index} must have a nonblank string id"
+            )
+        if item_id in seen_ids:
+            raise ValueError(f"collection contains duplicate item id {item_id!r}")
+        if collection_format is CollectionFormat.V1:
+            missing = required_v1_fields.difference(record)
+            if missing:
+                raise ValueError(
+                    "V1 collection record "
+                    f"{index} is missing required fields {sorted(missing)!r}"
+                )
+        seen_ids.add(item_id)
+        loaded_items.append(CoinItem.from_dict(record))
+    return collection_format, records, loaded_items
+
+
+def serialize_collection_payload(items: Any) -> dict[str, Any]:
+    """Return the validated V1 envelope for a complete collection state."""
+
+    if not isinstance(items, (list, tuple)) or any(
+        not isinstance(item, CoinItem) for item in items
+    ):
+        raise ValueError("collection items must contain CoinItem values")
+    payload: dict[str, Any] = {
+        "schema_version": COLLECTION_SCHEMA_VERSION,
+        "items": [item.to_dict() for item in items],
+    }
+    deserialize_collection_payload(payload)
+    return payload
+
+
+def promote_collection_records_to_v1(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Wrap raw records as V1 while preserving conditional-mutation field shape."""
+
+    _, _, items = deserialize_collection_payload(records)
+    promoted: list[dict[str, Any]] = []
+    for record, item in zip(records, items):
+        row = dict(record)
+        row["item_type"] = item.item_type.value
+        row["disposition"] = item.disposition.value
+        row["identification_status"] = item.identification_status.value
+        if item.updated_at is None:
+            row.pop("updated_at", None)
+        else:
+            row["updated_at"] = item.updated_at
+        promoted.append(row)
+    payload = {
+        "schema_version": COLLECTION_SCHEMA_VERSION,
+        "items": promoted,
+    }
+    deserialize_collection_payload(payload)
+    return payload
+
+
 @dataclass
 class PhotoMigrationResult:
     """Preview/apply result for explicit legacy photo migration."""
@@ -546,6 +757,7 @@ class CoinCollection:
         self.storage_path = storage_path
         self.items: List[CoinItem] = []
         self.load_state = CollectionLoadState.MISSING
+        self.collection_format: CollectionFormat | None = None
         self.load_error = ""
         self.last_save_error = ""
         self.ensure_storage_directory()
@@ -563,40 +775,24 @@ class CoinCollection:
             try:
                 with open(self.storage_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                if not isinstance(data, list):
-                    raise ValueError("collection JSON root must be an array")
-
-                loaded_items: List[CoinItem] = []
-                seen_ids: Set[str] = set()
-                for index, record in enumerate(data):
-                    if not isinstance(record, dict):
-                        raise ValueError(
-                            f"collection record {index} must be an object"
-                        )
-                    item_id = record.get("id")
-                    if not isinstance(item_id, str) or not item_id.strip():
-                        raise ValueError(
-                            f"collection record {index} must have a nonblank string id"
-                        )
-                    if item_id in seen_ids:
-                        raise ValueError(
-                            f"collection contains duplicate item id {item_id!r}"
-                        )
-                    seen_ids.add(item_id)
-                    loaded_items.append(CoinItem.from_dict(record))
-
+                collection_format, _, loaded_items = deserialize_collection_payload(
+                    data
+                )
                 self.items = loaded_items
                 self.load_state = CollectionLoadState.VALID
+                self.collection_format = collection_format
                 self.load_error = ""
                 print(f"Loaded {len(self.items)} items from collection")
             except Exception as e:
                 self.items = []
                 self.load_state = CollectionLoadState.INVALID_OR_UNSUPPORTED
+                self.collection_format = None
                 self.load_error = str(e) or type(e).__name__
                 print(f"Error loading collection: {self.load_error}")
         else:
             self.items = []
             self.load_state = CollectionLoadState.MISSING
+            self.collection_format = None
             self.load_error = ""
             print("No existing collection found, starting fresh")
 
@@ -627,13 +823,15 @@ class CoinCollection:
                 owned_lock = PackageImportLock.acquire(lock_path)
                 import_lock = owned_lock
             import_lock.verify_ownership()
+            payload = serialize_collection_payload(self.items)
             write_json_atomically(
                 self.storage_path,
-                [item.to_dict() for item in self.items],
+                payload,
                 indent=2,
                 ensure_ascii=False,
             )
             self.load_state = CollectionLoadState.VALID
+            self.collection_format = CollectionFormat.V1
             self.load_error = ""
             self.last_save_error = ""
             print(f"Saved {len(self.items)} items to collection")
@@ -668,13 +866,8 @@ class CoinCollection:
                 not isinstance(item, CoinItem) for item in prospective_items
             ):
                 raise ValueError("prospective_items must contain CoinItem values")
-            identifiers = [item.id for item in prospective_items]
-            if any(not identifier for identifier in identifiers) or len(
-                set(identifiers)
-            ) != len(identifiers):
-                raise ValueError("prospective collection IDs must be unique")
             # Serialize every record before changing in-memory state or disk.
-            payload = [item.to_dict() for item in prospective_items]
+            payload = serialize_collection_payload(prospective_items)
             require_collection_baseline(self.storage_path, expected_baseline)
             write_json_atomically(
                 self.storage_path,
@@ -688,6 +881,7 @@ class CoinCollection:
             if verified != payload:
                 raise OSError("The committed collection did not verify.")
             self.items = prospective_items
+            self.collection_format = CollectionFormat.V1
             self.last_save_error = ""
             return True
         except Exception as error:
@@ -780,14 +974,16 @@ class CoinCollection:
                             target.pop(change.field_name, None)
                         else:
                             target[change.field_name] = change.desired_value
+                    target["updated_at"] = utc_now_rfc3339()
 
-                    prospective_items = [
-                        CoinItem.from_dict(row) for row in payload
-                    ]
+                    persisted_payload = promote_collection_records_to_v1(payload)
+                    _, _, prospective_items = deserialize_collection_payload(
+                        persisted_payload
+                    )
                     mutation_lock.verify_ownership()
                     write_json_atomically(
                         self.storage_path,
-                        payload,
+                        persisted_payload,
                         indent=2,
                         ensure_ascii=False,
                     )
@@ -813,6 +1009,7 @@ class CoinCollection:
                             "The committed collection could not be verified."
                         ) from error
                     self.items = prospective_items
+                    self.collection_format = CollectionFormat.V1
 
                 result = ConditionalCollectionMutationResult(
                     applied_fields=tuple(applied),
@@ -837,13 +1034,13 @@ class CoinCollection:
         if not os.path.exists(self.storage_path):
             raise ConditionalCollectionRecordNotFoundError(record_id)
         with open(self.storage_path, "r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-        if not isinstance(payload, list) or any(
-            not isinstance(row, dict) for row in payload
-        ):
+            document = json.load(handle)
+        try:
+            _, payload, _ = deserialize_collection_payload(document)
+        except ValueError as error:
             raise ConditionalCollectionRepositoryError(
-                "Collection JSON must be an array of record objects."
-            )
+                "Collection JSON is not a supported authoritative collection."
+            ) from error
         matches = [row for row in payload if row.get("id") == record_id]
         if not matches:
             raise ConditionalCollectionRecordNotFoundError(record_id)
@@ -872,10 +1069,14 @@ class CoinCollection:
         if self._block_invalid_collection_mutation("add"):
             return False
         original_items = list(self.items)
+        original_updated_at = item.updated_at
+        if item.updated_at is None:
+            item.updated_at = utc_now_rfc3339()
         self.items.append(item)
         if self.save_collection(import_lock=import_lock):
             return True
         self.items = original_items
+        item.updated_at = original_updated_at
         return False
     
     def update_item(self, item_id: str, updates: Dict) -> bool:
@@ -885,6 +1086,22 @@ class CoinCollection:
         for item in self.items:
             if item.id == item_id:
                 normalized_updates = dict(updates)
+                enum_fields = {
+                    "item_type": ItemType,
+                    "disposition": Disposition,
+                    "identification_status": IdentificationStatus,
+                }
+                try:
+                    for field_name, enum_type in enum_fields.items():
+                        if field_name in normalized_updates:
+                            normalized_updates[field_name] = CoinItem._closed_enum(
+                                enum_type,
+                                normalized_updates[field_name],
+                                field_name,
+                            )
+                except ValueError as error:
+                    self.last_save_error = str(error)
+                    return False
                 if any(key in updates for key in ACQUISITION_FIELDS):
                     prospective = {
                         field_name: updates.get(field_name, getattr(item, field_name))
@@ -903,9 +1120,11 @@ class CoinCollection:
                     for key in normalized_updates
                     if hasattr(item, key)
                 }
+                original_values.setdefault("updated_at", item.updated_at)
                 for key, value in normalized_updates.items():
                     if hasattr(item, key):
                         setattr(item, key, value)
+                item.updated_at = utc_now_rfc3339()
                 if self.save_collection():
                     return True
                 for key, value in original_values.items():
@@ -931,14 +1150,20 @@ class CoinCollection:
     def apply_photo_migration(self) -> PhotoMigrationResult:
         """Explicitly normalize item-owned photos and save when changes occur."""
         original_photo_state = [
-            (item, item.image_path, [ItemPhoto.from_dict(photo.to_dict()) for photo in item.photos])
+            (
+                item,
+                item.image_path,
+                [ItemPhoto.from_dict(photo.to_dict()) for photo in item.photos],
+                item.updated_at,
+            )
             for item in self.items
         ]
         result = self._build_photo_migration_result(apply=True)
         if result.migrated_items and not self.save_collection():
-            for item, image_path, photos in original_photo_state:
+            for item, image_path, photos, updated_at in original_photo_state:
                 item.image_path = image_path
                 item.photos = [photo for photo in photos if photo is not None]
+                item.updated_at = updated_at
             result.warnings.append(f"Photo migration was not saved: {self.last_save_error}")
         return result
 
@@ -979,6 +1204,7 @@ class CoinCollection:
                 if apply:
                     item.photos = normalized
                     item.image_path = after_image_path
+                    item.updated_at = utc_now_rfc3339()
         return result
     
     def get_item(self, item_id: str) -> Optional[CoinItem]:

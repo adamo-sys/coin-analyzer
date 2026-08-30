@@ -71,7 +71,7 @@ class AcquisitionTrackingTests(unittest.TestCase):
         self.assertTrue(collection.add_item(item))
 
         with open(self.collection_path, "r", encoding="utf-8") as handle:
-            stored = json.load(handle)[0]
+            stored = json.load(handle)["items"][0]
         reloaded = CoinCollection(self.collection_path).items[0]
 
         self.assertEqual("100.1200", stored["purchase_price"])

@@ -68,7 +68,9 @@ class TestCoinCollectionBackend(unittest.TestCase):
             self.assertTrue(app.collection.save_collection())
             self.assertTrue(os.path.isfile(default_collection_path))
             with open(default_collection_path, "r", encoding="utf-8") as handle:
-                self.assertEqual([], json.load(handle))
+                self.assertEqual(
+                    {"schema_version": 1, "items": []}, json.load(handle)
+                )
         finally:
             os.chdir(original_working_directory)
 
@@ -85,8 +87,9 @@ class TestCoinCollectionBackend(unittest.TestCase):
 
         reloaded = CoinCollection(self.collection_path)
 
-        self.assertEqual(len(data), 5)
-        self.assertTrue(all("country" in item for item in data))
+        self.assertEqual(data["schema_version"], 1)
+        self.assertEqual(len(data["items"]), 5)
+        self.assertTrue(all("country" in item for item in data["items"]))
         self.assertEqual(len(reloaded.items), 5)
 
     def test_csv_export_writes_expected_rows(self):
@@ -151,8 +154,9 @@ class TestCoinCollectionBackend(unittest.TestCase):
 
         with open(self.collection_path, "r", encoding="utf-8") as handle:
             saved = json.load(handle)
-        self.assertEqual("replacement", saved[0]["id"])
-        self.assertEqual("Montreal - \u00e9dition", saved[0]["notes"])
+        self.assertEqual(1, saved["schema_version"])
+        self.assertEqual("replacement", saved["items"][0]["id"])
+        self.assertEqual("Montreal - \u00e9dition", saved["items"][0]["notes"])
         self.assertEqual([], [name for name in os.listdir(self.temp_dir.name) if name.endswith(".tmp")])
 
     def test_serialization_failure_preserves_existing_collection(self):

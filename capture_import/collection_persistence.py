@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Callable, Iterable
 
-from coin_collection import CoinItem
+from coin_collection import CoinItem, serialize_collection_payload
 
 from ._filesystem import (
     exchange_paths_in_directory,
@@ -53,10 +53,8 @@ def serialize_collection_items(items: Iterable[CoinItem]) -> bytes:
     values = list(items)
     if any(not isinstance(item, CoinItem) for item in values):
         raise ValueError("Collection publication requires CoinItem values.")
-    identifiers = [item.id for item in values]
-    if any(not value for value in identifiers) or len(set(identifiers)) != len(identifiers):
-        raise ValueError("Prospective collection IDs must be unique.")
-    return json.dumps([item.to_dict() for item in values], indent=2, ensure_ascii=False).encode("utf-8")
+    payload = serialize_collection_payload(values)
+    return json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
 
 
 class DurableCollectionPublisher:

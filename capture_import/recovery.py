@@ -8,7 +8,12 @@ import json
 from pathlib import Path
 from typing import Callable
 
-from coin_collection import CoinItem, ItemPhoto, PhotoRole
+from coin_collection import (
+    CoinItem,
+    ItemPhoto,
+    PhotoRole,
+    deserialize_collection_payload,
+)
 
 from .audit import AuditCoin, AuditSession
 from .enums import (
@@ -347,12 +352,7 @@ class PackageImportRecoveryService:
         try:
             with self._collection_path.open("r", encoding="utf-8") as handle:
                 payload = json.load(handle)
-            if not isinstance(payload, list):
-                raise ValueError
-            items = [CoinItem.from_dict(value) for value in payload]
-            identifiers = [item.id for item in items]
-            if any(not value for value in identifiers) or len(set(identifiers)) != len(identifiers):
-                raise ValueError
+            _, _, items = deserialize_collection_payload(payload)
             return {item.id: item for item in items}
         except (OSError, ValueError, json.JSONDecodeError) as error:
             raise RecoveryRequired(error) from error
@@ -404,6 +404,7 @@ class PackageImportRecoveryService:
                 purchase_price=coin.purchase_price,
                 purchase_currency=coin.purchase_currency,
                 purchase_source=coin.seller,
+                updated_at=journal.created_at,
             )
             if actual.to_dict() != expected.to_dict():
                 return False
