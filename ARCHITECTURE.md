@@ -199,9 +199,87 @@ recovery action followed by a successful load and validation; ordinary mutation
 is not a recovery mechanism. A missing file remains categorically distinct from
 an unreadable, malformed, invalid, or unsupported existing file.
 
-This state boundary is compatible with later versioned collection formats: an
-unsupported version is another fail-closed load outcome. The schema, migration,
-and recovery procedures for such a future format are outside this contract.
+### Authoritative numismatic record contract
+
+The collection record is type-aware without splitting coins and banknotes into
+separate authoritative stores. The following fields are authoritative:
+
+| Field | Supported values and semantics |
+|---|---|
+| `item_type` | Closed values `COIN` and `BANKNOTE`. A legacy record without the field is interpreted as `COIN`. |
+| `disposition` | Closed values `KEEP`, `UPGRADE`, `SELL_TRADE`, and `UNDECIDED`. A legacy record without the field is interpreted as `UNDECIDED`. |
+| `identification_status` | Closed values `IDENTIFIED`, `PARTIAL`, and `UNIDENTIFIED`. A legacy record without the field is `IDENTIFIED` only when its existing `country`, `denomination`, and `year` identity fields are all nonblank; it is `PARTIAL` when at least one but not all are nonblank, and `UNIDENTIFIED` when all three are blank. This interpretation never supplies or fabricates a missing identity value. |
+| `updated_at` | Optional for legacy records. When present, a normalized UTC RFC 3339 timestamp ending in `Z`. Creating a new record or normally mutating an authoritative record sets it to the mutation time. Loading or read-only use does not synthesize or persist it. An unchanged legacy-origin record may therefore retain an absent `updated_at` after collection-format transition until that record is mutated. |
+
+An explicitly present value for any closed enum must match its vocabulary
+exactly. Invalid enum values are authoritative-data errors and place the
+collection in `INVALID_OR_UNSUPPORTED`; they are never coerced to compatibility
+defaults. The defaults above apply only when the corresponding field is absent
+from a valid legacy record.
+
+`item_type` distinguishes numismatic form, not geography. `country` and
+`issuer` remain flexible and must not be restricted to Canada. `denomination`
+remains flexible text. `year` or other date descriptions must not be constrained
+architecturally to a mandatory Gregorian integer for every coin or banknote.
+Existing neutral metadata such as `issuer`, `title`, and `reference` remains
+valid for either item type. This record contract does not imply automatic
+banknote or world-coin recognition.
+
+### Collection format versions
+
+The pre-versioning format is named `LEGACY_V0`: the JSON root is an array of
+item objects. `LEGACY_V0` remains a supported read format unless a later
+architecture decision explicitly removes it. Its absence of an explicit
+version is not interpreted as `MISSING`, malformed, or unsupported.
+
+The current write format is V1, with this closed envelope shape:
+
+```json
+{
+  "schema_version": 1,
+  "items": []
+}
+```
+
+For V1, the root must be an object containing exactly `schema_version` and
+`items`; `schema_version` must be the JSON integer `1`, and `items` must be an
+array of valid authoritative item objects with unique, nonblank string IDs. V1
+items carry explicit `item_type`, `disposition`, and `identification_status`
+values. `updated_at` follows the optional legacy-origin and mutation rules above.
+Malformed envelopes, malformed records, duplicate IDs, invalid enum values, and
+any explicit `schema_version` other than integer `1` fail closed as
+`INVALID_OR_UNSUPPORTED`. A JSON boolean is not an integer version for this
+contract.
+
+Unknown item fields outside the documented record contract have no preservation
+promise under the current serializer. V1 does not introduce generic unknown-
+field round-tripping, and callers must not claim that such fields survive a
+write.
+
+### Legacy-to-V1 write transition
+
+Loading or using a `LEGACY_V0` collection read-only never rewrites it. The first
+successful authoritative mutation or save after a legacy load writes the
+complete collection as a V1 envelope through the existing atomic save boundary.
+That transition may materialize the legacy compatibility defaults as explicit
+V1 enum fields, but it must not change any existing item ID or fabricate missing
+identity data. If serialization or atomic replacement fails, the prior
+authoritative file remains recoverable under the existing fail-closed and atomic-
+write guarantees.
+
+A first save from `MISSING` writes V1. After a successful transition or V1
+creation, subsequent loads and saves remain V1. Every authoritative pathway
+that replaces complete collection state, including ordinary save and existing
+import/replacement operations, writes the supported V1 envelope. Conditional
+item mutation must first validate either `LEGACY_V0` or V1, perform its bounded
+record change, and persist the complete result with the same V1 and atomic-write
+semantics; it cannot bypass version or item validation.
+
+All existing item IDs are immutable across load, mutation, and the
+`LEGACY_V0`-to-V1 transition. Existing `coin_<uuid>` IDs remain byte-for-byte
+unchanged. This contract does not select a prefix for newly generated IDs and
+does not define a generalized migration engine or any transition beyond
+`LEGACY_V0` to V1.
 
 ### Local store ownership
 
