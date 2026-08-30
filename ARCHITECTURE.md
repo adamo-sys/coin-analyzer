@@ -312,6 +312,37 @@ dashboards, and advisory engines do not independently write collection records.
 
 ### Photos, assessment, and OCR
 
+Ordinary manual entry uses a neutral managed-media ingestion service at the
+existing `CoinCollectionApp.add_to_collection()` save boundary. This service is
+outside capture-package transactions and supports both `COIN` and `BANKNOTE`
+records without changing their shared V1 JSON schema. Before authoritative
+collection persistence, it copies every selected source photo into collection-
+owned storage using the convention
+`<collection-directory>/managed_media/ordinary/<stable-item-id>/<random-token><extension>`.
+The item ID is generated once before ingestion and is reused unchanged for the
+authoritative record. A safe, bounded source extension is preserved where
+reasonable; random destination tokens and exclusive file creation prevent
+same-basename collisions and silent overwrite.
+
+Each copy is byte-count and SHA-256 verified from the managed destination before
+it may be referenced by an authoritative `ItemPhoto`. The service rebuilds the
+photo records with managed paths while preserving role, display order, notes,
+and primary status. All copies must verify before the ordinary collection save
+begins, so a missing or failed managed copy cannot become an authoritative
+reference. Source files are read only and are never modified, moved, or deleted.
+
+The ingestion result records only files newly and exclusively created by that
+attempt. If the new-item collection save fails, rollback may remove those files
+only while their filesystem identities still match the created objects, then
+may remove newly emptied item directories. It must not remove a replaced file,
+pre-existing content, a source file, or media owned by another item or workflow.
+There is no migration or rewriting of existing photo records.
+
+Reviewed capture/import media remains governed exclusively by `capture_import`,
+including its own ownership markers, locking, durability, recovery, and
+provenance rules. Ordinary-entry ingestion neither creates capture-package
+provenance nor routes manual entry through capture/import semantics.
+
 ```text
 ItemPhoto / Photo Inbox / Photo Vault metadata
   -> deterministic Image Assessment

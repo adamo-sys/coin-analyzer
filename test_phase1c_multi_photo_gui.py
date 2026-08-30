@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import tempfile
 import unittest
 from datetime import datetime
@@ -114,17 +115,26 @@ class Phase1CMultiPhotoGuiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             collection = CoinCollection(os.path.join(tmpdir, "collection.json"))
             app = CoinCollectionApp(collection=collection)
-            app.current_image_path = "front.jpg"
+            front = os.path.join(tmpdir, "front.jpg")
+            back = os.path.join(tmpdir, "back.jpg")
+            with open(front, "wb") as handle:
+                handle.write(b"front")
+            with open(back, "wb") as handle:
+                handle.write(b"back")
+            app.current_image_path = front
             photos = [
-                ItemPhoto("front.jpg", role=PhotoRole.FRONT),
-                ItemPhoto("back.jpg", role=PhotoRole.BACK, is_primary=True),
+                ItemPhoto(front, role=PhotoRole.FRONT),
+                ItemPhoto(back, role=PhotoRole.BACK, is_primary=True),
             ]
 
             self.assertTrue(app.add_to_collection("Canada", "Cent", "1920", "VF-20", "notes", photos=photos))
             saved = app.collection.get_all_items()[0]
 
-            self.assertEqual("back.jpg", saved.image_path)
-            self.assertEqual(["front.jpg", "back.jpg"], [photo.path for photo in saved.normalized_photos()])
+            self.assertEqual(saved.photos[1].path, saved.image_path)
+            self.assertEqual([b"front", b"back"], [
+                Path(photo.path).read_bytes()
+                for photo in saved.normalized_photos()
+            ])
 
     def test_edit_round_trip_updates_item_photos(self):
         with tempfile.TemporaryDirectory() as tmpdir:

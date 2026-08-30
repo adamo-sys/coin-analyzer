@@ -125,9 +125,13 @@ class ManualBanknotePersistenceTests(unittest.TestCase):
 
     def test_manual_add_reload_edit_is_one_authoritative_banknote(self):
         mapped = CoinCollectionGUI.manual_item_values_from_text(banknote_form())
+        front_path = Path(self.temporary.name) / "note-front.jpg"
+        back_path = Path(self.temporary.name) / "note-back.jpg"
+        front_path.write_bytes(b"front")
+        back_path.write_bytes(b"back")
         photos = [
-            ItemPhoto("note-front.jpg", PhotoRole.FRONT, True, "front", 0),
-            ItemPhoto("note-back.jpg", PhotoRole.BACK, False, "back", 1),
+            ItemPhoto(str(front_path), PhotoRole.FRONT, True, "front", 0),
+            ItemPhoto(str(back_path), PhotoRole.BACK, False, "back", 1),
         ]
 
         with patch("coin_collection.utc_now_rfc3339", return_value=T1):
@@ -189,8 +193,8 @@ class ManualBanknotePersistenceTests(unittest.TestCase):
         self.assertIn("Issuer: The Chartered Bank", details)
         self.assertIn("Disposition: KEEP", details)
         self.assertIn(f"Updated At: {T2}", details)
-        self.assertIn("Primary: FRONT - note-front.jpg", details)
-        self.assertIn("Photo: BACK - note-back.jpg", details)
+        self.assertIn(f"Primary: FRONT - {updated.photos[0].path}", details)
+        self.assertIn(f"Photo: BACK - {updated.photos[1].path}", details)
 
     def test_banknote_needs_neither_recognition_nor_photo(self):
         self.assertIsNone(self.app.current_image_path)

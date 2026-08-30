@@ -291,7 +291,7 @@ class CaptureImportMediaProvenance:
 
 @dataclass
 class ItemPhoto:
-    """Photo metadata owned by a collection item; files are never moved."""
+    """Photo metadata owned by an item; source originals are never moved."""
 
     path: str
     role: PhotoRole = PhotoRole.OTHER
@@ -1545,12 +1545,19 @@ class CoinCollectionApp:
     """Main application for coin collection management."""
     
     def __init__(self, collection: Optional[CoinCollection] = None,
-                 recognition_orchestrator=None):
+                 recognition_orchestrator=None, managed_media_store=None):
         self.collection = collection if collection is not None else CoinCollection()
         self.current_image_path = None
         self.current_detection_result = None
         self.last_added_item_id = ""
         self._recognition_orchestrator = recognition_orchestrator
+        if managed_media_store is None:
+            from managed_media import OrdinaryEntryManagedMediaStore
+
+            managed_media_store = OrdinaryEntryManagedMediaStore(
+                self.collection.storage_path
+            )
+        self._managed_media_store = managed_media_store
 
     def set_recognition_orchestrator(self, orchestrator) -> None:
         """Inject the runtime-only shell used by the legacy detector path."""
@@ -1657,7 +1664,11 @@ class CoinCollectionApp:
             self.collection.last_save_error = str(error)
             return False
 
-        if not self.current_image_path and normalized_item_type is ItemType.COIN:
+        if (
+            not self.current_image_path
+            and not CoinItem._coerce_photos(photos or [])
+            and normalized_item_type is ItemType.COIN
+        ):
             print("No image uploaded")
             return False
         
@@ -1673,6 +1684,15 @@ class CoinCollectionApp:
             auto_detected = False
         
         structured_photos = CoinItem._coerce_photos(photos or [])
+        if not structured_photos and self.current_image_path:
+            structured_photos = [
+                ItemPhoto(
+                    self.current_image_path,
+                    role=PhotoRole.OTHER,
+                    is_primary=True,
+                    display_order=0,
+                )
+            ]
         if structured_photos:
             structured_photos = CoinItem(
                 id="",
@@ -1685,38 +1705,62 @@ class CoinCollectionApp:
                 date_added="",
                 photos=structured_photos,
             ).normalized_photos()
-            primary_photo = next((photo for photo in structured_photos if photo.is_primary), structured_photos[0])
-            self.current_image_path = primary_photo.path
+        original_image_path = self.current_image_path
+        ingestion = None
+        try:
+            if structured_photos:
+                ingestion = self._managed_media_store.ingest(
+                    item_id, structured_photos
+                )
+                structured_photos = list(ingestion.photos)
+                primary_photo = next(
+                    (photo for photo in structured_photos if photo.is_primary),
+                    structured_photos[0],
+                )
+                self.current_image_path = primary_photo.path
 
-        item = CoinItem(
-            id=item_id,
-            image_path=self.current_image_path,
-            country=country,
-            denomination=denomination,
-            year=year,
-            grade=grade,
-            notes=notes,
-            date_added=datetime.now().isoformat(),
-            auto_detected=auto_detected,
-            detection_confidence=confidence,
-            photos=structured_photos,
-            acquisition_date=acquisition_date,
-            purchase_price=purchase_price,
-            purchase_currency=purchase_currency,
-            purchase_source=purchase_source,
-            shipping_cost=shipping_cost,
-            buyers_premium=buyers_premium,
-            tax=tax,
-            item_type=normalized_item_type,
-            issuer=str(issuer or "").strip(),
-            title=str(title or "").strip(),
-            reference=str(reference or "").strip(),
-            disposition=normalized_disposition,
-            identification_status=normalized_status,
-        )
-        
-        if not self.collection.add_item(item):
-            print(f"Could not save item {item_id}: {self.collection.last_save_error}")
+            item = CoinItem(
+                id=item_id,
+                image_path=self.current_image_path,
+                country=country,
+                denomination=denomination,
+                year=year,
+                grade=grade,
+                notes=notes,
+                date_added=datetime.now().isoformat(),
+                auto_detected=auto_detected,
+                detection_confidence=confidence,
+                photos=structured_photos,
+                acquisition_date=acquisition_date,
+                purchase_price=purchase_price,
+                purchase_currency=purchase_currency,
+                purchase_source=purchase_source,
+                shipping_cost=shipping_cost,
+                buyers_premium=buyers_premium,
+                tax=tax,
+                item_type=normalized_item_type,
+                issuer=str(issuer or "").strip(),
+                title=str(title or "").strip(),
+                reference=str(reference or "").strip(),
+                disposition=normalized_disposition,
+                identification_status=normalized_status,
+            )
+
+            if not self.collection.add_item(item):
+                if ingestion is not None:
+                    self._managed_media_store.rollback(ingestion)
+                self.current_image_path = original_image_path
+                print(
+                    f"Could not save item {item_id}: "
+                    f"{self.collection.last_save_error}"
+                )
+                return False
+        except Exception as error:
+            if ingestion is not None:
+                self._managed_media_store.rollback(ingestion)
+            self.current_image_path = original_image_path
+            self.collection.last_save_error = str(error)
+            print(f"Could not save item {item_id}: {error}")
             return False
         self.last_added_item_id = item_id
         print(f"Added item {item_id} to collection")

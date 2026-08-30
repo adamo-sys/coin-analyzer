@@ -216,7 +216,10 @@ class TestCoinCollectionBackend(unittest.TestCase):
     def test_injected_collection_path_remains_isolated(self):
         collection = CoinCollection(self.collection_path)
         app = CoinCollectionApp(collection=collection)
-        app.current_image_path = "temporary-front.jpg"
+        source_path = os.path.join(self.temp_dir.name, "temporary-front.jpg")
+        with open(source_path, "wb") as handle:
+            handle.write(b"source photo")
+        app.current_image_path = source_path
 
         self.assertTrue(app.add_to_collection("Canada", "Cent", "1920", "VF-20", "isolated"))
         self.assertTrue(os.path.exists(self.collection_path))
