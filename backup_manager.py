@@ -26,7 +26,13 @@ from typing import Any, Dict, Iterable, List, Optional
 from collection_dashboard import CollectionDashboard
 from collector_operating_system import CollectionHealthReportEngine
 from confirmed_observations import CONFIRMED_OBSERVATIONS_FILENAME
-from coin_collection import deserialize_collection_payload
+from atomic_json import write_json_atomically
+from coin_collection import (
+    CoinCollection,
+    CollectionLoadState,
+    deserialize_collection_payload,
+    serialize_collection_payload,
+)
 from market_awareness import MarketAwarenessEngine
 from persistence_manager import AppState, PersistenceManager
 from photo_vault import PhotoRecord, PhotoVault, PhotoVaultIntegrityAudit
@@ -218,6 +224,8 @@ class BackupResult:
     restored_files: List[str] = field(default_factory=list)
     skipped_files: List[str] = field(default_factory=list)
     pre_restore_backup_path: str = ""
+    pre_restore_safety_status: str = ""
+    pre_restore_safety_metadata: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
@@ -491,6 +499,47 @@ class DataSafetyValidator:
 
 class _PortableBackupError(ValueError):
     """Fail-closed portable backup validation error."""
+
+
+@dataclass(frozen=True)
+class _PortableCreatedObject:
+    path: Path
+    device: int
+    inode: int
+    is_directory: bool
+
+
+@dataclass(frozen=True)
+class _PortablePublicationEntry:
+    archive_member: str
+    staged_path: Path
+    destination: Path
+    byte_length: int
+    sha256: str
+    ownership: str
+    member_type: str
+    reuse: bool
+
+
+@dataclass
+class _PortableStagedPackage:
+    root: Path
+    manifest: PortableBackupManifest
+    items: List[Any]
+    collection_format: Any
+    collection_records: List[Dict[str, Any]]
+    member_paths: Dict[str, Path]
+
+
+@dataclass(frozen=True)
+class _PortableSafetyState:
+    status: str
+    artifact_path: str
+    metadata: Dict[str, Any]
+    collection_existed: bool
+    collection_identity: tuple[int, int] | None
+    collection_length: int
+    collection_sha256: str
 
 
 def _portable_sha256_bytes(payload: bytes) -> str:
@@ -1394,6 +1443,693 @@ class BackupManager:
                 errors=[str(error) or type(error).__name__],
             )
 
+    def _stage_portable_backup(
+        self,
+        package_path: str,
+        manifest: PortableBackupManifest,
+        restore_root: Path,
+    ) -> _PortableStagedPackage:
+        """Copy only verified identities and revalidate the resulting fresh tree."""
+
+        stage_root = Path(tempfile.mkdtemp(prefix="coin-analyzer-portable-restore-"))
+        live_roots = (
+            Path(self.collection_json_path).absolute().parent,
+            (restore_root / "coin_photos" / "collection").absolute(),
+        )
+        stage_absolute = stage_root.absolute()
+        for live_root in live_roots:
+            try:
+                if os.path.commonpath((str(stage_absolute), str(live_root))) in {
+                    str(stage_absolute), str(live_root)
+                }:
+                    raise _PortableBackupError(
+                        "Portable restore staging overlaps a live ownership tree"
+                    )
+            except ValueError:
+                continue
+
+        member_names = [row["archive_member"] for row in manifest.members]
+        expected_names = {MANIFEST_NAME, *member_names}
+        try:
+            with zipfile.ZipFile(package_path, "r") as archive:
+                infos = {info.filename: info for info in archive.infolist()}
+                if set(infos) != expected_names:
+                    raise _PortableBackupError(
+                        "Incoming package changed after portable verification"
+                    )
+                for name in sorted(expected_names):
+                    _portable_archive_key(name)
+                    destination = stage_root.joinpath(*PurePosixPath(name).parts)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    descriptor = os.open(
+                        destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+                    )
+                    try:
+                        with archive.open(infos[name], "r") as source, os.fdopen(
+                            descriptor, "wb"
+                        ) as target:
+                            descriptor = -1
+                            shutil.copyfileobj(source, target)
+                            target.flush()
+                            os.fsync(target.fileno())
+                    finally:
+                        if descriptor >= 0:
+                            os.close(descriptor)
+
+            staged_files: set[str] = set()
+            for directory, directory_names, file_names in os.walk(stage_root):
+                directory_path = Path(directory)
+                info = os.lstat(directory_path)
+                if not stat.S_ISDIR(info.st_mode) or _is_link_or_reparse(info):
+                    raise _PortableBackupError(
+                        f"Staging contains an unsafe directory: {directory_path}"
+                    )
+                for name in directory_names:
+                    child = directory_path / name
+                    child_info = os.lstat(child)
+                    if not stat.S_ISDIR(child_info.st_mode) or _is_link_or_reparse(child_info):
+                        raise _PortableBackupError(
+                            f"Staging contains a link or reparse directory: {child}"
+                        )
+                for name in file_names:
+                    child = directory_path / name
+                    child_info = os.lstat(child)
+                    if not stat.S_ISREG(child_info.st_mode) or _is_link_or_reparse(child_info):
+                        raise _PortableBackupError(
+                            f"Staging contains a non-plain file: {child}"
+                        )
+                    staged_files.add(child.relative_to(stage_root).as_posix())
+            if staged_files != expected_names:
+                raise _PortableBackupError(
+                    "Staged portable package inventory is not exact"
+                )
+
+            revalidation_path = stage_root.parent / (
+                f".{stage_root.name}.{uuid4().hex}.revalidation.zip"
+            )
+            try:
+                with zipfile.ZipFile(
+                    revalidation_path, "x", compression=zipfile.ZIP_DEFLATED
+                ) as rebuilt:
+                    for name in sorted(expected_names):
+                        source = stage_root.joinpath(*PurePosixPath(name).parts)
+                        rebuilt.writestr(name, _read_stable_regular_file(
+                            source, f"Staged portable member {name}"
+                        ))
+                revalidated = self.verify_backup_package(str(revalidation_path))
+            finally:
+                try:
+                    revalidation_path.unlink()
+                except FileNotFoundError:
+                    pass
+            if (
+                not revalidated.success
+                or not isinstance(revalidated.manifest, PortableBackupManifest)
+                or revalidated.manifest.to_dict() != manifest.to_dict()
+            ):
+                details = "; ".join(revalidated.errors) if 'revalidated' in locals() else ""
+                raise _PortableBackupError(
+                    "Staged portable package failed independent revalidation"
+                    + (f": {details}" if details else "")
+                )
+
+            collection_path = stage_root.joinpath(
+                *PurePosixPath(PORTABLE_COLLECTION_MEMBER).parts
+            )
+            staged_payload = json.loads(
+                _read_stable_regular_file(
+                    collection_path, "Staged authoritative collection"
+                ).decode("utf-8")
+            )
+            collection_format, records, items = deserialize_collection_payload(
+                staged_payload
+            )
+            return _PortableStagedPackage(
+                root=stage_root,
+                manifest=revalidated.manifest,
+                items=items,
+                collection_format=collection_format,
+                collection_records=records,
+                member_paths={
+                    name: stage_root.joinpath(*PurePosixPath(name).parts)
+                    for name in member_names
+                },
+            )
+        except Exception:
+            self._cleanup_portable_staging(stage_root)
+            raise
+
+    @staticmethod
+    def _cleanup_portable_staging(root: Path) -> None:
+        """Remove only the fresh staging tree's plain files and empty directories."""
+
+        try:
+            root_info = os.lstat(root)
+        except FileNotFoundError:
+            return
+        if not stat.S_ISDIR(root_info.st_mode) or _is_link_or_reparse(root_info):
+            return
+        for directory, directory_names, file_names in os.walk(root, topdown=False):
+            directory_path = Path(directory)
+            for name in file_names:
+                child = directory_path / name
+                try:
+                    info = os.lstat(child)
+                    if stat.S_ISREG(info.st_mode) and not _is_link_or_reparse(info):
+                        child.unlink()
+                except OSError:
+                    pass
+            for name in directory_names:
+                try:
+                    (directory_path / name).rmdir()
+                except OSError:
+                    pass
+        try:
+            root.rmdir()
+        except OSError:
+            pass
+
+    @staticmethod
+    def _require_plain_directory_ancestry(path: Path, label: str) -> None:
+        absolute = path.absolute()
+        for ancestor in reversed((absolute, *absolute.parents)):
+            if not os.path.lexists(ancestor):
+                continue
+            info = os.lstat(ancestor)
+            if not stat.S_ISDIR(info.st_mode) or _is_link_or_reparse(info):
+                raise _PortableBackupError(
+                    f"{label} traverses a non-plain directory: {ancestor}"
+                )
+
+    @classmethod
+    def _write_portable_safety_record(cls, path: Path, payload: bytes) -> None:
+        cls._require_plain_directory_ancestry(path.parent, "Safety artifact path")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        cls._require_plain_directory_ancestry(path.parent, "Safety artifact path")
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        created_identity: tuple[int, int] | None = None
+        try:
+            opened = os.fstat(descriptor)
+            created_identity = (opened.st_dev, opened.st_ino)
+            with os.fdopen(descriptor, "wb") as handle:
+                descriptor = -1
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception:
+            if created_identity is not None:
+                try:
+                    current = os.lstat(path)
+                    if (
+                        stat.S_ISREG(current.st_mode)
+                        and not _is_link_or_reparse(current)
+                        and (current.st_dev, current.st_ino) == created_identity
+                    ):
+                        path.unlink()
+                except OSError:
+                    pass
+            raise
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+
+    def _create_portable_restore_safety(self) -> _PortableSafetyState:
+        """Create the architecture-defined safety result for the current state."""
+
+        collection_path = Path(self.collection_json_path).absolute()
+        safety_root = Path(self.backup_dir).absolute()
+        token = uuid4().hex
+        if not os.path.lexists(collection_path):
+            record_path = safety_root / f"pre-restore-missing-{token}.json"
+            payload = (
+                json.dumps({
+                    "safety_artifact_version": 1,
+                    "authoritative_collection_state": "MISSING",
+                    "authoritative_collection_path": str(collection_path),
+                }, sort_keys=True) + "\n"
+            ).encode("utf-8")
+            self._write_portable_safety_record(record_path, payload)
+            observed = _read_stable_regular_file(record_path, "Missing-state safety result")
+            if observed != payload or os.path.lexists(collection_path):
+                raise _PortableBackupError(
+                    "Could not establish a verified MISSING pre-restore safety state"
+                )
+            return _PortableSafetyState(
+                "MISSING", str(record_path), {
+                    "state": "MISSING", "verified": True,
+                    "byte_length": len(payload),
+                    "sha256": _portable_sha256_bytes(payload),
+                }, False, None, 0, "",
+            )
+
+        collection_bytes = _read_stable_regular_file(
+            collection_path, "Current authoritative collection"
+        )
+        current_info = os.lstat(collection_path)
+        identity = (current_info.st_dev, current_info.st_ino)
+        digest = _portable_sha256_bytes(collection_bytes)
+        try:
+            payload = json.loads(collection_bytes.decode("utf-8"))
+            deserialize_collection_payload(payload)
+            current_valid = True
+        except Exception:
+            current_valid = False
+
+        if current_valid:
+            artifact_path = safety_root / f"pre-restore-portable-{token}.zip"
+            created = self.create_portable_backup_package(str(artifact_path))
+            if not created.success:
+                raise _PortableBackupError(
+                    "Valid-current pre-restore portable backup failed: "
+                    + "; ".join(created.errors)
+                )
+            independently_verified = self.verify_backup_package(str(artifact_path))
+            if (
+                not independently_verified.success
+                or not isinstance(independently_verified.manifest, PortableBackupManifest)
+            ):
+                raise _PortableBackupError(
+                    "Valid-current pre-restore portable backup did not verify"
+                )
+            status = "VALID"
+            metadata = {
+                "state": status, "verified": True,
+                "artifact_kind": "complete_portable_v1",
+            }
+        else:
+            artifact_path = safety_root / f"pre-restore-invalid-raw-{token}.bin"
+            self._write_portable_safety_record(artifact_path, collection_bytes)
+            preserved = _read_stable_regular_file(
+                artifact_path, "Raw invalid-current safety artifact"
+            )
+            if (
+                len(preserved) != len(collection_bytes)
+                or _portable_sha256_bytes(preserved) != digest
+            ):
+                raise _PortableBackupError(
+                    "Raw INVALID_OR_UNSUPPORTED safety artifact did not verify"
+                )
+            status = "INVALID_OR_UNSUPPORTED"
+            metadata = {
+                "state": status, "verified": True,
+                "artifact_kind": "raw_authoritative_bytes",
+                "byte_length": len(collection_bytes), "sha256": digest,
+                "semantically_restorable": False,
+            }
+        self._require_portable_collection_baseline(
+            collection_path, True, identity, len(collection_bytes), digest
+        )
+        return _PortableSafetyState(
+            status, str(artifact_path), metadata, True, identity,
+            len(collection_bytes), digest,
+        )
+
+    @staticmethod
+    def _require_portable_collection_baseline(
+        collection_path: Path,
+        existed: bool,
+        identity: tuple[int, int] | None,
+        byte_length: int,
+        digest: str,
+    ) -> None:
+        if not existed:
+            if os.path.lexists(collection_path):
+                raise _PortableBackupError(
+                    "Authoritative collection appeared during portable restore"
+                )
+            return
+        observed = _read_stable_regular_file(
+            collection_path, "Pre-restore authoritative collection baseline"
+        )
+        info = os.lstat(collection_path)
+        if (
+            (info.st_dev, info.st_ino) != identity
+            or len(observed) != byte_length
+            or _portable_sha256_bytes(observed) != digest
+        ):
+            raise _PortableBackupError(
+                "Authoritative collection changed after its safety artifact was created"
+            )
+
+    @staticmethod
+    def _require_plain_publication_ancestors(root: Path, destination: Path) -> None:
+        try:
+            destination.relative_to(root)
+        except ValueError as error:
+            raise _PortableBackupError(
+                f"Portable publication destination escapes its ownership root: {destination}"
+            ) from error
+        current = root
+        chain = [root, *[root.joinpath(*destination.relative_to(root).parts[:index])
+                          for index in range(1, len(destination.relative_to(root).parts))]]
+        for current in chain:
+            if not os.path.lexists(current):
+                continue
+            info = os.lstat(current)
+            if not stat.S_ISDIR(info.st_mode) or _is_link_or_reparse(info):
+                raise _PortableBackupError(
+                    f"Portable publication ancestor is unsafe: {current}"
+                )
+
+    def _build_portable_publication_plan(
+        self,
+        staged: _PortableStagedPackage,
+        restore_root: Path,
+    ) -> tuple[List[_PortablePublicationEntry], Dict[str, Any]]:
+        """Resolve every permanent destination and collision before mutation."""
+
+        collection_path = Path(self.collection_json_path).absolute()
+        ordinary_root = collection_path.parent / "managed_media" / "ordinary"
+        capture_root = restore_root.absolute() / "coin_photos" / "collection" / "imports"
+        members = {row["archive_member"]: row for row in staged.manifest.members}
+        item_by_id = {item.id: item for item in staged.items}
+        normalized_photos = {
+            item.id: list(item.normalized_photos()) for item in staged.items
+        }
+        for item in staged.items:
+            item.photos = normalized_photos[item.id]
+        entries_by_destination: Dict[Path, _PortablePublicationEntry] = {}
+        mapping_destinations: Dict[tuple[str, int], Path] = {}
+
+        def add_entry(member_name: str, destination: Path) -> None:
+            row = members[member_name]
+            ownership_root = ordinary_root if row["ownership"] == "ordinary_entry" else capture_root
+            self._require_plain_publication_ancestors(ownership_root, destination)
+            reuse = False
+            if os.path.lexists(destination):
+                info = os.lstat(destination)
+                if not stat.S_ISREG(info.st_mode) or _is_link_or_reparse(info):
+                    raise _PortableBackupError(
+                        f"Portable restore destination collision is not a plain file: {destination}"
+                    )
+                observed = _read_stable_regular_file(
+                    destination, "Existing portable restore destination"
+                )
+                if (
+                    len(observed) != row["byte_length"]
+                    or _portable_sha256_bytes(observed) != row["sha256"]
+                ):
+                    raise _PortableBackupError(
+                        f"Portable restore destination contains differing bytes: {destination}"
+                    )
+                reuse = True
+            entry = _PortablePublicationEntry(
+                member_name, staged.member_paths[member_name], destination,
+                row["byte_length"], row["sha256"], row["ownership"],
+                row["member_type"], reuse,
+            )
+            previous = entries_by_destination.get(destination)
+            if previous is not None and (
+                previous.sha256 != entry.sha256
+                or previous.byte_length != entry.byte_length
+                or previous.ownership != entry.ownership
+            ):
+                raise _PortableBackupError(
+                    f"Portable restore destination mapping conflicts: {destination}"
+                )
+            entries_by_destination[destination] = previous or entry
+
+        capture_owner_rows = {
+            row["import_id"]: row for row in staged.manifest.capture_import_roots
+        }
+        for import_id, row in capture_owner_rows.items():
+            import_root = capture_root / import_id
+            owner_destination = import_root / ".import-owner.json"
+            self._require_plain_directory_ancestry(
+                import_root, "Capture-import publication root"
+            )
+            if os.path.lexists(import_root):
+                if not os.path.lexists(owner_destination):
+                    raise _PortableBackupError(
+                        "Existing capture-import root lacks its ownership artifact: "
+                        f"{import_root}"
+                    )
+                existing_owner = _read_stable_regular_file(
+                    owner_destination, "Existing capture-import ownership artifact"
+                )
+                _portable_owner_payload(existing_owner, import_id)
+                staged_owner = members[row["owner_archive_member"]]
+                if (
+                    len(existing_owner) != staged_owner["byte_length"]
+                    or _portable_sha256_bytes(existing_owner) != staged_owner["sha256"]
+                ):
+                    raise _PortableBackupError(
+                        "Existing capture-import ownership artifact contains differing "
+                        f"bytes: {owner_destination}"
+                    )
+            add_entry(row["owner_archive_member"], owner_destination)
+
+        for row in staged.manifest.photo_references:
+            item_id = row["item_id"]
+            photo_index = row["photo_index"]
+            reference_parts = _portable_reference_parts(row["stored_reference"])
+            filename = reference_parts[-1]
+            _portable_archive_key(f"safe/{item_id}/{filename}")
+            if row["ownership"] == "ordinary_entry":
+                destination = ordinary_root / item_id / filename
+            else:
+                import_id = row["capture_import_id"]
+                destination = capture_root / import_id / item_id / filename
+            add_entry(row["archive_member"], destination)
+            mapping_destinations[(item_id, photo_index)] = destination
+
+        for (item_id, photo_index), destination in mapping_destinations.items():
+            item = item_by_id[item_id]
+            if photo_index >= len(item.photos):
+                raise _PortableBackupError(
+                    f"Staged photo mapping index is unavailable: {(item_id, photo_index)!r}"
+                )
+            item.photos[photo_index].path = str(destination)
+
+        expected_payload = serialize_collection_payload(staged.items)
+        deserialize_collection_payload(expected_payload)
+        entries = list(entries_by_destination.values())
+        entries.sort(key=lambda value: (
+            value.member_type != "capture_import_owner", str(value.destination)
+        ))
+        return entries, expected_payload
+
+    @staticmethod
+    def _ensure_portable_publication_directory(
+        directory: Path,
+        created: List[_PortableCreatedObject],
+    ) -> None:
+        BackupManager._require_plain_directory_ancestry(
+            directory, "Portable publication path"
+        )
+        missing: List[Path] = []
+        current = directory
+        while not os.path.lexists(current):
+            missing.append(current)
+            current = current.parent
+        info = os.lstat(current)
+        if not stat.S_ISDIR(info.st_mode) or _is_link_or_reparse(info):
+            raise _PortableBackupError(f"Publication directory ancestor is unsafe: {current}")
+        for path in reversed(missing):
+            os.mkdir(path)
+            info = os.lstat(path)
+            if not stat.S_ISDIR(info.st_mode) or _is_link_or_reparse(info):
+                raise _PortableBackupError(f"Created publication directory is unsafe: {path}")
+            created.append(_PortableCreatedObject(
+                path, info.st_dev, info.st_ino, True
+            ))
+
+    def _publish_portable_file(
+        self,
+        entry: _PortablePublicationEntry,
+        created: List[_PortableCreatedObject],
+    ) -> None:
+        if entry.reuse:
+            observed = _read_stable_regular_file(
+                entry.destination, "Reused portable restore object"
+            )
+            if (
+                len(observed) != entry.byte_length
+                or _portable_sha256_bytes(observed) != entry.sha256
+            ):
+                raise _PortableBackupError(
+                    f"Reused portable restore object changed: {entry.destination}"
+                )
+            return
+        self._ensure_portable_publication_directory(entry.destination.parent, created)
+        source = _read_stable_regular_file(
+            entry.staged_path, f"Staged publication object {entry.archive_member}"
+        )
+        if len(source) != entry.byte_length or _portable_sha256_bytes(source) != entry.sha256:
+            raise _PortableBackupError(
+                f"Staged publication object changed: {entry.archive_member}"
+            )
+        descriptor = os.open(
+            entry.destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+        )
+        created_identity: tuple[int, int] | None = None
+        try:
+            opened = os.fstat(descriptor)
+            created_identity = (opened.st_dev, opened.st_ino)
+            created.append(_PortableCreatedObject(
+                entry.destination, created_identity[0], created_identity[1], False
+            ))
+            with os.fdopen(descriptor, "wb") as handle:
+                descriptor = -1
+                handle.write(source)
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+        if created_identity is None:
+            raise _PortableBackupError("Portable publication identity was unavailable")
+        observed = _read_stable_regular_file(
+            entry.destination, "Published portable restore object"
+        )
+        if len(observed) != entry.byte_length or _portable_sha256_bytes(observed) != entry.sha256:
+            raise _PortableBackupError(
+                f"Published portable restore object did not verify: {entry.destination}"
+            )
+
+    @staticmethod
+    def _cleanup_portable_publication(
+        created: List[_PortableCreatedObject],
+    ) -> List[str]:
+        warnings: List[str] = []
+        for value in reversed(created):
+            try:
+                info = os.lstat(value.path)
+                identity_matches = (
+                    (info.st_dev, info.st_ino) == (value.device, value.inode)
+                    and _is_link_or_reparse(info) is False
+                    and (stat.S_ISDIR(info.st_mode) if value.is_directory else stat.S_ISREG(info.st_mode))
+                )
+                if not identity_matches:
+                    warnings.append(
+                        f"Cleanup retained replaced or identity-ambiguous object: {value.path}"
+                    )
+                    continue
+                if value.is_directory:
+                    value.path.rmdir()
+                else:
+                    value.path.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                warnings.append(f"Cleanup retained {value.path}: {error}")
+        return warnings
+
+    def _publish_portable_collection(
+        self, items: List[Any], expected_payload: Dict[str, Any]
+    ) -> None:
+        """Use the existing collection serializer and atomic JSON writer."""
+
+        payload = serialize_collection_payload(items)
+        if payload != expected_payload:
+            raise _PortableBackupError(
+                "Prospective collection changed before authoritative publication"
+            )
+        write_json_atomically(
+            self.collection_json_path, payload, indent=2, ensure_ascii=False
+        )
+
+    def _reload_and_compare_portable(
+        self,
+        expected_payload: Dict[str, Any],
+        entries: List[_PortablePublicationEntry],
+    ) -> None:
+        reloaded = CoinCollection(self.collection_json_path)
+        if reloaded.load_state is not CollectionLoadState.VALID:
+            raise _PortableBackupError(
+                "Published portable collection did not reload as VALID"
+            )
+        observed_payload = serialize_collection_payload(reloaded.items)
+        if observed_payload != expected_payload:
+            raise _PortableBackupError(
+                "Published portable collection reload comparison failed"
+            )
+        for entry in entries:
+            observed = _read_stable_regular_file(
+                entry.destination, "Reloaded portable media reference"
+            )
+            if len(observed) != entry.byte_length or _portable_sha256_bytes(observed) != entry.sha256:
+                raise _PortableBackupError(
+                    f"Published portable media is unavailable or changed: {entry.destination}"
+                )
+
+    def _restore_portable_backup(
+        self,
+        package_path: str,
+        manifest: PortableBackupManifest,
+        restore_root: str,
+    ) -> BackupResult:
+        stage: _PortableStagedPackage | None = None
+        safety: _PortableSafetyState | None = None
+        created: List[_PortableCreatedObject] = []
+        collection_published = False
+        entries: List[_PortablePublicationEntry] = []
+        try:
+            root = Path(restore_root).absolute()
+            stage = self._stage_portable_backup(package_path, manifest, root)
+            safety = self._create_portable_restore_safety()
+            entries, expected_payload = self._build_portable_publication_plan(
+                stage, root
+            )
+            collection_path = Path(self.collection_json_path).absolute()
+            self._require_portable_collection_baseline(
+                collection_path, safety.collection_existed,
+                safety.collection_identity, safety.collection_length,
+                safety.collection_sha256,
+            )
+            self._ensure_portable_publication_directory(
+                collection_path.parent, created
+            )
+            for entry in entries:
+                self._publish_portable_file(entry, created)
+            self._require_portable_collection_baseline(
+                collection_path, safety.collection_existed,
+                safety.collection_identity, safety.collection_length,
+                safety.collection_sha256,
+            )
+            self._publish_portable_collection(stage.items, expected_payload)
+            collection_published = True
+            try:
+                self._reload_and_compare_portable(expected_payload, entries)
+            except Exception as error:
+                return BackupResult(
+                    False, "Portable restore requires recovery",
+                    package_path=package_path, manifest=manifest,
+                    restored_files=[str(value.destination) for value in entries],
+                    pre_restore_backup_path=safety.artifact_path,
+                    pre_restore_safety_status=safety.status,
+                    pre_restore_safety_metadata=dict(safety.metadata),
+                    errors=[str(error) or type(error).__name__,
+                            "Authoritative publication completed; recovery from the verified pre-restore safety artifact is required."],
+                )
+            return BackupResult(
+                True, "Portable restore completed and reloaded",
+                package_path=package_path, manifest=manifest,
+                restored_files=[self.collection_json_path, *[
+                    str(value.destination) for value in entries
+                ]],
+                skipped_files=[
+                    str(value.destination) for value in entries if value.reuse
+                ],
+                pre_restore_backup_path=safety.artifact_path,
+                pre_restore_safety_status=safety.status,
+                pre_restore_safety_metadata=dict(safety.metadata),
+            )
+        except Exception as error:
+            cleanup_warnings = [] if collection_published else self._cleanup_portable_publication(created)
+            return BackupResult(
+                False, "Portable restore failed",
+                package_path=package_path, manifest=manifest,
+                pre_restore_backup_path=safety.artifact_path if safety else "",
+                pre_restore_safety_status=safety.status if safety else "",
+                pre_restore_safety_metadata=dict(safety.metadata) if safety else {},
+                warnings=cleanup_warnings,
+                errors=[str(error) or type(error).__name__],
+            )
+        finally:
+            if stage is not None:
+                self._cleanup_portable_staging(stage.root)
+
     def collection_recovery_report(self, package_path: str = "") -> CollectionRecoveryReport:
         """Summarize what core collection data can be recovered from a backup."""
 
@@ -1503,12 +2239,8 @@ class BackupManager:
         if not verified.success:
             return verified
         if isinstance(verified.manifest, PortableBackupManifest):
-            return BackupResult(
-                False,
-                "Portable backup restore is not implemented",
-                package_path=package_path,
-                manifest=verified.manifest,
-                errors=["Portable backup restore/publication is reserved for Product Unit 5C."],
+            return self._restore_portable_backup(
+                package_path, verified.manifest, restore_root
             )
         manifest = verified.manifest or BackupManifest(_now_iso())
         allowed_prefixes = ("collection_data/app_state/", "data/collection.json")
