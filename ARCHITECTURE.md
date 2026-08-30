@@ -295,6 +295,117 @@ added to repository fixtures or documentation. A new persistence mechanism needs
 explicit design approval and, when it establishes a lasting architectural
 decision, an ADR. See [ADR-001: Local-first architecture](docs/adr/ADR-001-local-first.md).
 
+### Portable collection backup and restore contract
+
+> **Status:** planned architecture contract for Product Unit 5. Existing
+> unversioned `BackupManager` packages predate this contract, omit managed photo
+> bytes, and must not be represented as complete portable collection backups.
+
+A portable collection backup is a local package whose manifest contains the
+explicit JSON integer `portable_collection_backup_version`. Version `1` is the
+only format defined here. An absent, non-integer, or unsupported value identifies
+a legacy or unsupported package, not version 1, and fails closed at the portable
+restore boundary. A package may be called a **complete portable collection
+backup** only after version-1 verification succeeds; merely creating a ZIP or
+including `data/collection.json` is insufficient.
+
+A complete version-1 package contains the authoritative collection document,
+every collection-managed photograph referenced by its records, and the
+ownership or provenance material required by the media's existing owner. A
+record with no photographs is valid and requires no synthetic image or media
+entry. Ordinary-entry media remains owned under
+`<collection-directory>/managed_media/ordinary/`. Capture-import media remains
+owned by `capture_import`; its collection-record provenance and required import
+ownership material, including the applicable `.import-owner.json`, travel with
+the referenced media when the existing capture-import contract requires them.
+Packaging does not convert capture-import media to ordinary-entry media, change
+its provenance, or redesign capture-package recovery.
+
+Before producing a successful package, creation must load and semantically
+validate the collection through the existing collection parser, establish the
+complete stable-ID roster and authoritative item count, classify every nonblank
+photo reference by its existing owner, and verify every required source file.
+Missing, unreadable, unsafe, or changing referenced managed media fails creation
+closed. An external or otherwise unmanaged photo reference also prevents a
+complete-portability claim: creation fails with a local diagnostic identifying
+the affected item and reference classification, and must neither omit the
+reference nor copy arbitrary external content under an implied ownership rule.
+No successful complete package may remain after such a failure.
+
+Portable verification is independent of creation and covers at least:
+
+- the supported package-format version and closed manifest structure;
+- safe, unique archive paths with no absolute, drive-qualified, parent-traversal,
+  separator-alias, or normalized-name collision;
+- the declared byte length and SHA-256 digest of every packaged file;
+- semantic validity of the complete collection document under a supported
+  collection format, including unique nonblank stable item IDs;
+- agreement between the manifest's authoritative item count and the parsed
+  collection;
+- a complete mapping from every managed photo reference to exactly one verified
+  packaged media object; and
+- the ownership and provenance records required for each referenced
+  capture-import media root.
+
+Backup is observational. Reading either `LEGACY_V0` or V1 for backup must not
+rewrite, normalize, migrate, timestamp, or otherwise mutate the live collection
+or any source media. A collection or media source that changes while it is being
+inventoried or copied invalidates the attempt rather than producing a
+mixed-instant package.
+
+Restore has a preflight, staging, publication, and reload boundary. It first
+verifies the package, then extracts only declared safe members into a fresh
+staging area and repeats collection, roster, media-reference, ownership, size,
+and hash validation against that staged tree. It must create and verify a
+pre-restore safety artifact before altering an existing authoritative path. For
+a valid current collection this is a complete portable backup. For an
+`INVALID_OR_UNSUPPORTED` current collection, the safety artifact preserves and
+verifies the exact existing authoritative bytes and any safely inventoried
+material without claiming semantic validity or automatic restorability. For a
+`MISSING` current collection, it records and verifies that no authoritative file
+existed. Failure to create or verify the applicable safety artifact aborts the
+restore.
+
+All destination collisions are resolved before authoritative publication.
+Existing managed files may be reused only when their bytes match the staged
+length and SHA-256 exactly. A differing file, unsafe object, ownership mismatch,
+or other collision fails closed; restore never silently overwrites unrelated or
+differently owned content. Required restored media and ownership material must
+be installed and verified before restored collection JSON can become
+authoritative.
+
+Collection publication uses the existing supported collection parsing,
+serialization, validation, and atomic-write boundary; backup/restore must not
+create a second authoritative serializer or write live collection JSON member by
+member. Publishing a supported `LEGACY_V0` backup follows the already documented
+legacy-to-V1 write transition: the envelope and compatibility defaults may be
+materialized, but existing stable item IDs and collector-entered metadata remain
+unchanged. V1 values remain V1 values. Any failure before atomic collection
+publication leaves the previous authoritative collection unchanged.
+
+Restore cleanup has narrow ownership. It may remove only files created
+exclusively by that restore attempt, and only while recorded filesystem identity
+still proves that each path names the same created object. It must retain and
+report a replaced, pre-existing, differently owned, or identity-ambiguous object.
+Pre-existing byte-identical files that were reused are never cleanup targets.
+Automatic deletion or garbage collection of unreferenced managed media remains
+outside this contract.
+
+After publication, restore reloads the authoritative file through
+`CoinCollection`, requires the load state to be `VALID`, and verifies the
+expected item count, stable-ID roster, collector-entered values, and availability
+of every restored media reference. A successful GUI restore replaces its active
+in-memory `CoinCollection` only with that verified reloaded instance before
+ordinary add, update, delete, or save operations resume. A reload or comparison
+failure is a recovery error and must not permit mutation through a stale or
+apparently empty in-memory collection.
+
+This contract does not introduce SQLite or another persistence mechanism, cloud
+backup or synchronization, encryption, scheduled or background backup,
+recognition or grading behavior, collection-browser behavior, truthful-entry GUI
+changes, automatic managed-media garbage collection, Unit 4 benchmark work, or
+a capture-package redesign.
+
 ## Representative Data Flows
 
 ### Collection mutation
