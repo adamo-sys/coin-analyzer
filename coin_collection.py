@@ -47,6 +47,14 @@ ACQUISITION_FIELDS = (
 )
 
 
+class CollectionLoadState(str, Enum):
+    """Semantic state of the authoritative collection after a load attempt."""
+
+    MISSING = "MISSING"
+    VALID = "VALID"
+    INVALID_OR_UNSUPPORTED = "INVALID_OR_UNSUPPORTED"
+
+
 def parse_optional_money(value: Any, field_name: str = "monetary value") -> Optional[Decimal]:
     """Parse an optional, finite, non-negative decimal without using binary arithmetic."""
     if value is None or (isinstance(value, str) and not value.strip()):
@@ -537,6 +545,8 @@ class CoinCollection:
     def __init__(self, storage_path: str = "data/collection.json"):
         self.storage_path = storage_path
         self.items: List[CoinItem] = []
+        self.load_state = CollectionLoadState.MISSING
+        self.load_error = ""
         self.last_save_error = ""
         self.ensure_storage_directory()
         self.load_collection()
@@ -548,22 +558,62 @@ class CoinCollection:
             os.makedirs(directory, exist_ok=True)
     
     def load_collection(self):
-        """Load collection from JSON storage."""
+        """Load and validate the authoritative collection without repairing it."""
         if os.path.exists(self.storage_path):
             try:
                 with open(self.storage_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    self.items = [CoinItem.from_dict(item) for item in data]
+                if not isinstance(data, list):
+                    raise ValueError("collection JSON root must be an array")
+
+                loaded_items: List[CoinItem] = []
+                seen_ids: Set[str] = set()
+                for index, record in enumerate(data):
+                    if not isinstance(record, dict):
+                        raise ValueError(
+                            f"collection record {index} must be an object"
+                        )
+                    item_id = record.get("id")
+                    if not isinstance(item_id, str) or not item_id.strip():
+                        raise ValueError(
+                            f"collection record {index} must have a nonblank string id"
+                        )
+                    if item_id in seen_ids:
+                        raise ValueError(
+                            f"collection contains duplicate item id {item_id!r}"
+                        )
+                    seen_ids.add(item_id)
+                    loaded_items.append(CoinItem.from_dict(record))
+
+                self.items = loaded_items
+                self.load_state = CollectionLoadState.VALID
+                self.load_error = ""
                 print(f"Loaded {len(self.items)} items from collection")
             except Exception as e:
-                print(f"Error loading collection: {str(e)}")
                 self.items = []
+                self.load_state = CollectionLoadState.INVALID_OR_UNSUPPORTED
+                self.load_error = str(e) or type(e).__name__
+                print(f"Error loading collection: {self.load_error}")
         else:
             self.items = []
+            self.load_state = CollectionLoadState.MISSING
+            self.load_error = ""
             print("No existing collection found, starting fresh")
+
+    def _block_invalid_collection_mutation(self, operation: str) -> bool:
+        if self.load_state != CollectionLoadState.INVALID_OR_UNSUPPORTED:
+            return False
+        self.last_save_error = (
+            f"{operation} blocked because the authoritative collection load state "
+            f"is {CollectionLoadState.INVALID_OR_UNSUPPORTED.value}: "
+            f"{self.load_error}"
+        )
+        return True
     
     def save_collection(self, *, import_lock=None) -> bool:
         """Save collection to JSON storage."""
+        if self._block_invalid_collection_mutation("save"):
+            return False
         owned_lock = None
         try:
             if import_lock is None:
@@ -583,6 +633,8 @@ class CoinCollection:
                 indent=2,
                 ensure_ascii=False,
             )
+            self.load_state = CollectionLoadState.VALID
+            self.load_error = ""
             self.last_save_error = ""
             print(f"Saved {len(self.items)} items to collection")
             return True
@@ -605,6 +657,8 @@ class CoinCollection:
 
         from capture_import.baseline import require_collection_baseline
 
+        if self._block_invalid_collection_mutation("import replacement"):
+            return False
         original_items = self.items
         replacement_completed = False
         try:
@@ -680,6 +734,12 @@ class CoinCollection:
                     "changes contain a duplicate field."
                 )
             seen_fields.add(change.field_name)
+
+        if self._block_invalid_collection_mutation("conditional mutation"):
+            raise ConditionalCollectionRepositoryError(
+                "The collection repository could not complete the conditional "
+                "mutation."
+            )
 
         from capture_import.lock import PackageImportLock
 
@@ -809,6 +869,8 @@ class CoinCollection:
     
     def add_item(self, item: CoinItem, *, import_lock=None) -> bool:
         """Add item to collection."""
+        if self._block_invalid_collection_mutation("add"):
+            return False
         original_items = list(self.items)
         self.items.append(item)
         if self.save_collection(import_lock=import_lock):
@@ -818,6 +880,8 @@ class CoinCollection:
     
     def update_item(self, item_id: str, updates: Dict) -> bool:
         """Update item in collection."""
+        if self._block_invalid_collection_mutation("update"):
+            return False
         for item in self.items:
             if item.id == item_id:
                 normalized_updates = dict(updates)
@@ -851,6 +915,8 @@ class CoinCollection:
     
     def delete_item(self, item_id: str) -> bool:
         """Delete item from collection."""
+        if self._block_invalid_collection_mutation("delete"):
+            return False
         original_items = list(self.items)
         self.items = [item for item in original_items if item.id != item_id]
         if self.save_collection():
