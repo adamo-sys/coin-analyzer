@@ -27,6 +27,12 @@ from coin_collection import (
     normalize_acquisition_values,
     serialize_money,
 )
+from collection_browser import (
+    CollectionBrowserCriteria,
+    CollectionBrowserSort,
+    issuer_country_filter_options,
+    project_collection,
+)
 from numista_intelligence import NumistaIntelligenceEngine
 from smart_phone_cataloguer import SmartPhoneCataloguer
 from collection_intelligence import CollectionIntelligenceEngine
@@ -202,6 +208,32 @@ PHOTO_INBOX_SETTINGS_DEFAULTS = {
     PHOTO_INBOX_SETTING_AUTO_REFRESH_ON_OPEN: True,
 }
 
+BROWSER_TYPE_CHOICES = {
+    "All": None,
+    "Coin": ItemType.COIN,
+    "Banknote": ItemType.BANKNOTE,
+}
+BROWSER_DISPOSITION_CHOICES = {
+    "All": None,
+    "Keep": Disposition.KEEP,
+    "Upgrade": Disposition.UPGRADE,
+    "Sell/Trade": Disposition.SELL_TRADE,
+    "Undecided": Disposition.UNDECIDED,
+}
+BROWSER_IDENTIFICATION_CHOICES = {
+    "All": None,
+    "Identified": IdentificationStatus.IDENTIFIED,
+    "Partial": IdentificationStatus.PARTIAL,
+    "Unidentified": IdentificationStatus.UNIDENTIFIED,
+}
+BROWSER_SORT_CHOICES = {
+    "Collection order": CollectionBrowserSort.COLLECTION_ORDER,
+    "Recently updated": CollectionBrowserSort.RECENTLY_UPDATED,
+    "Issuer/Country A-Z": CollectionBrowserSort.ISSUER_COUNTRY,
+    "Denomination A-Z": CollectionBrowserSort.DENOMINATION,
+    "Date/Year/Series A-Z": CollectionBrowserSort.DATE_SERIES,
+}
+
 
 class CoinCollectionGUI:
     """GUI for coin collection management."""
@@ -292,6 +324,9 @@ class CoinCollectionGUI:
         self.capture_import_recovery = None
         self.capture_import_coordinator = None
         self._collection_edit_windows = set()
+        self._browser_row_item_ids = {}
+        self._browser_thumbnail_refs = {}
+        self._browser_fallback_thumbnail = None
         self._visual_identity_provider = None
         self.initialize_capture_import_recovery()
         
@@ -1523,7 +1558,7 @@ Total Unique Dates: {total_unique_dates}
         collection_frame = ttk.LabelFrame(right_panel, text="Collection", padding="10")
         collection_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         collection_frame.columnconfigure(0, weight=1)
-        collection_frame.rowconfigure(2, weight=1)
+        collection_frame.rowconfigure(3, weight=1)
         
         # Search box
         search_frame = ttk.Frame(collection_frame)
@@ -1534,11 +1569,57 @@ Total Unique Dates: {total_unique_dates}
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         search_entry.bind('<KeyRelease>', self.on_search)
-        ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT)
+        ttk.Button(search_frame, text="Reset", command=self.reset_collection_browser).pack(side=tk.LEFT)
+
+        filter_frame = ttk.Frame(collection_frame)
+        filter_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        filter_specs = (
+            ("Type:", "browser_type_var", BROWSER_TYPE_CHOICES),
+            ("Disposition:", "browser_disposition_var", BROWSER_DISPOSITION_CHOICES),
+            ("Identification:", "browser_identification_var", BROWSER_IDENTIFICATION_CHOICES),
+        )
+        for column, (label, attribute, choices) in enumerate(filter_specs):
+            ttk.Label(filter_frame, text=label).grid(row=0, column=column * 2, sticky=tk.W, padx=(0 if column == 0 else 8, 3))
+            variable = tk.StringVar(value="All")
+            setattr(self, attribute, variable)
+            combo = ttk.Combobox(
+                filter_frame,
+                textvariable=variable,
+                values=tuple(choices),
+                state="readonly",
+                width=13,
+            )
+            combo.grid(row=0, column=column * 2 + 1, sticky=tk.W)
+            combo.bind("<<ComboboxSelected>>", self.on_browser_criteria_changed)
+
+        ttk.Label(filter_frame, text="Issuer/Country:").grid(row=1, column=0, sticky=tk.W, pady=(6, 0), padx=(0, 3))
+        self.browser_issuer_country_var = tk.StringVar(value="All")
+        self.browser_issuer_country_combo = ttk.Combobox(
+            filter_frame,
+            textvariable=self.browser_issuer_country_var,
+            values=("All",),
+            state="readonly",
+            width=24,
+        )
+        self.browser_issuer_country_combo.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=(6, 0))
+        self.browser_issuer_country_combo.bind("<<ComboboxSelected>>", self.on_browser_criteria_changed)
+
+        ttk.Label(filter_frame, text="Sort:").grid(row=1, column=3, sticky=tk.W, pady=(6, 0), padx=(8, 3))
+        self.browser_sort_var = tk.StringVar(value="Collection order")
+        sort_combo = ttk.Combobox(
+            filter_frame,
+            textvariable=self.browser_sort_var,
+            values=tuple(BROWSER_SORT_CHOICES),
+            state="readonly",
+            width=22,
+        )
+        sort_combo.grid(row=1, column=4, columnspan=2, sticky=(tk.W, tk.E), pady=(6, 0))
+        sort_combo.bind("<<ComboboxSelected>>", self.on_browser_criteria_changed)
+        filter_frame.columnconfigure(2, weight=1)
 
         # Collection buttons
         collection_buttons = ttk.Frame(collection_frame)
-        collection_buttons.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        collection_buttons.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
 
         ttk.Button(collection_buttons, text="View Details", command=self.view_item_details).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Edit Item", command=self.edit_item).pack(side=tk.LEFT, padx=(0, 5))
@@ -1551,31 +1632,53 @@ Total Unique Dates: {total_unique_dates}
 
         # Collection list with scrollbar
         list_frame = ttk.Frame(collection_frame)
-        list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        list_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
         
         scrollbar = ttk.Scrollbar(list_frame)
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
-        self.collection_tree = ttk.Treeview(list_frame, columns=("ID", "Country", "Denom", "Year", "Grade"), 
-                                          show="headings", yscrollcommand=scrollbar.set)
-        self.collection_tree.heading("ID", text="ID")
-        self.collection_tree.heading("Country", text="Country")
-        self.collection_tree.heading("Denom", text="Denomination")
-        self.collection_tree.heading("Year", text="Year")
-        self.collection_tree.heading("Grade", text="Grade")
-        
-        self.collection_tree.column("ID", width=80)
-        self.collection_tree.column("Country", width=100)
-        self.collection_tree.column("Denom", width=100)
-        self.collection_tree.column("Year", width=60)
-        self.collection_tree.column("Grade", width=60)
+        horizontal_scrollbar = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL)
+        horizontal_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+
+        browser_columns = (
+            "type", "issuer_country", "denomination", "date_series", "grade",
+            "acquisition", "disposition", "identification_status",
+        )
+        self.collection_tree = ttk.Treeview(
+            list_frame,
+            columns=browser_columns,
+            show="tree headings",
+            yscrollcommand=scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
+        )
+        headings = {
+            "#0": "Photo", "type": "Type", "issuer_country": "Issuer / Country",
+            "denomination": "Denomination", "date_series": "Date / Year / Series",
+            "grade": "Grade / Condition", "acquisition": "Acquisition",
+            "disposition": "Disposition", "identification_status": "Identification",
+        }
+        widths = {
+            "#0": 64, "type": 72, "issuer_country": 170, "denomination": 110,
+            "date_series": 125, "grade": 105, "acquisition": 175,
+            "disposition": 95, "identification_status": 100,
+        }
+        for column in ("#0",) + browser_columns:
+            self.collection_tree.heading(column, text=headings[column])
+            self.collection_tree.column(column, width=widths[column], minwidth=55, stretch=column != "#0")
         
         self.collection_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.config(command=self.collection_tree.yview)
+        horizontal_scrollbar.config(command=self.collection_tree.xview)
         
         self.collection_tree.bind("<<TreeviewSelect>>", self.on_collection_select)
+        self.collection_tree.bind("<Double-1>", lambda _event: self.view_item_details())
+
+        self.browser_result_count_var = tk.StringVar(value="0 items")
+        ttk.Label(collection_frame, textvariable=self.browser_result_count_var, anchor=tk.E).grid(
+            row=4, column=0, sticky=tk.E, pady=(5, 0)
+        )
 
         status_frame = ttk.Frame(main_frame)
         status_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
@@ -2520,13 +2623,17 @@ Total Unique Dates: {total_unique_dates}
     @classmethod
     def item_details_text(cls, item):
         """Build details text shared by the gallery window and tests."""
+        detail_photos = list(item.photos)
+        if not detail_photos and item.image_path:
+            detail_photos = [ItemPhoto(item.image_path, is_primary=True)]
+        primary_path = project_collection((item,))[0].thumbnail_path
         details = [
             f"ID: {item.id}",
             f"Item Type: {item.item_type.value}",
             f"Disposition: {item.disposition.value}",
             f"Identification Status: {item.identification_status.value}",
             f"Updated At: {item.updated_at or 'Not recorded'}",
-            f"Image: {item.primary_image_path}",
+            f"Image: {primary_path}",
             f"Country: {item.country}",
             f"Issuer: {item.issuer}",
             f"Denomination: {item.denomination}",
@@ -2573,7 +2680,7 @@ Total Unique Dates: {total_unique_dates}
             f"Auto Detected: {item.auto_detected}",
             f"Detection Confidence: {item.detection_confidence}",
         ])
-        rows = cls.photo_detail_rows(item.normalized_photos())
+        rows = cls.photo_detail_rows(detail_photos)
         details.extend(["", "--- Photos ---"])
         if rows:
             for row in rows:
@@ -3150,35 +3257,102 @@ Total Unique Dates: {total_unique_dates}
         self.refresh_entry_suggestions()
     
     def refresh_collection_list(self):
-        """Refresh collection list view."""
-        # Clear existing items
+        """Rebuild the browser from a detached snapshot of the active collection."""
         for item in self.collection_tree.get_children():
             self.collection_tree.delete(item)
-        
-        # Get items based on search
-        search_query = self.search_var.get().strip()
-        if search_query:
-            items = self.app.collection.search_items(search_query)
+        self._browser_row_item_ids = {}
+        self._browser_thumbnail_refs = {}
+
+        collection = self.app.collection
+        is_valid = collection.load_state is CollectionLoadState.VALID
+        snapshot = tuple(collection.get_all_items()) if is_valid else ()
+        self.refresh_browser_filter_options(snapshot)
+        rows = project_collection(snapshot, self.browser_criteria()) if is_valid else ()
+
+        for index, row in enumerate(rows):
+            tree_id = f"browser-row-{index}"
+            thumbnail = self.browser_thumbnail(row.thumbnail_path)
+            self.collection_tree.insert(
+                "",
+                tk.END,
+                iid=tree_id,
+                text="",
+                image=thumbnail,
+                values=(
+                    row.item_type,
+                    row.issuer_country,
+                    row.denomination,
+                    row.date_series,
+                    row.grade,
+                    row.acquisition,
+                    row.disposition,
+                    row.identification_status,
+                ),
+            )
+            self._browser_row_item_ids[tree_id] = row.item_id
+            self._browser_thumbnail_refs[tree_id] = thumbnail
+        if is_valid or collection.load_state is CollectionLoadState.MISSING:
+            self.browser_result_count_var.set(f"{len(rows)} item{'s' if len(rows) != 1 else ''}")
         else:
-            items = self.app.collection.get_all_items()
-        
-        # Add items to tree
-        for item in items:
-            self.collection_tree.insert("", tk.END, values=(
-                item.id,
-                item.country,
-                item.denomination,
-                item.year,
-                item.grade
-            ))
+            self.browser_result_count_var.set("Collection unavailable")
+
+    def browser_criteria(self):
+        """Translate controls into the closed Unit 6B criteria vocabulary."""
+        issuer_or_country = self.browser_issuer_country_var.get()
+        return CollectionBrowserCriteria(
+            search_text=self.search_var.get(),
+            item_type=BROWSER_TYPE_CHOICES[self.browser_type_var.get()],
+            disposition=BROWSER_DISPOSITION_CHOICES[self.browser_disposition_var.get()],
+            identification_status=BROWSER_IDENTIFICATION_CHOICES[
+                self.browser_identification_var.get()
+            ],
+            issuer_or_country="" if issuer_or_country == "All" else issuer_or_country,
+            sort_order=BROWSER_SORT_CHOICES[self.browser_sort_var.get()],
+        )
+
+    def refresh_browser_filter_options(self, snapshot):
+        """Refresh the ephemeral issuer/country choices from factual values."""
+        values = ("All",) + issuer_country_filter_options(snapshot)
+        self.browser_issuer_country_combo.configure(values=values)
+        if self.browser_issuer_country_var.get() not in values:
+            self.browser_issuer_country_var.set("All")
+
+    def browser_thumbnail(self, path):
+        """Create one read-only in-memory browser thumbnail or neutral fallback."""
+        if path:
+            try:
+                with Image.open(path) as source:
+                    image = source.convert("RGB")
+                    image.thumbnail((48, 48), Image.Resampling.LANCZOS)
+                return ImageTk.PhotoImage(image)
+            except Exception:
+                pass
+        if self._browser_fallback_thumbnail is None:
+            fallback = Image.new("RGB", (48, 48), "#d9d9d9")
+            self._browser_fallback_thumbnail = ImageTk.PhotoImage(fallback)
+        return self._browser_fallback_thumbnail
     
     def on_search(self, event):
         """Handle search input."""
+        self.refresh_collection_list()
+
+    def on_browser_criteria_changed(self, event=None):
+        """Refresh after a filter or sort selection."""
         self.refresh_collection_list()
     
     def clear_search(self):
         """Clear search and show all items."""
         self.search_var.set("")
+        self.refresh_collection_list()
+
+    def reset_collection_browser(self):
+        """Restore the default unfiltered collection-order browser state."""
+        self.search_var.set("")
+        self.browser_type_var.set("All")
+        self.browser_disposition_var.set("All")
+        self.browser_identification_var.set("All")
+        self.browser_issuer_country_var.set("All")
+        self.browser_sort_var.set("Collection order")
         self.refresh_collection_list()
 
     def get_entry_suggestions(self, field: str, query: str = ""):
@@ -4774,27 +4948,39 @@ Total Unique Dates: {total_unique_dates}
         form_frame.columnconfigure(1, weight=1)
     
     def on_collection_select(self, event):
-        """Handle collection item selection."""
-        selection = self.collection_tree.selection()
-        if selection:
-            item_id = self.collection_tree.item(selection[0])['values'][0]
-            # Could load item details here
-            pass
-    
-    def view_item_details(self):
-        """View selected item details."""
+        """Keep selection presentation-only; actions resolve the stable ID later."""
+
+    def selected_browser_item(self):
+        """Resolve the selected stable ID against the current active collection."""
         selection = self.collection_tree.selection()
         if not selection:
             messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
+            return None
+        tree_id = selection[0]
+        item_id = self._browser_row_item_ids.get(tree_id)
+        collection = self.app.collection
+        if collection.load_state is not CollectionLoadState.VALID:
+            messagebox.showerror("Collection Unavailable", "The active collection is not valid for this action.")
+            return None
+        item = collection.get_item(item_id) if item_id else None
+        if item is None:
+            try:
+                self.collection_tree.selection_remove(tree_id)
+            except tk.TclError:
+                pass
+            self.refresh_collection_list()
+            messagebox.showwarning(
+                "Selection Changed",
+                "The selected item is no longer available. The collection browser was refreshed.",
+            )
+            return None
+        return item
+    
+    def view_item_details(self):
+        """View selected item details."""
+        item = self.selected_browser_item()
         if item:
             self.open_item_details_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
 
     def open_item_details_window(self, item):
         """Open a read-only item details window with a photo gallery."""
@@ -4821,7 +5007,10 @@ Total Unique Dates: {total_unique_dates}
         preview_label = ttk.Label(gallery, text="No photos attached", anchor=tk.CENTER)
         preview_label.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
 
-        rows = self.photo_detail_rows(item.normalized_photos())
+        detail_photos = list(item.photos)
+        if not detail_photos and item.image_path:
+            detail_photos = [ItemPhoto(item.image_path, is_primary=True)]
+        rows = self.photo_detail_rows(detail_photos)
         photo_tree = ttk.Treeview(
             gallery,
             columns=("primary", "role", "file"),
@@ -4882,18 +5071,9 @@ Total Unique Dates: {total_unique_dates}
     
     def edit_item(self):
         """Edit selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
+        item = self.selected_browser_item()
         if item:
             self.open_edit_item_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
 
     def open_edit_item_window(self, item):
         """Open a scoped edit dialog that includes item-owned photo metadata."""
@@ -5154,15 +5334,26 @@ Total Unique Dates: {total_unique_dates}
     
     def delete_item(self):
         """Delete selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
+        item = self.selected_browser_item()
+        if item is None:
             return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        
+        selected_collection = self.app.collection
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this item?"):
-            if self.app.collection.delete_item(item_id):
+            active_collection = self.app.collection
+            current_item = (
+                active_collection.get_item(item.id)
+                if active_collection is selected_collection
+                and active_collection.load_state is CollectionLoadState.VALID
+                else None
+            )
+            if current_item is None:
+                self.refresh_collection_list()
+                messagebox.showwarning(
+                    "Selection Changed",
+                    "The selected item or active collection changed before deletion. Nothing was deleted.",
+                )
+                return
+            if active_collection.delete_item(current_item.id):
                 self.refresh_collection_list()
                 messagebox.showinfo("Success", "Item deleted")
             else:

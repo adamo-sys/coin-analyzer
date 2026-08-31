@@ -33,19 +33,21 @@ class CollectionLayoutTests(unittest.TestCase):
         keyword = next(item for item in call.keywords if item.arg == name)
         return ast.literal_eval(keyword.value)
 
-    def test_toolbar_sits_between_search_and_expandable_collection_table(self):
+    def test_filters_and_toolbar_sit_before_expandable_collection_table(self):
         search_grid = self._calls("search_frame", "grid")[0]
+        filter_grid = self._calls("filter_frame", "grid")[0]
         toolbar_grid = self._calls("collection_buttons", "grid")[0]
         list_grid = self._calls("list_frame", "grid")[0]
 
         self.assertEqual(0, self._keyword(search_grid, "row"))
-        self.assertEqual(1, self._keyword(toolbar_grid, "row"))
-        self.assertEqual(2, self._keyword(list_grid, "row"))
+        self.assertEqual(1, self._keyword(filter_grid, "row"))
+        self.assertEqual(2, self._keyword(toolbar_grid, "row"))
+        self.assertEqual(3, self._keyword(list_grid, "row"))
         self.assertEqual((0, 10), self._keyword(toolbar_grid, "pady"))
 
         row_configure = self._calls("collection_frame", "rowconfigure")
         self.assertTrue(
-            any(ast.literal_eval(call.args[0]) == 2 and self._keyword(call, "weight") == 1
+            any(ast.literal_eval(call.args[0]) == 3 and self._keyword(call, "weight") == 1
                 for call in row_configure)
         )
 
