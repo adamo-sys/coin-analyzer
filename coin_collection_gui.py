@@ -15,8 +15,10 @@ import cv2
 from acquisition_workflow import AcquisitionWorkflow
 from collector_cloud import CollectorCloud
 from coin_collection import (
+    CoinCollection,
     CoinCollectionApp,
     CoinItem,
+    CollectionLoadState,
     Disposition,
     IdentificationStatus,
     ItemPhoto,
@@ -289,6 +291,7 @@ class CoinCollectionGUI:
         self.capture_import_recovery_message = RecoveryRequired().safe_message
         self.capture_import_recovery = None
         self.capture_import_coordinator = None
+        self._collection_edit_windows = set()
         self._visual_identity_provider = None
         self.initialize_capture_import_recovery()
         
@@ -1023,6 +1026,8 @@ Total Unique Dates: {total_unique_dates}
         """Complete fail-closed importer recovery before enabling package import."""
 
         self.capture_import_ready = False
+        self.capture_import_recovery = None
+        self.capture_import_coordinator = None
         try:
             recovery, coordinator = build_default_import_services(self.app.collection)
             recovery.reconcile_pending_imports()
@@ -2116,7 +2121,7 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(main_frame, text="Close", command=dialog.destroy).pack(anchor=tk.W, pady=(10, 0))
 
     def restore_backup_package(self):
-        """Restore app state from a selected backup package."""
+        """Restore a package and activate any published collection fail closed."""
         file_path = filedialog.askopenfilename(
             title="Select Backup Package",
             filetypes=[("Zip files", "*.zip"), ("All files", "*.*")]
@@ -2129,20 +2134,192 @@ Total Unique Dates: {total_unique_dates}
             return
         if not messagebox.askyesno(
             "Restore Backup",
-            "Restore app-state files from this backup?\n\nA pre-restore backup will be created first."
+            "Restore the verified collection and/or app-state content from this "
+            "backup?\n\nA pre-restore safety backup will be created first."
         ):
             return
         result = self.backup_manager.restore_from_backup_package(file_path, overwrite=True)
-        if result.success:
+        collection_changed = self._restore_result_changed_collection(result)
+        recovery_required = result.status == "Portable restore requires recovery"
+
+        if recovery_required:
+            self._enter_restore_recovery_state(result)
+            return
+
+        restored_item_count = None
+        if collection_changed:
+            try:
+                restored_item_count = self._activate_restored_collection()
+            except Exception as error:
+                self._enter_restore_recovery_state(result, error)
+                return
+
+        if not result.success:
+            detail = "\n".join(result.errors) or result.status
+            if restored_item_count is not None:
+                detail += (
+                    f"\n\nThe restored authoritative collection was safely reloaded "
+                    f"with {restored_item_count} item(s), but another restore step failed."
+                )
+            messagebox.showerror("Restore Error", detail)
+            return
+
+        session_warning = ""
+        if self._restore_result_includes_path(
+            result, self.persistence_manager.state_path
+        ):
             load_result = self.persistence_manager.load_state()
             if load_result.success:
-                self._apply_loaded_app_state(load_result.state)
-            detail = f"Restored files: {len(result.restored_files)}\nSkipped files: {len(result.skipped_files)}"
-            if result.pre_restore_backup_path:
-                detail += f"\nPre-restore backup: {result.pre_restore_backup_path}"
-            messagebox.showinfo("Restore Complete", detail)
+                try:
+                    self._apply_loaded_app_state(load_result.state)
+                except Exception as error:
+                    session_warning = str(error) or type(error).__name__
+            else:
+                session_warning = "\n".join(load_result.errors) or load_result.status
+
+        detail = (
+            f"Restored files: {len(result.restored_files)}\n"
+            f"Skipped files: {len(result.skipped_files)}"
+        )
+        if restored_item_count is not None:
+            detail += f"\nActive collection items: {restored_item_count}"
+        if result.pre_restore_backup_path:
+            detail += f"\nPre-restore backup: {result.pre_restore_backup_path}"
+        if session_warning:
+            detail += (
+                "\n\nThe collection restore is active and valid, but saved session "
+                f"state could not be applied:\n{session_warning}"
+            )
+            messagebox.showwarning("Restore Complete with Warning", detail)
         else:
-            messagebox.showerror("Restore Error", "\n".join(result.errors))
+            messagebox.showinfo("Restore Complete", detail)
+
+    def _restore_result_changed_collection(self, result) -> bool:
+        """Return whether backend metadata reports authoritative publication."""
+
+        return self._restore_result_includes_path(
+            result, self.backup_manager.collection_json_path
+        )
+
+    @staticmethod
+    def _restore_result_includes_path(result, expected_path) -> bool:
+        """Match a backend-reported restored path independent of path spelling."""
+
+        target = os.path.normcase(os.path.abspath(expected_path))
+        return any(
+            os.path.normcase(os.path.abspath(path)) == target
+            for path in result.restored_files
+        )
+
+    @staticmethod
+    def _invalidate_collection(collection, reason):
+        """Make every retained reference to a superseded collection fail closed."""
+
+        collection.load_state = CollectionLoadState.INVALID_OR_UNSUPPORTED
+        collection.load_error = reason
+        collection.last_save_error = reason
+
+    @staticmethod
+    def _blocked_collection(storage_path, reason):
+        """Create a non-loading mutation guard when authoritative reload raises."""
+
+        collection = CoinCollection.__new__(CoinCollection)
+        collection.storage_path = storage_path
+        collection.items = []
+        collection.collection_format = None
+        collection.load_state = CollectionLoadState.INVALID_OR_UNSUPPORTED
+        collection.load_error = reason
+        collection.last_save_error = reason
+        return collection
+
+    def _close_collection_edit_windows(self):
+        """Invalidate edit dialogs whose controls were built from old records."""
+
+        windows = list(getattr(self, "_collection_edit_windows", set()))
+        self._collection_edit_windows = set()
+        for dialog in windows:
+            try:
+                if dialog.winfo_exists():
+                    dialog.destroy()
+            except Exception:
+                continue
+
+    def _track_collection_edit_window(self, dialog):
+        """Track an item-edit dialog until it is closed or restore invalidates it."""
+
+        if not hasattr(self, "_collection_edit_windows"):
+            self._collection_edit_windows = set()
+        self._collection_edit_windows.add(dialog)
+
+        def forget(event=None):
+            if event is None or getattr(event, "widget", dialog) is dialog:
+                self._collection_edit_windows.discard(dialog)
+
+        dialog.bind("<Destroy>", forget, add="+")
+
+    def _activate_restored_collection(self) -> int:
+        """Load, bind, and refresh a published authoritative collection."""
+
+        path = self.backup_manager.collection_json_path
+        old_collection = self.app.collection
+        superseded = "Superseded by authoritative collection restore"
+        self._invalidate_collection(old_collection, superseded)
+        self._close_collection_edit_windows()
+
+        try:
+            restored = CoinCollection(path)
+        except Exception as error:
+            reason = f"Restored authoritative collection reload failed: {error}"
+            self.app.collection = self._blocked_collection(path, reason)
+            raise RuntimeError(reason) from error
+        self.app.collection = restored
+        if restored.load_state is not CollectionLoadState.VALID:
+            reason = (
+                "Restored authoritative collection is not VALID: "
+                f"{restored.load_error or restored.load_state.value}"
+            )
+            self._invalidate_collection(restored, reason)
+            raise RuntimeError(reason)
+
+        try:
+            if not self.initialize_capture_import_recovery():
+                raise RuntimeError(self.capture_import_recovery_message)
+            self.clear_form()
+            self.refresh_collection_list()
+            self.refresh_entry_suggestions()
+        except Exception as error:
+            reason = f"Restored collection activation failed: {error}"
+            self._invalidate_collection(restored, reason)
+            raise RuntimeError(reason) from error
+        return len(restored.items)
+
+    def _enter_restore_recovery_state(self, result, activation_error=None):
+        """Block mutation after publication whose GUI activation is not safe."""
+
+        reason_parts = [
+            str(error) for error in result.errors if str(error).strip()
+        ]
+        if activation_error is not None:
+            reason_parts.append(str(activation_error) or type(activation_error).__name__)
+        reason = "\n".join(reason_parts) or result.status
+
+        current = self.app.collection
+        self._invalidate_collection(current, reason)
+        self._close_collection_edit_windows()
+        self.capture_import_ready = False
+        self.capture_import_recovery = None
+        self.capture_import_coordinator = None
+        safety_detail = (
+            f"\nVerified pre-restore safety artifact:\n{result.pre_restore_backup_path}\n"
+            if result.pre_restore_backup_path
+            else "\n"
+        )
+        messagebox.showerror(
+            "Portable Restore Requires Recovery",
+            f"{reason}\n{safety_detail}\nOrdinary collection mutations are blocked. "
+            "Retain the verified pre-restore safety artifact and recover the "
+            "authoritative collection before continuing.",
+        )
     
     @staticmethod
     def get_photo_role_values():
@@ -4684,6 +4861,7 @@ Total Unique Dates: {total_unique_dates}
     def open_edit_item_window(self, item):
         """Open a scoped edit dialog that includes item-owned photo metadata."""
         dialog = tk.Toplevel(self.root)
+        self._track_collection_edit_window(dialog)
         dialog.title("Edit Item")
         dialog.geometry("780x760")
         dialog.transient(self.root)
