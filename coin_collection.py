@@ -82,6 +82,40 @@ class IdentificationStatus(str, Enum):
 
 COLLECTION_SCHEMA_VERSION = 1
 
+_MANUAL_IDENTITY_PLACEHOLDERS = frozenset({
+    "unknown",
+    "n/a",
+    "na",
+    "none",
+    "not applicable",
+    "unidentified",
+})
+
+
+def reliable_manual_identity_value(value: Any) -> bool:
+    """Return whether manual text is factual identity rather than a sentinel."""
+
+    text = str(value or "").strip()
+    return bool(text) and text.casefold() not in _MANUAL_IDENTITY_PLACEHOLDERS
+
+
+def truthful_manual_identification_status(values: Mapping[str, Any]) -> IdentificationStatus:
+    """Derive manual-save status without changing collector-entered facts."""
+
+    reliable = {
+        name: reliable_manual_identity_value(values.get(name))
+        for name in ("country", "issuer", "denomination", "year", "reference")
+    }
+    if reliable["reference"] or (
+        (reliable["country"] or reliable["issuer"])
+        and reliable["denomination"]
+        and reliable["year"]
+    ):
+        return IdentificationStatus.IDENTIFIED
+    if any(reliable.values()):
+        return IdentificationStatus.PARTIAL
+    return IdentificationStatus.UNIDENTIFIED
+
 
 def utc_now_rfc3339() -> str:
     """Return the current UTC instant in the collection timestamp format."""
@@ -1541,6 +1575,15 @@ class CoinCollection:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class CollectionItemUpdateResult:
+    """Outcome of one media-safe existing-item edit attempt."""
+
+    success: bool
+    error: str = ""
+    retained_attempt_media: tuple[str, ...] = ()
+
+
 class CoinCollectionApp:
     """Main application for coin collection management."""
     
@@ -1757,6 +1800,130 @@ class CoinCollectionApp:
         self.last_added_item_id = item_id
         print(f"Added item {item_id} to collection")
         return True
+
+    def update_collection_item(
+        self,
+        item_id: str,
+        updates: Mapping[str, Any],
+        photos: Optional[List[ItemPhoto]] = None,
+    ) -> "CollectionItemUpdateResult":
+        """Safely edit one current item and manage only newly selected media."""
+
+        if self.collection.load_state is not CollectionLoadState.VALID:
+            error = "The authoritative collection is not valid for editing."
+            self.collection.last_save_error = error
+            return CollectionItemUpdateResult(False, error)
+        current = self.collection.get_item(item_id)
+        if current is None:
+            error = "The collection item no longer exists."
+            self.collection.last_save_error = error
+            return CollectionItemUpdateResult(False, error)
+
+        requested_updates = dict(updates)
+        if "id" in requested_updates and requested_updates["id"] != current.id:
+            error = "The stable item ID cannot be changed."
+            self.collection.last_save_error = error
+            return CollectionItemUpdateResult(False, error)
+        requested_updates.pop("id", None)
+        try:
+            requested_type = CoinItem._closed_enum(
+                ItemType,
+                requested_updates.get("item_type", current.item_type),
+                "item_type",
+            )
+        except ValueError as exc:
+            self.collection.last_save_error = str(exc)
+            return CollectionItemUpdateResult(False, str(exc))
+        if requested_type is not current.item_type:
+            error = "The item type cannot be changed during edit."
+            self.collection.last_save_error = error
+            return CollectionItemUpdateResult(False, error)
+        requested_updates["item_type"] = current.item_type
+
+        submitted = CoinItem._coerce_photos(
+            current.normalized_photos() if photos is None else photos
+        )
+        submitted = sorted(submitted, key=lambda photo: photo.display_order)
+        existing_by_path = {
+            os.path.normcase(os.path.abspath(photo.path)): photo
+            for photo in current.normalized_photos()
+        }
+        final_slots: list[ItemPhoto | None] = []
+        new_photos: list[ItemPhoto] = []
+        for index, photo in enumerate(submitted):
+            key = os.path.normcase(os.path.abspath(photo.path))
+            existing = existing_by_path.get(key)
+            if existing is not None:
+                final_slots.append(ItemPhoto(
+                    path=existing.path,
+                    role=photo.role,
+                    is_primary=photo.is_primary,
+                    notes=photo.notes,
+                    display_order=index,
+                    capture_import_media=existing.capture_import_media,
+                ))
+                continue
+            if photo.capture_import_media is not None:
+                error = "New capture/import media cannot be attached through ordinary edit."
+                self.collection.last_save_error = error
+                return CollectionItemUpdateResult(False, error)
+            new_photos.append(ItemPhoto(
+                path=photo.path,
+                role=photo.role,
+                is_primary=photo.is_primary,
+                notes=photo.notes,
+                display_order=index,
+            ))
+            final_slots.append(None)
+
+        ingestion = None
+        try:
+            if new_photos:
+                ingestion = self._managed_media_store.ingest(current.id, new_photos)
+                managed = iter(ingestion.photos)
+                final_photos = [
+                    next(managed) if slot is None else slot for slot in final_slots
+                ]
+            else:
+                final_photos = [slot for slot in final_slots if slot is not None]
+
+            for index, photo in enumerate(final_photos):
+                photo.display_order = index
+            primary_index = next(
+                (index for index, photo in enumerate(final_photos) if photo.is_primary),
+                0 if final_photos else None,
+            )
+            for index, photo in enumerate(final_photos):
+                photo.is_primary = index == primary_index
+
+            identity = {
+                name: requested_updates.get(name, getattr(current, name))
+                for name in ("country", "issuer", "denomination", "year", "reference")
+            }
+            requested_updates["identification_status"] = (
+                truthful_manual_identification_status(identity)
+            )
+            requested_updates["photos"] = final_photos
+            requested_updates["image_path"] = (
+                final_photos[primary_index].path if primary_index is not None else ""
+            )
+            if not self.collection.update_item(current.id, requested_updates):
+                if ingestion is not None:
+                    retained = self._managed_media_store.rollback(ingestion)
+                else:
+                    retained = ()
+                error = self.collection.last_save_error or "Collection update failed."
+                return CollectionItemUpdateResult(False, error, retained)
+            return CollectionItemUpdateResult(True)
+        except Exception as exc:
+            retained = (
+                self._managed_media_store.rollback(ingestion)
+                if ingestion is not None
+                else ()
+            )
+            error = str(exc) or type(exc).__name__
+            self.collection.last_save_error = error
+            return CollectionItemUpdateResult(False, error, retained)
     
     def view_collection(self) -> List[Dict]:
         """View all items in collection."""

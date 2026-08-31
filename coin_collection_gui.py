@@ -25,7 +25,9 @@ from coin_collection import (
     ItemType,
     PhotoRole,
     normalize_acquisition_values,
+    reliable_manual_identity_value,
     serialize_money,
+    truthful_manual_identification_status,
 )
 from collection_browser import (
     CollectionBrowserCriteria,
@@ -1117,37 +1119,15 @@ Total Unique Dates: {total_unique_dates}
         mapped.update(cls.acquisition_values_from_text(values))
         return mapped
 
-    _IDENTITY_PLACEHOLDERS = frozenset({
-        "unknown",
-        "n/a",
-        "na",
-        "none",
-        "not applicable",
-        "unidentified",
-    })
-
-    @classmethod
-    def reliable_manual_identity_value(cls, value):
+    @staticmethod
+    def reliable_manual_identity_value(value):
         """Return whether manual text is factual identity rather than a sentinel."""
-        text = str(value or "").strip()
-        return bool(text) and text.casefold() not in cls._IDENTITY_PLACEHOLDERS
+        return reliable_manual_identity_value(value)
 
-    @classmethod
-    def truthful_manual_identification_status(cls, values):
+    @staticmethod
+    def truthful_manual_identification_status(values):
         """Derive manual-save status without changing any collector-entered fact."""
-        reliable = {
-            name: cls.reliable_manual_identity_value(values.get(name))
-            for name in ("country", "issuer", "denomination", "year", "reference")
-        }
-        if reliable["reference"] or (
-            (reliable["country"] or reliable["issuer"])
-            and reliable["denomination"]
-            and reliable["year"]
-        ):
-            return IdentificationStatus.IDENTIFIED
-        if any(reliable.values()):
-            return IdentificationStatus.PARTIAL
-        return IdentificationStatus.UNIDENTIFIED
+        return truthful_manual_identification_status(values)
 
     @classmethod
     def manual_item_is_meaningful(cls, values, photos=()):
@@ -2503,6 +2483,7 @@ Total Unique Dates: {total_unique_dates}
                 is_primary=photo.is_primary,
                 notes=photo.notes,
                 display_order=photo.display_order,
+                capture_import_media=photo.capture_import_media,
             )
             for photo in CoinItem._coerce_photos(photos)
         ]
@@ -5108,18 +5089,17 @@ Total Unique Dates: {total_unique_dates}
         type_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 8))
         type_frame.columnconfigure(1, weight=1)
         type_frame.columnconfigure(3, weight=1)
-        compact_fields = (
-            (0, 0, "Item Type:", item_type_var, [value.value for value in ItemType]),
-            (0, 2, "Disposition:", disposition_var, [value.value for value in Disposition]),
+        ttk.Label(type_frame, text="Item Type:").grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Label(type_frame, textvariable=item_type_var).grid(
+            row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=3
         )
-        for row_index, column, label, variable, values in compact_fields:
-            ttk.Label(type_frame, text=label).grid(row=row_index, column=column, sticky=tk.W, pady=3)
-            ttk.Combobox(
-                type_frame,
-                textvariable=variable,
-                values=values,
-                state="readonly",
-            ).grid(row=row_index, column=column + 1, sticky=(tk.W, tk.E), padx=(5, 12 if column == 0 else 0), pady=3)
+        ttk.Label(type_frame, text="Disposition:").grid(row=0, column=2, sticky=tk.W, pady=3)
+        ttk.Combobox(
+            type_frame,
+            textvariable=disposition_var,
+            values=[value.value for value in Disposition],
+            state="readonly",
+        ).grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=3)
         ttk.Label(type_frame, text="Identification:").grid(row=1, column=0, sticky=tk.W, pady=3)
         ttk.Label(type_frame, textvariable=identification_status_var).grid(
             row=1, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=3
@@ -5311,16 +5291,14 @@ Total Unique Dates: {total_unique_dates}
                 messagebox.showwarning("Invalid Item Details", str(error), parent=dialog)
                 return
             photos = self.normalized_photo_state(edit_photos["photos"])
-            primary = next((photo for photo in photos if photo.is_primary), None)
             updates = {
                 **form_values,
-                "photos": photos,
-                "image_path": primary.path if primary else "",
             }
-            if not self.app.collection.update_item(item.id, updates):
+            result = self.app.update_collection_item(item.id, updates, photos)
+            if not result.success:
                 messagebox.showerror(
                     "Save Failed",
-                    f"The item was not updated: {self.app.collection.last_save_error or 'collection save failed'}",
+                    f"The item was not updated: {result.error or 'collection save failed'}",
                 )
                 return
             self.refresh_collection_list()

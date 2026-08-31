@@ -23,6 +23,8 @@ class _CreatedManagedFile:
     path: str
     device: int
     inode: int
+    byte_length: int
+    sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +92,8 @@ class OrdinaryEntryManagedMediaStore:
                         path=str(destination),
                         device=identity.st_dev,
                         inode=identity.st_ino,
+                        byte_length=byte_length,
+                        sha256=copied_sha256,
                     )
                 )
                 verified_length, verified_sha256 = self._hash_file(destination)
@@ -143,7 +147,14 @@ class OrdinaryEntryManagedMediaStore:
                     and current.st_dev == created.device
                     and current.st_ino == created.inode
                 ):
-                    os.unlink(created.path)
+                    byte_length, digest = self._hash_file(Path(created.path))
+                    if (
+                        byte_length == created.byte_length
+                        and digest == created.sha256
+                    ):
+                        os.unlink(created.path)
+                    else:
+                        retained.append(created.path)
                 else:
                     retained.append(created.path)
             except FileNotFoundError:
