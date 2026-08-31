@@ -8,7 +8,7 @@ Do not modify code.
 Read:
 - AI_PROJECT_CONTEXT.md
 - CURRENT_STATE.md
-- ROADMAP.md
+- AI_ROADMAP.md
 - DECISIONS.md
 
 Determine whether the current unit can legitimately be declared complete.
