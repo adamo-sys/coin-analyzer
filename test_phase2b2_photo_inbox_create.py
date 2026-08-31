@@ -169,7 +169,7 @@ class Phase2B2PhotoInboxCreateTests(unittest.TestCase):
             self.assertEqual(PhotoSetState.NEW, manager.state.photo_sets[photo_set_id].state)
             self.assertEqual("", gui.pending_inbox_photo_set_id)
 
-    def test_validation_failure_leaves_set_pending(self):
+    def test_incomplete_photo_record_saves_and_attaches_set(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = make_manager(tmpdir)
             write_photo(manager, "coin_front.jpg")
@@ -180,11 +180,11 @@ class Phase2B2PhotoInboxCreateTests(unittest.TestCase):
             gui.country_var.set("")
             gui.load_photo_set_into_entry_form(manager, photo_set_id)
 
-            with patch("coin_collection_gui.messagebox.showwarning"):
+            with patch("coin_collection_gui.messagebox.showinfo"):
                 gui.save_to_collection()
 
-            self.assertEqual(0, app.add_count)
-            self.assertEqual(PhotoSetState.NEW, manager.state.photo_sets[photo_set_id].state)
+            self.assertEqual(1, app.add_count)
+            self.assertEqual(PhotoSetState.ATTACHED, manager.state.photo_sets[photo_set_id].state)
 
     def test_save_failure_leaves_set_pending(self):
         with tempfile.TemporaryDirectory() as tmpdir:

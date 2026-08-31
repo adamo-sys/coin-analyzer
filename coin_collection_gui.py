@@ -1066,29 +1066,71 @@ Total Unique Dates: {total_unique_dates}
         )
         identity = {
             name: str(values.get(name) or "").strip()
-            for name in ("country", "denomination", "year")
+            for name in ("country", "issuer", "denomination", "year", "reference")
         }
-        raw_status = values.get("identification_status")
-        identification_status = (
-            CoinItem._derived_identification_status(**identity)
-            if raw_status is None or not str(raw_status).strip()
-            else CoinItem._closed_enum(
-                IdentificationStatus, raw_status, "identification_status"
-            )
-        )
         mapped = {
             **identity,
             "grade": str(values.get("grade") or "").strip(),
             "notes": str(values.get("notes") or "").strip(),
-            "issuer": str(values.get("issuer") or "").strip(),
             "title": str(values.get("title") or "").strip(),
-            "reference": str(values.get("reference") or "").strip(),
             "item_type": item_type,
             "disposition": disposition,
-            "identification_status": identification_status,
+            "identification_status": cls.truthful_manual_identification_status(
+                identity
+            ),
         }
         mapped.update(cls.acquisition_values_from_text(values))
         return mapped
+
+    _IDENTITY_PLACEHOLDERS = frozenset({
+        "unknown",
+        "n/a",
+        "na",
+        "none",
+        "not applicable",
+        "unidentified",
+    })
+
+    @classmethod
+    def reliable_manual_identity_value(cls, value):
+        """Return whether manual text is factual identity rather than a sentinel."""
+        text = str(value or "").strip()
+        return bool(text) and text.casefold() not in cls._IDENTITY_PLACEHOLDERS
+
+    @classmethod
+    def truthful_manual_identification_status(cls, values):
+        """Derive manual-save status without changing any collector-entered fact."""
+        reliable = {
+            name: cls.reliable_manual_identity_value(values.get(name))
+            for name in ("country", "issuer", "denomination", "year", "reference")
+        }
+        if reliable["reference"] or (
+            (reliable["country"] or reliable["issuer"])
+            and reliable["denomination"]
+            and reliable["year"]
+        ):
+            return IdentificationStatus.IDENTIFIED
+        if any(reliable.values()):
+            return IdentificationStatus.PARTIAL
+        return IdentificationStatus.UNIDENTIFIED
+
+    @classmethod
+    def manual_item_is_meaningful(cls, values, photos=()):
+        """Reject creation drafts containing no collector artifact."""
+        def photo_path(photo):
+            return photo.get("path") if isinstance(photo, dict) else getattr(photo, "path", photo)
+
+        has_photo = any(str(photo_path(photo) or "").strip() for photo in photos)
+        has_identity = any(
+            cls.reliable_manual_identity_value(values.get(name))
+            for name in ("country", "issuer", "denomination", "year", "reference")
+        )
+        return bool(
+            has_photo
+            or has_identity
+            or str(values.get("title") or "").strip()
+            or str(values.get("notes") or "").strip()
+        )
 
     @classmethod
     def acquisition_total_text(cls, values):
@@ -1385,12 +1427,10 @@ Total Unique Dates: {total_unique_dates}
             row=1, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=(5, 0)
         )
         ttk.Label(type_frame, text="Identification:").grid(row=1, column=2, sticky=tk.W, pady=(5, 0))
-        self.identification_status_var = tk.StringVar()
-        ttk.Combobox(
+        self.identification_status_var = tk.StringVar(value=IdentificationStatus.UNIDENTIFIED.value)
+        ttk.Label(
             type_frame,
             textvariable=self.identification_status_var,
-            values=["", *[value.value for value in IdentificationStatus]],
-            state="readonly",
         ).grid(row=1, column=3, sticky=(tk.W, tk.E), padx=(5, 0), pady=(5, 0))
 
         ttk.Label(type_frame, text="Title:").grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
@@ -2924,20 +2964,12 @@ Total Unique Dates: {total_unique_dates}
             if hasattr(self, "item_type_var")
             else ItemType.COIN.value
         )
-        if not self.app.current_image_path and item_type_text == ItemType.COIN.value:
-            messagebox.showwarning("Warning", "Please upload an image first")
-            return
-        
         country = self.country_var.get().strip()
         denomination = self.denomination_var.get().strip()
         year = self.year_var.get().strip()
         grade = self.grade_var.get().strip()
         notes = self.notes_text.get("1.0", tk.END).strip()
         
-        if not country or not denomination:
-            messagebox.showwarning("Warning", "Country and denomination are required")
-            return
-
         try:
             acquisition_text = (
                 self.acquisition_controls["values"]()
@@ -2951,11 +2983,6 @@ Total Unique Dates: {total_unique_dates}
                     self.disposition_var.get()
                     if hasattr(self, "disposition_var")
                     else Disposition.UNDECIDED.value
-                ),
-                "identification_status": (
-                    self.identification_status_var.get()
-                    if hasattr(self, "identification_status_var")
-                    else ""
                 ),
                 "country": country,
                 "issuer": self.issuer_var.get() if hasattr(self, "issuer_var") else "",
@@ -2974,6 +3001,12 @@ Total Unique Dates: {total_unique_dates}
         use_detection = False  # Always false - manual fields are source of truth
         
         photos = self.normalized_photo_state(self.current_item_photos)
+        if not self.manual_item_is_meaningful(form_values, photos):
+            messagebox.showwarning(
+                "Incomplete Item",
+                "Add a photo, factual identity, temporary title, reference, or meaningful notes before saving.",
+            )
+            return
         add_kwargs = {"photos": photos}
         if hasattr(self, "acquisition_controls"):
             add_kwargs.update({
@@ -3016,7 +3049,11 @@ Total Unique Dates: {total_unique_dates}
                         "Coin was saved, but the Photo Inbox set could not be marked attached.",
                     )
             # Log the corrected values if detection was used
-            if self.detection_result and self.detection_result['success']:
+            if (
+                self.detection_result
+                and self.detection_result['success']
+                and form_values["identification_status"] is IdentificationStatus.IDENTIFIED
+            ):
                 self.record_detection_observation_after_save(country, denomination, year, photos)
                 self.log_correction(country, denomination, year)
             
@@ -3096,7 +3133,7 @@ Total Unique Dates: {total_unique_dates}
         if hasattr(self, "disposition_var"):
             self.disposition_var.set(Disposition.UNDECIDED.value)
         if hasattr(self, "identification_status_var"):
-            self.identification_status_var.set("")
+            self.identification_status_var.set(IdentificationStatus.UNIDENTIFIED.value)
         for name in ("issuer_var", "title_var", "reference_var"):
             if hasattr(self, name):
                 getattr(self, name).set("")
@@ -4894,7 +4931,6 @@ Total Unique Dates: {total_unique_dates}
         compact_fields = (
             (0, 0, "Item Type:", item_type_var, [value.value for value in ItemType]),
             (0, 2, "Disposition:", disposition_var, [value.value for value in Disposition]),
-            (1, 0, "Identification:", identification_status_var, [value.value for value in IdentificationStatus]),
         )
         for row_index, column, label, variable, values in compact_fields:
             ttk.Label(type_frame, text=label).grid(row=row_index, column=column, sticky=tk.W, pady=3)
@@ -4904,6 +4940,10 @@ Total Unique Dates: {total_unique_dates}
                 values=values,
                 state="readonly",
             ).grid(row=row_index, column=column + 1, sticky=(tk.W, tk.E), padx=(5, 12 if column == 0 else 0), pady=3)
+        ttk.Label(type_frame, text="Identification:").grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Label(type_frame, textvariable=identification_status_var).grid(
+            row=1, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=3
+        )
         ttk.Label(type_frame, text="Issuer:").grid(row=2, column=0, sticky=tk.W, pady=3)
         ttk.Entry(type_frame, textvariable=issuer_var).grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(5, 12), pady=3)
         ttk.Label(type_frame, text="Title:").grid(row=1, column=2, sticky=tk.W, pady=3)
@@ -5078,7 +5118,6 @@ Total Unique Dates: {total_unique_dates}
                     **acquisition_controls["values"](),
                     "item_type": item_type_var.get(),
                     "disposition": disposition_var.get(),
-                    "identification_status": identification_status_var.get(),
                     "country": country_var.get(),
                     "issuer": issuer_var.get(),
                     "denomination": denomination_var.get(),

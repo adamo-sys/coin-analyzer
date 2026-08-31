@@ -234,11 +234,11 @@ class ConfirmedObservationTests(unittest.TestCase):
             failed.save_to_collection()
         failed.record_detection_observation_after_save.assert_not_called()
 
-        invalid = self.make_gui(should_save=True, country="")
-        with patch("coin_collection_gui.messagebox.showwarning"):
-            invalid.save_to_collection()
-        self.assertEqual(0, invalid.app.calls)
-        invalid.record_detection_observation_after_save.assert_not_called()
+        incomplete = self.make_gui(should_save=True, country="")
+        with patch("coin_collection_gui.messagebox.showinfo"):
+            incomplete.save_to_collection()
+        self.assertEqual(1, incomplete.app.calls)
+        incomplete.record_detection_observation_after_save.assert_not_called()
 
     def test_gui_post_save_hook_writes_confirmed_observation(self):
         with tempfile.TemporaryDirectory() as temp_dir:

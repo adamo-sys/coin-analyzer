@@ -1664,14 +1664,6 @@ class CoinCollectionApp:
             self.collection.last_save_error = str(error)
             return False
 
-        if (
-            not self.current_image_path
-            and not CoinItem._coerce_photos(photos or [])
-            and normalized_item_type is ItemType.COIN
-        ):
-            print("No image uploaded")
-            return False
-        
         item_id = self.collection.generate_item_id()
         
         if use_detection and self.current_detection_result:
