@@ -6,7 +6,7 @@ MODE: IMPLEMENT
 Read first:
 - AI_PROJECT_CONTEXT.md
 - CURRENT_STATE.md
-- ROADMAP.md
+- AI_ROADMAP.md
 - DECISIONS.md
 
 Repository:
