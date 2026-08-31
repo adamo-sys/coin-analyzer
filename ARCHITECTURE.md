@@ -279,6 +279,62 @@ unloadable. This contract adds no field, schema version, persistence-format
 change, Canada-only validation, recognition redesign, browser or media-edit
 redesign, grading or valuation logic, or Unit 4 benchmark change.
 
+### Mixed collection browser and edit-media contract
+
+Collection browse, search, filter, and sort operate on an ephemeral read-only
+projection of the current active `CoinCollection`, and only while that
+collection is `VALID`. Building or changing the projection must not reorder,
+mutate, save, or otherwise change authoritative collection state. Every inspect,
+edit, or delete action identifies a stable item ID and resolves that ID against
+the current active collection at action time; visible row position or index is
+never authoritative. Refresh, filter, sort, delete, and restore boundaries must
+discard or rebuild row mappings and other actionable references so that a stale
+projection cannot target an old or different item.
+
+Sparse `COIN` and `BANKNOTE` records are first-class browser records. Search and
+filters examine factual stored values and tolerate absent values without
+fabricating identity. A missing value may be rendered with a UI-only absence
+marker such as `—`, but that marker is never persisted and never counts as an
+identity fact.
+
+Browser thumbnails and previews read only the existing primary `ItemPhoto`
+reference. The same display boundary supports ordinary managed media and
+capture-import managed media without changing either ownership model. Display
+does not modify source media or create persistent thumbnail derivatives, and an
+absent, missing, unreadable, or corrupt photo degrades to a non-factual display
+fallback without changing the item or its media metadata.
+
+Browser mutation actions remain subject to the primary collection load-state
+and mutation contracts. An `INVALID_OR_UNSUPPORTED` collection cannot be edited
+or deleted through a browser projection, and browsing is not a collection
+recovery mechanism.
+
+A manual edit preserves the stable item ID, `COIN` or `BANKNOTE` semantics, the
+truthful identification-status recomputation defined above, existing ordinary
+managed-media references that the collector retains, and complete
+capture-import provenance. A newly selected ordinary photo is copied and
+byte-verified into ordinary managed media for the existing stable item before
+the authoritative item update is published. Capture-import media and provenance
+must not be silently stripped, rewritten, or converted into ordinary-entry
+media during edit.
+
+If an edit fails before successful authoritative persistence, cleanup may
+remove only media newly created by that edit attempt and only while ownership
+and filesystem identity still prove that each object is the one created by the
+attempt. Existing or reused media is never an edit-failure cleanup target.
+Removing a photo reference from an item does not itself delete the underlying
+managed media; automatic media garbage collection remains outside this
+contract.
+
+This contract preserves fail-closed loading, `LEGACY_V0` and V1 compatibility,
+future-schema rejection, stable IDs, atomic persistence, managed-media
+ownership, capture-import ownership and provenance, portable backup and restore
+assumptions, fresh GUI collection activation after restore, and truthful
+incomplete-entry semantics. It adds no schema or persistence-format change,
+serial field, `TOKEN` item type, valuation or foreign-exchange logic, media
+garbage collection, crop or rotate editor, GUI framework replacement, or Unit 4
+change.
+
 ### Collection format versions
 
 The pre-versioning format is named `LEGACY_V0`: the JSON root is an array of
