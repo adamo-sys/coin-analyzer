@@ -225,6 +225,60 @@ Existing neutral metadata such as `issuer`, `title`, and `reference` remains
 valid for either item type. This record contract does not imply automatic
 banknote or world-coin recognition.
 
+### Truthful incomplete manual-entry contract
+
+Manual creation and editing must represent the collector's current factual
+knowledge without inventing identity values. At the manual-save boundary,
+`identification_status` has these semantics:
+
+- `IDENTIFIED` means the saved reliable factual identity is sufficient to
+  distinguish the numismatic issue. Ordinary coin or banknote identity may use
+  the applicable issuer or country, denomination, and date, year, or series
+  fields. A recognized catalogue or reference anchor may instead be sufficient
+  for a token, historical issuer, colonial or provincial issue, or another item
+  for which ordinary modern-coin fields are not appropriate. No Canada-specific
+  field combination is required.
+- `PARTIAL` means at least one reliable factual identity attribute is known,
+  but the saved facts are not sufficient to identify the issue.
+- `UNIDENTIFIED` means no reliable factual identity attribute is known.
+
+Photos, notes, acquisition data, disposition, temporary collector titles, and
+similar descriptive or ownership metadata do not by themselves promote an item
+from `UNIDENTIFIED`. Placeholder or sentinel text such as `Unknown`, `N/A`, or
+an equivalent non-fact is not a reliable identity attribute and must not count
+toward status derivation.
+
+For a newly created manual record, the GUI derives `identification_status` from
+the factual identity values being saved. It must not use an unrestricted status
+selector to create a new record whose explicit status contradicts those facts.
+For manual edit/save, the GUI recomputes the status from the then-current factual
+identity. Corrected facts may therefore cause any justified transition,
+including `UNIDENTIFIED` to `PARTIAL`, `PARTIAL` to `IDENTIFIED`, `IDENTIFIED` to
+`PARTIAL`, or `PARTIAL` to `UNIDENTIFIED`. Recomputing status changes only that
+status: it does not fabricate, normalize, or silently modify collector-entered
+identity fields, and the stable item ID remains unchanged.
+
+A manual creation must contain at least one meaningful collector artifact, such
+as a photo, a reliable identity fact, a temporary descriptive title, a catalogue
+or reference value, or meaningful notes. Default values, blank fields, and
+placeholder identity text do not make a completely empty record meaningful; a
+completely empty record is rejected. Acquisition or disposition information is
+not identity evidence: when it is present on an otherwise incomplete record, it
+does not make that record `PARTIAL` or `IDENTIFIED`.
+
+Recognition and other automation remain advisory. Automation-prefilled values
+are reviewed under the same manual-save derivation rule and cannot silently
+promote an item to `IDENTIFIED` outside that boundary. Manual save is the
+authoritative collector action.
+
+These rules govern new and edited manual saves only. They do not change the
+frozen compatibility derivation for a legacy record whose
+`identification_status` field is absent, and they do not make an existing V1
+record with an explicit, vocabulary-valid but semantically inconsistent status
+unloadable. This contract adds no field, schema version, persistence-format
+change, Canada-only validation, recognition redesign, browser or media-edit
+redesign, grading or valuation logic, or Unit 4 benchmark change.
+
 ### Collection format versions
 
 The pre-versioning format is named `LEGACY_V0`: the JSON root is an array of
