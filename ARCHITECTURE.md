@@ -391,6 +391,193 @@ unchanged. This contract does not select a prefix for newly generated IDs and
 does not define a generalized migration engine or any transition beyond
 `LEGACY_V0` to V1.
 
+### Explicit legacy duplicate-ID migration contract
+
+> **Status:** frozen architecture contract for Product Unit 8M. This section
+> authorizes a future explicit migration tool; it does not make migration part
+> of ordinary collection loading, startup, mutation, or the legacy-to-V1 write
+> transition.
+
+The legacy duplicate-ID migration exists only to repair the recognized
+historical condition in which catalogue or reference identity was used as
+collection-record or specimen identity. It is not a generic corruption-repair
+mechanism. Catalogue identity and specimen identity are different:
+`numista_n` remains a catalogue reference, while every physical collection
+record requires its own unique stable item ID. Records are never merged merely
+because they share a Numista number, country, denomination, year, grade, title,
+reference, or identical-looking factual content.
+
+#### Eligibility and fail-closed boundary
+
+The migration may proceed only when all of the following are true:
+
+- the source has a supported `LEGACY_V0` or V1 collection structure;
+- duplicate collection-record IDs are the specific reason the collection is
+  invalid;
+- every duplicated ID matches an explicitly recognized historical legacy
+  pattern;
+- every individual record otherwise validates under the current authoritative
+  record contract;
+- no future schema, malformed envelope, malformed record, or unrelated invalid
+  state is present; and
+- every production-owned occurrence or implication of an ID being replaced can
+  be classified safely before publication.
+
+Any unrelated corruption, unsupported state, unclassified reference, or
+ambiguous association causes refusal without modifying the authoritative
+collection. Normal `CoinCollection` loading remains fail closed and performs no
+repair, normalization, planning, or migration as a side effect.
+
+#### Explicit plan and apply phases
+
+Migration has two explicit phases:
+
+1. **Plan.** Read the supported source through a migration-only boundary that
+   permits duplicate-ID inventory without weakening ordinary deserialization;
+   calculate the exact source SHA-256; inventory duplicate groups and all
+   item-ID-bearing production artifacts; generate a fresh current-format stable
+   ID for every occurrence in every collision group; retain already-unique IDs
+   unchanged; and persist the complete occurrence-to-new-ID mapping in a
+   private immutable migration plan outside Git.
+2. **Apply.** Consume exactly that plan, require the authoritative source bytes
+   to match the planned SHA-256, refuse a changed source, apply only the
+   precomputed mapping, stage and verify every required media or reference
+   transformation, and complete all validation before authoritative
+   publication.
+
+The plan, not mutable factual fields, determines retry IDs. Applying the same
+plan to the unchanged source uses the same planned IDs. A source-hash mismatch
+refuses. Running against an already valid migrated collection returns
+not-applicable without writing. A failed or partial attempt must never cause a
+later invocation to invent a different mapping silently.
+
+Every occurrence in a collision group receives a fresh stable ID using the
+current application convention. The shared ID is not preserved for a presumed
+"first" occurrence because file order is not specimen-ownership evidence. New
+IDs must not be derived from Numista number, source-array position, country,
+denomination, year, grade, title, other mutable factual content, or a record
+content hash. Already-unique IDs remain byte-for-byte unchanged.
+
+#### Pre-migration safety artifact and record preservation
+
+Before apply stages media, transforms a production-owned reference, or publishes
+authoritative state, it creates an exclusive timestamped byte-for-byte raw
+safety copy and records matching source and copy byte lengths and SHA-256
+values. A pre-existing pre-migration snapshot is preserved separately and is
+never deleted or overwritten. Because the source collection is semantically
+invalid, this safety artifact is a verified raw copy, not a complete portable
+collection backup.
+
+Migration preserves exact record count, record order, `numista_n`, every
+collector-entered factual value, item type, disposition, identification-status
+semantics, acquisition data, notes, photo metadata, capture provenance, and
+Unicode. Only the following changes are authorized:
+
+- the collection-record ID selected by the immutable plan;
+- an item-ID-derived managed-media path that must change to preserve ownership;
+  and
+- a production-owned reference that conclusive evidence associates with one
+  specific record occurrence.
+
+No factual value is inferred, repaired, normalized, or supplied by migration.
+
+#### Referential-integrity inventory
+
+Before publication, every occurrence or ownership implication of every replaced
+item ID in production-owned artifacts is classified as exactly one of:
+
+- safely updated using conclusive occurrence-specific evidence;
+- intentionally historical or immutable and left untouched; or
+- a blocking ambiguity.
+
+An unclassified reference or blocking ambiguity fails migration. The inventory
+includes at least `CoinItem.id`, ordinary managed-media item directories,
+structured `ItemPhoto` paths, legacy `image_path`, capture-import paths and
+provenance, Photo Inbox linked-item references, Photo Vault and broader
+application-state item references, confirmed observations, capture journals and
+audit lineage, current production session or state files, backup manifests,
+historical immutable backups, and evaluation or benchmark artifacts. Historical
+backups are never rewritten. Non-production evaluation artifacts remain
+untouched unless a separately approved contract classifies them as an active
+authoritative reference.
+
+#### Media ownership
+
+For ordinary managed media owned beneath an old item-ID path, migration copies
+only the affected record's referenced files into the new item-owned directory.
+It does not move or delete old media. Each copy is created exclusively and
+verified by byte count and SHA-256 before an authoritative path may reference
+it. Photo role, display order, primary status, and notes remain unchanged. If
+multiple rekeyed records reference one old ordinary file, each new item receives
+its own independently verified copy; media must not cross item ownership.
+
+An external legacy `image_path` may remain external during this ID-only
+migration and is reported truthfully. Migration must not claim that such a path
+became managed media. If external media later prevents complete portable-backup
+creation, remediation is a separate narrowly scoped legacy-media migration.
+
+Capture-import lineage is stricter. Migration never converts capture media to
+ordinary media, rewrites capture provenance, casually rewrites durable capture
+journals, or guesses which occurrence a shared legacy ID represented. A
+collision-group record with capture-import lineage, or an ambiguous durable
+capture reference, fails closed unless an independently authorized complete
+lineage-preserving rule exists.
+
+#### Publication and failure cleanup
+
+Apply stages and verifies required media first, constructs the complete migrated
+collection in memory, proves record-count and factual equivalence, validates
+nonblank unique IDs, and only then publishes the complete collection through
+the existing atomic persistence semantics. It reloads the authoritative result
+through normal `CoinCollection`, requires `load_state` to be `VALID`, and
+requires the exact expected record count. There is no partial authoritative
+migration and no second collection serializer.
+
+Failure cleanup may remove only objects created exclusively by the current
+migration attempt and only while recorded ownership, filesystem identity, byte
+length, and SHA-256 prove that the path still identifies the attempt-created
+object. Existing, reused, historical, differently owned, ambiguous, replaced,
+or tampered objects are never cleanup targets. A failure leaves the prior
+authoritative collection bytes unchanged.
+
+#### Private audit report
+
+The immutable migration plan and completion report remain private, outside Git,
+and associated with the raw safety copy. The report records migration ID and
+tool version, source and safety-copy paths and hashes, source format, record and
+duplicate-group counts, rekeyed and unchanged counts, timestamps, final
+collection hash, and post-migration portable-backup verification result. For
+each rekeyed occurrence it records the old ID, occurrence and source indexes,
+new ID, `numista_n`, a minimal private identifying summary, media
+classification, old and new media references, confirmation that capture
+provenance changed `NO`, and external-reference classification. No real
+collection content, path, mapping, or report is added to tracked fixtures,
+documentation, tests, or other repository artifacts.
+
+#### Post-migration Unit 8 gate
+
+Unit 8 real-world acceptance remains paused until all of the following are
+proven:
+
+- the source and all raw safety copies remain present and unchanged;
+- the authoritative collection reloads `VALID`;
+- the pre-Unit-8 record count remains exactly 888;
+- every item ID is nonblank and unique, and every collision occurrence has an
+  independent current-format stable ID;
+- `numista_n` and all factual collection data are unchanged;
+- no dangling, ambiguous, or unclassified production reference remains;
+- ordinary managed media verifies under its correct item ownership;
+- capture provenance is proven unaffected or migration has refused;
+- complete portable-backup creation and independent verification succeed;
+- isolated restore reproduces all 888 records, IDs, and managed media; and
+- focused migration tests and the authoritative full regression suite pass.
+
+This contract defines an explicit, one-time, auditable, fail-closed, and
+non-destructive legacy migration. It does not authorize startup auto-repair,
+generic corruption repair, importer redesign, schema redesign, record merging
+or deletion, catalogue deduplication, media garbage collection, recognition or
+Unit 4 work. Prospective import sanitation requires a separate unit.
+
 ### Local store ownership
 
 | Data | Default owner/path | Notes |
