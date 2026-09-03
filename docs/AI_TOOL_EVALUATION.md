@@ -71,14 +71,16 @@ For each tool or configuration, record:
 ### Mutmut / mutation testing
 
 - Role: measure test sensitivity by injecting bounded code mutations into deterministic logic.
-- Status: provisionally adopted for targeted local quality experiments; not a repository-wide CI gate.
-- Environment: mutmut 3.7.0 requires WSL on Windows. Running from the `/mnt/c/...` NTFS mount failed when mutmut copied metadata into `mutants/`, so the successful pilot used a disposable Linux-native copy under the WSL home directory.
-- Pilot target: `market_intelligence_automation._dedupe`, with test selection limited to `tests/test_property_based_quality_pilot.py`.
-- Baseline: the selected Hypothesis test passed before mutation testing.
-- Result: 11 `_dedupe` mutants executed, 11 killed, 0 survived, 0 timeouts, and no suspicious results; bounded mutation score 100% for that function.
-- Interpretation: the existing property-based test has strong signal for the helper's case-insensitive uniqueness, trimming, blank filtering, and order-preservation behavior.
-- Decision: keep mutation testing as an explicit bounded diagnostic. Do not add a whole-repository mutation gate until runtime, dependency setup, and signal-to-noise are measured on additional targets.
-- Next target: `deal_hunter_ranking.DealHunterRankingEngine._budget_points`, a deterministic boundary-scoring function with several price thresholds. This is intentionally more interesting than `_dedupe` because boundary mutations at 0/50/100/250/500 can expose missing exact-edge assertions.
+- Status: adopted for targeted local quality diagnostics; not a repository-wide CI gate.
+- Environment: mutmut 3.7.0 requires WSL on Windows. Running from the `/mnt/c/...` NTFS mount failed when mutmut copied metadata into `mutants/`, so successful pilots use a disposable Linux-native copy under the WSL home directory.
+- Pilot 1 target: `market_intelligence_automation._dedupe`, with test selection limited to `tests/test_property_based_quality_pilot.py`.
+- Pilot 1 result: 11 `_dedupe` mutants executed, 11 killed, 0 survived, 0 timeouts, and no suspicious results; bounded mutation score 100% for that function. This confirmed that the existing Hypothesis test strongly pins case-insensitive uniqueness, trimming, blank filtering, and order preservation.
+- Pilot 2 target: `deal_hunter_ranking.DealHunterRankingEngine._budget_points`, a deterministic boundary-scoring function with thresholds at 0, 50, 100, 250, and 500.
+- Pilot 2 baseline: all 17 generated `_budget_points` mutants survived the existing `test_deal_hunter_ranking.py` suite. Inspected survivors included `<= 0` to `< 0`, `<= 50` to `<= 51`, `<= 250` to `< 250`, and final return `-8` to `-9`, demonstrating a concrete missing boundary contract rather than equivalent-mutant noise.
+- Pilot 2 remediation: added one focused table-driven boundary test covering negative/zero input, each exact threshold, values immediately above each threshold, and the above-$500 result.
+- Pilot 2 result after remediation: 17/17 mutants killed, 0 survived, 0 timeouts, and no suspicious results; bounded mutation score improved from 0% to 100% for `_budget_points`.
+- Interpretation: the two pilots demonstrate both useful outcomes: mutation testing can confirm strong existing tests and can expose a specific green-suite coverage weakness that a narrow regression test then closes.
+- Decision: keep mutation testing as an explicit bounded/advisory diagnostic and use it selectively for deterministic functions with clear contracts. Do not add a whole-repository mutation gate until runtime, dependency setup, and signal-to-noise justify stronger integration.
 
 ### OpenCode
 
@@ -150,7 +152,7 @@ For bounded Coin Analyzer changes, prefer:
 1. Continue the Pyright module-by-module blocking ratchet while leaving whole-repo Pyright advisory.
 2. Add one additional Hypothesis property test only where invariants are clear and deterministic.
 3. Repeat OpenCode read-only review on several additional real PRs and track useful findings, false positives, intervention time, and cost before making it a routine gate.
-4. Run the second bounded mutation pilot against `DealHunterRankingEngine._budget_points`; explicitly probe exact threshold behavior at 0, 50, 100, 250, and 500 and inspect any surviving mutants before adding tests.
+4. Continue mutation testing only on selected deterministic targets where a clear contract makes survivor interpretation useful; the first two pilots are complete and mutation testing remains advisory.
 5. Revisit Goose specifically for controlled MCP/tool orchestration rather than duplicating OpenCode's reviewer role.
 6. Defer larger local-model reviewer experiments until hardware changes or a smaller, demonstrably stronger model becomes available.
 7. Later benchmark autonomous agents on a small set of historical bounded tasks using task success, test pass rate, scope compliance, human intervention, time, and cost.
