@@ -72,6 +72,39 @@ For each tool or configuration, record:
 - Status: planned evaluation.
 - First experiment: review-only on several real pull requests; track useful findings, hallucinated issues, intervention time, and cost.
 
+#### Pilot 1 protocol: PR #60 bounded Pyright ratchet
+
+- Candidate change: PR #60, `types: ratchet image analyzer to zero Pyright errors`.
+- Exact review range: `87c0097e1fbca2260957081a93d2eb96b3107888..90073eaf765ea9d69e34532ed05bd4811f2c291c`.
+- Why suitable: two-file, annotation/CI-only change; no intended runtime behavior change; noncritical and already covered by authoritative regression CI.
+- Review mode: read-only. The reviewer must not edit files, create commits, or broaden scope beyond the exact range.
+- Required review dimensions: correctness, runtime-behavior change, typing accuracy, regression risk, CI correctness, test adequacy, architecture/governance, privacy/provenance risk, and scope creep.
+- Finding severity: `BLOCKER`, `MAJOR`, `MINOR`, or `NIT`. Each substantive finding should identify file/line, failure mode, why it matters, and recommended fix.
+- Acceptance criteria for the reviewer: inspect only the bounded diff; distinguish real defects from style preference; avoid unrelated pre-existing debt; explicitly state merge recommendation, confidence, and substantive-finding count.
+- Baseline evidence for comparison: PR #60 claims a zero-error focused Pyright run, a full local regression of 4,847 tests with 24 skipped, and no runtime/privacy/benchmark semantics change; GitHub CI is authoritative for automated gate outcomes. Codex/self-review findings should be recorded separately from the independent-review result rather than inferred.
+- Evidence to record after execution: tool/version, model/provider, exact prompt, start/end time, API/software cost, findings by severity, useful findings confirmed by human/Codex review, false positives, missed known issues, interventions, and final adopt/optional/retry/reject decision.
+- Execution boundary: GitHub-side preparation does not count as an OpenCode run. Only actual OpenCode CLI output may populate the reviewer-result fields.
+
+Exact OpenCode review prompt:
+
+```text
+Read-only review. Do not edit files or create commits.
+
+Review only:
+87c0097e1fbca2260957081a93d2eb96b3107888..90073eaf765ea9d69e34532ed05bd4811f2c291c
+
+Check correctness, runtime behavior changes, typing accuracy, regression risk, CI correctness, test adequacy, architecture/governance, privacy/provenance risk, and scope creep.
+
+Classify findings BLOCKER / MAJOR / MINOR / NIT.
+For each real finding give file/line, failure mode, why it matters, and recommended fix.
+Do not invent issues or discuss unrelated pre-existing code.
+
+End with:
+MERGE RECOMMENDATION
+CONFIDENCE
+SUBSTANTIVE FINDINGS
+```
+
 ### Goose
 
 - Role: candidate automation/MCP orchestration layer.
