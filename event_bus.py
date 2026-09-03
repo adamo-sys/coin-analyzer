@@ -143,7 +143,7 @@ class EventBus:
         
         return handlers_called
     
-    def publish_sync(self, event_name: str, data: Dict[str, Any] = None,
+    def publish_sync(self, event_name: str, data: Optional[Dict[str, Any]] = None,
                      source: Optional[str] = None,
                      priority: EventPriority = EventPriority.NORMAL) -> int:
         """Publish an event synchronously."""
