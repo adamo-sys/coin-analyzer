@@ -143,6 +143,25 @@ class TestDealHunterRanking(unittest.TestCase):
         self.assertTrue(report.budget_reports[100].best_deals)
         self.assertLessEqual(report.budget_reports[100].best_deals[0].listing.total_cost, 100)
 
+    def test_budget_points_exact_boundaries(self):
+        cases = [
+            (-1, 0),
+            (0, 0),
+            (0.01, 18),
+            (50, 18),
+            (50.01, 14),
+            (100, 14),
+            (100.01, 10),
+            (250, 10),
+            (250.01, 6),
+            (500, 6),
+            (500.01, -8),
+        ]
+
+        for total_cost, expected in cases:
+            with self.subTest(total_cost=total_cost):
+                self.assertEqual(self.engine._budget_points(total_cost), expected)
+
     def test_newfoundland_category(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))
 
