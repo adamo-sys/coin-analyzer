@@ -109,6 +109,7 @@ Historical change under review:
 - production change: widen `CoinAnalyzer.analyze_coin()` from `Dict[str, str]` to `Dict[str, Any]`, matching an existing mixed-value result payload;
 - CI change: expand the blocking Pyright boundary from `event_bus.py` to `event_bus.py image_analyzer.py`;
 - known validation evidence from the original PR: `pyright event_bus.py image_analyzer.py` passed with zero errors/warnings/informations and the authoritative local full regression passed with 4,847 tests run, 24 skipped, and no failures.
+- CI-control follow-up: PR #62 repaired the focused Pyright job's missing runtime-dependency installation after GitHub Actions exposed the configuration gap; this reinforces that reviewer verdicts are advisory and CI remains authoritative.
 
 ### Comparative result
 
