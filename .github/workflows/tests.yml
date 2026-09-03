@@ -13,6 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Ruff
+        run: python -m pip install ruff==0.16.5
+
+      - name: Run critical Ruff checks
+        run: ruff check . --select E9,F63,F7,F82 --exclude .venv
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out full Git history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   test:
     strategy:
       fail-fast: false
