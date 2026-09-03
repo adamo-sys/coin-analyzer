@@ -6,7 +6,7 @@ Uses CV-first approach with OCR as supporting evidence only.
 
 import cv2
 import re
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from coin_grading import CoinGrader
 from coin_recognition import CoinRecognizer
 
@@ -88,7 +88,7 @@ class CoinAnalyzer:
         
         return None
     
-    def analyze_coin(self, image_path: str) -> Dict[str, str]:
+    def analyze_coin(self, image_path: str) -> Dict[str, Any]:
         """
         Analyze a coin image using computer vision first, with OCR as supporting evidence.
         
