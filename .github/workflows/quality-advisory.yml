@@ -31,7 +31,79 @@ jobs:
           pip install pyright
 
       - name: Measure type-checking debt
-        run: pyright
+        id: pyright
+        continue-on-error: true
+        run: pyright --outputjson > pyright-report.json
+
+      - name: Summarize Pyright debt
+        if: always()
+        shell: python
+        run: |
+          import collections
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path("pyright-report.json")
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+
+          if not report_path.exists():
+              summary_path.write_text(
+                  "## Pyright advisory\n\nPyright did not produce a JSON report.\n",
+                  encoding="utf-8",
+              )
+              raise SystemExit(0)
+
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          summary = report.get("summary", {})
+          diagnostics = report.get("generalDiagnostics", [])
+
+          severity_counts = collections.Counter(
+              diagnostic.get("severity", "unknown") for diagnostic in diagnostics
+          )
+          file_counts = collections.Counter(
+              diagnostic.get("file", "<unknown>") for diagnostic in diagnostics
+          )
+          rule_counts = collections.Counter(
+              diagnostic.get("rule") or "<no rule>" for diagnostic in diagnostics
+          )
+
+          lines = [
+              "## Pyright advisory",
+              "",
+              "This job measures existing type-checking debt and remains non-blocking.",
+              "",
+              f"- Files analyzed: {summary.get('filesAnalyzed', 0)}",
+              f"- Errors: {summary.get('errorCount', severity_counts.get('error', 0))}",
+              f"- Warnings: {summary.get('warningCount', severity_counts.get('warning', 0))}",
+              f"- Information: {summary.get('informationCount', severity_counts.get('information', 0))}",
+              "",
+              "### Highest-debt files",
+              "",
+          ]
+
+          for file_name, count in file_counts.most_common(10):
+              lines.append(f"- `{file_name}`: {count}")
+          if not file_counts:
+              lines.append("- No diagnostics.")
+
+          lines.extend(["", "### Most common rules", ""])
+          for rule, count in rule_counts.most_common(10):
+              lines.append(f"- `{rule}`: {count}")
+          if not rule_counts:
+              lines.append("- No diagnostics.")
+
+          lines.append("")
+          summary_path.write_text("\n".join(lines), encoding="utf-8")
+
+      - name: Upload Pyright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyright-report
+          path: pyright-report.json
+          if-no-files-found: warn
+          retention-days: 14
 
   hypothesis-pilot:
     runs-on: ubuntu-latest
