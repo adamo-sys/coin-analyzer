@@ -1,0 +1,9 @@
+[allowlist]
+description = "Known non-secret processed-artifact fixture identifiers"
+regexes = [
+  '''normalized-coin-1-front'''
+]
+paths = [
+  '''tests/test_processed_artifact_snapshot\.py''',
+  '''tests/test_workflow_execution\.py'''
+]
