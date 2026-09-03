@@ -47,8 +47,11 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install Pyright
-        run: python -m pip install pyright==1.1.411
+      - name: Install runtime dependencies and Pyright
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyright==1.1.411
 
       - name: Type-check cleaned boundaries
         run: pyright event_bus.py image_analyzer.py
