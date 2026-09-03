@@ -64,8 +64,21 @@ For each tool or configuration, record:
 ### Hypothesis
 
 - Role: property-based testing for edge cases and invariants.
-- Status: evaluation.
-- Initial pilot: bounded invariant testing of deterministic deduplication behavior.
+- Status: adopted for bounded deterministic invariants; expansion remains evidence-driven.
+- Initial pilot: deterministic case-insensitive deduplication in `market_intelligence_automation._dedupe`.
+- Mutation cross-check: the same property test killed all 11 generated `_dedupe` mutants in the first bounded mutmut pilot, providing evidence that the property test detects meaningful behavioral regressions rather than only exercising the function.
+
+### Mutmut / mutation testing
+
+- Role: measure test sensitivity by injecting bounded code mutations into deterministic logic.
+- Status: provisionally adopted for targeted local quality experiments; not a repository-wide CI gate.
+- Environment: mutmut 3.7.0 requires WSL on Windows. Running from the `/mnt/c/...` NTFS mount failed when mutmut copied metadata into `mutants/`, so the successful pilot used a disposable Linux-native copy under the WSL home directory.
+- Pilot target: `market_intelligence_automation._dedupe`, with test selection limited to `tests/test_property_based_quality_pilot.py`.
+- Baseline: the selected Hypothesis test passed before mutation testing.
+- Result: 11 `_dedupe` mutants executed, 11 killed, 0 survived, 0 timeouts, and no suspicious results; bounded mutation score 100% for that function.
+- Interpretation: the existing property-based test has strong signal for the helper's case-insensitive uniqueness, trimming, blank filtering, and order-preservation behavior.
+- Decision: keep mutation testing as an explicit bounded diagnostic. Do not add a whole-repository mutation gate until runtime, dependency setup, and signal-to-noise are measured on additional targets.
+- Next target: `deal_hunter_ranking.DealHunterRankingEngine._budget_points`, a deterministic boundary-scoring function with several price thresholds. This is intentionally more interesting than `_dedupe` because boundary mutations at 0/50/100/250/500 can expose missing exact-edge assertions.
 
 ### OpenCode
 
@@ -129,14 +142,15 @@ For bounded Coin Analyzer changes, prefer:
 3. OpenCode performs an independent read-only review on selected real PRs.
 4. Goose may be used for a second opinion or future MCP/orchestration experiments when the extra setup/cost is justified.
 5. Ollama/local models may assist with low-risk preparation and explanation, but do not replace CI or the independent reviewer.
-6. Merge only when the reviewed head is unchanged, blocking CI is green, and no substantive review blocker remains.
+6. Use Hypothesis and targeted mutation testing where deterministic invariants justify the extra diagnostic cost; mutation results remain advisory unless a future bounded gate is explicitly approved.
+7. Merge only when the reviewed head is unchanged, blocking CI is green, and no substantive review blocker remains.
 
 ## Planned experiments
 
 1. Continue the Pyright module-by-module blocking ratchet while leaving whole-repo Pyright advisory.
-2. Continue the Hypothesis pilot and expand only if it finds useful edge cases or strengthens invariants.
+2. Add one additional Hypothesis property test only where invariants are clear and deterministic.
 3. Repeat OpenCode read-only review on several additional real PRs and track useful findings, false positives, intervention time, and cost before making it a routine gate.
-4. Evaluate mutation testing on a small deterministic module to measure whether existing tests kill injected defects; do not begin with a repository-wide mutation run.
+4. Run the second bounded mutation pilot against `DealHunterRankingEngine._budget_points`; explicitly probe exact threshold behavior at 0, 50, 100, 250, and 500 and inspect any surviving mutants before adding tests.
 5. Revisit Goose specifically for controlled MCP/tool orchestration rather than duplicating OpenCode's reviewer role.
 6. Defer larger local-model reviewer experiments until hardware changes or a smaller, demonstrably stronger model becomes available.
 7. Later benchmark autonomous agents on a small set of historical bounded tasks using task success, test pass rate, scope compliance, human intervention, time, and cost.
