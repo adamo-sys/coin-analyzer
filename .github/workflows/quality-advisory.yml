@@ -48,10 +48,9 @@ jobs:
           summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
 
           if not report_path.exists():
-              summary_path.write_text(
-                  "## Pyright advisory\n\nPyright did not produce a JSON report.\n",
-                  encoding="utf-8",
-              )
+              message = "## Pyright advisory\n\nPyright did not produce a JSON report.\n"
+              summary_path.write_text(message, encoding="utf-8")
+              print(message)
               raise SystemExit(0)
 
           report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -94,7 +93,9 @@ jobs:
               lines.append("- No diagnostics.")
 
           lines.append("")
-          summary_path.write_text("\n".join(lines), encoding="utf-8")
+          rendered_summary = "\n".join(lines)
+          summary_path.write_text(rendered_summary, encoding="utf-8")
+          print(rendered_summary)
 
       - name: Upload Pyright report
         if: always()
