@@ -18,8 +18,7 @@ Typical invocation:
 ### Roles
 
 - **User / repository owner**: owns product direction, architecture decisions,
-  privacy/evidence decisions, and merge authority unless explicit scoped
-  authorization is given for a specific PR or bounded task.
+  privacy/evidence decisions, and final merge authority.
 - **Primary implementation agent (normally Codex)**: implements bounded vertical
   slices, runs focused validation, and reports scope/test/risk evidence.
 - **Independent reviewer (when used)**: reviews against the frozen architecture,
@@ -79,8 +78,8 @@ Use the narrowest meaningful validation first, then escalate:
 4. authoritative GitHub Actions regression before merge.
 
 Current blocking repository gates include the Windows/Ubuntu unittest matrix,
-Ruff syntax checks, and Gitleaks. Advisory experiments such as Pyright remain
-non-blocking until explicitly ratcheted into a bounded blocking gate.
+Ruff syntax checks, Gitleaks, and the explicitly ratcheted bounded Pyright check.
+Whole-repo Pyright remains advisory/non-blocking.
 
 Do not weaken production semantics merely to make a test pass.
 
@@ -109,7 +108,7 @@ or test results. Prefer exact evidence over promotional wording.
 
 ### 7. Repository Mutation and Authority
 
-Default rule: the user retains merge authority.
+The user retains final merge authority.
 
 The agent may create branches, commits, pushes, PRs, comments, and CI-supporting
 changes only when the user has authorized that bounded work. Authorization can
@@ -119,10 +118,10 @@ For merges:
 
 - do not merge a PR with failing, cancelled, stale, or incomplete blocking gates;
 - use the current PR head SHA when possible to prevent stale merges;
-- merge only when the user has explicitly authorized that PR or has clearly
-  granted standing merge authority for that specific bounded task;
-- never infer indefinite authority for unrelated future PRs from an earlier
-  approval.
+- report merge readiness and wait for explicit human merge authorization for
+  that PR;
+- never infer merge authority from authorization to implement, commit, push,
+  open a PR, or perform earlier work.
 
 No force-pushes, destructive history rewrites, releases, or tags without explicit
 user authorization.
@@ -236,4 +235,5 @@ For normal Coin Analyzer work, use this sequence:
 5. run/await authoritative CI;
 6. perform independent review when the change is significant;
 7. report changed files, tests, risks, and deferred work;
-8. merge only within the user's explicit scoped authority.
+8. report merge readiness; merge only after explicit user authorization for that
+   PR.
