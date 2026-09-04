@@ -86,6 +86,10 @@ from collector_home_dashboard import CollectorHomeDashboard
 from collector_workspace import CollectorWorkspace
 from canadian_reference_provider import ReferenceFilters, ReferenceQuery
 from collection_integrity import CollectionIntegrityAudit
+from denomination_label_audit import (
+    DenominationAuditRecord,
+    audit_denomination_labels,
+)
 from collection_snapshot import CollectionSnapshotManager
 from collector_operating_system import CollectorHome, CollectionHealthReportEngine
 from collector_workflows import CollectorWorkflowEngine
@@ -376,6 +380,7 @@ class CoinCollectionGUI:
         menubar.add_cascade(label="Reports", menu=reports_menu)
         reports_menu.add_command(label="Collection Dashboard", command=self.open_collection_dashboard)
         reports_menu.add_command(label="Collection Gap Report", command=self.open_collection_gap_report)
+        reports_menu.add_command(label="Denomination Label Audit", command=self.open_denomination_label_audit)
         reports_menu.add_command(label="Collection Integrity Audit", command=self.open_collection_integrity_audit)
         reports_menu.add_command(label="Portfolio Dashboard", command=self.open_portfolio_dashboard)
         reports_menu.add_command(label="Photo Vault Audit", command=self.open_photo_vault_audit)
@@ -2953,6 +2958,45 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Export CSV", command=export_csv).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def open_denomination_label_audit(self):
+        """Show a deterministic read-only denomination-label audit."""
+
+        records = tuple(
+            DenominationAuditRecord(
+                jurisdiction=item.country,
+                denomination=item.denomination,
+            )
+            for item in self.app.collection.get_all_items()
+        )
+        report = audit_denomination_labels(records)
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Denomination Label Audit")
+        dialog.geometry("800x600")
+
+        ttk.Label(
+            dialog,
+            text=(
+                "Read-only consistency audit. "
+                "No collection data will be modified."
+            ),
+            padding=(10, 8),
+        ).pack(fill=tk.X)
+
+        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report.format_text())
+        text.config(state=tk.DISABLED)
+
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(
+            button_frame,
+            text="Close",
+            command=dialog.destroy,
+        ).pack(side=tk.LEFT)
 
     def open_want_list_generator(self):
         """Show ranked acquisition targets and allow Markdown/CSV export."""
