@@ -56,6 +56,40 @@ jobs:
       - name: Type-check cleaned boundaries
         run: pyright event_bus.py image_analyzer.py denomination_label_audit.py
 
+  openai-dependency-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install optional OpenAI dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ai.txt
+
+      - name: Verify OpenAI SDK surfaces without network access
+        run: |
+          python - <<'PY'
+          import openai_collection_assistant
+          from capture_import import visual_identity_provider
+          from openai import OpenAI
+
+          client = OpenAI(api_key="sk-ci-smoke-test")
+          assert callable(client.responses.create)
+          assert callable(client.responses.parse)
+          assert openai_collection_assistant.OpenAIResponsesAdapter.provider_name == "OpenAI"
+          assert visual_identity_provider.OPENAI_VISUAL_PROVIDER_ID == "openai-responses-visual"
+          print("OpenAI optional dependency smoke check passed")
+          PY
+
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -120,4 +154,3 @@ jobs:
 
       - name: Run tests
         run: python -m unittest discover -s . -p "test_*.py"
-
