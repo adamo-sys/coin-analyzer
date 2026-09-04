@@ -54,7 +54,7 @@ jobs:
           pip install pyright==1.1.411
 
       - name: Type-check cleaned boundaries
-        run: pyright event_bus.py image_analyzer.py
+        run: pyright event_bus.py image_analyzer.py denomination_label_audit.py
 
   gitleaks:
     runs-on: ubuntu-latest
@@ -120,4 +120,3 @@ jobs:
 
       - name: Run tests
         run: python -m unittest discover -s . -p "test_*.py"
-
