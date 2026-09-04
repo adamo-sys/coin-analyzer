@@ -59,7 +59,7 @@ For each tool or configuration, record:
 - Role: static type analysis.
 - Status: adopted in mixed advisory/blocking mode.
 - Whole-repository mode remains advisory so existing type debt is visible without blocking unrelated work.
-- Cleaned modules are promoted into a blocking CI boundary incrementally. As of the PR #60 benchmark, `event_bus.py` and `image_analyzer.py` are blocking and pass with zero Pyright errors.
+- Cleaned modules are promoted into a blocking CI boundary incrementally. As of PR #68, `event_bus.py`, `image_analyzer.py`, and `denomination_label_audit.py` are blocking and pass with zero Pyright errors. The whole-repo advisory workflow is pinned to Pyright 1.1.411 for comparable debt measurements.
 
 ### Hypothesis
 
