@@ -8,6 +8,7 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
 import os
+from pathlib import Path
 import logging
 import queue
 import threading
@@ -113,6 +114,7 @@ from photo_capture_workflow import (
 )
 from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_inbox import PhotoInboxManager
+from phone_drop_import import PhoneDropImporter
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
 from smart_shopping_assistant import SmartShoppingAssistant, ShoppingCandidate
@@ -349,6 +351,10 @@ class CoinCollectionGUI:
             label="AI-Assisted Coin Images...",
             command=self.import_coin_images_with_visual_ai,
             state=self.capture_import_menu_state(),
+        )
+        file_menu.add_command(
+            label="Import Phone Photos...",
+            command=self.import_phone_photos,
         )
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
@@ -3605,6 +3611,39 @@ Total Unique Dates: {total_unique_dates}
         ]
         notes = self.notes_text.get("1.0", tk.END).strip() if hasattr(self, "notes_text") else ""
         return any(str(value or "").strip() for value in text_values) or bool(notes) or bool(self.current_item_photos)
+
+    def import_phone_photos(self):
+        """Copy phone-transferred images into the managed Photo Inbox."""
+        source_paths = filedialog.askopenfilenames(
+            title="Import Phone Photos",
+            filetypes=[
+                (
+                    "Supported images",
+                    "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff *.heic *.heif",
+                ),
+                ("All files", "*.*"),
+            ],
+        )
+        if not source_paths:
+            return
+
+        result = PhoneDropImporter().import_files(source_paths)
+        PhotoInboxManager().refresh()
+
+        lines = [
+            f"Copied: {result.copied_count}",
+            f"Already imported: {result.duplicate_count}",
+            f"Rejected: {result.rejected_count}",
+        ]
+        if result.rejected:
+            lines.append("")
+            lines.extend(
+                f"{Path(item.source_path).name}: {item.reason}"
+                for item in result.rejected[:5]
+            )
+
+        messagebox.showinfo("Phone Photo Import", "\n".join(lines))
+        self.open_photo_inbox()
 
     def open_photo_inbox(self):
         """Open a manual Photo Inbox review window."""
