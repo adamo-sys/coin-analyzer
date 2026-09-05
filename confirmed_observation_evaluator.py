@@ -19,15 +19,32 @@ class ObservationLike(Protocol):
     production consumer of the store implementation.
     """
 
-    observation_id: str
-    outcome: Any
-    category: Any
-    suggested_values: Mapping[str, Any]
-    confirmed_values: Mapping[str, Any]
-    engine_name: str
-    engine_version: str
-    recognition_method: str
-    evidence_snapshot: Mapping[str, Any]
+    @property
+    def observation_id(self) -> str: ...
+
+    @property
+    def outcome(self) -> Any: ...
+
+    @property
+    def category(self) -> Any: ...
+
+    @property
+    def suggested_values(self) -> Mapping[str, Any]: ...
+
+    @property
+    def confirmed_values(self) -> Mapping[str, Any]: ...
+
+    @property
+    def engine_name(self) -> str: ...
+
+    @property
+    def engine_version(self) -> str: ...
+
+    @property
+    def recognition_method(self) -> str: ...
+
+    @property
+    def evidence_snapshot(self) -> Mapping[str, Any]: ...
 
 
 @dataclass(frozen=True)
