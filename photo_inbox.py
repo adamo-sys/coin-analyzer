@@ -631,7 +631,8 @@ class PhotoInboxManager:
             delta = abs((photo_seen - first_seen).total_seconds())
             if delta <= self.config.grouping_window_seconds:
                 return True
-        return self._filename_prefix(first.filename) and self._filename_prefix(first.filename) == self._filename_prefix(photo.filename)
+        first_prefix = self._filename_prefix(first.filename)
+        return bool(first_prefix and first_prefix == self._filename_prefix(photo.filename))
 
     @staticmethod
     def _filename_prefix(filename: str) -> str:
