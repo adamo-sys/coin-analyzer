@@ -58,7 +58,7 @@ jobs:
           pip install pyright==1.1.411
 
       - name: Type-check cleaned boundaries
-        run: pyright event_bus.py image_analyzer.py denomination_label_audit.py market_intelligence_automation.py photo_inbox.py
+        run: pyright event_bus.py image_analyzer.py denomination_label_audit.py market_intelligence_automation.py photo_inbox.py confirmed_observation_evaluator.py
 
   openai-dependency-smoke:
     runs-on: ubuntu-latest
