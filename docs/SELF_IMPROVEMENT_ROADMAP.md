@@ -96,34 +96,60 @@ Completion references: PR #107 Stage 9 orchestrator and PR #108 Stage 9 reliabil
 Architecture authority: `docs/STAGE_9_ORCHESTRATOR_CONTRACT.md`.
 Reliability gate: `docs/STAGE_9_RELIABILITY_GATE.md`.
 
-### 10. Parallel Experiments — NEXT / ARCHITECTURE FROZEN
+### 10. Parallel Experiments — COMPLETE
 
-Introduce bounded multiple-candidate experiments without creating an open-ended swarm.
+Implemented and reliability-tested the first fixed two-candidate experiment without creating an open-ended swarm.
 
-Initial canonical experiment:
+Canonical experiment:
 
 `one frozen RemediationPackage -> two independent bounded candidate implementations -> independent validation/review -> deterministic comparison -> HUMAN`
 
+Properties now covered:
+- exactly two caller-supplied candidate execution roles;
+- same frozen package for both candidates;
+- isolated candidate execution and evidence;
+- one execution per candidate;
+- candidate-local rejection without automatic retry or replacement;
+- zero, one, or multiple viable candidate outcomes;
+- deterministic structured comparison;
+- ties preserved for human selection;
+- no agent-to-agent communication, dynamic spawning, code composition, target selection, merge, deploy, release, or promotion authority.
+
+Completion references: PR #110 Stage 10 runtime and PR #112 Stage 10 reliability gate evidence.
+
+Architecture authority: `docs/STAGE_10_PARALLEL_EXPERIMENTS_CONTRACT.md`.
+Reliability gate: `docs/STAGE_10_RELIABILITY_GATE.md`.
+
+### 11. Specialized Candidate Roles — NEXT / ARCHITECTURE FROZEN
+
+Specialize the two existing Stage 10 candidates so their comparison produces meaningfully different bounded implementation strategies without increasing candidate count or autonomy.
+
+Initial canonical experiment:
+
+`one frozen RemediationPackage -> MINIMAL_CHANGE candidate + ALTERNATIVE_DESIGN candidate -> independent Stage 7/8 validation and review -> deterministic comparison -> HUMAN`
+
 Initial responsibilities:
-- dispatch the same frozen package to exactly two caller-supplied candidate execution roles;
-- keep candidate execution and evidence isolated;
-- evaluate each candidate against the same explicit scope, invariants, tests, and gates;
-- record candidate-local failures without automatic retry or replacement;
-- surface zero, one, or multiple viable candidates;
-- compare viable candidates only through deterministic structured criteria;
-- defer ties or otherwise indistinguishable candidates to the repository owner.
+- retain exactly two candidates;
+- assign one frozen strategy kind to each candidate;
+- keep the remediation package, allowed paths, invariants, tests, and gates identical across candidates;
+- constrain `MINIMAL_CHANGE` toward the smallest compliant implementation surface;
+- constrain `ALTERNATIVE_DESIGN` toward a materially different bounded approach when one exists;
+- preserve candidate isolation and single-shot execution;
+- surface strategy metadata as structured evidence only;
+- preserve existing deterministic comparison and human selection boundaries.
 
 Still prohibited:
-- unbounded agent group chat;
+- more than two candidates;
+- unbounded group chat or dynamic routing;
 - recursive delegation or dynamic agent creation;
-- autonomous target selection;
-- repeated remediation cycles;
-- silent scope expansion;
-- automatic synthesis/merging of candidate code;
+- autonomous target discovery;
+- retries, replacement candidates, or repeated remediation cycles;
+- automatic candidate synthesis/merging;
+- learned/self-modifying strategy policy;
 - collection/model/prompt/config mutation outside explicit reviewable scope;
 - merge, deploy, release, or promotion authority.
 
-Architecture authority: `docs/STAGE_10_PARALLEL_EXPERIMENTS_CONTRACT.md`.
+Architecture authority: `docs/STAGE_11_SPECIALIZED_CANDIDATE_ROLES_CONTRACT.md`.
 
 ## Operating principle
 
