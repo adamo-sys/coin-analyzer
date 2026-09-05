@@ -1,4 +1,4 @@
-﻿import inspect
+import inspect
 import unittest
 
 from coin_collection_gui import CoinCollectionGUI
