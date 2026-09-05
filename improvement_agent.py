@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Iterable, Tuple
 
 from diagnostic_agent import DiagnosticFinding
@@ -80,12 +80,26 @@ def _clean_nonempty(values: Iterable[str], *, field_name: str) -> Tuple[str, ...
 
 
 def _clean_paths(values: Iterable[str]) -> Tuple[str, ...]:
-    result = _clean_nonempty(values, field_name="allowed_paths")
-    for value in result:
-        path = PurePosixPath(value.replace("\\", "/"))
-        if path.is_absolute() or ".." in path.parts or value.startswith("./"):
+    raw = _clean_nonempty(values, field_name="allowed_paths")
+    normalized = tuple(value.replace("\\", "/") for value in raw)
+
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("allowed_paths must not contain duplicates")
+
+    for value in normalized:
+        posix_path = PurePosixPath(value)
+        windows_path = PureWindowsPath(value)
+        if (
+            value == "."
+            or value.startswith("./")
+            or posix_path.is_absolute()
+            or windows_path.is_absolute()
+            or bool(windows_path.drive)
+            or ".." in posix_path.parts
+        ):
             raise ValueError("allowed_paths must be repository-relative paths without traversal")
-    return tuple(sorted(value.replace("\\", "/") for value in result))
+
+    return tuple(sorted(normalized))
 
 
 def build_remediation_package(
