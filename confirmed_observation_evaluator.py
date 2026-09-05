@@ -8,9 +8,26 @@ existing evidence so future improvement work can be measured before promotion.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, Tuple
 
-from confirmed_observations import ConfirmedObservationRecord, ObservationOutcome
+
+class ObservationLike(Protocol):
+    """Structural contract for read-only evaluation evidence.
+
+    The evaluator deliberately avoids importing the confirmed-observation store
+    module so it remains downstream of persisted evidence rather than becoming a
+    production consumer of the store implementation.
+    """
+
+    observation_id: str
+    outcome: Any
+    category: Any
+    suggested_values: Mapping[str, Any]
+    confirmed_values: Mapping[str, Any]
+    engine_name: str
+    engine_version: str
+    recognition_method: str
+    evidence_snapshot: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -55,15 +72,19 @@ class ObservationEvaluationReport:
         return self.exact_match_records / self.evaluable_records
 
 
+def _enumish_value(value: Any) -> str:
+    raw = getattr(value, "value", value)
+    return str(raw)
+
+
 def evaluate_confirmed_observations(
-    records: Iterable[ConfirmedObservationRecord],
+    records: Iterable[ObservationLike],
 ) -> ObservationEvaluationReport:
     """Return a deterministic summary without mutating source records.
 
     Only ACCEPTED and CORRECTED observations with confirmed values participate
     in agreement metrics. Suggested/confirmed comparisons are case-insensitive
-    string comparisons after the normalization already owned by
-    ``ConfirmedObservationRecord``.
+    string comparisons over already-sanitized evidence values.
 
     Confidence is summarized only when ``evidence_snapshot['confidence']`` is a
     numeric value in the closed interval [0, 1]. Values outside that range or
@@ -85,8 +106,10 @@ def evaluate_confirmed_observations(
     exact_match_records = 0
 
     for record in rows:
-        outcome_counts[record.outcome.value] = outcome_counts.get(record.outcome.value, 0) + 1
-        category_counts[record.category.value] = category_counts.get(record.category.value, 0) + 1
+        outcome_value = _enumish_value(record.outcome)
+        category_value = _enumish_value(record.category)
+        outcome_counts[outcome_value] = outcome_counts.get(outcome_value, 0) + 1
+        category_counts[category_value] = category_counts.get(category_value, 0) + 1
 
         engine_key = f"{record.engine_name}@{record.engine_version}"
         engine_version_counts[engine_key] = engine_version_counts.get(engine_key, 0) + 1
@@ -108,7 +131,7 @@ def evaluate_confirmed_observations(
             if confidence is not None:
                 warnings.append(f"{record.observation_id}: non-numeric confidence ignored")
 
-        if record.outcome not in {ObservationOutcome.ACCEPTED, ObservationOutcome.CORRECTED}:
+        if outcome_value not in {"ACCEPTED", "CORRECTED"}:
             continue
         if not record.confirmed_values:
             continue
