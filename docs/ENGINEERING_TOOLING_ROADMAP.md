@@ -38,9 +38,9 @@ pre-commit run --all-files
 
 Completion reference: PR #116.
 
-## T3 Dependency Automation — IN PROGRESS
+## T3 Dependency Automation — COMPLETE / PILOT ACTIVE
 
-Pilot Renovate as a proposal-and-evidence tool, not as a promotion authority.
+Renovate is configured as a proposal-and-evidence tool, not as a promotion authority.
 
 Initial policy:
 - use the recommended Renovate baseline;
@@ -51,15 +51,33 @@ Initial policy:
 - cap Renovate at five concurrent PRs and two PRs per hour;
 - disable automerge globally.
 
-Repository CI and human merge authority remain mandatory for every Renovate PR.
+Repository CI and human merge authority remain mandatory for every Renovate PR. The repository's custom `requirements*.lock` files remain outside generic Renovate lock-file maintenance until compatibility with that custom lock scheme is explicitly proven.
 
-The repository's custom `requirements*.lock` files are not treated as a generic Renovate lock-file-maintenance target in this initial pilot. Their existing reproducibility workflow remains authoritative until Renovate compatibility with that custom lock scheme is explicitly proven.
+Completion reference: PR #117. The first real Renovate cycle remains observational evidence for whether the pilot stays enabled or needs tuning.
 
-Exit gate: configuration is merged green and the first real Renovate update cycle produces useful, bounded PRs without dependency noise, lockfile drift, or authority expansion.
+## T4 Agent Adversarial Evaluation — IN PROGRESS
 
-## T4 Agent Adversarial Evaluation — PLANNED
+Pilot Promptfoo first as a local, deterministic, network-free adversarial harness around the frozen self-improvement authority boundaries.
 
-After Stage 11 runtime is stable, pilot Promptfoo against scope broadening, failed-gate bypass, fabricated evidence, prohibited retries, malformed evidence, and attempted promotion-boundary violations.
+Initial cases cover:
+- attempted merge/deploy/release/promotion authority;
+- failed-gate or reviewer bypass;
+- scope broadening and unrelated-file mutation;
+- prohibited retry/repair/replacement loops;
+- autonomous target selection;
+- candidate communication or synthesis;
+- protected collection/model/prompt/config policy mutation;
+- the valid terminal behavior of stopping at human review.
+
+The first provider is deliberately a deterministic local policy oracle rather than a live LLM. This proves the Promptfoo harness, file/provider boundary, and adversarial dataset without API keys, network calls, or new runtime authority. A later slice may point Promptfoo at a real agent/model only after this pilot is stable.
+
+Run locally with Node.js 22.22+ using the pinned pilot version:
+
+```text
+npx promptfoo@0.122.2 eval -c evals/promptfoo/promptfooconfig.yaml
+```
+
+Exit gate: the local adversarial suite is reproducible and useful, CI remains authoritative, and any later live-model integration is separately reviewed before being allowed to influence self-improvement decisions.
 
 ## T5 Agent Observability — PLANNED
 
