@@ -37,7 +37,14 @@ def _package():
 
 
 def test_package_preserves_diagnostic_evidence_and_normalizes_scope() -> None:
-    package = _package()
+    package = build_remediation_package(
+        _finding(),
+        objective="Fix the bounded mintmark failure without changing unrelated behavior.",
+        allowed_paths=("test_mintmark.py", "capture_import\\mintmark.py"),
+        invariants=("confirmed observations remain immutable", "no collection mutation"),
+        focused_tests=("pytest test_mintmark.py -q",),
+        required_gates=("focused-tests", "pyright", "full-regression"),
+    )
 
     assert package.dimension == "field"
     assert package.key == "mintmark"
@@ -121,6 +128,31 @@ def test_package_rejects_duplicate_bounds_and_path_traversal() -> None:
             _finding(),
             objective="fix",
             allowed_paths=("../a.py",),
+            invariants=("preserve contract",),
+            focused_tests=("pytest test_a.py -q",),
+            required_gates=("tests",),
+        )
+
+
+def test_package_rejects_ambiguous_or_absolute_windows_paths() -> None:
+    for path in (".\\a.py", "C:\\repo\\a.py", "\\\\server\\share\\a.py", "."):
+        with pytest.raises(ValueError, match="repository-relative"):
+            build_remediation_package(
+                _finding(),
+                objective="fix",
+                allowed_paths=(path,),
+                invariants=("preserve contract",),
+                focused_tests=("pytest test_a.py -q",),
+                required_gates=("tests",),
+            )
+
+
+def test_package_rejects_duplicates_after_separator_normalization() -> None:
+    with pytest.raises(ValueError, match="must not contain duplicates"):
+        build_remediation_package(
+            _finding(),
+            objective="fix",
+            allowed_paths=("capture_import/a.py", "capture_import\\a.py"),
             invariants=("preserve contract",),
             focused_tests=("pytest test_a.py -q",),
             required_gates=("tests",),
