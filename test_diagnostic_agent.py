@@ -170,13 +170,19 @@ def test_partition_counts_are_sorted_and_preserved():
 def test_negative_bounds_are_rejected():
     report = _report()
 
-    for kwargs in ({"max_findings": -1}, {"max_paths_per_finding": -1}):
-        try:
-            diagnose_failure_report(report, **kwargs)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("negative bound should raise ValueError")
+    try:
+        diagnose_failure_report(report, max_findings=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative max_findings should raise ValueError")
+
+    try:
+        diagnose_failure_report(report, max_paths_per_finding=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative max_paths_per_finding should raise ValueError")
 
 
 def test_diagnosis_does_not_mutate_report_or_context():
