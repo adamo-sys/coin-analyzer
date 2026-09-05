@@ -19,9 +19,9 @@ The baseline covers:
 The baseline does not introduce:
 
 - a new GUI framework;
-- an Electron/web rewrite;
+- an Electron or web rewrite;
 - broad visual redesign;
-- automated screenshot approval infrastructure;
+- automated screenshot-approval infrastructure;
 - cloud services;
 - analytics;
 - design-system dependencies;
@@ -31,11 +31,9 @@ The baseline does not introduce:
 
 Coin Analyzer remains a native Python/Tkinter desktop application.
 
-The current menu hierarchy is organized into bounded functional groups:
+The current Tools menu is organized into bounded functional groups.
 
-### Tools
-
-#### Session & Data
+### Session & Data
 
 - Load Collection Context
 - Clear Session Context
@@ -49,7 +47,7 @@ The current menu hierarchy is organized into bounded functional groups:
 - Restore Backup
 - Create Snapshot
 
-#### Collection Intelligence
+### Collection Intelligence
 
 - Buy Advisor
 - Upgrade Advisor
@@ -63,14 +61,14 @@ The current menu hierarchy is organized into bounded functional groups:
 - Portfolio Analytics
 - Numista Intelligence
 
-#### OCR & AI
+### OCR & AI
 
 - OCR Experiment
 - OCR-Assisted Identification
 - AI Grading Assistant
 - Smart Phone Cataloguer
 
-#### Mobile & Sync
+### Mobile & Sync
 
 - Mobile Collection Entry
 - Collector Workflow Integration
@@ -81,7 +79,7 @@ The current menu hierarchy is organized into bounded functional groups:
 - Mobile Collector Companion
 - Phone Photo Capture
 
-#### Market & Deal Tools
+### Market & Deal Tools
 
 - Deal Hunter Ranking
 - Deal Hunter Calibration
@@ -93,7 +91,7 @@ The current menu hierarchy is organized into bounded functional groups:
 - Market Intelligence Automation
 - Watchlists & Alerts
 
-#### Platform & Diagnostics
+### Platform & Diagnostics
 
 - Platform Management
 - Platform Analytics
@@ -104,86 +102,109 @@ The current menu hierarchy is organized into bounded functional groups:
 
 - Collector Companion Readiness
 
+## Existing deterministic navigation coverage
+
+`test_menu_navigation.py` already protects the important navigation structure.
+
+It verifies:
+
+- all six expected Tools submenu groups remain present;
+- representative commands remain wired to their existing handlers;
+- Collector Companion Readiness appears exactly once and remains under Help;
+- existing top-level navigation entries remain present.
+
+This existing coverage is preferred over adding redundant source-text assertions.
+
 ## UX invariants
 
 Future desktop changes should preserve the following unless an explicit product decision supersedes them:
 
 1. Top-level menu actions remain discoverable through stable functional groupings.
-2. Collector Companion Readiness appears only under Help.
+2. Collector Companion Readiness remains under Help and is not duplicated under Tools.
 3. Session/data actions remain separated from analysis/intelligence actions.
 4. OCR/AI actions remain visibly distinct from deterministic collection-management operations.
-5. Optional live/cloud/provider actions must not become prerequisites for core local collection management.
-6. Menu changes must remain covered by deterministic regression tests.
+5. Optional live, cloud, or provider actions must not become prerequisites for core local collection management.
+6. Menu changes remain covered by deterministic regression tests.
 7. Native Windows/Tkinter smoke validation remains required for GUI-sensitive release work.
 8. GUI changes must not weaken provenance, privacy, or explicit-review boundaries around OCR/AI output.
 
 ## Keyboard and accessibility baseline
 
-Tkinter accessibility support is limited compared with modern browser-native accessibility stacks, so the project uses a pragmatic desktop baseline rather than claiming formal WCAG compliance.
+Tkinter exposes fewer accessibility semantics than modern browser-native UI stacks, so Coin Analyzer uses a pragmatic desktop baseline rather than claiming formal WCAG compliance.
 
-For future GUI work:
+Future GUI work should preserve these expectations:
 
-- important actions should remain reachable through standard menu keyboard navigation;
-- focus order should not be intentionally broken;
-- dialogs should retain clear labels and explicit confirmation/cancellation paths;
-- destructive operations should not become single-keystroke actions without confirmation;
-- keyboard shortcuts should not conflict with common platform conventions;
-- menu labels should remain concise and distinguishable;
-- accessibility claims should remain limited to behavior actually tested.
+- important actions remain reachable through standard menu keyboard navigation;
+- focus order is not intentionally broken;
+- dialogs use clear labels and explicit confirmation or cancellation paths;
+- destructive operations do not become unconfirmed single-keystroke actions;
+- keyboard shortcuts do not conflict with common platform conventions;
+- menu labels remain concise and distinguishable;
+- accessibility claims remain limited to behavior actually tested.
 
 ## Visual-regression position
 
-The project is not adding screenshot-diff infrastructure at this stage.
+The project is not adding broad screenshot-diff infrastructure at this stage.
 
-Reasons:
+Tkinter rendering can vary with:
 
-- Tkinter rendering can vary across Windows/Tcl/Tk versions and DPI settings;
-- screenshot baselines can become noisy without stable rendering infrastructure;
-- current deterministic navigation tests provide higher signal for the maintenance burden.
+- Windows version;
+- Tcl/Tk version;
+- DPI scaling;
+- system fonts;
+- theme configuration.
 
-If a future GUI regression cannot be captured through deterministic state/navigation tests, a small screenshot fixture may be introduced for that specific workflow only.
+Those differences can create visual-regression noise without stable rendering infrastructure.
+
+For the current maintenance boundary, deterministic navigation/state tests provide better signal for the maintenance burden.
+
+A screenshot fixture should be introduced only if a specific future GUI regression cannot be captured through deterministic state or navigation tests.
 
 ## Highest-value workflow for future UX work
 
-The preferred workflow for any future targeted UX improvement is the OCR-assisted import/review path because it combines:
+If future user feedback justifies targeted UX work, the preferred candidate is the OCR-assisted import/review path.
+
+That workflow combines:
 
 - file selection;
-- imported capture-package state;
+- capture-package state;
 - OCR-assisted interpretation;
 - explicit human review;
 - persistence boundaries;
-- privacy/provenance constraints.
+- privacy and provenance constraints.
 
-Any redesign of that workflow should begin with a bounded mockup or acceptance-criteria document before implementation.
+Any material redesign should begin with frozen acceptance criteria or a bounded mockup before implementation.
 
 ## Current findings
 
 ### Strengths
 
-- menu grouping is now explicit and regression-tested;
+- menu grouping is explicit and regression-tested;
+- representative commands are tested against their handlers;
+- Collector Companion Readiness is protected against duplicate placement;
 - local collection-management functionality remains distinct from optional provider/cloud behavior;
 - OCR/AI functionality remains advisory;
 - protected-branch and regression gates reduce accidental GUI churn;
-- the project already has a repeatable native Windows validation path.
+- a repeatable native Windows validation path exists.
 
 ### Risks to watch
 
-- Tkinter exposes fewer built-in accessibility semantics than browser-native UI frameworks;
-- very large menus can still create discoverability friction;
-- future feature additions could reintroduce duplicate or poorly grouped menu actions;
-- keyboard behavior can regress without deliberate focus/binding tests;
-- screenshot comparison would be noisy unless rendering conditions are tightly controlled.
+- large menus can still create discoverability friction;
+- Tkinter provides limited accessibility semantics;
+- future feature additions could reintroduce duplicate or poorly grouped actions;
+- keyboard/focus behavior can regress without deliberate validation;
+- screenshot comparison would remain noisy unless rendering conditions are tightly controlled.
 
 ## Maintenance-mode rule
 
-After this baseline is merged and release-quality validation is green, Coin Analyzer should enter maintenance mode.
+After this baseline is merged and final release-quality validation is green, Coin Analyzer should enter maintenance mode.
 
-New GUI work should require one of:
+New GUI work should require at least one of:
 
 - a reproducible bug;
 - observed user friction;
 - useful external feedback;
-- a security/privacy issue;
+- a security or privacy issue;
 - a clearly justified feature with a concrete use case.
 
 Tool adoption, framework experimentation, or visual redesign by itself is not sufficient justification.
@@ -194,8 +215,7 @@ This baseline slice is complete when:
 
 - this document is merged;
 - existing menu/navigation regression tests remain green;
-- any added focused navigation invariant is deterministic;
 - bounded Pyright remains clean;
 - the full regression suite passes;
-- no production architecture or product behavior is changed;
-- the repository is ready for a final maintenance release decision.
+- no production architecture or product behavior changes;
+- the repository is ready for a final maintenance-release decision.
