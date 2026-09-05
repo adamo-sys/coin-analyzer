@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 from phone_drop_import import PhoneDropImporter
@@ -95,7 +96,7 @@ def test_imported_pair_is_discovered_and_grouped_by_photo_inbox(tmp_path):
     source_dir.mkdir()
     front = source_dir / "1967-dollar-front.jpg"
     back = source_dir / "1967-dollar-back.jpg"
-    shared_mtime = 1_800_000_000.0
+    shared_mtime = time.time() - 60
     _write(front, b"front-photo", mtime=shared_mtime)
     _write(back, b"back-photo", mtime=shared_mtime + 1)
 
