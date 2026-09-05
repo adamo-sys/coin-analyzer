@@ -52,25 +52,57 @@ def test_package_preserves_diagnostic_evidence_and_normalizes_scope() -> None:
 
 
 def test_package_requires_explicit_nonempty_bounds() -> None:
-    kwargs = dict(
-        finding=_finding(),
-        objective="fix",
-        allowed_paths=("a.py",),
-        invariants=("preserve contract",),
-        focused_tests=("pytest test_a.py -q",),
-        required_gates=("tests",),
-    )
+    finding = _finding()
 
-    for field_name in ("allowed_paths", "invariants", "focused_tests", "required_gates"):
-        bad = dict(kwargs)
-        bad[field_name] = ()
-        with pytest.raises(ValueError):
-            build_remediation_package(**bad)
-
-    bad = dict(kwargs)
-    bad["objective"] = "   "
     with pytest.raises(ValueError):
-        build_remediation_package(**bad)
+        build_remediation_package(
+            finding,
+            objective="fix",
+            allowed_paths=(),
+            invariants=("preserve contract",),
+            focused_tests=("pytest test_a.py -q",),
+            required_gates=("tests",),
+        )
+
+    with pytest.raises(ValueError):
+        build_remediation_package(
+            finding,
+            objective="fix",
+            allowed_paths=("a.py",),
+            invariants=(),
+            focused_tests=("pytest test_a.py -q",),
+            required_gates=("tests",),
+        )
+
+    with pytest.raises(ValueError):
+        build_remediation_package(
+            finding,
+            objective="fix",
+            allowed_paths=("a.py",),
+            invariants=("preserve contract",),
+            focused_tests=(),
+            required_gates=("tests",),
+        )
+
+    with pytest.raises(ValueError):
+        build_remediation_package(
+            finding,
+            objective="fix",
+            allowed_paths=("a.py",),
+            invariants=("preserve contract",),
+            focused_tests=("pytest test_a.py -q",),
+            required_gates=(),
+        )
+
+    with pytest.raises(ValueError):
+        build_remediation_package(
+            finding,
+            objective="   ",
+            allowed_paths=("a.py",),
+            invariants=("preserve contract",),
+            focused_tests=("pytest test_a.py -q",),
+            required_gates=("tests",),
+        )
 
 
 def test_package_rejects_duplicate_bounds_and_path_traversal() -> None:
