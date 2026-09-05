@@ -14,9 +14,9 @@ Initial coverage includes:
 
 Completion reference: PR #115.
 
-## T2 Local Quality Gate — IN PROGRESS
+## T2 Local Quality Gate — COMPLETE
 
-Adopt pre-commit as a cheap local gate without duplicating authoritative GitHub Actions.
+Pre-commit provides a cheap local gate without duplicating authoritative GitHub Actions.
 
 Initial hook set:
 - Python AST parsing;
@@ -26,7 +26,7 @@ Initial hook set:
 - oversized-file guard at 1 MiB;
 - Ruff checks pinned to the same `0.16.5` version used by CI.
 
-The initial gate is intentionally non-mutating: Ruff runs with `--no-fix`, and whitespace/format rewriting is deferred until the local workflow proves low-friction on Windows.
+The initial gate is intentionally non-mutating: Ruff runs with `--no-fix`, and whitespace/format rewriting remains outside the local commit path.
 
 Install/use locally with pre-commit 4.6.2 or newer:
 
@@ -36,11 +36,26 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Exit gate: configuration is merged green, the hooks run predictably on the Windows development workflow, and the local commit path remains materially faster than the full regression suite.
+Completion reference: PR #116.
 
-## T3 Dependency Automation — PLANNED
+## T3 Dependency Automation — IN PROGRESS
 
-Pilot Renovate with a Dependency Dashboard, grouped patch/minor updates, separate major updates, scheduled lockfile maintenance, and no dependency automerge.
+Pilot Renovate as a proposal-and-evidence tool, not as a promotion authority.
+
+Initial policy:
+- use the recommended Renovate baseline;
+- keep the Dependency Dashboard enabled;
+- allow dependency branches only in a weekly Monday-before-06:00 America/Toronto window;
+- group patch and minor dependency updates to reduce PR noise;
+- keep major updates separate and require explicit Dependency Dashboard approval before Renovate creates their PRs;
+- cap Renovate at five concurrent PRs and two PRs per hour;
+- disable automerge globally.
+
+Repository CI and human merge authority remain mandatory for every Renovate PR.
+
+The repository's custom `requirements*.lock` files are not treated as a generic Renovate lock-file-maintenance target in this initial pilot. Their existing reproducibility workflow remains authoritative until Renovate compatibility with that custom lock scheme is explicitly proven.
+
+Exit gate: configuration is merged green and the first real Renovate update cycle produces useful, bounded PRs without dependency noise, lockfile drift, or authority expansion.
 
 ## T4 Agent Adversarial Evaluation — PLANNED
 
