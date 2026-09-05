@@ -2,21 +2,41 @@
 
 This track is intentionally separate from the self-improvement stage numbering. It strengthens testing, dependency hygiene, agent evaluation, observability, mutation testing, and external research without expanding agent promotion authority.
 
-## T1 Property-Based Testing — IN PROGRESS
+## T1 Property-Based Testing — COMPLETE
 
-Use Hypothesis to probe deterministic self-improvement contracts for cases conventional example tests may miss.
+Hypothesis now probes deterministic self-improvement contracts for cases conventional example tests may miss.
 
-Initial targets:
+Initial coverage includes:
 - remediation-package path normalization and traversal rejection;
 - independent reviewer determinism under evidence reordering;
 - required-gate fail-closed behavior;
 - malformed or scope-broadening changed-file evidence.
 
-Exit gate: focused property tests are merged, stable, and green in authoritative CI without material runtime or flakiness regressions.
+Completion reference: PR #115.
 
-## T2 Local Quality Gate — PLANNED
+## T2 Local Quality Gate — IN PROGRESS
 
-Use pre-commit for cheap local checks such as Ruff, whitespace/EOF hygiene, and YAML validation. Do not put the full repository regression suite in the commit path.
+Adopt pre-commit as a cheap local gate without duplicating authoritative GitHub Actions.
+
+Initial hook set:
+- Python AST parsing;
+- YAML syntax validation;
+- merge-conflict marker detection;
+- case-conflicting filename detection;
+- oversized-file guard at 1 MiB;
+- Ruff checks pinned to the same `0.16.5` version used by CI.
+
+The initial gate is intentionally non-mutating: Ruff runs with `--no-fix`, and whitespace/format rewriting is deferred until the local workflow proves low-friction on Windows.
+
+Install/use locally with pre-commit 4.6.2 or newer:
+
+```text
+python -m pip install pre-commit==4.6.2
+pre-commit install
+pre-commit run --all-files
+```
+
+Exit gate: configuration is merged green, the hooks run predictably on the Windows development workflow, and the local commit path remains materially faster than the full regression suite.
 
 ## T3 Dependency Automation — PLANNED
 
