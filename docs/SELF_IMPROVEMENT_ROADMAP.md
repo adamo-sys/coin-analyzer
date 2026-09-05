@@ -8,7 +8,7 @@ The goal is to build progressively stronger automation without weakening reposit
 
 ## Standing guardrails
 
-1. **Human merge authority remains mandatory.** No agent, evaluator, reviewer, or orchestrator may silently promote changes into `main` or production behavior.
+1. **Human merge authority remains mandatory.** No agent, evaluator, reviewer, orchestrator, or parallel experiment may silently promote changes into `main` or production behavior.
 2. **Evidence before adaptation.** Candidate improvements must be measured against explicit evidence and tests before promotion.
 3. **No silent collection mutation.** Self-improvement components may analyze confirmed observations and propose changes, but may not silently rewrite authoritative collection data.
 4. **No silent model, prompt, or configuration mutation.** Any such change must be explicit, reviewable, testable, and promoted through the normal repository workflow.
@@ -46,9 +46,9 @@ Evaluated graph-oriented analysis as a sandbox experiment without granting it pe
 
 ### 7. Codex Improvement Agent — COMPLETE
 
-The Stage 7 contract and operational handoff are now implemented.
+The Stage 7 contract and operational handoff are implemented.
 
-Responsibilities now covered:
+Responsibilities covered:
 - receive a specific frozen remediation package;
 - render the bounded implementation task;
 - invoke exactly one caller-supplied Codex execution role;
@@ -64,7 +64,7 @@ Completion references: Stage 7 contract work plus PR #104 operational handoff.
 
 Added a deterministic independent review boundary over the frozen remediation package, implementation result, and independently supplied invariant evidence.
 
-Responsibilities now covered:
+Responsibilities covered:
 - independently re-check changed-file scope;
 - independently verify required gate evidence;
 - verify invariant evidence;
@@ -74,48 +74,56 @@ Responsibilities now covered:
 
 Completion reference: PR #103, integrated with the operational handoff in PR #104.
 
-### 9. Orchestrator — NEXT / ARCHITECTURE FROZEN
+### 9. Orchestrator — COMPLETE
 
-Coordinate the now-bounded sequential pipeline without introducing autonomous improvement loops or promotion authority.
+Implemented the bounded sequential coordinator and then added explicit reliability evidence before allowing Stage 10 architecture work.
 
 Canonical flow:
 
-`evaluator evidence -> Diagnostic Agent -> RemediationPackage -> bounded Codex handoff -> ImprovementResult -> Independent Reviewer -> HUMAN`
+`DiagnosticFinding -> RemediationPackage -> bounded Codex handoff -> Stage 7 review -> Stage 8 independent review -> READY_FOR_HUMAN_REVIEW`
 
-Responsibilities:
-- sequence one explicitly selected work package;
-- pass structured evidence between existing roles;
-- enforce forward-only state transitions and stop conditions;
-- preserve deterministic traceability;
-- surface malformed evidence, failures, and unresolved conflicts to the repository owner;
-- terminate successful machine-side work at `READY_FOR_HUMAN_REVIEW`.
+Properties now covered:
+- one explicitly selected work package per run;
+- forward-only deterministic state transitions;
+- structured transition traceability;
+- single-shot implementation execution;
+- fail-closed handling for malformed evidence, failed gates, invariant failures, unresolved issues, and out-of-scope changes;
+- no automatic retry, repair, resume, target selection, merge, deploy, release, or promotion authority;
+- strongest successful machine-side state remains `READY_FOR_HUMAN_REVIEW`.
 
-Still prohibited:
-- automatic retry or repair loops;
-- autonomous target selection;
-- silent scope expansion;
-- collection/model/prompt/config mutation authority;
-- bypassing reviewer or required gates;
-- merge, deploy, release, or promotion authority;
-- Stage 10 parallel/swarm behavior.
+Completion references: PR #107 Stage 9 orchestrator and PR #108 Stage 9 reliability gate evidence.
 
 Architecture authority: `docs/STAGE_9_ORCHESTRATOR_CONTRACT.md`.
+Reliability gate: `docs/STAGE_9_RELIABILITY_GATE.md`.
 
-### 10. Parallel Swarm Experiments
+### 10. Parallel Experiments — NEXT / ARCHITECTURE FROZEN
 
-Experiment with multiple agents only after the sequential pipeline is trustworthy.
+Introduce bounded multiple-candidate experiments without creating an open-ended swarm.
 
-Potential uses:
-- parallel diagnosis hypotheses;
-- competing bounded implementation candidates;
-- independent review paths;
-- specialized agents for OCR, UI, persistence, security, or market intelligence.
+Initial canonical experiment:
 
-Rules:
-- agents communicate through structured evidence/results rather than unbounded group-chat behavior;
-- parallel candidates are evaluated against the same gates;
-- no agent gains merge authority;
-- human repository-owner approval remains the final promotion boundary.
+`one frozen RemediationPackage -> two independent bounded candidate implementations -> independent validation/review -> deterministic comparison -> HUMAN`
+
+Initial responsibilities:
+- dispatch the same frozen package to exactly two caller-supplied candidate execution roles;
+- keep candidate execution and evidence isolated;
+- evaluate each candidate against the same explicit scope, invariants, tests, and gates;
+- record candidate-local failures without automatic retry or replacement;
+- surface zero, one, or multiple viable candidates;
+- compare viable candidates only through deterministic structured criteria;
+- defer ties or otherwise indistinguishable candidates to the repository owner.
+
+Still prohibited:
+- unbounded agent group chat;
+- recursive delegation or dynamic agent creation;
+- autonomous target selection;
+- repeated remediation cycles;
+- silent scope expansion;
+- automatic synthesis/merging of candidate code;
+- collection/model/prompt/config mutation outside explicit reviewable scope;
+- merge, deploy, release, or promotion authority.
+
+Architecture authority: `docs/STAGE_10_PARALLEL_EXPERIMENTS_CONTRACT.md`.
 
 ## Operating principle
 
