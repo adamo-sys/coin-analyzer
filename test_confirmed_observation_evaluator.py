@@ -1,4 +1,5 @@
 import copy
+from typing import Any
 
 from confirmed_observation_evaluator import evaluate_confirmed_observations
 from confirmed_observations import (
@@ -15,7 +16,7 @@ def _record(
     category=FeedbackCategory.OTHER,
     suggested=None,
     confirmed=None,
-    confidence=0.8,
+    confidence: Any = 0.8,
     engine_name="coin_recognition",
     engine_version="1.0",
     method="ocr",
