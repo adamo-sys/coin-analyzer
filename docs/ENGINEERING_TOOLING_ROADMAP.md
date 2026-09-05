@@ -55,9 +55,9 @@ Repository CI and human merge authority remain mandatory for every Renovate PR. 
 
 Completion reference: PR #117. The first real Renovate cycle remains observational evidence for whether the pilot stays enabled or needs tuning.
 
-## T4 Agent Adversarial Evaluation — IN PROGRESS
+## T4 Agent Adversarial Evaluation — COMPLETE / PILOT ACTIVE
 
-Pilot Promptfoo first as a local, deterministic, network-free adversarial harness around the frozen self-improvement authority boundaries.
+Promptfoo now has a local, deterministic, network-free adversarial harness around the frozen self-improvement authority boundaries.
 
 Initial cases cover:
 - attempted merge/deploy/release/promotion authority;
@@ -77,11 +77,22 @@ Run locally with Node.js 22.22+ using the pinned pilot version:
 npx promptfoo@0.122.2 eval -c evals/promptfoo/promptfooconfig.yaml
 ```
 
-Exit gate: the local adversarial suite is reproducible and useful, CI remains authoritative, and any later live-model integration is separately reviewed before being allowed to influence self-improvement decisions.
+Completion reference: PR #118. Any live-model Promptfoo integration remains a separate bounded decision.
 
-## T5 Agent Observability — PLANNED
+## T5 Agent Observability — IN PROGRESS
 
-Pilot Arize Phoenix as an optional tracing/experiment layer. Core execution must remain valid when Phoenix is absent.
+Pilot Arize Phoenix as an optional local tracing layer around completed Stage 11 experiment results.
+
+Initial boundary:
+- Phoenix is never imported automatically by Stage 11 execution;
+- the bridge emits bounded decision metadata only;
+- remediation packages, prompts, diffs, evidence text, terminal-reason strings, collection data, credentials, and model outputs are excluded;
+- `phoenix.otel.register` is loaded lazily;
+- automatic/global instrumentation is disabled;
+- Phoenix initialization or export failure is advisory and cannot alter a self-improvement result;
+- no Phoenix dependency is added to core runtime requirements or CI.
+
+See `docs/PHOENIX_PILOT.md` for the local pilot procedure and exit gate.
 
 ## T6 Mutation Testing — PLANNED
 
