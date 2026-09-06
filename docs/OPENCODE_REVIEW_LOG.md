@@ -44,6 +44,19 @@ Purpose: record completed and incomplete OpenCode reviewer-pilot evidence withou
 - Authoritative CI for the reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully; the required Ruff, Gitleaks, Ubuntu, Windows, and bounded `pyright-event-bus` jobs were green.
 - Scope note: this records the actual returned OpenCode verdict for the exact reviewed head; it does not generalize model quality beyond this bounded documentation review.
 
+### PR #160 — PowerShell execution guidance
+
+- Status: completed successfully.
+- Base: `6feb29a9e27265d1a6fbcc1a331aef1e52a0fc21`.
+- Head: `d39d6d670395bb0333a0c963ff6051e6d846af87`.
+- Changed files: `docs/OPENCODE_REVIEW_PROTOCOL.md` only.
+- Model/provider: `opencode/nemotron-3.5-lightning-free` through OpenCode.
+- Execution environment: local Windows PowerShell 5.1 from the repository root after fetching and verifying the exact base/head objects.
+- Review result: `MERGE WITH NONBLOCKING FINDINGS`; the reviewer reported zero blockers and found the PowerShell guidance consistent with the existing advisory-authority model, exact-head evidence discipline, whole-repository Pyright advisory policy, and merge guardrails.
+- Reviewer checks reported pass for factual consistency, PowerShell 5.1 execution guidance, exact-head discipline, Pyright policy preservation, no authority broadening, and documentation clarity.
+- Authoritative CI for the reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully.
+- Scope note: this records the actual returned OpenCode verdict for the exact reviewed head only and does not generalize model quality beyond this bounded documentation review.
+
 ## Next pilot rule
 
 The next OpenCode pilot must use a new open bounded PR with a stable exact head. Record the base SHA, head SHA, changed-file list, unified diff, declared invariants, focused validation, authoritative CI state, and relevant guardrails before execution. If the head changes, the prepared package is stale and must be regenerated.
