@@ -2,7 +2,7 @@
 
 This track is intentionally separate from the self-improvement stage numbering. It strengthens testing, dependency hygiene, agent evaluation, observability, mutation testing, and external research without expanding agent promotion authority.
 
-## T1 Property-Based Testing â€” COMPLETE
+## T1 Property-Based Testing — COMPLETE
 
 Hypothesis now probes deterministic self-improvement contracts for cases conventional example tests may miss.
 
@@ -14,7 +14,7 @@ Initial coverage includes:
 
 Completion reference: PR #115.
 
-## T2 Local Quality Gate â€” COMPLETE
+## T2 Local Quality Gate — COMPLETE
 
 Pre-commit provides a cheap local gate without duplicating authoritative GitHub Actions.
 
@@ -38,7 +38,7 @@ pre-commit run --all-files
 
 Completion reference: PR #116.
 
-## T3 Dependency Automation â€” COMPLETE / PILOT ACTIVE
+## T3 Dependency Automation — COMPLETE / PILOT ACTIVE
 
 Renovate is configured as a proposal-and-evidence tool, not as a promotion authority.
 
@@ -55,7 +55,7 @@ Repository CI and human merge authority remain mandatory for every Renovate PR. 
 
 Completion reference: PR #117. The first real Renovate cycle remains observational evidence for whether the pilot stays enabled or needs tuning.
 
-## T4 Agent Adversarial Evaluation â€” COMPLETE / PILOT ACTIVE
+## T4 Agent Adversarial Evaluation — COMPLETE / PILOT ACTIVE
 
 Promptfoo now has a local, deterministic, network-free adversarial harness around the frozen self-improvement authority boundaries.
 
@@ -79,7 +79,7 @@ npx promptfoo@0.122.2 eval -c evals/promptfoo/promptfooconfig.yaml
 
 Completion reference: PR #118. Any live-model Promptfoo integration remains a separate bounded decision.
 
-## T5 Agent Observability â€” COMPLETE / PILOT ACTIVE
+## T5 Agent Observability — COMPLETE / PILOT ACTIVE
 
 Arize Phoenix now has an optional local tracing bridge around completed Stage 11 experiment results.
 
@@ -99,8 +99,8 @@ Completion reference: PR #119. See `docs/PHOENIX_PILOT.md` for the local pilot p
 Mutmut is now established as advisory evidence about whether critical safety tests actually detect small behavioral regressions.
 
 Initial target remains intentionally narrow:
-- mutate only eviewer_agent.py;
-- select only 	est_reviewer_agent.py for per-mutant testing;
+- mutate only `reviewer_agent.py`;
+- select only `test_reviewer_agent.py` for per-mutant testing;
 - copy only the small supporting import boundary required by that test;
 - run under Linux/WSL rather than expanding the blocking Windows CI matrix;
 - mutate covered lines only during the pilot.
@@ -110,14 +110,15 @@ Completion evidence:
 - the first successful run generated 135 mutants, killed 120, and left 15 survivors;
 - focused survivor hardening reduced the meaningful set;
 - exact survivor diffs identified two genuine Windows drive-relative path gaps in reviewer path validation;
-- PR #128 added the regression case C:drive-relative\path.py;
-- final advisory run 34006677115 eliminated both meaningful path-normalization survivors;
-- six residual eview_candidate survivors remain and were classified as equivalent or low-value diagnostic/control-flow mutations rather than targets for percentage chasing.
+- PR #128 added the regression case `C:drive-relative\path.py`;
+- final advisory run `34006677115` eliminated both meaningful path-normalization survivors;
+- six residual `review_candidate` survivors remain and were classified as equivalent or low-value diagnostic/control-flow mutations rather than targets for percentage chasing.
 
 The pilot demonstrated useful mutation signal while preserving advisory-only authority. It remains non-blocking and does not modify runtime code, CI authority, or promotion authority.
 
-See docs/MUTMUT_PILOT.md for the bounded expansion rules.
-## T7 External Browser Research Sandbox â€” PLANNED
+See `docs/MUTMUT_PILOT.md` for the bounded expansion rules.
+
+## T7 External Browser Research Sandbox — PLANNED
 
 Evaluate Playwright MCP only as an external research utility. Browser findings do not become authoritative collection or self-improvement evidence without explicit validation and human review.
 
