@@ -1,0 +1,5 @@
+[tool.mutmut]
+source_paths = ["reviewer_agent.py"]
+pytest_add_cli_args_test_selection = "test_reviewer_agent.py"
+also_copy = ["improvement_agent.py", "diagnostic_agent.py"]
+mutate_only_covered_lines = true
