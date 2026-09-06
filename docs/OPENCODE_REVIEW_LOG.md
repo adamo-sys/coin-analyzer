@@ -57,6 +57,12 @@ Purpose: record completed and incomplete OpenCode reviewer-pilot evidence withou
 - Authoritative CI for the reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully.
 - Scope note: this records the actual returned OpenCode verdict for the exact reviewed head only and does not generalize model quality beyond this bounded documentation review.
 
+## Repetition status
+
+Two later successful documentation-only reviews (#153 and #160) now supplement the historical PR #60 benchmark. They improve evidence that the exact-head protocol and Windows PowerShell 5.1 execution path are repeatable, but they do not establish production-code reviewer reliability and do not justify making OpenCode an authoritative merge gate.
+
+Observed setup friction remains part of the evidence: start from the repository root, fetch and verify the recorded base/head objects, avoid Bash-only `&&` and Unix-only helpers such as `head` under Windows PowerShell 5.1, and treat provider/shell/setup failures as unsuccessful attempts rather than review verdicts.
+
 ## Next pilot rule
 
 The next OpenCode pilot must use a new open bounded PR with a stable exact head. Record the base SHA, head SHA, changed-file list, unified diff, declared invariants, focused validation, authoritative CI state, and relevant guardrails before execution. If the head changes, the prepared package is stale and must be regenerated.
