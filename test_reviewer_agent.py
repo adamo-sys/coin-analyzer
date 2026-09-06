@@ -230,6 +230,7 @@ def test_repository_path_edge_cases_fail_closed() -> None:
         "/absolute/path.py",
         r"C:\absolute\path.py",
         "C:/absolute/path.py",
+        r"C:drive-relative\path.py",
     )
 
     for path in malformed_paths:
