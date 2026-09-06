@@ -222,3 +222,97 @@ def test_empty_validation_or_unresolved_issue_entries_fail_closed() -> None:
     assert "validation evidence names must be non-empty" in report.findings
     assert "unresolved issue entries must be non-empty" in report.findings
     assert report.promotion_permitted is False
+
+def test_repository_path_edge_cases_fail_closed() -> None:
+    malformed_paths = (
+        ".",
+        "./capture_import/mintmark.py",
+        "/absolute/path.py",
+        r"C:\absolute\path.py",
+        "C:/absolute/path.py",
+    )
+
+    for path in malformed_paths:
+        result = ImprovementResult(
+            status=ImprovementStatus.COMPLETED,
+            changed_files=(path,),
+            validation=_valid_result().validation,
+        )
+
+        report = review_candidate(_package(), result, _invariants())
+
+        assert f"malformed changed file path: {path}" in report.findings
+        assert report.promotion_permitted is False
+
+
+def test_completed_result_with_stopped_gate_fails_closed() -> None:
+    result = ImprovementResult(
+        status=ImprovementStatus.COMPLETED,
+        changed_files=("capture_import/mintmark.py",),
+        validation=_valid_result().validation,
+        stopped_gate="focused-tests",
+    )
+
+    report = review_candidate(_package(), result, _invariants())
+
+    assert "completed result must not report stopped_gate" in report.findings
+    assert report.promotion_permitted is False
+
+
+def test_stopped_result_without_stopped_gate_fails_closed() -> None:
+    result = ImprovementResult(
+        status=ImprovementStatus.STOPPED,
+        changed_files=("capture_import/mintmark.py",),
+        validation=_valid_result().validation,
+        stopped_gate=None,
+    )
+
+    report = review_candidate(_package(), result, _invariants())
+
+    assert "implementation stopped before successful completion" in report.findings
+    assert "stopped result must report stopped_gate" in report.findings
+    assert report.promotion_permitted is False
+
+
+def test_empty_invariant_evidence_name_fails_closed() -> None:
+    report = review_candidate(
+        _package(),
+        _valid_result(),
+        _invariants() + (InvariantEvidence("   ", True),),
+    )
+
+    assert "invariant evidence names must be non-empty" in report.findings
+    assert report.promotion_permitted is False
+
+
+def test_validation_names_are_trimmed_before_duplicate_detection() -> None:
+    result = ImprovementResult(
+        status=ImprovementStatus.COMPLETED,
+        changed_files=("capture_import/mintmark.py",),
+        validation=(
+            ValidationEvidence("focused-tests", True),
+            ValidationEvidence("pyright", True),
+            ValidationEvidence(" pyright ", True),
+            ValidationEvidence("full-regression", True),
+        ),
+    )
+
+    report = review_candidate(_package(), result, _invariants())
+
+    assert "duplicate or contradictory validation evidence names" in report.findings
+    assert report.promotion_permitted is False
+
+
+def test_invariant_names_are_trimmed_before_duplicate_detection() -> None:
+    report = review_candidate(
+        _package(),
+        _valid_result(),
+        (
+            InvariantEvidence("confirmed observations remain immutable", True),
+            InvariantEvidence(" no collection mutation ", True),
+            InvariantEvidence("no collection mutation", True),
+        ),
+    )
+
+    assert "duplicate or contradictory invariant evidence names" in report.findings
+    assert report.promotion_permitted is False
