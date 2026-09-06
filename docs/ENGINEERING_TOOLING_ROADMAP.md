@@ -118,7 +118,7 @@ The pilot demonstrated useful mutation signal while preserving advisory-only aut
 
 See `docs/MUTMUT_PILOT.md` for the bounded expansion rules.
 
-## T7 External Browser Research Sandbox — PILOT READY
+## T7 External Browser Research Sandbox — COMPLETE / PILOT ACTIVE
 
 The browser-research trust boundary is frozen before implementation.
 
@@ -136,6 +136,16 @@ Initial policy:
 See `docs/T7_BROWSER_RESEARCH_SANDBOX.md`.
 
 The manually invoked Playwright MCP pilot is defined in `docs/T7_PLAYWRIGHT_MCP_PILOT.md` with a pinned external MCP configuration under `tools/browser-research/`. It remains outside core runtime and self-improvement orchestration.
+
+Completion evidence:
+- pinned `@playwright/mcp@0.0.80` and `--browser=chrome --isolated` configuration validated;
+- MCP Inspector successfully enumerated the Playwright tool surface;
+- a bounded public navigation to `https://www.microsoft.com` succeeded and resolved to `https://www.microsoft.com/en-ca/`;
+- the returned page title was `Microsoft – AI, Cloud, Productivity, Computing, Gaming & Apps`;
+- no tracked repository state changed during the smoke;
+- browser-derived evidence remained advisory and `UNVALIDATED` rather than entering any repository or self-improvement authority path.
+
+The initial `example.com` probe failed because the host machine's configured DNS resolver returned NXDOMAIN for that domain while public resolvers resolved it correctly. This was classified as an environmental DNS condition, not a Playwright MCP or repository defect.
 
 ## Standing authority boundary
 
