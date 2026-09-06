@@ -101,6 +101,17 @@ class RetrievalContractTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "integer"):
             RankedRetrievalResult(item=self._item(), rank=True).validate()
 
+    def test_validation_decision_must_use_enum(self) -> None:
+        outcome = RetrievalValidationOutcome(
+            item_id="evidence-1",
+            decision="ACCEPT",  # type: ignore[arg-type]
+        )
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "RetrievalValidationDecision",
+        ):
+            outcome.validate()
     def test_reject_outcome_requires_reason(self) -> None:
         outcome = RetrievalValidationOutcome(item_id="evidence-1", decision=RetrievalValidationDecision.REJECT)
         with self.assertRaisesRegex(ValueError, "require a reason"):
