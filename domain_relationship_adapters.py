@@ -87,3 +87,73 @@ def adapt_captured_photo_candidate_relationship(
     )
     edge.validate()
     return edge
+
+
+def project_captured_photo_relationships(
+    *,
+    photo: CapturedPhoto,
+    collection_item_edge_id: str | None = None,
+    candidate_edge_id: str | None = None,
+    collection_item_evidence_refs: tuple[str, ...] = (),
+    candidate_evidence_refs: tuple[str, ...] = (),
+) -> tuple[DomainRelationshipEdge, ...]:
+    """Project only the explicit relationships already stored on a photo.
+
+    Edge identifiers remain caller supplied. Absent source relationships do not
+    produce edges, and caller data for an absent relationship is rejected rather
+    than interpreted as permission to infer a relationship.
+    """
+
+    if not isinstance(photo, CapturedPhoto):
+        raise TypeError("photo must be a CapturedPhoto.")
+    if not isinstance(photo.photo_id, str):
+        raise TypeError("photo.photo_id must be a string.")
+    if not photo.photo_id:
+        raise ValueError("photo.photo_id must not be empty.")
+    if not isinstance(photo.linked_collection_item_id, str):
+        raise TypeError("photo.linked_collection_item_id must be a string.")
+    if not isinstance(photo.linked_candidate_id, str):
+        raise TypeError("photo.linked_candidate_id must be a string.")
+
+    has_collection_item = bool(photo.linked_collection_item_id)
+    has_candidate = bool(photo.linked_candidate_id)
+
+    if has_collection_item:
+        if collection_item_edge_id is None:
+            raise ValueError(
+                "collection_item_edge_id is required when the collection-item link exists."
+            )
+    elif collection_item_edge_id is not None or collection_item_evidence_refs:
+        raise ValueError(
+            "collection-item edge data requires an explicit collection-item link."
+        )
+
+    if has_candidate:
+        if candidate_edge_id is None:
+            raise ValueError(
+                "candidate_edge_id is required when the candidate link exists."
+            )
+    elif candidate_edge_id is not None or candidate_evidence_refs:
+        raise ValueError("candidate edge data requires an explicit candidate link.")
+
+    edges: list[DomainRelationshipEdge] = []
+    if has_collection_item:
+        assert collection_item_edge_id is not None
+        edges.append(
+            adapt_captured_photo_collection_item_relationship(
+                photo=photo,
+                edge_id=collection_item_edge_id,
+                evidence_refs=collection_item_evidence_refs,
+            )
+        )
+    if has_candidate:
+        assert candidate_edge_id is not None
+        edges.append(
+            adapt_captured_photo_candidate_relationship(
+                photo=photo,
+                edge_id=candidate_edge_id,
+                evidence_refs=candidate_evidence_refs,
+            )
+        )
+
+    return tuple(edges)
