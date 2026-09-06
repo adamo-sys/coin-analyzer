@@ -59,7 +59,7 @@ For each tool or configuration, record:
 - Role: static type analysis.
 - Status: adopted in mixed advisory/blocking mode.
 - Whole-repository mode remains advisory so existing type debt is visible without blocking unrelated work.
-- Cleaned modules are promoted into a blocking CI boundary incrementally. As of PR #68, `event_bus.py`, `image_analyzer.py`, and `denomination_label_audit.py` are blocking and pass with zero Pyright errors. The whole-repo advisory workflow is pinned to Pyright 1.1.411 for comparable debt measurements.
+- Cleaned modules are promoted into a blocking CI boundary incrementally. The current bounded gate covers `event_bus.py`, `image_analyzer.py`, `denomination_label_audit.py`, `market_intelligence_automation.py`, `photo_inbox.py`, `confirmed_observation_evaluator.py`, `diagnostic_agent.py`, `improvement_agent.py`, `retrieval_contracts.py`, and `local_retrieval.py`; this scope is read directly from `.github/workflows/tests.yml`. The whole-repo advisory workflow remains pinned to Pyright 1.1.411 for comparable debt measurements.
 
 ### Hypothesis
 
@@ -129,7 +129,7 @@ Historical change under review:
 ### Comparative result
 
 | Reviewer configuration | Review quality | Noise / false positives | Operational friction | Cost profile | Decision |
-| --- | --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | OpenCode + Qwen3-Coder-Next | Strong | One useful minor observation; one low-value nit | Low to moderate | Free/alternate-provider route available | Adopt as preferred optional reviewer |
 | Goose + Qwen3-Coder via OpenRouter | Strong | Very little in completed run | High on Windows/provider setup | Small paid OpenRouter usage | Keep for optional second opinion/orchestration |
 | Ollama + Qwen2.5-Coder 7B | Moderate | Overstated runtime/regression risk | Low after install, but hardware instability on heavier prompts | No API cost | Auxiliary use only |
