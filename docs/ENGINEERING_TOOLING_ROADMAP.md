@@ -79,9 +79,9 @@ npx promptfoo@0.122.2 eval -c evals/promptfoo/promptfooconfig.yaml
 
 Completion reference: PR #118. Any live-model Promptfoo integration remains a separate bounded decision.
 
-## T5 Agent Observability — IN PROGRESS
+## T5 Agent Observability — COMPLETE / PILOT ACTIVE
 
-Pilot Arize Phoenix as an optional local tracing layer around completed Stage 11 experiment results.
+Arize Phoenix now has an optional local tracing bridge around completed Stage 11 experiment results.
 
 Initial boundary:
 - Phoenix is never imported automatically by Stage 11 execution;
@@ -92,11 +92,22 @@ Initial boundary:
 - Phoenix initialization or export failure is advisory and cannot alter a self-improvement result;
 - no Phoenix dependency is added to core runtime requirements or CI.
 
-See `docs/PHOENIX_PILOT.md` for the local pilot procedure and exit gate.
+Completion reference: PR #119. See `docs/PHOENIX_PILOT.md` for the local pilot procedure and expansion gate.
 
-## T6 Mutation Testing — PLANNED
+## T6 Mutation Testing — IN PROGRESS
 
-Pilot mutmut against critical safety modules under a suitable environment such as WSL. Mutation testing remains advisory until runtime cost and signal quality are understood.
+Pilot mutmut as advisory evidence about whether critical safety tests actually detect small behavioral regressions.
+
+Initial target is intentionally narrow:
+- mutate only `reviewer_agent.py`;
+- select only `test_reviewer_agent.py` for per-mutant testing;
+- copy only the small supporting import boundary required by that test;
+- run under Linux/WSL rather than expanding the blocking Windows CI matrix;
+- mutate covered lines only during the pilot.
+
+The pilot is non-blocking and does not modify runtime code. Evidence should record generated, killed, surviving, suspicious/time-out mutants, runtime, meaningful safety-test gaps, and any focused tests added to kill genuine survivors.
+
+See `docs/MUTMUT_PILOT.md` for the run procedure and exit gate.
 
 ## T7 External Browser Research Sandbox — PLANNED
 
