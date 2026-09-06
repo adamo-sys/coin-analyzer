@@ -151,6 +151,10 @@ Still prohibited:
 
 Architecture authority: `docs/STAGE_11_SPECIALIZED_CANDIDATE_ROLES_CONTRACT.md`.
 
+## Future research notes
+
+- **Soup (`soup-cli`)** — revisit as a possible offline fine-tuning/post-training backend once Coin Analyzer has enough high-quality confirmed training evidence. This is a future candidate, not a current dependency or implementation commitment.
+
 ## Operating principle
 
 The roadmap is deliberately conservative about autonomy and aggressive about evidence. Coin Analyzer should become more capable at diagnosing and improving itself only as fast as its measurement, review, and rollback discipline can support.
