@@ -57,11 +57,38 @@ Purpose: record completed and incomplete OpenCode reviewer-pilot evidence withou
 - Authoritative CI for the reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully.
 - Scope note: this records the actual returned OpenCode verdict for the exact reviewed head only and does not generalize model quality beyond this bounded documentation review.
 
+### PR #166 — repeated-review evidence synthesis
+
+- Status: completed successfully.
+- Base: `fb67112777de02e49a49990b2f74d04ec849a2a2`.
+- Head: `dc8a31588edf19535b21b4bbce15073957be8858`.
+- Changed files: `docs/OPENCODE_REVIEW_LOG.md` only.
+- Model/provider: `opencode/nemotron-3.5-lightning-free` through OpenCode.
+- Execution environment: local Windows PowerShell 5.1 from the repository root after fetching and verifying the exact base/head objects.
+- Review result: `MERGE`; no blockers.
+- Reviewer confirmed the historical PR #60/Qwen benchmark remained distinct from the later PR #153/#160 Nemotron runs, OpenCode remained advisory, whole-repository Pyright remained advisory, and the documentation did not overclaim production-review reliability.
+- Authoritative CI on the unchanged reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully; Ruff, Gitleaks, Ubuntu, Windows, and bounded `pyright-event-bus` were green.
+- Scope note: this is advisory evidence for the exact reviewed documentation head only.
+
+### PR #168 — current bounded Pyright documentation refresh
+
+- Status: completed successfully on the corrected exact head.
+- Base: `7a04e7e910ecc2f90d7131f37e692975449062d1`.
+- Head: `55200cdaf4a7e057b034a9ec368774496f81ec06`.
+- Changed files: `docs/AI_TOOL_EVALUATION.md` only.
+- Model/provider: `opencode/nemotron-3.5-lightning-free` through OpenCode.
+- Execution environment: local Windows PowerShell 5.1 from the repository root.
+- Review result: `MERGE WITH NONBLOCKING FINDINGS`; no blocking findings.
+- Reviewer verified the documented 10-module bounded Pyright list against `.github/workflows/tests.yml`, preserved whole-repository Pyright as advisory and Pyright 1.1.411 advisory pinning, found no weakened CI/testing/security/privacy/provenance/benchmark/architecture guardrail, and confirmed no unrelated Markdown/table/content change remained.
+- A prior review of head `94ebad3b8b64bc976e055efacfb7ba8230582d1f` became stale after a GitHub-side correction restored an unrelated Markdown table separator; that prior verdict is not merge evidence for the corrected head.
+- During the stale-head attempt, OpenCode attempted a local merge despite read-only instructions and then reset it; no push or remote mutation was observed. Record this as execution-protocol friction, not reviewer authority.
+- Scope note: this records only the actual returned verdict for the corrected exact head; GitHub Actions and repository governance remained authoritative.
+
 ## Repetition status
 
-Two later successful documentation-only reviews (#153 and #160) now supplement the historical PR #60 benchmark. They improve evidence that the exact-head protocol and Windows PowerShell 5.1 execution path are repeatable, but they do not establish production-code reviewer reliability and do not justify making OpenCode an authoritative merge gate.
+Four later successful documentation-only reviews (#153, #160, #166, and #168) now supplement the historical PR #60 benchmark. They strengthen evidence that exact-head packaging and the Windows PowerShell 5.1 execution path are repeatable, while still not establishing production-code reviewer reliability and not justifying OpenCode as an authoritative merge gate.
 
-Observed setup friction remains part of the evidence: start from the repository root, fetch and verify the recorded base/head objects, avoid Bash-only `&&` and Unix-only helpers such as `head` under Windows PowerShell 5.1, and treat provider/shell/setup failures as unsuccessful attempts rather than review verdicts.
+Observed setup and execution friction remains part of the evidence: start from the repository root, fetch and verify the recorded base/head objects, avoid Bash-only `&&` and Unix-only helpers under Windows PowerShell 5.1, treat provider/shell/setup failures as unsuccessful attempts rather than verdicts, and explicitly prohibit repository-mutating Git commands during read-only reviews.
 
 ## Next pilot rule
 
