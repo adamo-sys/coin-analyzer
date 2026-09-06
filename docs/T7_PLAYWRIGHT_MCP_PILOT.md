@@ -63,7 +63,7 @@ The pilot is successful when a manually invoked public-web research task can be 
 
 Manual validation on 2026-09-06 established the bounded pilot path:
 
-- Playwright MCP version: .0.80
+- Playwright MCP version: `0.0.80`
 - browser argument: `--browser=chrome`
 - isolation mode: `--isolated`
 - MCP tool discovery: PASS
