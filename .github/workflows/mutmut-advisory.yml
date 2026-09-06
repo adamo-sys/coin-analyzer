@@ -1,4 +1,4 @@
-name: Mutmut Advisory
+﻿name: Mutmut Advisory
 
 on:
   workflow_dispatch:
@@ -34,16 +34,53 @@ jobs:
       - name: Run bounded mutation pilot
         run: mutmut run
 
-      - name: Capture mutation results
+      - name: Capture mutation results and survivor diffs
         if: always()
+        shell: bash
         run: |
+          set -u
           mkdir -p artifacts
+
           mutmut results | tee artifacts/mutmut-results.txt || true
+
+          : > artifacts/mutmut-survivor-diffs.txt
+
+          mapfile -t survivors < <(
+            sed -n 's/^[[:space:]]*\([^:]*\): survived[[:space:]]*$/\1/p' \
+              artifacts/mutmut-results.txt
+          )
+
+          {
+            echo "Mutmut survivor detail evidence"
+            echo "================================"
+            echo "Survivor count: ${#survivors[@]}"
+            echo
+          } >> artifacts/mutmut-survivor-diffs.txt
+
+          if [ "${#survivors[@]}" -eq 0 ]; then
+            echo "No surviving mutants." >> artifacts/mutmut-survivor-diffs.txt
+          else
+            for mutant in "${survivors[@]}"; do
+              {
+                echo
+                echo "========================================================================"
+                echo "MUTANT: $mutant"
+                echo "========================================================================"
+              } >> artifacts/mutmut-survivor-diffs.txt
+
+              mutmut show "$mutant" \
+                >> artifacts/mutmut-survivor-diffs.txt 2>&1 || true
+            done
+          fi
+
+          echo
+          echo "=== Survivor diff evidence ==="
+          cat artifacts/mutmut-survivor-diffs.txt
 
       - name: Upload advisory mutation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mutmut-reviewer-evidence
-          path: artifacts/mutmut-results.txt
+          path: artifacts/
           if-no-files-found: warn
