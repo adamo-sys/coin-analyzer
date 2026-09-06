@@ -129,7 +129,7 @@ Historical change under review:
 ### Comparative result
 
 | Reviewer configuration | Review quality | Noise / false positives | Operational friction | Cost profile | Decision |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- |
 | OpenCode + Qwen3-Coder-Next | Strong | One useful minor observation; one low-value nit | Low to moderate | Free/alternate-provider route available | Adopt as preferred optional reviewer |
 | Goose + Qwen3-Coder via OpenRouter | Strong | Very little in completed run | High on Windows/provider setup | Small paid OpenRouter usage | Keep for optional second opinion/orchestration |
 | Ollama + Qwen2.5-Coder 7B | Moderate | Overstated runtime/regression risk | Low after install, but hardware instability on heavier prompts | No API cost | Auxiliary use only |
