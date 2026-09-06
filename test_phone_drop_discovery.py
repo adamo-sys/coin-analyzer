@@ -85,7 +85,9 @@ def test_total_candidate_miss_falls_back_to_existing_home(tmp_path):
 
 
 def test_cancel_does_not_update_remembered_location(tmp_path):
-    preferences = {PHONE_DROP_LAST_DIRECTORY_PREFERENCE: "keep-me"}
+    preferences: dict[str, object] = {
+        PHONE_DROP_LAST_DIRECTORY_PREFERENCE: "keep-me"
+    }
 
     changed = remember_phone_drop_directory_after_import(
         preferences,
@@ -102,7 +104,9 @@ def test_rejected_only_import_does_not_update_remembered_location(tmp_path):
     source = tmp_path / "phone" / "bad.heic"
     source.parent.mkdir()
     source.write_bytes(b"not-used")
-    preferences = {PHONE_DROP_LAST_DIRECTORY_PREFERENCE: "keep-me"}
+    preferences: dict[str, object] = {
+        PHONE_DROP_LAST_DIRECTORY_PREFERENCE: "keep-me"
+    }
 
     changed = remember_phone_drop_directory_after_import(
         preferences,
@@ -119,7 +123,7 @@ def test_copied_import_updates_remembered_location(tmp_path):
     source = tmp_path / "phone" / "front.jpg"
     source.parent.mkdir()
     source.write_bytes(b"not-used")
-    preferences = {}
+    preferences: dict[str, object] = {}
 
     changed = remember_phone_drop_directory_after_import(
         preferences,
@@ -136,7 +140,7 @@ def test_duplicate_only_import_updates_remembered_location(tmp_path):
     source = tmp_path / "phone" / "front.jpg"
     source.parent.mkdir()
     source.write_bytes(b"not-used")
-    preferences = {}
+    preferences: dict[str, object] = {}
 
     changed = remember_phone_drop_directory_after_import(
         preferences,

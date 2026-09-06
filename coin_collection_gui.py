@@ -114,6 +114,12 @@ from photo_capture_workflow import (
 )
 from photo_assisted_entry import PhotoAssistedEntry, PhotoCandidate
 from photo_inbox import PhotoInboxManager
+from phone_drop_discovery import (
+    PHONE_DROP_DISCOVERY_HINT,
+    choose_phone_drop_initial_directory,
+    load_last_phone_drop_directory,
+    remember_phone_drop_directory_after_import,
+)
 from phone_drop_import import PhoneDropImporter
 from photo_vault import PhotoVaultIntegrityAudit
 from shopping_explainability import ShoppingExplanationEngine
@@ -3614,8 +3620,16 @@ Total Unique Dates: {total_unique_dates}
 
     def import_phone_photos(self):
         """Copy phone-transferred images into the managed Photo Inbox."""
+        remembered_directory = load_last_phone_drop_directory(
+            self.app_preferences
+        )
+        initial_directory = choose_phone_drop_initial_directory(
+            remembered_directory
+        )
+
         source_paths = filedialog.askopenfilenames(
-            title="Import Phone Photos",
+            title=f"Import Phone Photos - {PHONE_DROP_DISCOVERY_HINT}",
+            initialdir=initial_directory,
             filetypes=[
                 (
                     "Supported images",
@@ -3628,6 +3642,12 @@ Total Unique Dates: {total_unique_dates}
             return
 
         result = PhoneDropImporter().import_files(source_paths)
+        remember_phone_drop_directory_after_import(
+            self.app_preferences,
+            source_paths,
+            copied_count=result.copied_count,
+            duplicate_count=result.duplicate_count,
+        )
         PhotoInboxManager().refresh()
 
         lines = [
