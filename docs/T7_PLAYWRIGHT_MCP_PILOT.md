@@ -8,7 +8,7 @@ This pilot proves that Playwright MCP can be used as a manually invoked external
 
 - package: `@playwright/mcp`
 - pinned pilot version: `0.0.80`
-- browser: Chromium
+- browser channel: Chrome (--browser=chrome)
 - invocation: manual MCP client configuration only
 - repository runtime dependency: none
 
