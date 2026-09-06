@@ -68,6 +68,28 @@ T6 can move to COMPLETE / PILOT ACTIVE when:
 
 Only after this exit gate should additional modules such as `operational_handoff.py`, `orchestrator.py`, `parallel_experiment.py`, or `specialized_parallel_experiment.py` be added, one bounded target at a time.
 
+## Pilot completion evidence
+
+T6 reached **COMPLETE / PILOT ACTIVE** after bounded reviewer mutation testing demonstrated useful safety-test signal.
+
+Evidence sequence:
+
+- the advisory workflow completed successfully against eviewer_agent.py;
+- the first successful run generated 135 mutants, with 120 killed and 15 surviving;
+- focused hardening reduced the survivor set and made exact survivor inspection reproducible;
+- two remaining mutations exposed a genuine gap around Windows drive-relative repository paths;
+- PR #128 added the focused regression case C:drive-relative\path.py;
+- final advisory run 34006677115 removed both meaningful path-normalization survivors;
+- six survivors remain in eview_candidate, classified as equivalent or low-value diagnostic/control-flow mutations.
+
+Those residual survivors are intentionally documented rather than chased for a vanity mutation score.
+
+The exit gate is satisfied:
+- the focused reviewer suite passes;
+- mutation execution is reproducible;
+- survivor diffs are inspectable;
+- useful safety-boundary signal was demonstrated;
+- mutmut remains advisory and non-blocking.
 ## Authority boundary
 
 Mutmut may reveal weak tests. It does not select remediation targets autonomously, modify production code, approve candidates, retry agents, merge, deploy, release, or promote changes.
