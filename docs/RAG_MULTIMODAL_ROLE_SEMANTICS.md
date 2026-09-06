@@ -2,11 +2,13 @@
 
 ## Status
 
-PROPOSED ARCHITECTURE DECISION GATE.
+APPROVED ARCHITECTURE DECISION — **Option B**.
 
-This document does not authorize a production adapter, enum expansion, evidence promotion, collection mutation, persistence, indexing, model calls, embeddings, graph infrastructure, or agent orchestration.
+Repository-owner approval recorded September 6, 2026.
 
-Its purpose is to stop an unsafe semantic inference before the next Slice C implementation step.
+Production code may map only image-role semantics that are explicitly equivalent to an existing typed multimodal kind. Unsupported roles must fail closed. This approval does **not** authorize enum expansion, evidence promotion, collection mutation, persistence, indexing, model calls, embeddings, graph infrastructure, or agent orchestration.
+
+The current production adapter `ocr_multimodal_role_adapter.py` is aligned with this decision: `reverse` may map to `IMAGE_REVERSE`; `front` and `edge` remain unsupported and must not be coerced to `IMAGE_OBVERSE` or `IMAGE_DETAIL`.
 
 ## Current repository evidence
 
@@ -30,20 +32,20 @@ Coin Analyzer also supports banknotes, for which `front` is not necessarily equi
 
 ## Architecture problem
 
-A production adapter cannot safely infer either of the following without an explicit architecture decision:
+A production adapter cannot safely infer either of the following:
 
 - `front -> IMAGE_OBVERSE`
 - `edge -> IMAGE_DETAIL`
 
 Those transformations would change source semantics rather than merely preserve provenance.
 
-`reverse -> IMAGE_REVERSE` appears lexically aligned, but a generalized adapter still needs an explicit rule stating whether source roles may be translated or must be preserved verbatim alongside the typed reference kind.
+Under approved Option B, `reverse -> IMAGE_REVERSE` is the only authorized OCR image-role mapping because the source role and typed kind are explicitly equivalent. The original source role must remain preserved verbatim alongside the typed reference.
 
-Under `AGENTS.md`, this is an architecture/provenance stop condition. Production behavior must not manufacture labels to satisfy a schema.
+Under `AGENTS.md`, manufacturing or broadening role semantics remains an architecture/provenance stop condition.
 
-## Required invariants for any future adapter
+## Required invariants
 
-Any approved adapter must preserve all of the following:
+Any adapter under this decision must preserve all of the following:
 
 1. Retrieval remains local-first, read-only, and advisory.
 2. Confirmed observations remain the authority boundary for accepted/learned evidence.
@@ -60,51 +62,39 @@ Any approved adapter must preserve all of the following:
 
 Add explicit typed kinds such as `IMAGE_FRONT` and `IMAGE_EDGE` while retaining `IMAGE_OBVERSE`, `IMAGE_REVERSE`, and `IMAGE_DETAIL`.
 
-Advantages:
-
-- preserves current OCR source semantics without coercion;
-- works for banknotes and coins;
-- avoids treating `edge` as a generic detail image.
-
-Cost:
-
-- expands the current Slice C contract beyond the image-kind list already implemented from Issue #93;
-- requires a schema/contract change and focused compatibility tests.
+This option remains **deferred**. It would preserve source semantics directly but requires a separate owner-approved schema/contract expansion and focused compatibility tests.
 
 ### Option B — Keep the existing typed kinds and defer unsupported mappings
 
-Permit adapters only where a source role is explicitly equivalent to an existing typed kind. Leave `front` and `edge` unmapped until another authoritative source supplies explicit semantic classification.
+**APPROVED.**
 
-Advantages:
+Permit adapters only where a source role is explicitly equivalent to an existing typed kind. Under the current OCR role vocabulary:
 
-- no enum/schema expansion;
-- strict fail-closed behavior;
-- smallest production change.
+- `reverse -> IMAGE_REVERSE` is authorized;
+- `front` remains unmapped;
+- `edge` remains unmapped;
+- unknown or future roles remain unmapped unless separately approved.
 
-Cost:
-
-- partial multimodal coverage;
-- many existing OCR image records may not receive typed image references yet.
+This preserves the current enum/schema, provides strict fail-closed behavior, and avoids manufacturing coin-specific or detail semantics across broader collection domains.
 
 ### Option C — Redefine existing kinds as broader aliases
 
 Treat `IMAGE_OBVERSE` as including `front` and/or `IMAGE_DETAIL` as including `edge`.
 
-This option is NOT RECOMMENDED because it weakens semantic precision and risks manufacturing provenance labels across coins and banknotes.
+This option is **REJECTED** because it weakens semantic precision and risks manufacturing provenance labels across coins and banknotes.
 
-## Recommended decision
+## Authorized production boundary
 
-Prefer **Option B** for the next bounded implementation slice unless the repository owner explicitly approves a vocabulary expansion under Option A.
+Option B authorizes only pure deterministic adapters that:
 
-That keeps the current contract stable and allows a future adapter to fail closed for unsupported image-role mappings rather than inventing semantics.
+- accept an already-validated source record;
+- preserve the original source role verbatim in traceable metadata/provenance;
+- map only explicitly authorized role/kind pairs;
+- reject unsupported roles without fallback coercion;
+- preserve caller-supplied lineage identifiers and locators without normalization;
+- perform no I/O or mutation.
 
-If Option B is approved, the next implementation slice should be limited to a pure deterministic adapter contract that:
-
-- accepts an already-validated source record;
-- preserves the original source role verbatim in traceable metadata/provenance;
-- maps only explicitly authorized role/kind pairs;
-- rejects unsupported roles without fallback coercion;
-- performs no I/O or mutation.
+The landed `ocr_multimodal_role_adapter.py` satisfies this boundary and does not require a production-code change merely to record this architecture approval.
 
 ## Explicitly deferred
 
