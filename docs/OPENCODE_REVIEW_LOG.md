@@ -31,6 +31,19 @@ Purpose: record completed and incomplete OpenCode reviewer-pilot evidence withou
 - Evidence available at preparation time: Tests, Quality Advisory, and CodeQL Advisory were green for the recorded PR head.
 - Outcome: PR #149 later merged into `main` as merge commit `1e5a877cf5fa08b9359b233dea33865aef533c71` without a recorded successful OpenCode run. Do not assign or infer an OpenCode verdict for this PR.
 
+### PR #153 — OpenCode reviewer evidence log
+
+- Status: completed successfully.
+- Base: `1e5a877cf5fa08b9359b233dea33865aef533c71`.
+- Head: `67883b5754526e4c5e8f24bdca8650fb71f8ecea`.
+- Changed files: `docs/OPENCODE_REVIEW_LOG.md` only.
+- Model/provider: `opencode/nemotron-3.5-lightning-free` through OpenCode.
+- Execution environment: local Windows PowerShell 5.1 checkout after fetching the exact base/head objects.
+- Review result: no blockers; the reviewer reported the documentation factually accurate and consistent with OpenCode-advisory/GitHub-Actions-authoritative governance, with whole-repository Pyright remaining advisory.
+- Reviewer checks reported pass for factual accuracy, no fabricated OpenCode execution claim, advisory authority wording, Pyright policy preservation, scope discipline, and documentation clarity.
+- Authoritative CI for the reviewed head: Tests, Quality Advisory, and CodeQL Advisory completed successfully; the required Ruff, Gitleaks, Ubuntu, Windows, and bounded `pyright-event-bus` jobs were green.
+- Scope note: this records the actual returned OpenCode verdict for the exact reviewed head; it does not generalize model quality beyond this bounded documentation review.
+
 ## Next pilot rule
 
 The next OpenCode pilot must use a new open bounded PR with a stable exact head. Record the base SHA, head SHA, changed-file list, unified diff, declared invariants, focused validation, authoritative CI state, and relevant guardrails before execution. If the head changes, the prepared package is stale and must be regenerated.
