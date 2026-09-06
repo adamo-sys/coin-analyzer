@@ -59,3 +59,22 @@ Browser findings remain advisory until explicitly reviewed or independently vali
 ## Pilot acceptance
 
 The pilot is successful when a manually invoked public-web research task can be completed with provenance retained and without changing repository or self-improvement state.
+## Manual smoke evidence
+
+Manual validation on 2026-09-06 established the bounded pilot path:
+
+- Playwright MCP version: `0.0.80`
+- browser argument: `--browser=chrome`
+- isolation mode: `--isolated`
+- MCP tool discovery: PASS
+- bounded public navigation: PASS
+- source URL requested: `https://www.microsoft.com`
+- resolved page URL: `https://www.microsoft.com/en-ca/`
+- page title: Microsoft – AI, Cloud, Productivity, Computing, Gaming & Apps
+- observation classification: direct
+- repository tracked mutation: none
+- evidence validation status: `UNVALIDATED`
+
+The first navigation target, https://example.com, returned ERR_NAME_NOT_RESOLVED. Host diagnostics showed the configured local DNS resolver returned NXDOMAIN for example.com, while Cloudflare (1.1.1.1) and Google (8.8.8.8) resolved it normally. Other public domains such as GitHub, Microsoft, and Google resolved through the default resolver. The pilot therefore treated that failure as an environmental DNS condition rather than a browser-sandbox defect.
+
+The successful Microsoft navigation produced local .playwright-mcp/ snapshot and console artifacts. Those artifacts are local advisory smoke evidence and are not repository authority, self-improvement evidence, or promotion evidence.
