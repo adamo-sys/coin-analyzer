@@ -118,7 +118,7 @@ The pilot demonstrated useful mutation signal while preserving advisory-only aut
 
 See `docs/MUTMUT_PILOT.md` for the bounded expansion rules.
 
-## T7 External Browser Research Sandbox — ARCHITECTURE FROZEN
+## T7 External Browser Research Sandbox — PILOT READY
 
 The browser-research trust boundary is frozen before implementation.
 
@@ -135,7 +135,7 @@ Initial policy:
 
 See `docs/T7_BROWSER_RESEARCH_SANDBOX.md`.
 
-The next bounded slice is a manually invoked Playwright MCP pilot that proves this boundary without integrating browser automation into core runtime or self-improvement orchestration.
+The manually invoked Playwright MCP pilot is defined in `docs/T7_PLAYWRIGHT_MCP_PILOT.md` with a pinned external MCP configuration under `tools/browser-research/`. It remains outside core runtime and self-improvement orchestration.
 
 ## Standing authority boundary
 
