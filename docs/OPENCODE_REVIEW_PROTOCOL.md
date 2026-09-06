@@ -38,6 +38,19 @@ Before invoking OpenCode, record or provide all of the following:
 
 If any item materially changes after the review, the review no longer covers the current head and must not be treated as an exact-head review.
 
+## Windows PowerShell 5.1 execution notes
+
+When the local OpenCode execution environment is Windows PowerShell 5.1:
+
+- start OpenCode from the repository root so normal repository reads are not treated as external-directory access;
+- fetch the remote objects needed for the recorded exact base/head before running the review and verify both SHAs resolve locally;
+- tell the reviewer that the shell is Windows PowerShell 5.1 and that it must not use Bash-only command chaining such as `&&`;
+- avoid Unix-only helper commands such as `head`; use PowerShell-compatible equivalents or separate Git commands instead;
+- run read-only Git inspection commands directly from the current repository directory rather than prepending `cd` to each command;
+- treat shell/provider/setup failures as unsuccessful attempts, not review verdicts.
+
+These notes are execution-friction guidance only. They do not change review authority, acceptance criteria, or merge policy.
+
 ## Reviewer instructions
 
 Ask OpenCode to perform a read-only independent review of the supplied exact diff. Require it to:
