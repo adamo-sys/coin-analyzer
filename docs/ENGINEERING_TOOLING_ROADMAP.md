@@ -118,9 +118,24 @@ The pilot demonstrated useful mutation signal while preserving advisory-only aut
 
 See `docs/MUTMUT_PILOT.md` for the bounded expansion rules.
 
-## T7 External Browser Research Sandbox — PLANNED
+## T7 External Browser Research Sandbox — ARCHITECTURE FROZEN
 
-Evaluate Playwright MCP only as an external research utility. Browser findings do not become authoritative collection or self-improvement evidence without explicit validation and human review.
+The browser-research trust boundary is frozen before implementation.
+
+Initial policy:
+- Playwright MCP is the preferred first implementation candidate;
+- public unauthenticated web research only;
+- caller-supplied bounded research tasks only;
+- browser findings begin as advisory and unvalidated;
+- source provenance must be retained;
+- browser content is treated as untrusted external input;
+- no browser tool may enter the Stage 7 through Stage 11 trust chain;
+- no collection/model/prompt/config mutation;
+- no autonomous target selection, retries, background monitoring, merge, deploy, release, or promotion authority.
+
+See `docs/T7_BROWSER_RESEARCH_SANDBOX.md`.
+
+The next bounded slice is a manually invoked Playwright MCP pilot that proves this boundary without integrating browser automation into core runtime or self-improvement orchestration.
 
 ## Standing authority boundary
 
