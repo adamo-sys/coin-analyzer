@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from phone_drop_discovery import (
     PHONE_DROP_LAST_DIRECTORY_PREFERENCE,
     choose_phone_drop_initial_directory,
