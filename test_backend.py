@@ -14,7 +14,17 @@ from datetime import datetime
 from unittest.mock import patch
 from uuid import UUID
 
-from coin_collection import CoinCollection, CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
+from coin_collection import (
+    CoinCollection,
+    CoinCollectionApp,
+    CoinItem,
+    CollectionLoadState,
+    ItemPhoto,
+    PhotoRole,
+)
+from collection_management.collection_mutation_repository import (
+    ConditionalCollectionFieldChange,
+)
 
 
 def make_coin_item(item_id="test_001", **overrides):
@@ -71,6 +81,136 @@ class TestCoinCollectionBackend(unittest.TestCase):
                 self.assertEqual([], json.load(handle))
         finally:
             os.chdir(original_working_directory)
+
+    def test_missing_storage_is_valid_first_run_and_first_save_succeeds(self):
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.MISSING, collection.load_state)
+        self.assertEqual("", collection.load_error)
+        self.assertEqual([], collection.items)
+        self.assertFalse(os.path.exists(self.collection_path))
+
+        self.assertTrue(collection.save_collection())
+
+        with open(self.collection_path, "r", encoding="utf-8") as handle:
+            self.assertEqual([], json.load(handle))
+
+    def test_first_successful_save_transitions_missing_to_loaded(self):
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.MISSING, collection.load_state)
+        self.assertTrue(collection.save_collection())
+
+        self.assertEqual(CollectionLoadState.LOADED, collection.load_state)
+        self.assertEqual("", collection.load_error)
+
+    def test_valid_storage_reports_loaded_state(self):
+        original = CoinCollection(self.collection_path)
+        self.assertTrue(original.add_item(make_coin_item("loaded_state")))
+
+        reloaded = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.LOADED, reloaded.load_state)
+        self.assertEqual("", reloaded.load_error)
+        self.assertEqual(["loaded_state"], [item.id for item in reloaded.items])
+
+    def test_corrupt_json_blocks_ordinary_save_and_preserves_bytes(self):
+        original = b'{"broken":'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.FAILED, collection.load_state)
+        self.assertTrue(collection.load_error)
+        self.assertEqual([], collection.items)
+
+        collection.items = [make_coin_item("replacement")]
+        self.assertFalse(collection.save_collection())
+        self.assertIn("failed to load", collection.last_save_error.lower())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+
+    def test_invalid_collection_shape_blocks_save_and_preserves_bytes(self):
+        original = b'{"id":"not-an-array"}'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.FAILED, collection.load_state)
+        self.assertIn("array", collection.load_error.lower())
+
+        collection.items = [make_coin_item("replacement")]
+        self.assertFalse(collection.save_collection())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+
+    def test_invalid_persisted_record_blocks_mutations_and_preserves_bytes(self):
+        original = b'[null]'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.FAILED, collection.load_state)
+
+        self.assertFalse(collection.add_item(make_coin_item("new")))
+        self.assertFalse(collection.update_item("anything", {"country": "US"}))
+        self.assertFalse(collection.delete_item("anything"))
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+
+    def test_failed_load_blocks_conditional_mutation_and_preserves_bytes(self):
+        original = b'[null]'
+        with open(self.collection_path, "wb") as handle:
+            handle.write(original)
+
+        collection = CoinCollection(self.collection_path)
+
+        self.assertEqual(CollectionLoadState.FAILED, collection.load_state)
+
+        with self.assertRaises(Exception) as context:
+            collection.mutate_fields_conditionally(
+                "anything",
+                (
+                    ConditionalCollectionFieldChange(
+                        field_name="country",
+                        expected_value="Canada",
+                        desired_value="United States",
+                    ),
+                ),
+            )
+
+        self.assertEqual(
+            "The collection repository could not complete the conditional mutation.",
+            str(context.exception),
+        )
+        self.assertIn("failed to load", collection.last_save_error.lower())
+
+        with open(self.collection_path, "rb") as handle:
+            self.assertEqual(original, handle.read())
+
+    def test_successful_reload_clears_failed_state(self):
+        with open(self.collection_path, "wb") as handle:
+            handle.write(b'{"broken":')
+
+        collection = CoinCollection(self.collection_path)
+        self.assertEqual(CollectionLoadState.FAILED, collection.load_state)
+
+        valid = [make_coin_item("recovered").to_dict()]
+        with open(self.collection_path, "w", encoding="utf-8") as handle:
+            json.dump(valid, handle)
+
+        collection.load_collection()
+
+        self.assertEqual(CollectionLoadState.LOADED, collection.load_state)
+        self.assertEqual("", collection.load_error)
+        self.assertEqual(["recovered"], [item.id for item in collection.items])
+        self.assertTrue(collection.save_collection())
 
     def test_json_loading_preserves_multiple_items(self):
         collection = CoinCollection(self.collection_path)

@@ -531,13 +531,23 @@ class PhotoMigrationResult:
         }
 
 
+class CollectionLoadState(str, Enum):
+    """Authoritative load state for ordinary collection persistence."""
+
+    MISSING = "MISSING"
+    LOADED = "LOADED"
+    FAILED = "FAILED"
+
+
 class CoinCollection:
     """Manages local coin collection storage and operations."""
-    
+
     def __init__(self, storage_path: str = "data/collection.json"):
         self.storage_path = storage_path
         self.items: List[CoinItem] = []
         self.last_save_error = ""
+        self.load_state = CollectionLoadState.MISSING
+        self.load_error = ""
         self.ensure_storage_directory()
         self.load_collection()
     
@@ -548,22 +558,43 @@ class CoinCollection:
             os.makedirs(directory, exist_ok=True)
     
     def load_collection(self):
-        """Load collection from JSON storage."""
+        """Load collection and record whether ordinary persistence is safe."""
         if os.path.exists(self.storage_path):
             try:
-                with open(self.storage_path, 'r', encoding='utf-8') as f:
+                with open(self.storage_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    self.items = [CoinItem.from_dict(item) for item in data]
+                if not isinstance(data, list):
+                    raise ValueError("Collection JSON must contain an array of records.")
+                if any(not isinstance(item, dict) for item in data):
+                    raise ValueError(
+                        "Collection JSON records must all be objects."
+                    )
+                loaded_items = [CoinItem.from_dict(item) for item in data]
+                self.items = loaded_items
+                self.load_state = CollectionLoadState.LOADED
+                self.load_error = ""
                 print(f"Loaded {len(self.items)} items from collection")
             except Exception as e:
-                print(f"Error loading collection: {str(e)}")
                 self.items = []
+                self.load_state = CollectionLoadState.FAILED
+                self.load_error = str(e)
+                print(f"Error loading collection: {self.load_error}")
         else:
             self.items = []
+            self.load_state = CollectionLoadState.MISSING
+            self.load_error = ""
             print("No existing collection found, starting fresh")
     
     def save_collection(self, *, import_lock=None) -> bool:
-        """Save collection to JSON storage."""
+        """Save collection unless existing storage previously failed to load."""
+        if self.load_state is CollectionLoadState.FAILED:
+            self.last_save_error = (
+                "Collection storage failed to load; ordinary saves are blocked "
+                "until the collection is successfully reloaded or recovered."
+            )
+            print(f"Error saving collection: {self.last_save_error}")
+            return False
+
         owned_lock = None
         try:
             if import_lock is None:
@@ -584,6 +615,8 @@ class CoinCollection:
                 ensure_ascii=False,
             )
             self.last_save_error = ""
+            self.load_state = CollectionLoadState.LOADED
+            self.load_error = ""
             print(f"Saved {len(self.items)} items to collection")
             return True
         except Exception as e:
@@ -650,12 +683,25 @@ class CoinCollection:
     ) -> ConditionalCollectionMutationResult:
         """Compare and atomically mutate exact raw JSON field states.
 
+        Ordinary conditional mutations are blocked when existing collection
+        storage failed to load.
+
         The global collection/import lease serializes cooperating application
         writers from authoritative read through final verification.  Raw JSON
         is intentional: ``CoinItem.from_dict`` normalizes a missing mapped
         field to an empty string and therefore cannot preserve the distinction
         required by conditional mutation.
         """
+
+        if self.load_state is CollectionLoadState.FAILED:
+            self.last_save_error = (
+                "Collection storage failed to load; ordinary mutations are "
+                "blocked until the collection is successfully reloaded or recovered."
+            )
+            raise ConditionalCollectionRepositoryError(
+                "The collection repository could not complete the conditional "
+                "mutation."
+            )
 
         if not isinstance(record_id, str) or not record_id.strip():
             raise InvalidConditionalCollectionMutationError(
