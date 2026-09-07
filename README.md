@@ -261,3 +261,30 @@ Start with the [Engineering Playbook](docs/ENGINEERING_PLAYBOOK.md) and use the 
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+
+### Offline Doctor
+
+Run `python -m coin_analyzer_doctor` with the project interpreter for safe local
+runtime diagnostics. Optional OCR/AI limitations do not block core readiness.
+The default does not inspect your collection or create persistence probe files;
+configured AI remains unverified and no network request is made.
+
+```powershell
+.\.venv\Scripts\python.exe -m coin_analyzer_doctor --json
+.\.venv\Scripts\python.exe -m coin_analyzer_doctor --collection "C:\my-collection\collection.json"
+.\.venv\Scripts\python.exe -m coin_analyzer_doctor --collection "C:\my-collection\collection.json" --managed-images "C:\my-collection\coin_photos\collection"
+.\.venv\Scripts\python.exe -m coin_analyzer_doctor --probe-directory "C:\my-collection"
+```
+
+Paths explicitly opt in to read-only collection/image checks or an owned,
+disposable write/lock probe. Images require a selected collection. No live lock
+is acquired or repaired, no image is decoded, and no collection is modified.
+Missing first-run storage is not corruption. A successful disposable probe does
+not guarantee a later live save. Cleanup failures are reported for manual review.
+
+`--json` emits one schema-version-1 document with stable diagnostic IDs and no
+private paths/content. Exit codes: **0** core and requested required checks pass
+(optional limitations may show **degraded**); **1** a required check is unavailable
+or unverified; **2** invalid arguments. Unrequested storage checks stay unverified.
+See [the readiness contract](docs/architecture/RUNTIME_READINESS.md) for limits.
