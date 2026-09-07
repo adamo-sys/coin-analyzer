@@ -1,7 +1,7 @@
 # Runtime readiness and Doctor boundary
 
 Status: APPROVED for the bounded #199/#200 epic. #199 implements startup
-prerequisites only; Doctor remains a follow-up.
+prerequisites; #200 implements the offline Doctor described below.
 
 ## Shared contract (#199)
 
@@ -102,3 +102,34 @@ symlink rejection, existing lock preservation, disposable probe cleanup/failure,
 OCR timeout/nonzero/missing-language responses. Fixtures stay synthetic and temp.
 No network, private corpus, automatic repair, lock takeover, schema change,
 recovery/journal redesign, installer work, or broad local regression.
+
+## #200 implementation notes
+
+Doctor now implements the handoff through `coin_analyzer_doctor.main` and
+`doctor_health.evaluate_health`. Core capability summaries retain #199's local
+prerequisite meaning; `ocr.health` separately reports actual bounded local OCR
+checks. AI is never promoted to READY by Doctor.
+
+Collection reads are capped at 16 MiB after baseline capture; larger files are
+UNVERIFIED. Missing first-run files/parents are READY for the read-only collection
+check, without claiming writability. Unsafe/unreadable/malformed input fails
+closed. Directory components and image files use held plain-file/directory
+helpers. Image references use the existing relative POSIX path validator;
+`coin_photos/collection/` is stripped as the production logical prefix, otherwise
+references are relative to the explicitly selected managed root. Absolute,
+parent-traversing, linked, or missing references are rejected without decoding.
+
+The optional probe requires an existing plain directory. Its random subdirectory
+contains only synthetic JSON and a private probe lock. Cleanup checks ownership
+and never recursively deletes; unexpected leftovers cause a safe failure and
+require manual inspection. Live lock observations remain UNVERIFIED and do not
+block an otherwise successful selected collection check. Only an explicit
+probe establishes disposable write/lock health, not future live writability.
+
+OCR subprocesses use a three-second timeout per command and at most 64 KiB of
+captured output, no shell, and English (`eng`) as the existing default language.
+Nonzero exits/unrecognized version output/timeouts are UNVERIFIED; missing
+executable or language data is UNAVAILABLE. No image content enters the process.
+Human and JSON output contain fixed diagnostics only; helper output is suppressed
+and argument errors never echo supplied values. These are point-in-time checks,
+not guarantees against future changes or hostile concurrent filesystem mutation.
