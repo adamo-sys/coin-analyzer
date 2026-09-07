@@ -75,6 +75,15 @@ class _Provider:
         return self.report
 
 
+def _complete_visual(gui):
+    task = getattr(gui, "_visual_identification_task", None)
+    if task is not None:
+        task.worker.join(5)
+        if task.worker.is_alive():
+            raise AssertionError("Synthetic visual worker did not finish")
+        gui.root.after.call_args.args[1]()
+
+
 class DesktopVisualIdentityReviewTests(unittest.TestCase):
     def _images(self, root: Path) -> tuple[Path, Path]:
         front = root / "front.jpg"
@@ -85,7 +94,8 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
 
     def _gui(self, collection) -> CoinCollectionGUI:
         gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
-        gui.root = object()
+        gui.root = Mock()
+        gui._create_visual_identification_wait = Mock(return_value=Mock())
         gui.app = SimpleNamespace(collection=collection)
         gui.capture_import_ready = True
         gui.refresh_collection_list = Mock()
@@ -210,6 +220,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.askyesno", return_value=False),
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
 
         factory.assert_not_called()
         self.assertEqual(gui.app.collection.items, [])
@@ -243,6 +254,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
             gui._visual_identity_provider_factory = factory
             with patch("coin_collection_gui.filedialog.askopenfilename", return_value=""):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
         factory.assert_not_called()
         self.assertEqual(collection.items, [])
 
@@ -259,6 +271,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.showerror") as error,
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
         self.assertEqual(collection.items, [])
         self.assertEqual(error.call_args.args[0], "AI Identity Service Not Configured")
         self.assertIn("OPENAI_API_KEY is not configured", error.call_args.args[1])
@@ -278,6 +291,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.showerror") as error,
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
 
         self.assertEqual(collection.items, [])
         self.assertNotIn(secret, repr(error.call_args))
@@ -314,6 +328,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.showwarning") as warning,
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
 
         self.assertEqual(collection.items, [])
         self.assertIn("malformed output", warning.call_args.args[1])
@@ -338,6 +353,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                     patch("coin_collection_gui.messagebox.showinfo"),
                 ):
                     gui.import_coin_images_with_visual_ai()
+                    _complete_visual(gui)
                 self.assertEqual(collection.items, [])
 
     def test_final_save_cancellation_after_proposal_is_zero_mutation(self) -> None:
@@ -361,6 +377,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("capture_import.reviewed_coin_collection_entry.persist_reviewed_coin") as persist,
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
         persist.assert_not_called()
         self.assertEqual(collection.items, [])
 
@@ -386,6 +403,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.showerror") as error,
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
         self.assertEqual(collection.items, [])
         self.assertIn("disk unavailable", error.call_args.args[1])
 
@@ -424,6 +442,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
                 patch("coin_collection_gui.messagebox.showinfo"),
             ):
                 gui.import_coin_images_with_visual_ai()
+                _complete_visual(gui)
 
             reopened = CoinCollection(str(storage))
             self.assertEqual(len(provider.requests), 1)

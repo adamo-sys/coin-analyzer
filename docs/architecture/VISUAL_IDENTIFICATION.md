@@ -181,6 +181,23 @@ the existing reviewed-draft boundary can be reached. No contract or metric in
 this amendment automatically accepts a provider result or changes collection
 persistence authority.
 
+### Responsive desktop execution and cancellation
+
+After the existing explicit OpenAI upload disclosure, only visual request
+construction, lazy provider creation/identification, and proposal construction
+run on a daemon worker. A bounded waiting window offers Cancel; Tk after
+polling delivers completion on the GUI thread. Widgets, messageboxes, review,
+and the existing confirm/reject/defer/save flow remain on that thread.
+
+Cancellation or waiting-window/parent destruction invalidates the request.
+It does not forcibly terminate an in-flight provider call. Late success and
+failure are discarded without review, persistence, or late user-facing errors.
+A task owns the temporary source under a lock until work no longer needs it:
+cancellation then releases it exactly once, or successful handoff transfers
+ownership to the existing review cleanup path. Another active identification
+or unresolved review cannot be overwritten. No provider/schema, persistence,
+recovery, upload authority, or collection mutation policy changes are made.
+
 ## Reproducing the headless experiments
 
 The preserved Terra experiment can be rerun with:
