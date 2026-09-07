@@ -28,6 +28,7 @@ class NumistaImporter:
         Returns:
             Tuple of (imported_count, duplicate_count)
         """
+        original_items = list(self.collection.items)
         try:
             # Read Excel file
             df = pd.read_excel(file_path)
@@ -37,9 +38,10 @@ class NumistaImporter:
             self.duplicates = []
             
             # Preserve existing manual entries (non-Numista)
-            manual_items = [item for item in self.collection.items if not item.from_numista]
+            manual_items = [item for item in original_items if not item.from_numista]
             
-            # Clear collection for fresh import
+            # Preserve legacy duplicate behavior while building the complete
+            # replacement in memory. The collection is restored on any failure.
             self.collection.items = []
             
             # Process each row
@@ -52,19 +54,19 @@ class NumistaImporter:
                 else:
                     self.imported_items.append(item)
             
-            # Add imported items to collection
-            for item in self.imported_items:
-                if not self.collection.add_item(item):
-                    raise OSError(f"Could not save imported item {item.id}: {self.collection.last_save_error}")
-            
-            # Restore manual entries
-            for item in manual_items:
-                if not self.collection.add_item(item):
-                    raise OSError(f"Could not restore manual item {item.id}: {self.collection.last_save_error}")
+            # Publish the intended replacement once through the ordinary
+            # guarded save instead of incrementally replacing live storage.
+            self.collection.items = list(self.imported_items) + manual_items
+            if not self.collection.save_collection():
+                raise OSError(
+                    "Could not save Numista replacement: "
+                    f"{self.collection.last_save_error}"
+                )
             
             return len(self.imported_items), len(self.duplicates)
             
         except Exception as e:
+            self.collection.items = original_items
             print(f"Error importing Numista export: {str(e)}")
             raise
     
