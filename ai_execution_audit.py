@@ -8,6 +8,7 @@ persist data, retry work, or carry secret/raw payload material.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 import json
 import re
@@ -19,6 +20,11 @@ from identification_specialist_execution import IdentificationSpecialistExecutio
 
 AI_EXECUTION_AUDIT_SCHEMA_VERSION = "1"
 _MAX_LABEL_CHARS = 128
+_MAX_ID_CHARS = 16_384
+_MAX_REFERENCE_CHARS = 4_096
+_MAX_REFERENCES = 64
+_MAX_REASON_CODES = 32
+_MAX_REASON_CODE_CHARS = 128
 _TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 _LABEL_RE = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 
@@ -48,25 +54,57 @@ def _validate_label(value: object, name: str) -> None:
         )
 
 
+def _validate_required_text(
+    value: object,
+    name: str,
+    *,
+    maximum: int,
+) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string.")
+    if not value:
+        raise ValueError(f"{name} must not be empty.")
+    if len(value) > maximum:
+        raise ValueError(f"{name} exceeds maximum length {maximum}.")
+
+
 def _validate_timestamp(value: object) -> None:
     if not isinstance(value, str):
         raise TypeError("occurred_at must be a string.")
     if _TIMESTAMP_RE.fullmatch(value) is None:
         raise ValueError(
-            "occurred_at must be UTC RFC3339 seconds in YYYY-MM-DDTHH:MM:SSZ form."
+            "occurred_at must be UTC RFC3339 seconds in "
+            "YYYY-MM-DDTHH:MM:SSZ form."
         )
+    try:
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise ValueError("occurred_at must contain a valid UTC date/time.") from exc
 
 
-def _validate_sorted_unique_strings(values: object, name: str) -> None:
+def _validate_sorted_unique_strings(
+    values: object,
+    name: str,
+    *,
+    maximum_items: int,
+    maximum_chars: int,
+) -> None:
     if not isinstance(values, tuple):
         raise TypeError(f"{name} must be a tuple.")
+    if len(values) > maximum_items:
+        raise ValueError(f"{name} contains too many items.")
+
+    for index, value in enumerate(values):
+        _validate_required_text(
+            value,
+            f"{name}[{index}]",
+            maximum=maximum_chars,
+        )
+
     if values != tuple(sorted(values)):
         raise ValueError(f"{name} must be sorted.")
     if len(values) != len(set(values)):
         raise ValueError(f"{name} must be unique.")
-    for value in values:
-        if not isinstance(value, str) or not value:
-            raise ValueError(f"{name} must contain non-empty strings only.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,64 +131,106 @@ class AIExecutionAuditRecord:
     def validate(self) -> None:
         if self.schema_version != AI_EXECUTION_AUDIT_SCHEMA_VERSION:
             raise ValueError(
-                f"Unsupported AI execution audit schema version: {self.schema_version!r}."
+                "Unsupported AI execution audit schema version: "
+                f"{self.schema_version!r}."
             )
         _validate_label(self.execution_id, "execution_id")
         _validate_timestamp(self.occurred_at)
         _validate_label(self.workflow_id, "workflow_id")
         _validate_label(self.executor_id, "executor_id")
-        if not isinstance(self.case_id, str) or not self.case_id:
-            raise ValueError("case_id must be a non-empty string.")
-        _validate_sorted_unique_strings(self.evidence_refs, "evidence_refs")
+        _validate_required_text(
+            self.case_id,
+            "case_id",
+            maximum=_MAX_ID_CHARS,
+        )
         _validate_sorted_unique_strings(
-            self.authorized_candidate_ids, "authorized_candidate_ids"
+            self.evidence_refs,
+            "evidence_refs",
+            maximum_items=_MAX_REFERENCES,
+            maximum_chars=_MAX_REFERENCE_CHARS,
+        )
+        _validate_sorted_unique_strings(
+            self.authorized_candidate_ids,
+            "authorized_candidate_ids",
+            maximum_items=_MAX_REFERENCES,
+            maximum_chars=_MAX_ID_CHARS,
         )
 
         if not isinstance(self.abstained, bool):
             raise TypeError("abstained must be a bool.")
         if self.selected_candidate_id is not None:
-            if not isinstance(self.selected_candidate_id, str) or not self.selected_candidate_id:
-                raise ValueError("selected_candidate_id must be a non-empty string when set.")
+            _validate_required_text(
+                self.selected_candidate_id,
+                "selected_candidate_id",
+                maximum=_MAX_ID_CHARS,
+            )
             if self.selected_candidate_id not in self.authorized_candidate_ids:
-                raise ValueError("selected_candidate_id must be caller-authorized.")
+                raise ValueError(
+                    "selected_candidate_id must be caller-authorized."
+                )
         if self.abstained and self.selected_candidate_id is not None:
-            raise ValueError("abstained records must not include selected_candidate_id.")
+            raise ValueError(
+                "abstained records must not include selected_candidate_id."
+            )
         if not self.abstained and self.selected_candidate_id is None:
-            raise ValueError("non-abstained records require selected_candidate_id.")
+            raise ValueError(
+                "non-abstained records require selected_candidate_id."
+            )
 
         if not isinstance(self.verifier_accepted, bool):
             raise TypeError("verifier_accepted must be a bool.")
         _validate_sorted_unique_strings(
-            self.verifier_reason_codes, "verifier_reason_codes"
+            self.verifier_reason_codes,
+            "verifier_reason_codes",
+            maximum_items=_MAX_REASON_CODES,
+            maximum_chars=_MAX_REASON_CODE_CHARS,
         )
         if self.verifier_accepted and self.verifier_reason_codes:
-            raise ValueError("accepted verification must not contain reason codes.")
+            raise ValueError(
+                "accepted verification must not contain reason codes."
+            )
         if not self.verifier_accepted and not self.verifier_reason_codes:
-            raise ValueError("rejected verification requires at least one reason code.")
+            raise ValueError(
+                "rejected verification requires at least one reason code."
+            )
 
         if not isinstance(
-            self.evaluation_classification, EvaluationOutcomeClassification
+            self.evaluation_classification,
+            EvaluationOutcomeClassification,
         ):
             raise TypeError(
-                "evaluation_classification must be an EvaluationOutcomeClassification."
+                "evaluation_classification must be an "
+                "EvaluationOutcomeClassification."
             )
         _validate_sorted_unique_strings(
-            self.evaluation_reason_codes, "evaluation_reason_codes"
+            self.evaluation_reason_codes,
+            "evaluation_reason_codes",
+            maximum_items=_MAX_REASON_CODES,
+            maximum_chars=_MAX_REASON_CODE_CHARS,
         )
         if not isinstance(self.human_disposition, HumanDisposition):
             raise TypeError("human_disposition must be a HumanDisposition.")
-        if not isinstance(self.persistence_disposition, PersistenceDisposition):
+        if not isinstance(
+            self.persistence_disposition,
+            PersistenceDisposition,
+        ):
             raise TypeError(
                 "persistence_disposition must be a PersistenceDisposition."
             )
 
         if self.persistence_disposition is PersistenceDisposition.COMMITTED:
             if self.human_disposition is not HumanDisposition.ACCEPTED:
-                raise ValueError("committed persistence requires accepted human disposition.")
-        if self.human_disposition is not HumanDisposition.ACCEPTED:
-            if self.persistence_disposition is not PersistenceDisposition.NOT_ATTEMPTED:
                 raise ValueError(
-                    "non-accepted human dispositions require persistence not_attempted."
+                    "committed persistence requires accepted human disposition."
+                )
+        if self.human_disposition is not HumanDisposition.ACCEPTED:
+            if (
+                self.persistence_disposition
+                is not PersistenceDisposition.NOT_ATTEMPTED
+            ):
+                raise ValueError(
+                    "non-accepted human dispositions require persistence "
+                    "not_attempted."
                 )
 
 
@@ -170,12 +250,16 @@ def build_ai_execution_audit_record(
         raise TypeError("request must be an IdentificationSpecialistRequest.")
     request.validate()
     if not isinstance(report, IdentificationSpecialistExecutionReport):
-        raise TypeError("report must be an IdentificationSpecialistExecutionReport.")
+        raise TypeError(
+            "report must be an IdentificationSpecialistExecutionReport."
+        )
 
     report.execution.validate(request)
     report.comparison.validate()
     if report.comparison.specialist_result != report.execution.specialist_result:
-        raise ValueError("report comparison must preserve the executed specialist result.")
+        raise ValueError(
+            "report comparison must preserve the executed specialist result."
+        )
 
     result = report.execution.specialist_result
     verification = report.comparison.verification
@@ -228,4 +312,9 @@ def serialize_ai_execution_audit_record(record: AIExecutionAuditRecord) -> str:
         "human_disposition": record.human_disposition.value,
         "persistence_disposition": record.persistence_disposition.value,
     }
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
