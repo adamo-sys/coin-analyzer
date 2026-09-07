@@ -1,13 +1,29 @@
 """Small, dependency-free helpers for durable JSON replacement."""
 
+from dataclasses import dataclass
+from hashlib import sha256
 import json
 import os
 import tempfile
 from typing import Any
 
 
-def write_json_atomically(path: str, payload: Any, *, indent: int = 2, ensure_ascii: bool = False) -> None:
-    """Write JSON via a same-directory temporary file and atomic replacement."""
+@dataclass(frozen=True, slots=True)
+class AtomicJsonWriteReceipt:
+    """Exact-byte identity of the temporary file published atomically."""
+
+    sha256: str
+    byte_length: int
+
+
+def write_json_atomically(
+    path: str,
+    payload: Any,
+    *,
+    indent: int = 2,
+    ensure_ascii: bool = False,
+) -> AtomicJsonWriteReceipt:
+    """Write JSON via a same-directory temporary file and return its exact receipt."""
     destination = os.path.abspath(path)
     directory = os.path.dirname(destination)
     os.makedirs(directory, exist_ok=True)
@@ -22,7 +38,20 @@ def write_json_atomically(path: str, payload: Any, *, indent: int = 2, ensure_as
             json.dump(payload, handle, indent=indent, ensure_ascii=ensure_ascii)
             handle.flush()
             os.fsync(handle.fileno())
+
+        digest = sha256()
+        byte_length = 0
+        with open(temporary_path, "rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+                byte_length += len(chunk)
+        receipt = AtomicJsonWriteReceipt(digest.hexdigest(), byte_length)
+
         os.replace(temporary_path, destination)
+        return receipt
     except Exception as error:
         try:
             if os.path.exists(temporary_path):
