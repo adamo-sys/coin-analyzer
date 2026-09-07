@@ -1,6 +1,6 @@
 # AI execution audit boundary
 
-Issue #201 adds the first contract-only slice of an AI Execution Audit Trail / AI Decision Provenance layer.
+Issue #201 introduced the contract-only foundation of an AI Execution Audit Trail / AI Decision Provenance layer. The follow-on storage slice adds separate bounded JSONL persistence without changing collection authority.
 
 ## Authority boundary
 
@@ -16,12 +16,15 @@ AI execution
                     |
                     v
               audit record
-              (observation only)
+                    |
+                    v
+          separate audit store
+          (observation only)
 ```
 
-Nothing in `ai_execution_audit.py` writes files, calls a provider, retries work,
-repairs output, mutates a collection, or authorizes persistence. The audit
-record must never become a second path into authoritative collection state.
+Neither `ai_execution_audit.py` nor `ai_execution_audit_store.py` can authorize
+or perform collection mutation. The audit path must remain separate from
+`collection.json` and must never become a second path into authoritative state.
 
 ## Contract
 
@@ -43,8 +46,47 @@ truth, confidence, or authority. The execution result in the comparison must
 match the actual executed result.
 
 `serialize_ai_execution_audit_record()` emits deterministic schema-v1 JSON
-with an exact fixed key set and no arbitrary metadata channel. This slice has
-no deserializer and no storage API.
+with an exact fixed key set and no arbitrary metadata channel.
+
+## Append-only store
+
+`AIExecutionAuditStore` persists one canonical JSON object per line. Its public
+surface supports only `read_all()` and `append()`; it exposes no update,
+delete, truncate, or clear operation for prior records.
+
+Before every append, the store:
+
+1. validates the new `AIExecutionAuditRecord`;
+2. acquires a separate cooperative filesystem lease;
+3. reads and strictly validates every existing JSONL record;
+4. rejects malformed UTF-8, missing final newline, blank lines, unknown or
+   missing fields, duplicate JSON keys, unsupported enum/schema values, and
+   duplicate execution IDs;
+5. rejects appends that exceed the bounded record or byte limits;
+6. writes the prospective complete file to a sibling exclusive temporary file,
+   flushes/fsyncs it, then atomically replaces the audit path while the lease
+   remains held.
+
+Whole-file replacement is an implementation mechanism for atomic publication;
+the API remains append-only because callers cannot alter or remove prior
+records. Existing bytes are validated and preserved exactly as the prefix of a
+successful append.
+
+The audit lease uses the repository's existing `PackageImportLock` primitive on
+a distinct audit lock path. This reuses the established exclusive-create plus
+OS-advisory-lock behavior without sharing collection mutation authority.
+
+## Bounded failure behavior
+
+The store is fail-closed. Existing corruption, duplicate execution IDs, lock
+contention, unsupported schema, or a full store blocks the append rather than
+rewriting or repairing history. A failed append must leave pre-existing audit
+bytes untouched.
+
+The current bounds are 10,000 records and 16 MiB. Rotation, archival, pruning,
+and retention policy are intentionally not part of this slice because each
+would introduce deletion or replacement semantics that need separate design
+review.
 
 ## Privacy exclusions
 
@@ -56,6 +98,9 @@ or environment mappings.
 
 Evidence references remain bounded references from the existing request; they
 are not expanded into underlying image/content bytes.
+
+The storage layer introduces no metadata escape hatch: strict parsing requires
+exactly the schema-v1 key set.
 
 ## Disposition semantics
 
@@ -70,13 +115,13 @@ human disposition requires `not_attempted`, preventing an audit record from
 claiming persistence after rejection, deferral, cancellation, or an
 unreached review.
 
-## Explicit non-goals for #201
+## Still out of scope
 
-No JSONL/file storage, append API, GUI lifecycle hook, analytics dashboard,
-provider/model change, network access, collection mutation, autonomous retry,
-agent loop, DeepSeek Harness dependency, or visual-context compression is
-introduced by this slice.
+This storage slice does not add GUI lifecycle hooks, automatic audit emission,
+analytics dashboards, provider/model changes, network access, collection
+mutation, autonomous retry, agent loops, DeepSeek Harness, or visual-context
+compression.
 
-Follow-on storage and lifecycle integration require separate review and must
-preserve the existing load-failure, stale-save, cancellation, privacy, and
-human-authority boundaries.
+The next lifecycle-integration slice must preserve the existing load-failure,
+stale-save, cancellation, privacy, and human-authority boundaries and should
+emit records only after the relevant workflow outcome is actually known.
