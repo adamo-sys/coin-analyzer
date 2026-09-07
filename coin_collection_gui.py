@@ -619,6 +619,13 @@ Total Unique Dates: {total_unique_dates}
                 self.capture_import_recovery_message,
             )
             return
+        if (getattr(self, "_visual_identification_task", None) is not None
+                or getattr(self, "_visual_review_source", None) is not None):
+            messagebox.showinfo(
+                "AI-Assisted Coin Images", "Finish or cancel the current visual review first.",
+                parent=self.root,
+            )
+            return
         image_types = [
             ("Coin images", "*.jpg *.jpeg *.png"),
             ("JPEG images", "*.jpg *.jpeg"),
@@ -668,21 +675,98 @@ Total Unique Dates: {total_unique_dates}
             source.release()
             return
 
+        self._start_visual_identification(source)
+
+    def _create_visual_identification_wait(self, cancel):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Identifying Coin Images")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        ttk.Label(
+            dialog,
+            text="Waiting for an AI identity proposal. You can cancel this review.",
+            wraplength=380,
+        ).pack(padx=20, pady=(20, 10))
+        progress = ttk.Progressbar(dialog, mode="indeterminate", length=360)
+        progress.pack(padx=20, pady=10)
+        progress.start()
+        ttk.Button(dialog, text="Cancel", command=cancel).pack(pady=(0, 20))
+        dialog.protocol("WM_DELETE_WINDOW", cancel)
+        # Parent destruction also invalidates the request without worker Tk calls.
+        dialog.bind(
+            "<Destroy>",
+            lambda event: cancel() if event.widget is dialog else None,
+            add="+",
+        )
+        return dialog
+
+    def _start_visual_identification(self, source):
+        from capture_import.desktop_visual_identity_execution import VisualIdentityReviewTask
+        from capture_import.desktop_visual_identity_review import (
+            create_visual_identity_proposal,
+            create_visual_request_from_capture_package,
+        )
+
+        def work(path):
+            request = create_visual_request_from_capture_package(path)
+            report = self._get_visual_identity_provider().identify(request)
+            return create_visual_identity_proposal(report)
+
+        task = VisualIdentityReviewTask(source, work)
+        self._visual_identification_task = task
+        dialog = None
+
+        def close_wait():
+            if self._visual_identification_task is task:
+                self._visual_identification_task = None
+                if dialog is not None and dialog.winfo_exists():
+                    dialog.destroy()
+
+        def cancel():
+            task.cancel()
+            close_wait()
+
+        def poll():
+            if self._visual_identification_task is not task:
+                return
+            result = task.take_result()
+            if result is None:
+                try:
+                    self.root.after(50, poll)
+                except tk.TclError:
+                    cancel()
+                return
+            source, proposal, error = result
+            try:
+                close_wait()
+            except Exception:
+                source.release()
+                raise
+            self._finish_visual_identification(source, proposal, error)
+
+        try:
+            dialog = self._create_visual_identification_wait(cancel)
+            task.start()
+            self.root.after(50, poll)
+        except Exception:
+            # start() handles pre-worker failures; cancellation handles a worker
+            # already using the package, including failed Tk scheduling.
+            cancel()
+            raise
+
+    def _finish_visual_identification(self, source, proposal, error):
         from capture_import.desktop_visual_identity_review import (
             VisualIdentityAvailabilityError,
             VisualReviewError,
-            create_visual_identity_proposal,
             create_visual_identity_review_dialog,
-            create_visual_request_from_capture_package,
         )
         from capture_import.visual_identity_provider import (
             VisualIdentityContractError,
         )
 
         try:
-            request = create_visual_request_from_capture_package(source.path)
-            report = self._get_visual_identity_provider().identify(request)
-            proposal = create_visual_identity_proposal(report)
+            if error is not None:
+                raise error
         except (VisualReviewError, VisualIdentityContractError) as error:
             source.release()
             messagebox.showwarning(
