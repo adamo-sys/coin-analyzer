@@ -3,6 +3,7 @@ Coin Collection Manager
 MVP app for managing coin collection with manual editing and optional automatic identification.
 """
 
+import hashlib
 import json
 import csv
 import os
@@ -16,7 +17,7 @@ from uuid import UUID, uuid4
 import cv2
 import numpy as np
 
-from atomic_json import write_json_atomically
+from atomic_json import AtomicJsonWriteReceipt, write_json_atomically
 from collection_management.collection_mutation_repository import (
     CONDITIONAL_COLLECTION_MUTATION_FIELDS,
     ConditionalCollectionFieldChange,
@@ -548,6 +549,7 @@ class CoinCollection:
         self.last_save_error = ""
         self.load_state = CollectionLoadState.MISSING
         self.load_error = ""
+        self._storage_baseline = None
         self.ensure_storage_directory()
         self.load_collection()
     
@@ -557,12 +559,36 @@ class CoinCollection:
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
     
+    @staticmethod
+    def _baseline_from_raw_bytes(raw: bytes):
+        """Build the exact baseline for the bytes decoded into memory."""
+        from capture_import.models import CollectionBaseline
+
+        return CollectionBaseline(hashlib.sha256(raw).hexdigest(), len(raw))
+
+    @staticmethod
+    def _baseline_from_receipt(receipt: AtomicJsonWriteReceipt):
+        """Build a collection baseline from the exact published temp-file receipt."""
+        from capture_import.models import CollectionBaseline
+
+        if not isinstance(receipt, AtomicJsonWriteReceipt):
+            raise OSError("Atomic collection writer did not return a publication receipt.")
+        return CollectionBaseline(receipt.sha256, receipt.byte_length)
+
+    @staticmethod
+    def _missing_storage_baseline():
+        from capture_import.limits import MISSING_COLLECTION_SENTINEL
+        from capture_import.models import CollectionBaseline
+
+        return CollectionBaseline(MISSING_COLLECTION_SENTINEL, 0)
+
     def load_collection(self):
-        """Load collection and record whether ordinary persistence is safe."""
+        """Load collection and bind ordinary persistence to the exact loaded bytes."""
         if os.path.exists(self.storage_path):
             try:
-                with open(self.storage_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                with open(self.storage_path, "rb") as handle:
+                    raw = handle.read()
+                data = json.loads(raw.decode("utf-8"))
                 if not isinstance(data, list):
                     raise ValueError("Collection JSON must contain an array of records.")
                 if any(not isinstance(item, dict) for item in data):
@@ -571,22 +597,25 @@ class CoinCollection:
                     )
                 loaded_items = [CoinItem.from_dict(item) for item in data]
                 self.items = loaded_items
+                self._storage_baseline = self._baseline_from_raw_bytes(raw)
                 self.load_state = CollectionLoadState.LOADED
                 self.load_error = ""
                 print(f"Loaded {len(self.items)} items from collection")
             except Exception as e:
                 self.items = []
+                self._storage_baseline = None
                 self.load_state = CollectionLoadState.FAILED
                 self.load_error = str(e)
                 print(f"Error loading collection: {self.load_error}")
         else:
             self.items = []
+            self._storage_baseline = self._missing_storage_baseline()
             self.load_state = CollectionLoadState.MISSING
             self.load_error = ""
             print("No existing collection found, starting fresh")
-    
+
     def save_collection(self, *, import_lock=None) -> bool:
-        """Save collection unless existing storage previously failed to load."""
+        """Save only when storage still matches this instance's loaded baseline."""
         if self.load_state is CollectionLoadState.FAILED:
             self.last_save_error = (
                 "Collection storage failed to load; ordinary saves are blocked "
@@ -608,12 +637,34 @@ class CoinCollection:
                 owned_lock = PackageImportLock.acquire(lock_path)
                 import_lock = owned_lock
             import_lock.verify_ownership()
-            write_json_atomically(
+
+            from capture_import.baseline import require_collection_baseline
+            from capture_import.errors import CollectionChanged
+
+            if self._storage_baseline is None:
+                raise RuntimeError(
+                    "Collection storage baseline is unavailable; reload before saving."
+                )
+            try:
+                require_collection_baseline(
+                    self.storage_path,
+                    self._storage_baseline,
+                )
+            except CollectionChanged:
+                self.last_save_error = (
+                    "The collection changed outside this window. This change was not "
+                    "saved. Reload the collection before trying again."
+                )
+                print(f"Error saving collection: {self.last_save_error}")
+                return False
+
+            receipt = write_json_atomically(
                 self.storage_path,
                 [item.to_dict() for item in self.items],
                 indent=2,
                 ensure_ascii=False,
             )
+            self._storage_baseline = self._baseline_from_receipt(receipt)
             self.last_save_error = ""
             self.load_state = CollectionLoadState.LOADED
             self.load_error = ""
@@ -655,7 +706,7 @@ class CoinCollection:
             # Serialize every record before changing in-memory state or disk.
             payload = [item.to_dict() for item in prospective_items]
             require_collection_baseline(self.storage_path, expected_baseline)
-            write_json_atomically(
+            receipt = write_json_atomically(
                 self.storage_path,
                 payload,
                 indent=2,
@@ -667,6 +718,9 @@ class CoinCollection:
             if verified != payload:
                 raise OSError("The committed collection did not verify.")
             self.items = prospective_items
+            self._storage_baseline = self._baseline_from_receipt(receipt)
+            self.load_state = CollectionLoadState.LOADED
+            self.load_error = ""
             self.last_save_error = ""
             return True
         except Exception as error:
@@ -771,7 +825,7 @@ class CoinCollection:
                         CoinItem.from_dict(row) for row in payload
                     ]
                     mutation_lock.verify_ownership()
-                    write_json_atomically(
+                    receipt = write_json_atomically(
                         self.storage_path,
                         payload,
                         indent=2,
@@ -799,6 +853,9 @@ class CoinCollection:
                             "The committed collection could not be verified."
                         ) from error
                     self.items = prospective_items
+                    self._storage_baseline = self._baseline_from_receipt(receipt)
+                    self.load_state = CollectionLoadState.LOADED
+                    self.load_error = ""
 
                 result = ConditionalCollectionMutationResult(
                     applied_fields=tuple(applied),
@@ -1175,7 +1232,8 @@ class CoinCollection:
             return imported_count, total_coins, total_countries, total_unique_dates
             
         except Exception as e:
-            print(f"Error importing CSV: {str(e)}")
+            self.last_save_error = str(e)
+            print(f"Error importing CSV: {self.last_save_error}")
             self.items = original_items
             return 0, 0, 0, 0
     

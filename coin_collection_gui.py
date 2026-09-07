@@ -521,7 +521,19 @@ class CoinCollectionGUI:
         # Import from CSV
         imported_count, total_coins, total_countries, total_unique_dates = self.app.import_from_csv(file_path)
         
-        # Display statistics
+        if self.app.collection.last_save_error:
+            messagebox.showerror(
+                "Collection Import Failed",
+                (
+                    "The CSV import was not saved. "
+                    f"{self.app.collection.last_save_error}"
+                ),
+                parent=self.root,
+            )
+            self.refresh_collection_list()
+            return
+
+        # Display statistics only after persistence succeeded.
         stats_message = f"""
 Import Complete!
 
