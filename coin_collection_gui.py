@@ -12634,7 +12634,3 @@ def main():
     root = tk.Tk()
     app = CoinCollectionGUI(root)
     root.mainloop()
-
-
-if __name__ == "__main__":
-    main()

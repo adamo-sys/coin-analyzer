@@ -25,7 +25,7 @@ class RuntimeReadinessTests(unittest.TestCase):
     def evaluate(self, *, missing=(), configured=False, found=True, version=(3, 12)):
         def importer(name):
             if name in missing:
-                print(SECRET, file=sys.stderr)
+                print("synthetic import stderr output", file=sys.stderr)
                 raise ImportError(SECRET)
             return SimpleNamespace(pytesseract=SimpleNamespace(tesseract_cmd="synthetic-tesseract"))
         return evaluate_readiness(importer=importer, which=lambda _: "found" if found else None,
@@ -42,6 +42,7 @@ class RuntimeReadinessTests(unittest.TestCase):
                 failed = [check for check in report.checks if check.check_id == "core." + dependency][0]
                 self.assertTrue(failed.action)
                 self.assertNotIn(SECRET, repr(report) + output.getvalue())
+                self.assertNotIn("synthetic import stderr output", output.getvalue())
 
     def test_optional_absence_never_blocks_core_or_launch(self):
         report = self.evaluate(missing=("openai", "pytesseract"))

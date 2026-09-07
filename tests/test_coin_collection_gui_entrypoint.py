@@ -4,8 +4,9 @@ import ast
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,25 +49,35 @@ class CoinCollectionGUIEntrypointTests(unittest.TestCase):
         ast.fix_missing_locations(entry_module)
         main = Mock()
 
-        exec(
-            compile(entry_module, str(ENTRYPOINT), "exec"),
-            {"__name__": "__main__", "main": main},
-        )
+        startup = Mock(return_value=1)
+        with patch.dict(sys.modules, {"coin_analyzer_startup": SimpleNamespace(main=startup)}):
+            with self.assertRaises(SystemExit) as raised:
+                exec(
+                    compile(entry_module, str(ENTRYPOINT), "exec"),
+                    {"__name__": "__main__", "main": main},
+                )
 
-        main.assert_called_once_with()
+        startup.assert_called_once_with()
+        main.assert_not_called()
+        self.assertEqual(raised.exception.code, 1)
 
     def test_import_and_close_path_has_no_second_entrypoint_invocation(self) -> None:
         guard = self._entrypoint_guard()
-        calls = [
-            statement.value
-            for statement in guard.body
-            if isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Call)
-            and isinstance(statement.value.func, ast.Name)
-            and statement.value.func.id == "main"
+        startup_calls = [
+            node for node in ast.walk(guard)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "startup_main"
         ]
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(len(guard.body), 1)
+        self.assertEqual(len(startup_calls), 1)
+        self.assertIsInstance(guard.body[-1], ast.Raise)
+        tree = ast.parse(ENTRYPOINT.read_text(encoding="utf-8"))
+        dependency_imports = [
+            node for node in tree.body
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+        ]
+        self.assertTrue(dependency_imports)
+        self.assertLess(guard.lineno, min(node.lineno for node in dependency_imports))
 
 
 if __name__ == "__main__":
