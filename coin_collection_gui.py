@@ -18,6 +18,7 @@ from collector_cloud import CollectorCloud
 from coin_collection import (
     CoinCollectionApp,
     CoinItem,
+    CollectionLoadState,
     ItemPhoto,
     PhotoRole,
     normalize_acquisition_values,
@@ -307,7 +308,31 @@ class CoinCollectionGUI:
         # Create GUI
         self.create_widgets()
         self.refresh_collection_list()
+        self.notify_collection_load_failure()
         self.schedule_startup_photo_inbox_scan()
+
+    def notify_collection_load_failure(self):
+        """Explain when existing storage could not be safely loaded."""
+        collection = self.app.collection
+        if collection.load_state is not CollectionLoadState.FAILED:
+            return False
+
+        detail = (
+            "The existing collection could not be loaded. "
+            "Coin Analyzer has blocked ordinary collection changes to protect "
+            "the original collection file.\n\n"
+            "Use the existing recovery or backup workflow before adding, "
+            "editing, or deleting collection items."
+        )
+        if collection.load_error:
+            detail += f"\n\nLoad error: {collection.load_error}"
+
+        messagebox.showerror(
+            "Collection Recovery Required",
+            detail,
+            parent=self.root,
+        )
+        return True
 
     def _build_default_legacy_recognition_orchestrator(self):
         """Compose the legacy detector shell with the runtime event bus."""
