@@ -1068,6 +1068,7 @@ Total Unique Dates: {total_unique_dates}
 
         from capture_import.reviewed_coin_collection_entry import (
             ReviewedCoinCollectionEntryError,
+            ReviewedCoinPersistenceError,
             ReviewedCoinRecoveryRequiredError,
             create_reviewed_coin_draft,
             persist_reviewed_coin,
@@ -1146,6 +1147,25 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showerror(
                 "Reviewed Coin Recovery Required",
                 error.safe_message,
+                parent=self._ocr_review_parent,
+            )
+            self._release_ocr_managed_photo_source()
+            return
+        except ReviewedCoinPersistenceError:
+            detail = self.app.collection.last_save_error or ""
+            if "changed outside this window" in detail:
+                message = (
+                    "The reviewed coin was not saved because the collection changed "
+                    "outside this window. Reload the collection before trying again."
+                )
+            else:
+                message = (
+                    "The reviewed coin could not be saved. "
+                    "No collection changes were confirmed."
+                )
+            messagebox.showerror(
+                "Collection Save Failed",
+                message,
                 parent=self._ocr_review_parent,
             )
             self._release_ocr_managed_photo_source()
