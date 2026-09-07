@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import secrets
 from typing import Any
 
 from ai_evaluation_contracts import EvaluationOutcomeClassification
@@ -194,9 +195,11 @@ def _read_records_from_bytes(raw: bytes) -> tuple[AIExecutionAuditRecord, ...]:
 
 
 def _read_plain_file(path: Path) -> bytes:
+    if path.is_symlink():
+        raise AIExecutionAuditStoreCorrupt("audit store path must be a plain file")
     if not path.exists():
         return b""
-    if path.is_symlink() or not path.is_file():
+    if not path.is_file():
         raise AIExecutionAuditStoreCorrupt("audit store path must be a plain file")
     try:
         with path.open("rb") as handle:
@@ -265,7 +268,7 @@ class AIExecutionAuditStore:
                 raise AIExecutionAuditStoreFull("audit store reached its byte limit")
 
             temporary = self.path.with_name(
-                f".{self.path.name}.tmp.{os.getpid()}.{record.execution_id}"
+                f".{self.path.name}.tmp.{os.getpid()}.{secrets.token_hex(8)}"
             )
             if temporary.exists():
                 raise AIExecutionAuditStoreError("audit temporary path already exists")
