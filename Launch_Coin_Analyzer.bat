@@ -1,57 +1,34 @@
 @echo off
 setlocal
-
 set "APP_DIR=%~dp0"
-set "APP_FILE=%APP_DIR%coin_collection_gui.py"
-
+set "APP_FILE=%APP_DIR%coin_analyzer_startup.py"
 if not exist "%APP_FILE%" (
-    echo Coin Analyzer could not be found.
-    echo Expected:
-    echo   "%APP_FILE%"
-    echo.
-    echo Keep this launcher in the Coin Analyzer project folder.
+    echo Coin Analyzer startup files are missing. Keep the launcher in the project folder.
     pause
     exit /b 1
 )
-
-pythonw --version >nul 2>nul
+if exist "%APP_DIR%.venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%APP_DIR%.venv\Scripts\python.exe"
+    goto run
+)
+python --version >nul 2>nul
 if %errorlevel%==0 (
-    set "PYTHON_EXE=pythonw"
-) else (
-    python --version >nul 2>nul
-    if %errorlevel%==0 (
-        set "PYTHON_EXE=python"
-    ) else (
-        py --version >nul 2>nul
-        if %errorlevel%==0 (
-            set "PYTHON_EXE=py"
-        )
-    )
+    set "PYTHON_EXE=python"
+    goto run
 )
-
-if not defined PYTHON_EXE (
-    echo Python could not be found.
-    echo Install Python, then try this launcher again.
-    echo.
-    echo If Python is installed, you can also try from a terminal:
-    echo   py coin_collection_gui.py
-    pause
-    exit /b 1
+py --version >nul 2>nul
+if %errorlevel%==0 (
+    set "PYTHON_EXE=py"
+    goto run
 )
-
+echo Python was not found. Install Python 3.12+ and create the project .venv.
+pause
+exit /b 1
+:run
 pushd "%APP_DIR%" >nul
-start "" "%PYTHON_EXE%" "%APP_FILE%"
-if errorlevel 1 (
-    popd >nul
-    echo Coin Analyzer could not be started with %PYTHON_EXE%.
-    echo Try from a terminal:
-    echo   python coin_collection_gui.py
-    echo or:
-    echo   py coin_collection_gui.py
-    pause
-    exit /b 1
-)
+if errorlevel 1 exit /b 1
+"%PYTHON_EXE%" "%APP_FILE%"
+set "APP_EXIT=%ERRORLEVEL%"
 popd >nul
-
-endlocal
-exit /b 0
+if not "%APP_EXIT%"=="0" pause
+exit /b %APP_EXIT%
