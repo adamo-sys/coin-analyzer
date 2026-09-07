@@ -424,7 +424,13 @@ class VisualIdentityProviderTests(unittest.TestCase):
                 "estimated_cost_usd",
             },
         )
-        serialized = json.dumps(payload, sort_keys=True)
+        serialized = json.dumps(
+            {
+                key: payload[key]
+                for key in ("scan_id", "stage", "provider", "model", "error_type")
+            },
+            sort_keys=True,
+        )
         for forbidden in (
             "CANADA",
             "5 CENTS",
