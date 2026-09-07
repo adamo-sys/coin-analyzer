@@ -3,6 +3,10 @@ Coin Collection Manager GUI
 MVP app for managing coin collection with manual editing and optional automatic identification.
 """
 
+if __name__ == "__main__":
+    from coin_analyzer_startup import main as startup_main
+    raise SystemExit(startup_main())
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
@@ -12630,7 +12634,3 @@ def main():
     root = tk.Tk()
     app = CoinCollectionGUI(root)
     root.mainloop()
-
-
-if __name__ == "__main__":
-    main()
