@@ -147,6 +147,79 @@ Completion evidence:
 
 The initial `example.com` probe failed because the host machine's configured DNS resolver returned NXDOMAIN for that domain while public resolvers resolved it correctly. This was classified as an environmental DNS condition, not a Playwright MCP or repository defect.
 
+## T8 GitHub Actions Static Assurance — QUEUED
+
+Evaluate `zizmor` and `actionlint` as complementary advisory checks over `.github/workflows/`.
+
+Initial policy:
+- run both tools advisory-first and without auto-fix;
+- classify findings as true defect, hardening opportunity, accepted risk, or false positive;
+- preserve existing GitHub Actions and human merge authority;
+- promote a check to blocking status only after repeated evidence demonstrates low noise and clear value.
+
+Tracking reference: Issue #213.
+
+## T9 Coverage Instrumentation — QUEUED
+
+Evaluate `coverage.py` plus `diff-cover`, with changed-line coverage as the primary signal rather than a repository-wide percentage target.
+
+Initial policy:
+- establish an advisory Ubuntu baseline first;
+- measure runtime overhead and report usefulness;
+- keep historical total coverage informational;
+- do not introduce a percentage gate until a defensible baseline and ratchet policy exist.
+
+Tracking reference: Issue #213.
+
+## T10 Diff-Aware Semgrep — QUEUED
+
+Evaluate Semgrep against changed production Python, using a baseline/diff-aware scan rather than indiscriminate whole-repository scanning.
+
+Initial policy:
+- record useful findings, false positives, runtime, and timeouts;
+- keep findings advisory during the pilot;
+- evaluate repository-specific architectural rules only after the generic pilot demonstrates useful signal;
+- promote individual proven rules rather than treating every Semgrep rule as merge authority.
+
+Tracking reference: Issue #213.
+
+## T11 Release Provenance and SBOM — QUEUED
+
+Evaluate GitHub Artifact Attestations and SBOM generation for a future proper release pipeline.
+
+Initial policy:
+- treat attestations as build provenance, not security certification;
+- retain exact source/build linkage and verification evidence;
+- preserve existing CI and human release authority;
+- avoid changing runtime behavior merely to satisfy provenance tooling.
+
+Tracking reference: Issue #213.
+
+## T12 CI Runtime Observation — QUEUED
+
+Evaluate StepSecurity Harden-Runner on one low-risk workflow in audit mode before considering enforcement.
+
+Initial policy:
+- begin with `egress-policy: audit` only;
+- establish normal network and process behavior across repeated runs;
+- investigate unexpected destinations or mutations before creating allowlists;
+- do not begin in block mode and do not grant new workflow authority.
+
+Tracking reference: Issue #213.
+
+## Adjacent research queue
+
+Two related tools remain deliberately outside the T8-T12 execution order:
+
+- **Pacify-X:** sealed-sandbox evaluation only; compare its control-plane, governance, state-recovery, and evidence model with existing Coin Analyzer infrastructure before considering integration.
+- **pxpipe / image-token compression:** research only; exact-recall risk for SHAs, paths, IDs, numeric values, and contracts prevents normal workflow adoption without a substantially stronger validation gate.
+
+## Execution order
+
+The queued assurance experiments should be evaluated in this order unless later evidence justifies an explicit roadmap change:
+
+`zizmor/actionlint -> coverage+diff-cover -> diff-aware Semgrep -> artifact attestations/SBOM -> Harden-Runner audit`
+
 ## Standing authority boundary
 
 None of these tooling phases grants autonomous target selection, silent collection/model/prompt/config mutation, automatic retries, candidate synthesis, merge, deploy, release, or promotion authority. Repository CI and human merge authority remain mandatory.
