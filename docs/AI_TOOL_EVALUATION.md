@@ -149,6 +149,20 @@ still describes them as future work.
 - Interpretation: the two pilots demonstrate both useful outcomes: mutation testing can confirm strong existing tests and can expose a specific green-suite coverage weakness that a narrow regression test then closes.
 - Decision: keep mutation testing as an explicit bounded/advisory diagnostic and use it selectively for deterministic functions with clear contracts. Do not add a whole-repository mutation gate until runtime, dependency setup, and signal-to-noise justify stronger integration.
 
+### AgentDiff
+
+- Role: deterministic/heuristic agent-oriented diff analysis for change grouping, relationship mapping, change-type classification, and reviewer navigation; not an AI semantic-review authority.
+- Status: retain for advisory evaluation.
+- Controlled benchmark: evaluated the exact PR #199 (runtime readiness) diff, base `ec8b4a7169445802a57fd937f9ca9cf9bb45a161`, head `aaf0b8bff95b75464d6964360380f48c67d3399c`; 7 changed files, +462/-64.
+- Result: classified 2 files high risk, 4 medium, and 1 low. Correctly identified relationships among runtime readiness, startup integration, GUI integration, and tests, and produced a useful reviewer-oriented change map and review order.
+- Risk-label weaknesses: classified a synthetic secret sentinel in a test as secret exposure and architecture documentation discussing auth/API-key boundaries as high risk. Assigned `Launch_Coin_Analyzer.bat` low risk despite meaningful startup/interpreter-selection and exit-code behavior.
+- Operational notes: Windows/PowerShell input handling rejected UTF-16 and UTF-8 BOM JSON; no-BOM UTF-8 was required. Plan schema/discovery was not obvious from CLI help.
+- Comparison scope: Ruff 0.16.6 and Semgrep 1.176.1 ran against the exact PR #199 head, limited to the five changed Python files: `coin_analyzer_startup.py`, `coin_collection_gui.py`, `runtime_readiness.py`, `tests/test_coin_collection_gui_entrypoint.py`, and `tests/test_runtime_readiness.py`.
+- Comparison results: Ruff produced concrete deterministic findings including BLE001 broad `Exception` catches, import ordering, and unused imports. Semgrep produced one `exec()` audit finding in `tests/test_coin_collection_gui_entrypoint.py`; two rules timed out against `coin_collection_gui.py`, which dominated core scan time (approximately 48 of 49 seconds).
+- Evidence boundary: this head-only comparison does not establish which Ruff/Semgrep findings PR #199 introduced; that claim requires a base-vs-head differential scan.
+- Decision: retain/evaluate as advisory tooling. AgentDiff provides change grouping, relationship mapping, change-type classification, and reviewer navigation that Ruff/Semgrep do not, but does not replace deterministic linting, static/security analysis, tests, or CI. Do not use its risk labels as a merge gate or security authority.
+- Suggested role: agent change -> AgentDiff review map -> deterministic/static analysis + tests -> CI authority.
+
 ### OpenCode
 
 - Role: independent read-only reviewer/second opinion, not primary implementer.
