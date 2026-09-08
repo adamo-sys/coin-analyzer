@@ -16,17 +16,27 @@ Describe the bounded change and why it is needed.
 - [ ] Ruff syntax gate is green.
 - [ ] Gitleaks is green.
 
+CI status: pending / running / passed / failed (link the run; distinguish advisory findings).
+
 ## Risk / boundaries
+
+Describe the concrete risks, or state none identified.
 
 - [ ] No secrets, private corpus material, or unauthorized evidence were added.
 - [ ] Privacy, provenance, licensing, and evidence boundaries remain intact.
 - [ ] Existing acceptance-set identity/abstention semantics were not broadened unintentionally.
+- [ ] Collection mutation and collector-decision authority are unchanged unless explicitly authorized above.
 - [ ] Existing lint/type debt was not converted into an unrelated blocker.
 - [ ] Any deferred debt or follow-up work is listed below.
 
 ## Changed files
 
 List the important files and the reason each changed.
+
+## Stop conditions
+
+None encountered, or list the violation, resolution, and any unresolved blocker.
+Do not mark unresolved blocking validation or authority violations ready for merge.
 
 ## Follow-up / deferred work
 

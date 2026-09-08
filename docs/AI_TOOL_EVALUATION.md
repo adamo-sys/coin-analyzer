@@ -27,6 +27,73 @@ For each tool or configuration, record:
 - approximate completion time;
 - decision: adopt, optional, retry later, or reject.
 
+## Developer-tool version record
+
+This is the canonical inventory of development/quality tool version sources,
+verified against main `5d8688e6085524e4c1966c11c30b471c06c59d22` for Issue #52.
+The linked executable declarations remain authoritative: this record does not
+install tools, change pins, or freeze floating CI resolutions. Update the matching
+row when changing its declaration; keep historical pilot results below intact.
+
+| Tool | Declared version / resolution | Authoritative declaration and scope |
+| --- | --- | --- |
+| Python | 3.12 in CI; patch selected by setup-python | [Tests](../.github/workflows/tests.yml) and the other workflow setup steps; not an exact interpreter build pin |
+| Ruff | 0.16.5 | [Tests](../.github/workflows/tests.yml), required syntax-only E9 gate |
+| Pyright | 1.1.411 | [Tests](../.github/workflows/tests.yml) and [Quality Advisory](../.github/workflows/quality-advisory.yml); keep both declarations aligned |
+| Gitleaks | action v3; binary version not explicitly pinned here | [Tests](../.github/workflows/tests.yml), required history scan |
+| Hypothesis | lock snapshot 6.167.1; CI resolves an unpinned requirement | [requirements-dev.lock](../requirements-dev.lock), [requirements-dev.txt](../requirements-dev.txt), and [Quality Advisory](../.github/workflows/quality-advisory.yml) |
+| coverage | lock snapshot 7.16.0; declared unpinned, no CI measurement yet | [requirements-dev.lock](../requirements-dev.lock) and [requirements-dev.txt](../requirements-dev.txt) |
+| pytest | lock snapshot 9.1.1; declared unpinned | [requirements-dev.lock](../requirements-dev.lock) and [requirements-dev.txt](../requirements-dev.txt); used by the mutation pilot |
+| mutmut | 3.7.0 | [Mutmut Advisory](../.github/workflows/mutmut-advisory.yml), manually dispatched non-blocking pilot |
+| pip-audit | 2.10.1 | [Dependency Audit](../.github/workflows/dependency-audit.yml), audits the three lockfiles |
+| CodeQL | action v4; analysis bundle managed by the action | [CodeQL Advisory](../.github/workflows/codeql.yml); not a fixed analyzer binary version |
+| uv | generator version not recorded | Lockfile headers record `uv pip compile` commands, not the generator version; no new version is inferred |
+
+Runtime requirements are intentionally unchanged. A lock snapshot is evidence of
+one resolution, not proof that workflows installing `.txt` files use those exact
+versions. Consolidating executable tool constraints or adopting lockfile installs
+requires a separate compatibility change; do not turn this inventory into a
+second dependency mechanism.
+
+### Issue #52 bounded maintenance findings
+
+- **PR template / security policy:** both already existed. The maintenance slice
+  fills explicit CI/stop-condition/collection-authority reporting and credential
+  exposure/private-collection guidance rather than creating duplicate documents.
+  GitHub private vulnerability reporting was disabled when checked; SECURITY.md
+  retains its existing conditional channel and minimal public contact-request
+  fallback. No contact address or service commitment is invented.
+- **Coverage:** the dependency already exists, but there is no measurement job or
+  defensible percentage baseline. Defer instrumentation: another full test run
+  would duplicate costly regression work, while adding tracing to a required job
+  needs an overhead comparison. A separate advisory-only pilot should measure
+  the same synthetic test selection with/without coverage, establish source and
+  fixture exclusions, and publish text/JSON evidence only. No percentage gate,
+  badge, benchmark claim, or test replacement is authorized by this record.
+- **CI runtime:** every inspected job already has a timeout; most Python jobs
+  use setup-python pip caching. Per-job dependency installs serve isolated
+  environments and are not removable as duplicate shell steps. Push and PR runs,
+  the standalone Hypothesis pilot versus discovery, and pre-discovery boundary
+  tests overlap intentionally or potentially; measure their diagnostic value and
+  cache hit rates before changing trigger/gate behavior. The manual mutation job
+  has no pip cache; frequency/cost evidence is needed before optimizing it.
+  One [main test run](https://github.com/adamo-sys/coin-analyzer/actions/runs/34175279374)
+  at the same recorded SHA took 65 seconds for Ubuntu and 186 seconds for Windows
+  (job elapsed time, not a typical-runtime baseline or isolated test duration).
+- **Next Pyright candidate:** `atomic_json.py`, a small stdlib-only module. The
+  [current advisory artifact](https://github.com/adamo-sys/coin-analyzer/actions/runs/34175279339)
+  reports 691 files, 3,189 errors, and 1 warning overall, with zero diagnostics for
+  that module. This nominates a separate focused `pyright atomic_json.py` check
+  under 1.1.411 plus its existing persistence tests before any blocking expansion;
+  it does not claim that standalone check was run. Do not change atomic-write,
+  receipt, or collection authority semantics for typing. High-debt GUI/provider
+  modules remain inappropriate for this maintenance slice.
+
+No CI workflow, required check, production module, runtime dependency, or Issue #52
+checkbox is changed by this documentation-only slice. Existing dependency auditing,
+CodeQL, property tests, and type gates are retained even where older issue text
+still describes them as future work.
+
 ## Current stack
 
 ### Codex
