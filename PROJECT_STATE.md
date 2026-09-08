@@ -1,7 +1,18 @@
 # Project State
 
+## Current reconciliation — 2026-09-08
+
+The dated records below are historical snapshots, including their old pending
+commit/release notes and Sprint 20 planning labels. Current audited main is
+`b9e976a1c0941936555ea57ea00bf45cd7d991ff`: Sprint 20, Stage 11, runtime readiness,
+Doctor, desktop persistence/cancellation acceptance, and bounded AI audit-store
+work have subsequently merged. See
+[backlog reconciliation](docs/BACKLOG_RECONCILIATION_2026_09_08.md) for current
+CI, remaining evidence gaps and work disposition. No release/tag or native Tk
+validation is implied by this bookkeeping update.
+
 <!-- SPRINT-19-POST-MERGE-CLOSEOUT-2026-08-05 -->
-## Current Development State - 2026-08-05
+## Historical Development State - 2026-08-05
 
 - **Sprint 19:** complete and merged to `main` (PR #11, squash commit `59c114f`, 2026-08-05).
 - **Current branch:** `main`

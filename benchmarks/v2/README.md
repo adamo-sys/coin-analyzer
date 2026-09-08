@@ -5,9 +5,12 @@ before any candidate visual model was run. It is an evaluation baseline, not a
 training set. `prepare_dataset.py` records the fixed source inventory and
 reproduces the committed images and manifest from Wikimedia Commons sources.
 
-Benchmark v1 remains unchanged. Benchmark v2 does not score OCR, fusion,
-review, or persistence and no visual provider has been run against these
-cases.
+Benchmark v1 remains unchanged. The frozen visual dataset does not itself score
+OCR, fusion, review, or persistence. The original pre-run status has since been
+superseded by the prospective visual experiment and separate fusion evaluation
+recorded in [VISUAL_IDENTIFICATION.md](../../docs/architecture/VISUAL_IDENTIFICATION.md).
+The visual result supports only its bounded candidate-generation claim; the
+fusion result failed and does not authorize production fusion.
 
 The optional `type_design` field uses a concise source-verifiable label rather
 than a new global coin taxonomy. Missing type/design labels are intentionally

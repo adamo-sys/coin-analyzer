@@ -120,7 +120,7 @@ Completion references: PR #110 Stage 10 runtime and PR #112 Stage 10 reliability
 Architecture authority: `docs/STAGE_10_PARALLEL_EXPERIMENTS_CONTRACT.md`.
 Reliability gate: `docs/STAGE_10_RELIABILITY_GATE.md`.
 
-### 11. Specialized Candidate Roles — NEXT / ARCHITECTURE FROZEN
+### 11. Specialized Candidate Roles — COMPLETE
 
 Specialize the two existing Stage 10 candidates so their comparison produces meaningfully different bounded implementation strategies without increasing candidate count or autonomy.
 
@@ -150,6 +150,11 @@ Still prohibited:
 - merge, deploy, release, or promotion authority.
 
 Architecture authority: `docs/STAGE_11_SPECIALIZED_CANDIDATE_ROLES_CONTRACT.md`.
+
+Completion: PR #114 merged `specialized_parallel_experiment.py` and its focused
+tests. The 2026-09-08 audit reran the reviewer and specialized-role suites:
+24 pytest cases passed. This completes the frozen two-strategy runtime only;
+none of the prohibited authority or broader autonomy above is authorized.
 
 ## Future research notes
 

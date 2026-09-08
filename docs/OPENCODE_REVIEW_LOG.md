@@ -86,6 +86,37 @@ Purpose: record completed and incomplete OpenCode reviewer-pilot evidence withou
 
 ## Repetition status
 
+### Retrospective PR #216 — executed 2026-09-08
+
+- Base: `a7a6283460cc4a37d813bca7a9cce267789e9a5e`.
+- Head: `0809e04e62e4ee09439891bdb750c43c9f890ce6`.
+- Already merged as `b9e976a1c0941936555ea57ea00bf45cd7d991ff`.
+- OpenCode 1.18.29; `opencode/nemotron-3.5-lightning-free`; Windows PowerShell.
+- Actual invocation completed with exit 0 and returned review text. `--pure`
+  and permission `deny` prevented reviewer tool use; the attachment contained
+  the exact `git diff base..head` and all five `git show head:path` contents.
+  No product provider, private data or images were used.
+- Returned verdict: **MERGE WITH NONBLOCKING FINDINGS**, zero reported blockers.
+  The useful limitation was that SHA-to-tag correspondence cannot be proven from
+  a diff alone. The primary audit separately verified all six mappings upstream.
+- Two inaccurate observations: the output mentioned Gitleaks in `codeql.yml`
+  (it is in `tests.yml`) and described bounded Pyright as advisory (the bounded
+  check is blocking; whole-repo Pyright is advisory). Do not adopt either claim.
+- Formatting friction: `**FINAL VERDICT**:` was returned instead of the literal
+  requested `FINAL VERDICT:` token. This is an actual completed retrospective
+  run with limitations, not protocol-perfect pre-merge evidence. No new repeat
+  run is needed merely to polish the record.
+- Setup friction: sandbox configuration access failed; host version inspection
+  succeeded. The first run command's `--file` consumed the following message and
+  failed before review; putting the message first corrected CLI argument parsing.
+- Raw package SHA-256: `C563980E979EF36ECB098575EAE563EE886773C95ED0A13EDFBD0F2680BDB98A`.
+- Raw JSONL SHA-256: `1B7FD51E92ED49ACDA006F18E46DCBF5339C593C32449DE7E7ED07670F21DFB8`.
+  Package/output remain in the local 2026-09-08 audit workspace; sanitized
+  returned review and limitations are attached as text to PR #216's audit comment.
+- Main CI remained authoritative and green; OpenCode performed no tests or
+  remote verification. Decision: retain as optional reviewer with explicit
+  factual cross-checking, without expanding its authority or reliability claims.
+
 Four later successful documentation-only reviews (#153, #160, #166, and #168) now supplement the historical PR #60 benchmark. They strengthen evidence that exact-head packaging and the Windows PowerShell 5.1 execution path are repeatable, while still not establishing production-code reviewer reliability and not justifying OpenCode as an authoritative merge gate.
 
 Observed setup and execution friction remains part of the evidence: start from the repository root, fetch and verify the recorded base/head objects, avoid Bash-only `&&` and Unix-only helpers under Windows PowerShell 5.1, treat provider/shell/setup failures as unsuccessful attempts rather than verdicts, and explicitly prohibit repository-mutating Git commands during read-only reviews.

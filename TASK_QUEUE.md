@@ -1,5 +1,11 @@
 # Task Queue
 
+Current queue reconciliation (2026-09-08): see
+[BACKLOG_RECONCILIATION_2026_09_08.md](docs/BACKLOG_RECONCILIATION_2026_09_08.md).
+The version/sprint checklists below are historical; unchecked procedural
+templates and old pending hashes do not automatically create new implementation
+or release work. Preserve legitimate future scope and evidence gates.
+
 <!-- SPRINT-19-POST-MERGE-CLOSEOUT-2026-08-05 -->
 ## Completed - Sprint 19 Schema Stabilization
 
