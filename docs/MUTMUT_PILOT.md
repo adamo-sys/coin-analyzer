@@ -94,3 +94,44 @@ The exit gate is satisfied:
 ## Authority boundary
 
 Mutmut may reveal weak tests. It does not select remediation targets autonomously, modify production code, approve candidates, retry agents, merge, deploy, release, or promote changes.
+
+## Evidence report states
+
+The capture helper targets **mutmut 3.7.0** only. Its results parser accepts blank
+output or the version's `<mutant>: <status>` lines; unknown lines/statuses fail
+closed as UNAVAILABLE. Survivor details must have the version's
+`# <mutant>: survived` header. Revisit these assumptions explicitly before a
+tool upgrade.
+
+| State | Meaning |
+| --- | --- |
+| COMPLETE | Primary results retrieval succeeded and was recognized, with successful mutation execution and all requested survivor details available. |
+| INCOMPLETE | Primary results are available, but mutation execution was unsuccessful/unknown or a survivor detail was unavailable/unrecognized. |
+| UNAVAILABLE | Primary results could not be retrieved or recognized; overrides other states. |
+
+Only COMPLETE may report a survivor count, including `No survivor entries reported`
+for successful empty results. This is evidence-capture status, not a mutation
+score: mutmut normally omits killed mutants, and other statuses remain in the
+raw output. Missing or partial evidence never becomes a claim of zero survivors.
+
+The workflow retains mutation-run output in the Actions log and passes its
+outcome and actual exit code to the helper. A skipped/cancelled run can have no
+exit code; it is not considered successful. The helper never executes mutations.
+
+Artifacts retain `mutmut-results.txt` and `mutmut-survivor-diffs.txt`, now with
+explicit states, command arguments, stdout, stderr, and exit codes.
+`mutmut-report.json` contains the structured report. A command that cannot start
+has a null exit code and an explicit launch error. Failed survivor details name
+the mutant and preserve other details. INCOMPLETE and UNAVAILABLE return exit
+code 1; COMPLETE returns 0. Artifact upload remains `if: always()`, and the
+workflow remains advisory.
+
+Focused verification (mocked subprocesses and temporary directories; no mutmut
+installation or real mutation tests required):
+
+```text
+python -m unittest tests.test_mutmut_evidence_capture
+```
+
+A manual Ubuntu advisory run remains the integration check for real artifacts.
+This repair is CI cleanup; T9 coverage.py + diff-cover remains the next experiment.

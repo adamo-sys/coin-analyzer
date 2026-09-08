@@ -32,50 +32,23 @@ jobs:
         run: python -m pytest test_reviewer_agent.py -q
 
       - name: Run bounded mutation pilot
-        run: mutmut run
+        id: mutation
+        shell: bash
+        run: |
+          if mutmut run; then
+            code=0
+          else
+            code=$?
+          fi
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
 
       - name: Capture mutation results and survivor diffs
         if: always()
-        shell: bash
-        run: |
-          set -u
-          mkdir -p artifacts
-
-          mutmut results | tee artifacts/mutmut-results.txt || true
-
-          : > artifacts/mutmut-survivor-diffs.txt
-
-          mapfile -t survivors < <(
-            sed -n 's/^[[:space:]]*\([^:]*\): survived[[:space:]]*$/\1/p' \
-              artifacts/mutmut-results.txt
-          )
-
-          {
-            echo "Mutmut survivor detail evidence"
-            echo "================================"
-            echo "Survivor count: ${#survivors[@]}"
-            echo
-          } >> artifacts/mutmut-survivor-diffs.txt
-
-          if [ "${#survivors[@]}" -eq 0 ]; then
-            echo "No surviving mutants." >> artifacts/mutmut-survivor-diffs.txt
-          else
-            for mutant in "${survivors[@]}"; do
-              {
-                echo
-                echo "========================================================================"
-                echo "MUTANT: $mutant"
-                echo "========================================================================"
-              } >> artifacts/mutmut-survivor-diffs.txt
-
-              mutmut show "$mutant" \
-                >> artifacts/mutmut-survivor-diffs.txt 2>&1 || true
-            done
-          fi
-
-          echo
-          echo "=== Survivor diff evidence ==="
-          cat artifacts/mutmut-survivor-diffs.txt
+        env:
+          MUTMUT_RUN_OUTCOME: ${{ steps.mutation.outcome }}
+          MUTMUT_RUN_EXIT_CODE: ${{ steps.mutation.outputs.exit_code }}
+        run: python tools/capture_mutmut_evidence.py
 
       - name: Upload advisory mutation evidence
         if: always()
