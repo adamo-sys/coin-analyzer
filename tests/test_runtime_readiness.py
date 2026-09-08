@@ -64,6 +64,29 @@ class RuntimeReadinessTests(unittest.TestCase):
         self.assertEqual(report.status_for(Capability.OCR), Status.UNAVAILABLE)
         self.assertEqual(report.status_for(Capability.AI), Status.UNAVAILABLE)
 
+    def test_engine_probe_uses_configured_tesseract_command(self):
+        which = Mock(return_value="found")
+        evaluate_readiness(
+            importer=lambda _: SimpleNamespace(
+                pytesseract=SimpleNamespace(tesseract_cmd="synthetic-tesseract")
+            ),
+            which=which,
+            environ={},
+            version=(3, 12),
+        )
+        which.assert_called_once_with("synthetic-tesseract")
+
+    def test_missing_api_key_is_unavailable(self):
+        report = evaluate_readiness(
+            importer=lambda _: SimpleNamespace(
+                pytesseract=SimpleNamespace(tesseract_cmd="synthetic-tesseract")
+            ),
+            which=lambda _: "found",
+            environ={},
+            version=(3, 12),
+        )
+        self.assertEqual(report.status_for(Capability.AI), Status.UNAVAILABLE)
+
     def test_engine_probe_failure_does_not_leak_exception(self):
         report = evaluate_readiness(
             importer=lambda _: SimpleNamespace(pytesseract=SimpleNamespace(tesseract_cmd="test")),
