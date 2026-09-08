@@ -1,10 +1,16 @@
 # Backlog reconciliation — 2026-09-08
 
-Audited main: `b9e976a1c0941936555ea57ea00bf45cd7d991ff`. This dated record
+Initial audited main: `b9e976a1c0941936555ea57ea00bf45cd7d991ff`. This dated record
 supersedes older current-status labels, not architecture contracts or historical
 evidence. The pre-change reconciliation and raw audit snapshots are retained in
 the local audit workspace. No private corpus, notes, backup or photographs were
 used to decide completion.
+
+Concurrent update: #217 was merged by `adamo-sys` at 2026-09-08 21:57:08 UTC
+as `5af6bba389bb3afa0e98cf6cca49ef2d3cb6de94` before the audit's closure request.
+This audit did not merge it. PR #219 incorporates that main and removes the
+case-colliding uppercase template while preserving the lowercase template and
+useful review wording. #215 was closed with verified completion evidence.
 
 ## Finish now / bookkeeping
 
@@ -12,7 +18,7 @@ used to decide completion.
 | --- | --- |
 | Misleading mutation evidence | PR #218 completes the existing uncommitted local repair. Main suppressed capture failures and could print “No surviving mutants.” The repair retains exit codes/output, distinguishes COMPLETE/INCOMPLETE/UNAVAILABLE, and leaves mutation policy advisory. Ten focused capture tests passed; no mutation execution is inferred from mocks. |
 | #215 immutable action SHAs | Already implemented by #216: five files, 23 reference replacements. All six distinct action/tag mappings verified from upstream Git refs. actionlint 1.7.12 and offline zizmor 1.30.0 pass; authoritative main workflows are green. Acceptance is satisfied independently of OpenCode. |
-| #217 duplicate template | Obsolete as an addition: main already contains `.github/pull_request_template.md`; the uppercase addition creates a case collision. Retain one lowercase template, carrying the useful exact-head review/advisory wording into it. Close #217 without merge. |
+| #217 duplicate template | Superseded addition, but concurrently merged before closure. Remove `.github/PULL_REQUEST_TEMPLATE.md` in #219 and retain one lowercase template with the useful exact-head review/advisory wording. Do not claim this audit closed #217 without merge. |
 | #52 checklist drift | Security policy and PR template exist; dependency-audit CI and canonical developer-version inventory exist; atomic_json.py joined bounded Pyright in #212. Update completed bookkeeping while keeping the umbrella open. |
 | T6/T8/Stage 11 stale status | T6's completed evidence is in MUTMUT_PILOT.md; #213 records T8; #114 merged Stage 11 runtime/tests. Correct status labels, preserving reusable run checklists. Reviewer/Stage 11 pytest suites: 24 passed. |
 | Sprint/product status drift | Sprint 8 completed in 94495f3/a356810; Sprint 20 merged in ad2e861. Later desktop load/save/cancellation acceptance is in #192–#198; runtime readiness/Doctor in #199/#200; AI audit seam in #205/#206/#208. Old planning headers and historical pending hashes must not drive duplicate work. No new native Tk or release claim. |
@@ -87,6 +93,12 @@ pilot with matched test selection and explicit overhead/failure evidence. The
 larger product evidence priority remains owner-authorized corpus completion.
 Merge readiness for this closeout and #218 remains subject to their exact-head
 CI and explicit PR merge authorization under AGENTS.md.
+
+The actual advisory mutation workflow on #218 completed successfully:
+[34283698240](https://github.com/adamo-sys/coin-analyzer/actions/runs/34283698240),
+exact head `e03c603d6771ae46775e9173c9a6dd322a6c894e`. This execution is separate
+from the mocked capture tests; the retained artifact/report is its integration
+evidence. It changes no mutation or promotion authority.
 
 Local validation caveat for #218: root discovery ran 5,417 tests. The sandbox
 run had nine Doctor directory-handle failures (26 skips); the host rerun cleared
