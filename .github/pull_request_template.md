@@ -35,6 +35,11 @@ List the important files and the reason each changed.
 
 ## Stop conditions
 
+Record any independent review against the exact head SHA. Claim an OpenCode
+review only after an actual returned result. If the head changes, review evidence
+must be refreshed. Whole-repository Pyright remains advisory; only the explicitly
+cleaned bounded type check is required unless this PR deliberately changes policy.
+
 None encountered, or list the violation, resolution, and any unresolved blocker.
 Do not mark unresolved blocking validation or authority violations ready for merge.
 

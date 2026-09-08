@@ -147,7 +147,7 @@ Completion evidence:
 
 The initial `example.com` probe failed because the host machine's configured DNS resolver returned NXDOMAIN for that domain while public resolvers resolved it correctly. This was classified as an environmental DNS condition, not a Playwright MCP or repository defect.
 
-## T8 GitHub Actions Static Assurance — QUEUED
+## T8 GitHub Actions Static Assurance — COMPLETE / ADVISORY
 
 Evaluate `zizmor` and `actionlint` as complementary advisory checks over `.github/workflows/`.
 
@@ -157,9 +157,21 @@ Initial policy:
 - preserve existing GitHub Actions and human merge authority;
 - promote a check to blocking status only after repeated evidence demonstrates low noise and clear value.
 
-Tracking reference: Issue #213.
+Completion: Issue #213 records the advisory pilot; PR #216 merged the immutable
+SHA remediation tracked by #215. Audit on 2026-09-08 verified all six distinct
+action/tag mappings, actionlint 1.7.12 exit 0, and zizmor 1.30.0 offline exit 0
+with no findings. Existing blocking and advisory policies are unchanged.
+
+Tracking references: Issues #213 and #215; see [closeout](BACKLOG_RECONCILIATION_2026_09_08.md).
 
 ## T9 Coverage Instrumentation — QUEUED
+
+Local preparation is **incomplete**, not a successful baseline: retained Windows
+logs at main `b9e976a` show a 5,407-test venv baseline passing (26 skipped), but
+the coverage run failed Hypothesis's slow-input health check. Earlier runs also
+lacked Hypothesis. No valid overhead comparison, coverage report or diff-cover
+result is established. Resume with the planned controlled Ubuntu pilot; preserve
+the failed evidence and do not weaken production tests to manufacture a result.
 
 Evaluate `coverage.py` plus `diff-cover`, with changed-line coverage as the primary signal rather than a repository-wide percentage target.
 

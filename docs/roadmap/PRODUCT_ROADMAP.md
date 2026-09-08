@@ -40,14 +40,15 @@ with optional mobile companions and cloud services.
 
 **Status:** Completed (commit `f73f29f`)
 
-### Sprint 8 — Image Processing Pipeline 🔄
+### Sprint 8 — Image Processing Pipeline ✅
 - Image normalization
 - Crop detection
 - Obverse/reverse pairing
 - Duplicate detection improvements
 - Image quality scoring
 
-**Status:** Planning — contract and ADR in progress
+**Status:** Completed; implementation commits `94495f3` and `a356810`.
+See the completed Sprint 8 record in [TASK_QUEUE.md](../../TASK_QUEUE.md).
 **Builds on:** Sprint 7 processing-stage framework
 **Plan:** `docs/roadmap/SPRINT_08_PLAN.md`
 **ADR:** `docs/adr/ADR-008-image-processing-pipeline.md`
@@ -75,6 +76,11 @@ with optional mobile companions and cloud services.
 ---
 
 ## Phase 3 — Applications
+
+The later capability labels in this historical plan are aspirations, not current
+sprint assignments. Sprint 19/20 and subsequent bounded desktop work have landed;
+see [current reconciliation](../BACKLOG_RECONCILIATION_2026_09_08.md). Grading,
+dealer, cloud and mobile expansion still require their own approved scope.
 
 ### Desktop
 - Windows (primary)

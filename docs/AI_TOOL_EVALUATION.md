@@ -29,6 +29,14 @@ For each tool or configuration, record:
 
 ## Developer-tool version record
 
+Current status correction (2026-09-08): `atomic_json.py` joined the blocking
+boundary in PR #212; the candidate note below is historical. PR #216 pinned
+action references, and #218 tracks truthful mutation-evidence capture. See
+[closeout](BACKLOG_RECONCILIATION_2026_09_08.md) and
+[OpenCode review log](OPENCODE_REVIEW_LOG.md) for the actual retrospective #216
+execution and its limitations. T9's partial Windows run is not a successful
+coverage/overhead baseline.
+
 This is the canonical inventory of development/quality tool version sources,
 verified against main `5d8688e6085524e4c1966c11c30b471c06c59d22` for Issue #52.
 The linked executable declarations remain authoritative: this record does not

@@ -3,7 +3,12 @@
 ## Status
 
 This document is the frozen architecture specification for Sprint 20.
-Implementation has not started.
+The original implementation merged in `ad2e861` (Sprint 20 end-to-end desktop
+OCR workflow). Later explicitly authorized standalone-save and desktop
+acceptance work also landed. This contract's planning-era statements must not
+be read as current implementation status. See
+[the 2026-09-08 reconciliation](BACKLOG_RECONCILIATION_2026_09_08.md) for the
+bounded completion/evidence record; this update claims no new native Tk run.
 
 ## Authorized Amendment — Primary Standalone Image Confirmed-Save Path
 
