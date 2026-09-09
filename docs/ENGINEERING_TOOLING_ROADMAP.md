@@ -164,22 +164,22 @@ with no findings. Existing blocking and advisory policies are unchanged.
 
 Tracking references: Issues #213 and #215; see [closeout](BACKLOG_RECONCILIATION_2026_09_08.md).
 
-## T9 Coverage Instrumentation — QUEUED
+## T9 Coverage Instrumentation — COMPLETE / MANUAL-ONLY ADVISORY
 
-Local preparation is **incomplete**, not a successful baseline: retained Windows
-logs at main `b9e976a` show a 5,407-test venv baseline passing (26 skipped), but
-the coverage run failed Hypothesis's slow-input health check. Earlier runs also
-lacked Hypothesis. No valid overhead comparison, coverage report or diff-cover
-result is established. Resume with the planned controlled Ubuntu pilot; preserve
-the failed evidence and do not weaken production tests to manufacture a result.
+The corrected Ubuntu 26.04 / Python 3.12.11 pilot at main `99934ed` completed
+with coverage.py 7.16.0 and diff-cover 10.5.1. Both executions passed 5,417 tests
+with 6 identical skips; full discovery/outcome lists matched. Test time was
+260.38 seconds baseline and 211.07 seconds instrumented (-18.94% observed).
+One sequential pair with negative overhead does not establish stable routine
+cost or the proposed 30% median-overhead criterion: retain manual-only use.
 
-Evaluate `coverage.py` plus `diff-cover`, with changed-line coverage as the primary signal rather than a repository-wide percentage target.
+The explicit `c8f8764` -> `99934ed` diff has 206/209 executable changed Python
+lines covered. XML paths and the three missing lines were verified. Earlier
+Windows failures and the corrected WSL TMPDIR failure remain preserved.
 
-Initial policy:
-- establish an advisory Ubuntu baseline first;
-- measure runtime overhead and report usefulness;
-- keep historical total coverage informational;
-- do not introduce a percentage gate until a defensible baseline and ratchet policy exist.
+See [T9 evidence and limitations](T9_COVERAGE_PILOT.md) for exact revisions,
+dependency freeze, commands, findings and artifact locations. This completes the
+pilot, not adoption of a CI gate. No blocking percentage or test weakening.
 
 Tracking reference: Issue #213.
 
