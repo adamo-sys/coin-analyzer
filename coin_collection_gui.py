@@ -9,6 +9,7 @@ if __name__ == "__main__":
 
 import tkinter as tk
 from typing import Any
+from collector_work_queue_gui import WorkQueueWindow
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
@@ -404,6 +405,8 @@ class CoinCollectionGUI:
         home_menu.add_command(label="Photo Inbox...", command=self.open_photo_inbox)
         home_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
         home_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
+
+        menubar.add_command(label="Work Queue", command=self.open_work_queue)
 
         # Workflows menu
         workflows_menu = tk.Menu(menubar, tearoff=0)
@@ -4795,7 +4798,47 @@ Total Unique Dates: {total_unique_dates}
         else:
             messagebox.showerror("Error", "Item not found")
 
-    def open_edit_item_window(self, item):
+    def open_work_queue(self):
+        """Open or refresh the first-class Collector Work Queue window."""
+        existing = getattr(self, "_work_queue_window", None)
+        if existing is not None and existing.is_open():
+            existing.refresh(choose_default=True)
+            existing.focus()
+            return existing
+
+        def clear_reference():
+            self._work_queue_window = None
+
+        self._work_queue_window = WorkQueueWindow(
+            self.root,
+            collection_provider=lambda: self.app.collection,
+            open_editor=lambda item, on_saved: self.open_edit_item_window(
+                item,
+                on_saved=on_saved,
+            ),
+            on_close=clear_reference,
+        )
+        return self._work_queue_window
+
+    def _finish_successful_item_edit(self, dialog, item_id, on_saved=None):
+        """Refresh successful edit surfaces and notify an optional caller."""
+        self.refresh_collection_list()
+        dialog.destroy()
+        callback_failed = False
+        if on_saved is not None:
+            try:
+                on_saved(item_id)
+            except Exception:
+                callback_failed = True
+        messagebox.showinfo("Success", "Item updated")
+        if callback_failed:
+            messagebox.showwarning(
+                "Work Queue Refresh",
+                "The item was saved, but the Work Queue could not be refreshed. "
+                "Reopen or refresh the Work Queue to see the latest tasks.",
+            )
+
+    def open_edit_item_window(self, item, on_saved=None):
         """Open a scoped edit dialog that includes item-owned photo metadata."""
         from collection_item_reference import CollectionItemReference
         try:
@@ -5011,9 +5054,7 @@ Total Unique Dates: {total_unique_dates}
                     f"The item was not updated: {result.error or 'collection save failed'}",
                 )
                 return
-            self.refresh_collection_list()
-            dialog.destroy()
-            messagebox.showinfo("Success", "Item updated")
+            self._finish_successful_item_edit(dialog, item.id, on_saved)
 
         ttk.Button(button_frame, text="Save", command=save_edit).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
