@@ -8,6 +8,7 @@ if __name__ == "__main__":
     raise SystemExit(startup_main())
 
 import tkinter as tk
+from typing import Any
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
@@ -2833,9 +2834,6 @@ Total Unique Dates: {total_unique_dates}
     def save_to_collection(self):
         """Save current coin to collection."""
         self.sync_current_image_path_from_photos()
-        if not self.app.current_image_path:
-            messagebox.showwarning("Warning", "Please upload an image first")
-            return
         
         country = self.country_var.get().strip()
         denomination = self.denomination_var.get().strip()
@@ -2843,9 +2841,6 @@ Total Unique Dates: {total_unique_dates}
         grade = self.grade_var.get().strip()
         notes = self.notes_text.get("1.0", tk.END).strip()
         
-        if not country or not denomination:
-            messagebox.showwarning("Warning", "Country and denomination are required")
-            return
 
         try:
             acquisition_text = (
@@ -2862,7 +2857,7 @@ Total Unique Dates: {total_unique_dates}
         use_detection = False  # Always false - manual fields are source of truth
         
         photos = self.normalized_photo_state(self.current_item_photos)
-        add_kwargs = {"photos": photos}
+        add_kwargs: dict[str, Any] = {"photos": photos}
         if hasattr(self, "acquisition_controls"):
             add_kwargs.update(acquisition)
         if self.app.add_to_collection(
@@ -4802,6 +4797,12 @@ Total Unique Dates: {total_unique_dates}
 
     def open_edit_item_window(self, item):
         """Open a scoped edit dialog that includes item-owned photo metadata."""
+        from collection_item_reference import CollectionItemReference
+        try:
+            edit_reference = CollectionItemReference.capture(self.app.collection, item)
+        except ValueError as error:
+            messagebox.showwarning("Item unavailable", str(error))
+            return
         dialog = tk.Toplevel(self.root)
         dialog.title("Edit Item")
         dialog.geometry("720x650")
@@ -5001,10 +5002,13 @@ Total Unique Dates: {total_unique_dates}
                 "image_path": primary.path if primary else "",
             }
             updates.update(acquisition)
-            if not self.app.collection.update_item(item.id, updates):
+            result = self.app.update_collection_item(
+                item.id, updates, photos, expected_reference=edit_reference
+            )
+            if not result.success:
                 messagebox.showerror(
                     "Save Failed",
-                    f"The item was not updated: {self.app.collection.last_save_error or 'collection save failed'}",
+                    f"The item was not updated: {result.error or 'collection save failed'}",
                 )
                 return
             self.refresh_collection_list()
