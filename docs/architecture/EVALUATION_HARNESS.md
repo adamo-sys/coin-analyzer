@@ -2,6 +2,10 @@
 
 Status: APPROVED — Benchmark v1 measurement contract
 
+Planning companion: [accuracy research/evaluation backlog](../roadmap/RESEARCH_EVALUATION_BACKLOG.md).
+Its development-set diagnostics are separate from this frozen benchmark contract;
+listing an experiment does not authorize execution or alter this architecture.
+
 ## Scope
 
 The evaluation harness measures the existing, opt-in production image/OCR
