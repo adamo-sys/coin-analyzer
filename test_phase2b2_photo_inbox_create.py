@@ -177,7 +177,7 @@ class Phase2B2PhotoInboxCreateTests(unittest.TestCase):
             photo_set_id = manager.get_pending_sets()[0].id
             app = DummyApp()
             gui = make_gui(app)
-            gui.country_var.set("")
+            gui.acquisition_controls = {"values": lambda: {"purchase_price": "-1"}}
             gui.load_photo_set_into_entry_form(manager, photo_set_id)
 
             with patch("coin_collection_gui.messagebox.showwarning"):
@@ -185,6 +185,23 @@ class Phase2B2PhotoInboxCreateTests(unittest.TestCase):
 
             self.assertEqual(0, app.add_count)
             self.assertEqual(PhotoSetState.NEW, manager.state.photo_sets[photo_set_id].state)
+
+    def test_incomplete_identity_save_attaches_inbox_set(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = make_manager(tmpdir)
+            write_photo(manager, "coin_front.jpg")
+            manager.scan()
+            photo_set_id = manager.get_pending_sets()[0].id
+            app = DummyApp()
+            gui = make_gui(app)
+            gui.load_photo_set_into_entry_form(manager, photo_set_id)
+            gui.country_var.set("")
+            with patch("coin_collection_gui.messagebox.showinfo"):
+                gui.save_to_collection()
+            self.assertEqual(1, app.add_count)
+            self.assertEqual(PhotoSetState.ATTACHED, manager.state.photo_sets[photo_set_id].state)
+            self.assertEqual("coin-created-1", manager.state.photo_sets[photo_set_id].linked_item_id)
+            self.assertEqual("", gui.pending_inbox_photo_set_id)
 
     def test_save_failure_leaves_set_pending(self):
         with tempfile.TemporaryDirectory() as tmpdir:
