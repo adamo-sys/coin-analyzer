@@ -76,25 +76,31 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install optional OpenAI dependencies
+      - name: Install optional OpenAI dependencies at compatibility floor
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-ai.txt
+          pip install -r requirements-ai.txt "openai==3.8.0"
 
       - name: Verify OpenAI SDK surfaces without network access
         run: |
           python - <<'PY'
+          from importlib.metadata import version
+
           import openai_collection_assistant
           from capture_import import visual_identity_provider
           from openai import OpenAI
 
+          assert version("openai") == "3.8.0"
           client = OpenAI(api_key="sk-ci-smoke-test")
           assert callable(client.responses.create)
           assert callable(client.responses.parse)
           assert openai_collection_assistant.OpenAIResponsesAdapter.provider_name == "OpenAI"
           assert visual_identity_provider.OPENAI_VISUAL_PROVIDER_ID == "openai-responses-visual"
-          print("OpenAI optional dependency smoke check passed")
+          print("OpenAI 3.8.0 optional dependency smoke check passed")
           PY
+
+      - name: Verify OpenAI 3.8.0 transport compatibility without network access
+        run: python -m unittest tests.test_openai_sdk_transport_compatibility -v
 
   gitleaks:
     runs-on: ubuntu-latest
