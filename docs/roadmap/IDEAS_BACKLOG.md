@@ -45,6 +45,12 @@ promoted to a sprint plan after repository inspection and explicit authorization
 
 ## Experiments
 
+The [accuracy research/evaluation backlog](RESEARCH_EVALUATION_BACKLOG.md) is the
+canonical tracker for RE-01 visual-evidence sensitivity (TEST NEXT), RE-02
+NeoMME-260M shadow retrieval (WATCH / SMALL PILOT), and RE-03 conformal
+factuality/risk control (WATCH / FUTURE). These are planning entries, not started
+experiments or production dependencies.
+
 - LLM-powered conversational collection assistant
 - Computer vision for automatic date/mint mark reading
 - 3D coin scanning and modeling
