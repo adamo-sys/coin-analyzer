@@ -6,6 +6,29 @@ The version/sprint checklists below are historical; unchecked procedural
 templates and old pending hashes do not automatically create new implementation
 or release work. Preserve legitimate future scope and evidence gates.
 
+## RE-01 desktop review presentation
+
+Status (2026-09-10): implemented and locally validated; not committed, merged or
+released. Research closeout: [RE-01](docs/roadmap/RESEARCH_EVALUATION_BACKLOG.md#re-01--visual-evidence-sensitivity-audit),
+SUPPORTED ENOUGH TO INFORM PRODUCT WORK, narrowly.
+
+- Four original AI fields (country, denomination, year, type/design) show a value
+  or `Not proposed`, and only their associated evidence or an explicit absence.
+- Coverage counts original AI field presence, independent of score and collector
+  edits. Provider support, transcription and collector corrections stay separate.
+- Global score is explicitly uncalibrated and is not per-field confidence.
+- Existing confirmation, separate save, reject/defer, stale-save, cancellation,
+  media rollback and Work Queue authority are unchanged. No provider/schema,
+  confidence threshold, automatic promotion or research-artifact change.
+- Validation: 40 focused visual-review, widget, save-acceptance and execution
+  tests passed with no skips. Native synthetic Tk dialogs mapped successfully;
+  screen capture was unreliable, so screenshot-based layout acceptance is not
+  claimed. Targeted Pyright: no new diagnostics; 13 identical pre-existing test
+  diagnostics. Ruff E9, compilation and whitespace checks pass.
+- Remaining release work: review/commit/PR and normal CI; real collector desktop
+  acceptance remains separate from the synthetic smoke. No subsequent research
+  item is started by this slice.
+
 <!-- SPRINT-19-POST-MERGE-CLOSEOUT-2026-08-05 -->
 ## Completed - Sprint 19 Schema Stabilization
 

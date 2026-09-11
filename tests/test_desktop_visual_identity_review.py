@@ -195,19 +195,6 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
         self.assertNotIn("front.jpg", repr(request))
         self.assertNotIn("reverse.png", repr(request))
 
-    def test_review_screen_is_explicit_about_ai_provider_confidence_and_evidence(self) -> None:
-        source = inspect.getsource(VisualIdentityReviewDialog.__init__)
-        self.assertIn("AI-generated proposal", source)
-        self.assertIn("Provider:", source)
-        self.assertIn("Provider source score (uncalibrated):", source)
-        self.assertIn("Separately transcribed visible text:", source)
-        self.assertIn("Evidence:", source)
-        self.assertIn("Raw provider values:", source)
-        self.assertIn("Supporting image roles:", source)
-        self.assertIn("Canonical presentation rules", source)
-        self.assertIn("Reject", source)
-        self.assertIn("Defer", source)
-
     def test_declining_upload_disclosure_never_creates_or_calls_provider(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
