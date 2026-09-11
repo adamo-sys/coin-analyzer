@@ -20,6 +20,13 @@ external writer racing after freshness validation.
 
 ## Bounded write-path map
 
+Collection JSON has an additive optional `type_design` string (empty when absent
+in legacy records). Ordinary collection CSV supports the same optional column;
+no value is inferred from notes, title or catalog references. Confirmed reviewed
+drafts and the existing guarded item editor carry the collector-owned value.
+Older application versions may ignore/drop this new field if they rewrite a
+newer collection. No migration/backfill or transaction-authority change is made.
+
 - Add/update/delete, photo migration, CSV, and reviewed visual/OCR persistence
   use ordinary save and retain rollback or managed-image cleanup behavior.
 - `replace_items_for_import` retains its caller-supplied importer baseline and

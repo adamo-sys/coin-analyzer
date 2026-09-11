@@ -2408,6 +2408,7 @@ Total Unique Dates: {total_unique_dates}
             f"Country: {item.country}",
             f"Denomination: {item.denomination}",
             f"Year: {item.year}",
+            f"Type / design: {item.type_design or chr(8212)}",
             f"Grade: {item.grade}",
             f"Notes: {item.notes}",
             f"Date Added: {item.date_added}",
@@ -4857,11 +4858,12 @@ Total Unique Dates: {total_unique_dates}
         form = ttk.Frame(dialog, padding="10")
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
-        form.rowconfigure(8, weight=1)
+        form.rowconfigure(9, weight=1)
 
         country_var = tk.StringVar(value=item.country)
         denomination_var = tk.StringVar(value=item.denomination)
         year_var = tk.StringVar(value=item.year)
+        type_design_var = tk.StringVar(value=item.type_design)
         grade_var = tk.StringVar(value=item.grade)
         role_var = tk.StringVar(value=PhotoRole.OTHER.value)
         note_var = tk.StringVar()
@@ -4871,6 +4873,7 @@ Total Unique Dates: {total_unique_dates}
             ("Denomination:", denomination_var, self.get_entry_suggestions("denomination")),
             ("Year:", year_var, self.get_entry_suggestions("year")),
             ("Grade:", grade_var, GRADE_SUGGESTIONS),
+            ("Type / design:", type_design_var, ()),
         ]
         for row_index, (label, variable, values) in enumerate(fields):
             ttk.Label(form, text=label).grid(row=row_index, column=0, sticky=tk.W, pady=4)
@@ -4882,16 +4885,16 @@ Total Unique Dates: {total_unique_dates}
                 padx=(5, 0),
             )
 
-        ttk.Label(form, text="Notes:").grid(row=4, column=0, sticky=tk.NW, pady=4)
+        ttk.Label(form, text="Notes:").grid(row=5, column=0, sticky=tk.NW, pady=4)
         notes_text = tk.Text(form, height=4)
-        notes_text.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
+        notes_text.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
         notes_text.insert(tk.END, item.notes)
 
         acquisition_expanded = tk.BooleanVar(value=item.has_acquisition_details())
         acquisition_button = ttk.Button(form)
-        acquisition_button.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        acquisition_button.grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
         acquisition_frame = ttk.LabelFrame(form, text="Acquisition Details", padding="4")
-        acquisition_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        acquisition_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
         acquisition_controls = self.create_acquisition_fields(
             acquisition_frame,
             {
@@ -4921,7 +4924,7 @@ Total Unique Dates: {total_unique_dates}
         set_edit_acquisition_visibility()
 
         photo_frame = ttk.LabelFrame(form, text="Photos", padding="10")
-        photo_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        photo_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         photo_frame.columnconfigure(0, weight=1)
 
         edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
@@ -5025,7 +5028,7 @@ Total Unique Dates: {total_unique_dates}
         note_entry.bind("<Return>", update_edit_notes)
 
         button_frame = ttk.Frame(form)
-        button_frame.grid(row=9, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
+        button_frame.grid(row=10, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
 
         def save_edit():
             try:
@@ -5039,6 +5042,7 @@ Total Unique Dates: {total_unique_dates}
                 "country": country_var.get().strip(),
                 "denomination": denomination_var.get().strip(),
                 "year": year_var.get().strip(),
+                "type_design": type_design_var.get().strip(),
                 "grade": grade_var.get().strip(),
                 "notes": notes_text.get("1.0", tk.END).strip(),
                 "photos": photos,
