@@ -1,9 +1,8 @@
 # Accuracy research and evaluation backlog
 
-Canonical tracking for the 2026-09-09 Coin Analyzer research delta. **Planning only:
-no experiments executed, models installed, specimens selected, or production
-dependencies introduced.** These are hypotheses, not verified model capabilities.
-Promotion to execution requires a separate bounded task.
+Canonical tracking for the 2026-09-09 Coin Analyzer research delta. RE-01 is
+completed development research; RE-02 and RE-03 remain planning only. No new
+production dependency is introduced. Further execution requires a separate task.
 
 This queue complements the existing [evaluation harness contract](../architecture/EVALUATION_HARNESS.md)
 and visual-identification evaluation work (#23); it does not duplicate the frozen
@@ -14,7 +13,34 @@ tuning. The ten local-only JPEGs are not implicitly eligible development data.
 
 ## RE-01 — Visual-evidence sensitivity audit
 
-**Disposition: TEST NEXT — highest-priority new research item.**
+**Completed 2026-09-10. Disposition: SUPPORTED ENOUGH TO INFORM PRODUCT WORK, narrowly.**
+
+The accepted v2 development diagnostic used ten specimens and four matched
+conditions: 40 successful observations, zero failures/retries, USD $0.342768.
+Intact and control blur each identified 10/10 (mean confidence .961 and .948);
+decisive blur and removal each identified 6/10 and abstained on 4/10 (mean
+available confidence .767 and .835). Abstentions are excluded from these means.
+Decisive treatments changed identity fields in 10/10 specimens versus 4/10 for
+control blur. No decisive response retained the declared obscured target claims.
+High confidence can describe a surviving broader partial identity, while intact
+and control responses still contained confident factual errors. Evidence
+sensitivity and correctness are separate; no global confidence threshold follows.
+Full unsupported-evidence rates remain unavailable without claim adjudication;
+these ten development specimens do not establish population-level performance.
+
+Preserved local evidence: `re01-v2-analysis-2026-09-10/REPORT.md` and companion
+tables/calculations; `re01-v2-execution-2026-09-10`; frozen configuration identity
+`13baec490656bba2b7c37f0c93b224066ec8cf61764afd2f009b3020a5eddc0b`.
+Pilot Run 1 remains separate historical protocol evidence and is not pooled with
+v2. Its schema/validator mismatch is not provider schema noncompliance. Dataset,
+raw responses, ledger and analysis remain unchanged and outside this docs diff.
+
+Product follow-up: [RE-01 desktop review presentation](../../TASK_QUEUE.md#re-01-desktop-review-presentation)
+exposes original four-field proposal coverage, associated provider evidence,
+separate transcription and collector corrections. It reuses production contracts;
+it neither imports the research response schema nor changes save authority.
+
+The preregistered research definition below is retained for context:
 
 - **Hypothesis:** a visual identifier relying on a genuinely decisive region
   should change its answer, abstain, or reduce its reported score when that
@@ -127,8 +153,9 @@ checkpoint → T10 Semgrep → Hy3/Hy4 bake-off → RE-02 NeoMME shadow pilot**.
 Inspection of current main `945240b0817edc939b3a5a5452de6558c0162fd4` confirmed
 #204 is already merged (merge `28aab14ba14487d64ac24f33a6980dd9db5c48db`).
 Do not reopen or repeat that work without a new compatibility gap. Therefore the
-remaining order is **RE-01 → T10 → Hy3/Hy4 → RE-02**. Cross-track references express
+historical order was **RE-01 → T10 → Hy3/Hy4 → RE-02**. RE-01 is now complete;
+its bounded product follow-up is linked above. Cross-track references express
 priority only; this document does not change those tracks or start their work.
 RE-03 stays deferred until its corpus/feasibility trigger, not a scheduled next run.
 
-Among this delta alone: **RE-01 first; RE-02 later; RE-03 watch only**.
+Among this delta alone: **RE-01 completed; RE-02 later; RE-03 watch only**.

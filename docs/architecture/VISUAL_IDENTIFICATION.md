@@ -86,6 +86,15 @@ observations, field-evidence entries, or supporting roles are rejected rather
 than silently normalized. Evidence remains advisory and cannot authorize a
 save.
 
+The desktop review presents the original country, denomination, year and
+type/design proposal separately from collector corrections. Each field displays
+its own provider-reported support or an explicit absence; general observations
+and transcribed text remain separate. Coverage counts original proposed fields,
+not score or subsequent edits. The uncalibrated global score does not express
+confidence in each field. Production evidence strings do not carry research
+visible/inferred labels, so the UI must not manufacture them. These presentation
+rules do not change confirmation, separate save or collection authority.
+
 Provider calls use an opaque, privacy-safe scan identifier containing only
 letters, digits, hyphens, and underscores, with a maximum length of 64
 characters. Paths and free-form text are rejected before a provider is called.

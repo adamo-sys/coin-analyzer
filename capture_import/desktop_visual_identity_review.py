@@ -240,28 +240,63 @@ class VisualIdentityReviewDialog:
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
         ttk.Label(
             frame,
-            text=(
-                f"Provider: {proposal.provider_id}  Model: {proposal.model_id}  "
-                "Provider source score (uncalibrated): "
-                f"{candidate.source_score:.0%}"
-            ),
+            text=f"Provider: {proposal.provider_id}  Model: {proposal.model_id}",
         ).grid(row=1, column=0, columnspan=2, sticky="w")
-        ttk.Label(
+        self.score_label = ttk.Label(
             frame,
-            text="Evidence: " + " | ".join(candidate.evidence_observations),
-            wraplength=640,
-        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 10))
-        ttk.Label(
-            frame,
-            text="Supporting image roles: " + ", ".join(candidate.supporting_image_roles),
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 8))
+            text=(f"Provider source score (uncalibrated): {candidate.source_score:.0%}. "
+                  "Uncalibrated score for this proposal; not a confidence score for each field."),
+            wraplength=800,
+        )
+        self.score_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
-        observed_text = ", ".join(candidate.observed_text) or "none supplied"
+        fields = (
+            ("country", "Country / jurisdiction", candidate.country),
+            ("denomination", "Denomination", candidate.denomination),
+            ("year", "Year", candidate.year),
+            ("type_design", "Type / design", candidate.type_design),
+        )
+        proposed_count = sum(value is not None for _, _, value in fields)
+        coverage = "Full proposal" if proposed_count == 4 else "Partial proposal"
+        self.coverage_label = ttk.Label(
+            frame, text=f"{coverage}: {proposed_count} of 4 fields proposed"
+        )
+        self.coverage_label.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        identity_table = ttk.Frame(frame)
+        identity_table.grid(row=4, column=0, columnspan=2, sticky="ew")
+        for column, heading in enumerate(("Field", "AI-proposed identity", "Provider-reported visual support")):
+            ttk.Label(identity_table, text=heading).grid(row=0, column=column, sticky="w", padx=(0, 12))
+        self.proposed_value_labels: dict[str, ttk.Label] = {}
+        self.field_support_labels: dict[str, ttk.Label] = {}
+        for row, (field, label, value) in enumerate(fields, start=1):
+            ttk.Label(identity_table, text=label).grid(row=row, column=0, sticky="nw", pady=4, padx=(0, 12))
+            value_label = ttk.Label(identity_table, text=value if value is not None else "Not proposed", wraplength=200)
+            value_label.grid(row=row, column=1, sticky="nw", pady=4, padx=(0, 12))
+            # Original proposal only; do not infer support from generic evidence or edits.
+            support = candidate.evidence_for(field) if value is not None else ()
+            support_label = ttk.Label(
+                identity_table, text=" | ".join(support) or "No supporting evidence supplied", wraplength=360
+            )
+            support_label.grid(row=row, column=2, sticky="nw", pady=4)
+            self.proposed_value_labels[field] = value_label
+            self.field_support_labels[field] = support_label
+        identity_table.columnconfigure(2, weight=1)
+        self.general_evidence_label = ttk.Label(
+            frame, text="General provider observations: " + (" | ".join(candidate.evidence_observations) or "None supplied"),
+            wraplength=800,
+        )
+        self.general_evidence_label.grid(row=5, column=0, columnspan=2, sticky="w", pady=(8, 4))
         ttk.Label(
-            frame,
-            text="Separately transcribed visible text: " + observed_text,
-            wraplength=640,
-        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(0, 8))
+            frame, text="Supporting image roles: " + ", ".join(candidate.supporting_image_roles)
+        ).grid(row=6, column=0, columnspan=2, sticky="w")
+        self.transcribed_text_label = ttk.Label(
+            frame, text="Provider-transcribed text: " + (", ".join(candidate.observed_text) or "None supplied"),
+            wraplength=800,
+        )
+        self.transcribed_text_label.grid(row=7, column=0, columnspan=2, sticky="w", pady=(4, 8))
+        ttk.Label(frame, text="Collector corrections — confirm country, denomination and year before saving.").grid(
+            row=8, column=0, columnspan=2, sticky="w", pady=(4, 4)
+        )
 
         self.country = tk.StringVar(value=proposal.initial_country)
         self.denomination = tk.StringVar(value=proposal.initial_denomination)
@@ -274,21 +309,13 @@ class VisualIdentityReviewDialog:
                 ("Year", self.year),
                 ("Type / design", self.type_design),
             ),
-            start=5,
+            start=9,
         ):
             ttk.Label(frame, text=label + ":").grid(row=row, column=0, sticky="w")
             ttk.Entry(frame, textvariable=variable, width=52).grid(
                 row=row, column=1, sticky="ew", pady=2
             )
 
-        raw = (
-            f"Raw provider values: {candidate.country or 'unknown'}; "
-            f"{candidate.denomination or 'unknown'}; "
-            f"{candidate.year or 'unknown'}; {candidate.type_design or 'unknown'}"
-        )
-        ttk.Label(frame, text=raw, wraplength=640).grid(
-            row=9, column=0, columnspan=2, sticky="w", pady=(10, 4)
-        )
         country_rules = ", ".join(proposal.canonical_country.normalization_rules) or "unmapped"
         denomination_rules = ", ".join(
             proposal.canonical_denomination.normalization_rules
@@ -300,9 +327,9 @@ class VisualIdentityReviewDialog:
                 + "; denomination: " + denomination_rules
             ),
             wraplength=640,
-        ).grid(row=10, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        ).grid(row=13, column=0, columnspan=2, sticky="w", pady=(8, 4))
         buttons = ttk.Frame(frame)
-        buttons.grid(row=11, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        buttons.grid(row=14, column=0, columnspan=2, sticky="e", pady=(10, 0))
         ttk.Button(buttons, text="Reject", command=self.reject).pack(side="left")
         ttk.Button(buttons, text="Defer", command=self.defer).pack(
             side="left", padx=8
