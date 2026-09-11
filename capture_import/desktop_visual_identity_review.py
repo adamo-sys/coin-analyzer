@@ -98,10 +98,10 @@ class ConfirmedVisualIdentity:
             country=values["country"],
             denomination=values["denomination"],
             year=values["year"],
+            type_design=self.type_design.strip(),
             unmapped_fields=tuple(
                 (name, value)
                 for name, value in (
-                    ("type_design", self.type_design.strip()),
                     ("visual_raw_country", candidate.country or ""),
                     ("visual_raw_denomination", candidate.denomination or ""),
                     (

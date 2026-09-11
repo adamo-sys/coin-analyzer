@@ -160,6 +160,15 @@ unapproved.
 
 ## Production review-only proposal boundary
 
+Collection items may store an optional collector-confirmed `type_design`
+designation, distinct from catalog title/reference and general notes. Visual
+review persists the collector's final value only after review and separate save
+confirmation. Missing legacy values load as empty; explicit clearing is supported.
+Original AI proposal values and coverage remain unchanged by corrections.
+Type/design does not change identification-status, Work Queue, provider authority
+or persistence safeguards. The existing item detail/editor exposes the stored
+value; ordinary collection CSV import/export supports the optional column.
+
 The production desktop may expose a separate, explicit **AI-Assisted Coin
 Images** action. It sends only the operator-selected obverse and reverse image
 bytes to the unchanged passing Terra provider configuration. Provider/client

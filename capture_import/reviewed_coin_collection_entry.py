@@ -87,6 +87,7 @@ class ReviewedCoinDraft:
     denomination: str
     year: str
     unmapped_fields: tuple[tuple[str, str], ...] = ()
+    type_design: str = ""
 
     def validate(self) -> None:
         if not isinstance(self.source_coin_id, str) or not self.source_coin_id.strip():
@@ -103,6 +104,8 @@ class ReviewedCoinDraft:
             raise MissingRequiredReviewedCoinFieldError(
                 "Required reviewed field(s) missing: " + ", ".join(missing)
             )
+        if not isinstance(self.type_design, str):
+            raise ReviewedCoinCollectionEntryError("Type/design must be text.")
 
 
 def create_reviewed_coin_draft(
@@ -253,6 +256,7 @@ def _build_coin_item(
         country=draft.country,
         denomination=draft.denomination,
         year=draft.year,
+        type_design=draft.type_design.strip(),
         grade="",
         notes="",
         date_added=date_added or datetime.now().isoformat(),

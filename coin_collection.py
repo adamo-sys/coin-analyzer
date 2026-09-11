@@ -382,6 +382,7 @@ class CoinItem:
 
     item_type: ItemType = ItemType.COIN
     identification_status: IdentificationStatus | None = None
+    type_design: str = ""
 
     def __post_init__(self) -> None:
         self.item_type = self._closed_enum(ItemType, self.item_type, "item_type")
@@ -440,6 +441,7 @@ class CoinItem:
             "country": self.country,
             "denomination": self.denomination,
             "year": self.year,
+            "type_design": self.type_design,
             "grade": self.grade,
             "notes": self.notes,
             "date_added": self.date_added,
@@ -484,6 +486,7 @@ class CoinItem:
             "country": str(data.get("country") or ""),
             "denomination": str(data.get("denomination") or ""),
             "year": str(data.get("year") or ""),
+            "type_design": str(data.get("type_design") or ""),
             "grade": str(data.get("grade") or ""),
             "notes": str(data.get("notes") or ""),
             "date_added": str(data.get("date_added") or ""),
@@ -1299,6 +1302,7 @@ class CoinCollection:
                             year=year,
                             grade=grade,
                             notes=notes,
+                            type_design=(row_lower.get('type_design') or '').strip(),
                             date_added=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             auto_detected=False,
                             quantity=1,  # Each item has quantity 1, we create multiple items
@@ -1390,7 +1394,7 @@ class CoinCollection:
                             'title', 'quantity', 'estimate_cad', 'comments', 'from_numista',
                             'acquisition_date', 'purchase_price', 'purchase_currency',
                             'purchase_source', 'shipping_cost', 'buyers_premium', 'tax',
-                            'total_cost']
+                            'total_cost', 'type_design']
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for item in self.items:
