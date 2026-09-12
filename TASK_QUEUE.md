@@ -1,5 +1,16 @@
 # Task Queue
 
+
+## Phone Intake MVP — local implementation, review pending
+
+- Import a local batch; explicitly confirm Front/Reverse pairs; use existing
+  review/correction/save; select the next pending coin.
+- Contract: `docs/architecture/PHONE_INTAKE.md`.
+- Durable per-pair save intent protects collection-success/Inbox-failure recovery.
+- No mobile/cloud/watcher/provider-contract/Work Queue changes.
+- Type/design search remains separate. Full real-phone/native collector acceptance
+  and scoped review are still required before publication.
+
 Current queue reconciliation (2026-09-08): see
 [BACKLOG_RECONCILIATION_2026_09_08.md](docs/BACKLOG_RECONCILIATION_2026_09_08.md).
 The version/sprint checklists below are historical; unchecked procedural

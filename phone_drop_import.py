@@ -11,6 +11,7 @@ import hashlib
 import os
 import re
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Tuple
@@ -76,28 +77,50 @@ class PhoneDropImporter:
         """Copy supported source files without moving or modifying originals."""
 
         os.makedirs(self.destination_folder, exist_ok=True)
+        from capture_import.lock import PackageImportLock
+        lock = PackageImportLock.acquire(Path(self.destination_folder) / ".phone-import.lock")
+        try:
+            return self._import_files(source_paths)
+        finally:
+            lock.release()
+
+    def _import_files(self, source_paths: Iterable[str]) -> PhoneDropImportResult:
         result = PhoneDropImportResult(destination_folder=self.destination_folder)
 
+        # Content identity is independent of the phone/export filename.
+        by_hash = {}
+        for existing in sorted(Path(self.destination_folder).iterdir()):
+            if existing.is_file() and existing.suffix.lower() in self.supported_extensions:
+                by_hash.setdefault(self._sha256_file(str(existing)), str(existing))
         for raw_source in source_paths:
             source = os.path.abspath(str(raw_source))
             rejection = self._validate_source(source)
             if rejection:
                 result.rejected.append(PhoneDropRejectedFile(source, rejection))
                 continue
-
-            digest = self._sha256_file(source)
-            destination = self._destination_for(source, digest)
-
-            if os.path.exists(destination):
-                if self._sha256_file(destination) == digest:
-                    result.duplicates.append(
-                        PhoneDropImportedFile(source, destination, digest, duplicate=True)
-                    )
+            temporary = None
+            try:
+                digest = self._sha256_file(source)
+                if digest in by_hash:
+                    result.duplicates.append(PhoneDropImportedFile(source, by_hash[digest], digest, duplicate=True))
                     continue
-                destination = self._collision_destination(source, digest)
-
-            shutil.copy2(source, destination)
-            result.imported.append(PhoneDropImportedFile(source, destination, digest))
+                destination = self._destination_for(source, digest)
+                if os.path.exists(destination):
+                    destination = self._collision_destination(source, digest)
+                fd, temporary = tempfile.mkstemp(prefix=".phone-", suffix=".tmp", dir=self.destination_folder)
+                os.close(fd)
+                shutil.copy2(source, temporary)
+                if self._sha256_file(temporary) != digest:
+                    raise OSError("Source changed during import; select the completed local file again.")
+                os.replace(temporary, destination)
+                temporary = None
+                by_hash[digest] = destination
+                result.imported.append(PhoneDropImportedFile(source, destination, digest))
+            except OSError as error:
+                result.rejected.append(PhoneDropRejectedFile(source, str(error)))
+            finally:
+                if temporary is not None:
+                    os.unlink(temporary)
 
         return result
 
