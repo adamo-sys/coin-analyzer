@@ -239,6 +239,58 @@ class StandaloneImageIntakeTests(unittest.TestCase):
         )
         self.assertFalse(source.path.exists())
 
+    def test_plain_jpeg_with_trailing_payload_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front = root / "front.jpg"
+            reverse = root / "reverse.jpg"
+            _write_image(front, "JPEG", "red")
+            front.write_bytes(front.read_bytes() + b"hidden")
+            _write_image(reverse, "JPEG", "blue")
+
+            with self.assertRaises(MalformedStandaloneImageError):
+                create_temporary_capture_package(
+                    front_path=front,
+                    reverse_path=reverse,
+                )
+
+    def test_mpo_input_is_canonicalized_into_valid_jpeg_package(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            front = root / "front.jpg"
+            reverse = root / "reverse.jpg"
+
+            first = Image.new("RGB", (64, 48), "red")
+            second = Image.new("RGB", (64, 48), "blue")
+            first.save(
+                front,
+                format="MPO",
+                save_all=True,
+                append_images=[second],
+            )
+            _write_image(reverse, "JPEG", "green")
+
+            source = create_temporary_capture_package(
+                front_path=front,
+                reverse_path=reverse,
+            )
+            payload = source.path.read_bytes()
+            from hashlib import sha256
+
+            validated = CapturePackageValidator().validate_stream(
+                BytesIO(payload),
+                source.path.name,
+                package_sha256=sha256(payload).hexdigest(),
+                package_byte_length=len(payload),
+            )
+
+            front_media = next(
+                item for item in validated.media if item.role.value == "front"
+            )
+            self.assertEqual(front_media.mime_type, "image/jpeg")
+            self.assertEqual((front_media.width, front_media.height), (64, 48))
+            source.release()
+
     def test_partial_selection_is_rejected_before_file_access(self) -> None:
         with self.assertRaises(PartialStandaloneImageSelectionError):
             create_temporary_capture_package(

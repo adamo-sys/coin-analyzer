@@ -630,7 +630,7 @@ Total Unique Dates: {total_unique_dates}
             source.release()
             raise
 
-    def import_coin_images_with_visual_ai(self, front_path=None, reverse_path=None):
+    def import_coin_images_with_visual_ai(self, front_path=None, reverse_path=None, intake_context=None):
         """Send two explicitly selected images to Terra for human review."""
 
         if not self.capture_import_ready:
@@ -695,6 +695,16 @@ Total Unique Dates: {total_unique_dates}
             source.release()
             return
 
+        if intake_context is not None:
+            store, pair_id, collection_path, paths = intake_context
+            try:
+                if store.review_paths(pair_id) != paths:
+                    raise ValueError("Confirmed pair changed before review.")
+            except Exception as error:
+                source.release()
+                messagebox.showerror("Phone Intake", str(error), parent=self.root)
+                return
+        self._phone_intake_context = intake_context
         self._start_visual_identification(source)
 
     def _create_visual_identification_wait(self, cancel):
@@ -743,6 +753,8 @@ Total Unique Dates: {total_unique_dates}
                     dialog.destroy()
 
         def cancel():
+            if self._visual_identification_task is task:
+                self._phone_intake_context = None
             task.cancel()
             close_wait()
 
@@ -910,18 +922,54 @@ Total Unique Dates: {total_unique_dates}
             return
 
         source = getattr(self, "_visual_review_source", None)
+        intake = getattr(self, "_phone_intake_context", None)
+        save_options = {}
+        if intake is not None:
+            store, pair_id, collection_path, paths = intake
+            try:
+                if str(Path(self.app.collection.storage_path).absolute()) != collection_path or store.review_paths(pair_id) != paths:
+                    raise ValueError("Collection or confirmed pair changed during review.")
+                intent = store.reserve(pair_id, collection_path, draft)
+                save_options = {"item_id": intent["item_id"], "date_added": intent["date_added"]}
+            except Exception as error:
+                messagebox.showerror("Phone Intake Save Blocked", str(error), parent=self.root)
+                self._release_visual_review_source()
+                return
         try:
             item = persist_reviewed_coin(
                 collection=self.app.collection,
                 draft=draft,
                 source_package_path=source.path if source is not None else None,
+                **save_options,
             )
         except (ReviewedCoinCollectionEntryError, TypeError, ValueError) as error:
-            messagebox.showerror(
-                "Collection Save Failed", str(error), parent=self.root
-            )
+            from capture_import.reviewed_coin_collection_entry import ReviewedCoinRecoveryRequiredError
+            detail = str(error)
+            if intake is not None:
+                store, pair_id, collection_path, paths = intake
+                try:
+                    if isinstance(error, ReviewedCoinRecoveryRequiredError):
+                        raise ValueError("Collection/media outcome unresolved.")
+                    store.clean_save_failure(pair_id, collection_path)
+                except Exception:
+                    detail = "Save outcome requires reconciliation in Phone Intake. Do not save this pair again. " + detail
+            messagebox.showerror("Collection Save Failed" if intake is None else "Phone Intake Save Outcome", detail, parent=self.root)
             self._release_visual_review_source()
             return
+
+        if intake is not None:
+            store, pair_id, collection_path, paths = intake
+            try:
+                store.complete(pair_id, collection_path)
+            except Exception as error:
+                self._release_visual_review_source()
+                self.refresh_collection_list()
+                messagebox.showwarning(
+                    "Coin Saved - Inbox Reconciliation Required",
+                    f"Coin {item.id} was saved. Do not save it again. Use Reconcile Save in Phone Intake. {error}",
+                    parent=self.root,
+                )
+                return
 
         self._release_visual_review_source()
         self.refresh_collection_list()
@@ -943,6 +991,7 @@ Total Unique Dates: {total_unique_dates}
         self._release_visual_review_source()
 
     def _release_visual_review_source(self):
+        self._phone_intake_context = None
         source = getattr(self, "_visual_review_source", None)
         self._visual_review_source = None
         self._visual_review_proposal = None
@@ -3421,9 +3470,13 @@ Total Unique Dates: {total_unique_dates}
     @staticmethod
     def photo_inbox_set_rows(manager):
         """Build stable rows for pending Photo Inbox sets."""
+        from phone_intake import PhoneIntake
+        claimed = {image["path"] for pair in PhoneIntake().records().values() for image in pair["images"].values()}
         rows = []
         for photo_set in manager.get_pending_sets():
             photos = manager.get_photo_set_photos(photo_set.id)
+            if photos and all(str(Path(photo.path).absolute()) in claimed for photo in photos):
+                continue  # Explicit pairs have their own pending/saved presentation.
             rows.append({
                 "id": photo_set.id,
                 "state": photo_set.state.value,
@@ -3479,6 +3532,10 @@ Total Unique Dates: {total_unique_dates}
     def item_photos_from_inbox_photo_set(self, manager, photo_set_id):
         """Convert a pending Photo Inbox set into entry-form photo metadata."""
         paths = [photo.path for photo in manager.get_photo_set_photos(photo_set_id)]
+        from phone_intake import PhoneIntake
+        claimed = {image["path"] for pair in PhoneIntake().records().values() for image in pair["images"].values()}
+        if any(str(Path(path).absolute()) in claimed for path in paths):
+            raise ValueError("This group contains explicitly paired photos. Use Pair and Review Phone Photos.")
         return self.add_photo_paths_to_list([], paths)
 
     def search_attach_targets(self, query="", limit=25):
@@ -3785,7 +3842,11 @@ Total Unique Dates: {total_unique_dates}
         if not source_paths:
             return
 
-        result = PhoneDropImporter().import_files(source_paths)
+        try:
+            result = PhoneDropImporter().import_files(source_paths)
+        except Exception as error:
+            messagebox.showerror("Phone Photo Import", f"Import stopped: {error}. Originals were not changed.", parent=self.root)
+            return
         remember_phone_drop_directory_after_import(
             self.app_preferences,
             source_paths,
@@ -3815,6 +3876,8 @@ Total Unique Dates: {total_unique_dates}
 
         dialog = tk.Toplevel(self.root)
         dialog.title("Photo Inbox")
+        from phone_intake_dialog import open_phone_intake
+        ttk.Button(dialog, text="Pair and Review Phone Photos", command=lambda: open_phone_intake(self)).pack(anchor=tk.W, padx=10, pady=6)
         dialog.geometry("920x640")
 
         main_frame = ttk.Frame(dialog, padding="10")

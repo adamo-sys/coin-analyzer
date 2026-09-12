@@ -21,6 +21,8 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 import zipfile
 
+from PIL import Image
+
 from ._filesystem import (
     handle_matches_path,
     require_plain_regular_file,
@@ -150,6 +152,16 @@ def create_temporary_capture_package(
     return TemporaryCapturePackage(path=package_path, _directory=directory)
 
 
+def canonical_standalone_image_payload(path_value: str | Path) -> bytes:
+    """Return the exact validated payload used by standalone image intake."""
+    inspected = _inspect_image(
+        path_value,
+        role=ImageRole.FRONT,
+        validator=CapturePackageMediaValidator(),
+    )
+    return inspected.payload
+
+
 def _inspect_image(
     path_value: str | Path,
     *,
@@ -187,7 +199,32 @@ def _inspect_image(
     try:
         image_format, width, height = validator.inspect_payload(payload)
     except Exception as error:
-        raise MalformedStandaloneImageError() from error
+        if path.suffix.casefold() not in {".jpg", ".jpeg"}:
+            raise MalformedStandaloneImageError() from error
+        try:
+            with Image.open(BytesIO(payload)) as image:
+                if image.format != "MPO":
+                    raise MalformedStandaloneImageError() from error
+                image.seek(0)
+                image.load()
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+                output = BytesIO()
+                image.save(
+                    output,
+                    format="JPEG",
+                    quality=92,
+                    progressive=False,
+                    optimize=False,
+                )
+                payload = output.getvalue()
+                if len(payload) > MAX_IMAGE_SIZE:
+                    raise UnreadableStandaloneImageError()
+                image_format, width, height = validator.inspect_payload(payload)
+        except StandaloneImageIntakeError:
+            raise
+        except Exception as mpo_error:
+            raise MalformedStandaloneImageError() from mpo_error
     expected_format = "PNG" if path.suffix.casefold() == ".png" else "JPEG"
     if image_format != expected_format:
         raise MalformedStandaloneImageError()
