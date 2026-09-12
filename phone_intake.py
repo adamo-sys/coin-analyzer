@@ -1,4 +1,4 @@
-﻿"""Explicit Phone Inbox pairs and fail-closed save completion; no inference authority."""
+"""Explicit Phone Inbox pairs and fail-closed save completion; no inference authority."""
 from __future__ import annotations
 
 from contextlib import contextmanager
