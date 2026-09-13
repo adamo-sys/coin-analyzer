@@ -89,8 +89,8 @@ threshold changes, or production-validator changes were made by this harness run
   or evidence that main is failing. No doctor-health code was changed.
 - Independent resilience review: PASS WITH NOTES, no blocking implementation
   findings. Documentation clarifies attempted coverage versus scoring coverage.
-- Authoritative CI has not run for this uncommitted benchmark slice. A passing
-  main build does not establish CI success for these changes.
+- At the original validation checkpoint, authoritative CI had not run for the
+  benchmark slice. A passing main build did not establish CI success for it.
 
 The regression evidence above predates this documentation/ignore/synthetic-fixture
 cleanup. Full regression was not repeated for the cleanup; its focused validation
@@ -105,12 +105,12 @@ and journals, are ignored. Runtime evidence remains under ignored debug_outputs.
 The inventory test now builds and freezes a wholly synthetic inventory in a
 temporary directory. It never opens the real private corpus.
 
-The proposed commit file set is exactly `.gitignore`,
+The original commit-readiness file set was exactly `.gitignore`,
 `capture_import/phone_photo_benchmark.py`, `tests/test_phone_photo_benchmark.py`,
 `benchmarks/phone-photo-v1/README.md`, and `benchmarks/phone-photo-v1/RESULTS.md`.
 The harness belongs to the earlier implementation and requires no change for
-this cleanup. No private metadata or artifacts belong in that set. Nothing has
-been staged, committed, or pushed.
+this cleanup. No private metadata or artifacts belong in that set. Nothing had
+been staged, committed, or pushed at that cleanup checkpoint.
 
 Cleanup validation:
 
@@ -159,3 +159,37 @@ private artifact paths passed. No provider calls or prediction regeneration
 occurred. Only this sanitized maintenance record was added; the proposed five-file
 commit set above is unchanged. Full regression and authoritative CI were not
 rerun for this documentation-only maintenance.
+
+## Baseline evidence closeout (2026-09-13)
+
+The persisted evidence supports a complete descriptive baseline under the frozen
+scoring contract. It does not establish general recognition reliability: the
+corpus is small, cohort memberships overlap, two observations were rejected
+before scoring, and type/design ground truth is unverified.
+
+Offline verification reproduced the entire saved report from its provenance and
+ten journal outcomes, including specimen scoring, execution counts, field and
+exact-identity metrics, and difficulty/challenge-tag aggregates. The frozen
+manifest and sidecar agree with the report; current production-provider and
+benchmark-scorer source fingerprints and the full provider configuration match
+the recorded identities. All twenty original photographs were read locally and
+their bytes still match the frozen image hashes.
+
+The archived rejection passed the existing pinned-archive/provenance checks and
+local validator replay. Each validated prediction was reconstructed from its
+retained structured response using the unchanged validator; the other rejection
+retains malformed JSON and its recorded failure reason. No predictions were
+regenerated, and no provider/API calls or evidence-file edits occurred.
+
+All public aggregate tables match the persisted report. Rejections remain outside
+ordinary accuracy and abstention denominators. The results above are therefore
+confirmed observations of this run, with execution completeness separate from
+recognition accuracy.
+
+The original five-file benchmark slice is now present in local Git history. This
+closeout changes only this sanitized RESULTS.md; historical checkpoint statements
+above describe their respective times. Public-table consistency, private-token
+exclusion, artifact ignore/tracking checks, and diff whitespace checks passed.
+Code tests and static analysis were not repeated for this documentation-only
+change; earlier results remain historical evidence. Authoritative CI was not
+queried or run during closeout. No staging, commit, push, or merge was performed.
