@@ -1,6 +1,7 @@
 import unittest
+from unittest.mock import patch
 
-from command_center import project_run_status
+from command_center import collect_repository_status, project_repository_status, project_run_status
 from orchestrator import OrchestratorRun, OrchestratorState
 
 
@@ -28,6 +29,30 @@ class CommandCenterTests(unittest.TestCase):
         self.assertIsNone(status.blocker)
         self.assertIn("takes no action", status.next_authorized_action)
         self.assertFalse(status.human_authorization_required)
+
+
+
+
+class RepositoryStatusTests(unittest.TestCase):
+    def test_clean_feature_branch_is_ready(self):
+        status = project_repository_status('feature/test', 'abc123', 'origin/feature/test', True)
+        self.assertEqual(status.state, 'READY')
+        self.assertFalse(status.on_default_branch)
+
+    def test_dirty_feature_branch_is_dirty(self):
+        status = project_repository_status('feature/test', 'abc123', 'origin/feature/test', False)
+        self.assertEqual(status.state, 'DIRTY')
+        self.assertIn('Review tracked changes', status.next_authorized_action)
+
+    def test_detached_head_is_stopped(self):
+        status = project_repository_status('', 'abc123', None, True)
+        self.assertEqual(status.state, 'STOPPED')
+        self.assertIn('Restore an authorized named non-default branch', status.next_authorized_action)
+
+    def test_default_branch_is_stopped(self):
+        status = project_repository_status('main', 'abc123', 'origin/main', True)
+        self.assertEqual(status.state, 'STOPPED')
+        self.assertTrue(status.on_default_branch)
 
 
 if __name__ == "__main__":
