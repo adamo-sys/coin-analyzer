@@ -6,20 +6,23 @@ This file defines project-specific standards that AI agents must apply when
 working in the Coin Analyzer repository.
 
 These standards supplement:
-- `docs/agent-ops/CONTRACT.md`
-- `docs/agent-ops/RUNBOOK.md`
+- [Root operating contract](../../AGENTS.md)
+- [Task contract](CONTRACT.md)
+- [Runbook](RUNBOOK.md)
 
 When rules conflict, follow the stricter boundary.
 
 ## Sources of Truth
 
-For repository state and behavior, use this precedence:
+Use evidence according to the question:
 
-1. Current repository code and tests.
-2. Repository governance and agent-ops files.
-3. Current issue or pull request requirements.
-4. Release documentation and architecture decisions.
-5. Prior chat context or model memory.
+- Actual behavior/state: current source, tests, and branch/head evidence.
+- Permitted behavior: applicable frozen architecture/contracts and protected
+  boundaries. Existing code does not authorize an architecture deviation.
+- Authorized scope/actions: the current bounded user task and repository governance.
+- Merge readiness: current blocking GitHub CI for the exact PR head plus explicit
+  human merge authorization.
+- Historical intent: committed decisions before remembered chat context.
 
 Do not override current repository evidence with remembered assumptions.
 
@@ -27,22 +30,20 @@ Do not override current repository evidence with remembered assumptions.
 
 A claimed result must be supported by evidence.
 
-Precedence:
+Use evidence according to the claim:
 
-1. Actual focused test output.
-2. Relevant CI result for the exact commit.
-3. Static-analysis or validation output.
-4. Planned commands or intended validation.
+- Relevant CI for the exact commit is authoritative for merge/required-gate status.
+- Actual focused test, static-analysis, and validation output support only the
+  behavior or properties checked.
 
+Investigate relevant failure evidence regardless of passing CI; passing CI does
+not override a relevant focused failure. Apply the root validation stop condition.
 A command that was prepared but not run is not validation evidence.
 
 ## Scope Standard
 
-Every implementation must have:
-- one primary objective;
-- explicit invariants;
-- acceptance criteria;
-- focused validation.
+Every implementation uses the six fields in
+[CONTRACT.md](CONTRACT.md#bounded-task-contract); do not maintain a second format.
 
 Do not silently expand scope.
 

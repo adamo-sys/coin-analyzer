@@ -6,6 +6,8 @@ This file defines the default operating boundaries for AI agents working
 on the Coin Analyzer repository.
 
 These rules apply regardless of model, harness, scheduler, or vendor.
+The concise entry point is [AGENTS.md](../../AGENTS.md); it owns the context-budget
+thresholds and protected boundaries. This file defines task structure and authority.
 
 ## Core Principles
 
@@ -27,8 +29,14 @@ Unless a task explicitly grants additional authority, an agent may:
 - edit files on a non-default branch when implementation is requested;
 - add or update focused tests;
 - run focused validation;
-- commit bounded changes;
-- prepare a pull request.
+- prepare a proposed diff and exact commit file set.
+
+Branches, commits, pushes, PRs, comments, and CI-supporting changes require
+authorization expressly covering each applicable action or a named workflow that
+explicitly includes them. Authorization to implement a bounded change does not by
+itself authorize commit, push, or PR creation. An explicit task restriction (such as
+no commit or push) controls even when implementation is authorized. Merge always
+requires explicit human authorization for that PR and current passing blocking CI.
 
 An agent must not assume authority to:
 
@@ -45,7 +53,10 @@ An agent must not assume authority to:
 
 ## Git Rules
 
-- Work from an up-to-date base.
+- Work from a task-authorized, verified base. Before substantive work, record and
+  compare actual branch, exact HEAD, and intended task-authorized base/ref against
+  task expectations; stop on mismatch or unresolved base expectations. Do not fetch
+  or mutate the checkout merely to satisfy this gate without authority.
 - Never perform implementation directly on the default branch.
 - Use a dedicated branch for each bounded change.
 - Keep unrelated changes out of the branch.
@@ -65,14 +76,24 @@ Before claiming completion:
 
 A prepared command, prompt, or test plan is not evidence that validation ran.
 
-## Scope Control
+## Bounded-task contract
 
-Every implementation should have:
+Before editing, state these six fields in the task. Reuse a complete user-provided
+contract; fill only missing operational details. A separate repository task file
+is unnecessary unless durable state is needed for rotation.
 
-- one primary objective;
-- explicit invariants;
-- clear acceptance criteria;
-- focused validation.
+```text
+GOAL: One objective and observable completion condition.
+IN SCOPE: Exact proposed files/components and permitted actions.
+OUT OF SCOPE: Excluded behavior, cleanup, tools, and follow-on work.
+PROTECTED BOUNDARIES: Applicable architecture, invariants, private/local data, authority.
+ACCEPTANCE GATES: Focused checks, applicable regression/CI, review, manual acceptance.
+STOP CONDITIONS: Task-specific blockers and budget stops, plus root contract stops.
+```
+
+Name expected files before editing. Add a prerequisite only if it fits this
+boundary; otherwise stop and propose the smallest scope amendment. Do not turn
+a documentation-only task into production, dependency, or CI changes.
 
 If accomplishing the task requires meaningful expansion beyond the declared
 scope, stop and surface the expansion rather than silently implementing it.
