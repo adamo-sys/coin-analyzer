@@ -1,7 +1,15 @@
 import unittest
+from dataclasses import FrozenInstanceError
 from unittest.mock import patch
 
-from command_center import collect_repository_status, project_repository_status, project_run_status
+from command_center import (
+    CommandCenterAuthority,
+    CommandCenterSnapshot,
+    collect_repository_status,
+    project_command_center_snapshot,
+    project_repository_status,
+    project_run_status,
+)
 from orchestrator import OrchestratorRun, OrchestratorState
 
 
@@ -53,6 +61,95 @@ class RepositoryStatusTests(unittest.TestCase):
         status = project_repository_status('main', 'abc123', 'origin/main', True)
         self.assertEqual(status.state, 'STOPPED')
         self.assertTrue(status.on_default_branch)
+
+
+class CommandCenterSnapshotTests(unittest.TestCase):
+    def test_ready_repository_with_pending_human_review(self):
+        repository = project_repository_status('feature/test', 'abc123', None, True)
+        run = project_run_status(make_run(OrchestratorState.READY_FOR_HUMAN_REVIEW))
+        snapshot = project_command_center_snapshot(repository, run)
+
+        self.assertIs(snapshot.repository, repository)
+        self.assertIs(snapshot.run, run)
+        self.assertEqual(snapshot.repository.state, 'READY')
+        self.assertEqual(snapshot.run.state, 'NEEDS_AUTHORIZATION')
+        self.assertTrue(snapshot.human_review_pending)
+        self.assertIs(snapshot.execution_authority, CommandCenterAuthority.OBSERVATION_ONLY)
+
+    def test_stopped_repository_does_not_hide_active_run(self):
+        for branch in ('', 'main'):
+            with self.subTest(branch=branch):
+                repository = project_repository_status(branch, 'abc123', None, True)
+                run = project_run_status(make_run(OrchestratorState.DIAGNOSED))
+                snapshot = project_command_center_snapshot(repository, run)
+
+                self.assertIs(snapshot.repository, repository)
+                self.assertIs(snapshot.run, run)
+                self.assertEqual(snapshot.repository.state, 'STOPPED')
+                self.assertEqual(snapshot.run.state, 'DIAGNOSED')
+                self.assertFalse(snapshot.human_review_pending)
+
+    def test_dirty_repository_preserves_stopped_run_and_reason_fallback(self):
+        for reason in ('review failed', None):
+            with self.subTest(reason=reason):
+                repository = project_repository_status('feature/test', 'abc123', None, False)
+                run = project_run_status(make_run(OrchestratorState.STOPPED, reason))
+                snapshot = project_command_center_snapshot(repository, run)
+
+                self.assertIs(snapshot.repository, repository)
+                self.assertIs(snapshot.run, run)
+                self.assertEqual(snapshot.repository.state, 'DIRTY')
+                self.assertEqual(snapshot.run.state, 'STOPPED')
+                self.assertEqual(
+                    snapshot.run.blocker,
+                    reason or 'Orchestrator stopped without a terminal reason.',
+                )
+                self.assertIn('no automatic resume', snapshot.run.next_authorized_action)
+                self.assertFalse(snapshot.human_review_pending)
+
+    def test_all_state_combinations_remain_observation_only_without_side_effects(self):
+        with patch('command_center.subprocess.run') as execute:
+            for branch in ('feature/test', 'main', ''):
+                for clean in (True, False):
+                    for state in OrchestratorState:
+                        with self.subTest(branch=branch, clean=clean, state=state):
+                            repository = project_repository_status(branch, 'abc123', None, clean)
+                            run = project_run_status(make_run(state))
+                            snapshot = project_command_center_snapshot(repository, run)
+
+                            self.assertIs(snapshot.repository, repository)
+                            self.assertIs(snapshot.run, run)
+                            self.assertIs(
+                                snapshot.execution_authority,
+                                CommandCenterAuthority.OBSERVATION_ONLY,
+                            )
+                            self.assertEqual(
+                                snapshot.human_review_pending,
+                                state is OrchestratorState.READY_FOR_HUMAN_REVIEW,
+                            )
+            execute.assert_not_called()
+
+    def test_snapshot_and_components_are_immutable(self):
+        repository = project_repository_status('feature/test', 'abc123', None, True)
+        run = project_run_status(make_run(OrchestratorState.DIAGNOSED))
+        snapshot = project_command_center_snapshot(repository, run)
+        for target, attribute, value in (
+            (snapshot, 'repository', repository),
+            (snapshot, 'run', run),
+            (snapshot, 'execution_authority', 'execute'),
+            (snapshot, 'human_review_pending', True),
+            (repository, 'state', 'READY'),
+            (run, 'human_authorization_required', True),
+        ):
+            with self.subTest(attribute=attribute):
+                with self.assertRaises(FrozenInstanceError):
+                    setattr(target, attribute, value)
+
+    def test_constructor_cannot_accept_execution_authority(self):
+        repository = project_repository_status('feature/test', 'abc123', None, True)
+        run = project_run_status(make_run(OrchestratorState.DIAGNOSED))
+        with self.assertRaises(TypeError):
+            CommandCenterSnapshot(repository, run, 'execute')
 
 
 if __name__ == "__main__":

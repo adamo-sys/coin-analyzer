@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 
 from orchestrator import OrchestratorRun, OrchestratorState
 
@@ -25,6 +26,33 @@ class RepositoryStatus:
     on_default_branch: bool
     state: str
     next_authorized_action: str
+
+
+class CommandCenterAuthority(str, Enum):
+    OBSERVATION_ONLY = "observation_only"
+
+
+@dataclass(frozen=True)
+class CommandCenterSnapshot:
+    """Observed component state is never a grant of execution authority."""
+
+    repository: RepositoryStatus
+    run: CommandCenterStatus
+    execution_authority: CommandCenterAuthority = field(
+        default=CommandCenterAuthority.OBSERVATION_ONLY, init=False
+    )
+
+    @property
+    def human_review_pending(self) -> bool:
+        """A review request does not authorize execution or automatic resume."""
+        return self.run.human_authorization_required
+
+
+def project_command_center_snapshot(
+    repository: RepositoryStatus, run: CommandCenterStatus
+) -> CommandCenterSnapshot:
+    """Combine supplied observations without collecting state or taking action."""
+    return CommandCenterSnapshot(repository=repository, run=run)
 
 
 def project_run_status(run: OrchestratorRun) -> CommandCenterStatus:
