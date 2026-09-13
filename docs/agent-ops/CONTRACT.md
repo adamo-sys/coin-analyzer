@@ -8,6 +8,8 @@ on the Coin Analyzer repository.
 These rules apply regardless of model, harness, scheduler, or vendor.
 The concise entry point is [AGENTS.md](../../AGENTS.md); it owns the context-budget
 thresholds and protected boundaries. This file defines task structure and authority.
+Codex must apply the [context-budget and rotation rules](../../AGENTS.md#codex-context-budget)
+as part of task execution discipline, within existing scope and authorization limits.
 
 ## Core Principles
 

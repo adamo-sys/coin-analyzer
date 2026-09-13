@@ -20,10 +20,16 @@
 
 These are repository operating thresholds, not model capacity claims. K = 1,000
 tokens of accumulated thread context/work; compaction does not reset this budget.
-Use available session accounting; label estimates. If accounting is unavailable,
-report that limitation rather than invent a count. Checkpoint at each bounded
-work-package boundary and rotate before another substantive package; genuinely
-nearly-complete current work may finish only under the exception below.
+Use available session accounting; label estimates. If exact session-wide accounting
+is unavailable, state that limitation once per session; do not invent a count or
+repeatedly restate the limitation. Use session length, tool-call volume, repository
+discovery, accumulated history, and task complexity as proxies; prefer earlier
+checkpointing when uncertain. When operator confirmation is useful, recommend
+`/usage` where available or the visible session-status UI; do not assume it
+provides exact session-wide context accounting.
+Checkpoint at each bounded work-package boundary and rotate before another
+substantive package; genuinely nearly-complete current work may finish only under
+the exception below.
 Check at task start, work-package boundaries, and before substantive new steps.
 
 | Threshold | Required action |
@@ -37,6 +43,16 @@ Exception: finish a genuinely nearly-complete step only if stopping would create
 more work. Record the specific step, reason, and bounded exit; no new scope or
 extension past 100K. Then checkpoint and rotate. These are agent-enforced rules,
 not an installed token monitor. A stricter task-specific stop rule takes priority.
+
+Before recommending a fresh Codex thread, provide a concise checkpoint containing
+the task objective, branch, worktree, exact HEAD and task-authorized base, exact
+modified paths, completed validation, unresolved blockers, next authorized action,
+publication status, and relevant stop conditions. Use the
+[runbook procedure](docs/agent-ops/RUNBOOK.md#checkpoint-and-thread-rotation) for
+authorized durable storage or an in-task handoff when storage is not authorized;
+checkpointing grants no additional file or publication authority.
+After recommending rotation at or beyond the normal hard cap, do not begin a new
+substantive subtask in that session.
 
 ## Architecture and protected boundaries
 

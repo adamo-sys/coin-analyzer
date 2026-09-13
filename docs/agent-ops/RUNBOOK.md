@@ -24,7 +24,10 @@
 
 ## Checkpoint and thread rotation
 
-Use the root budget thresholds without redefining them here. Keep one compact
+As context usage approaches rotation, apply the
+[root budget rules](../../AGENTS.md#codex-context-budget), using their accounting
+fallback when needed. Update the checkpoint below before recommending a fresh
+thread; then follow the root stop and subtask rules. Keep one compact
 checkpoint in a task-authorized, non-sensitive Markdown path (for example
 `docs/agent-ops/checkpoint-<task>.md`); name the path before writing. Do not modify
 an unrelated existing checkpoint. A checkpoint is not automatically publishable
@@ -33,10 +36,11 @@ handoff in the task and report that repository persistence remains pending.
 
 ```text
 TASK / GOAL: One sentence; six-field contract or its durable reference.
-STATE: Branch, exact HEAD, changed paths, proposed commit set, commit/PR status.
+STATE: Branch, worktree, exact HEAD/base, exact modified paths, proposed commit set.
+PUBLICATION: Commit, push, and PR status.
 DONE / EVIDENCE: Verified results with commands, outcomes, relevant CI head/run.
-REMAINING: Ordered next steps; identify the first safe action.
-BOUNDARIES / BLOCKERS: Exclusions, protected data, unresolved findings, approvals needed.
+REMAINING: Ordered next steps; identify the next authorized action.
+BOUNDARIES / BLOCKERS: Unresolved blockers, relevant stop conditions, exclusions, protected data, approvals needed.
 CONTEXT: Relevant files/sections and decisions with brief reasons; no rediscovery log.
 BUDGET: Reported/estimated usage or unavailable; triggered threshold; exception/exit if any.
 ```
