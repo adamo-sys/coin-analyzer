@@ -1,239 +1,105 @@
-# Agent Workflow: Guarded Architecture-First Development
+# Coin Analyzer Agent Harness v1
 
-## Purpose
+## Start and scope
 
-This document defines the operating procedure for AI-assisted development in
-`coin-analyzer`. It keeps production changes architecture-first while allowing
-larger, bounded implementation work packages when the scope, invariants, tests,
-and stop conditions are explicit.
+- Before substantive work, record and compare actual branch, exact HEAD, and
+  intended task-authorized base/ref against task expectations; stop on mismatch or
+  unresolved base expectations. Do not fetch or mutate the checkout to satisfy
+  this gate without authority. Inspect tracked state using
+  `git status --short --untracked-files=no` when unrelated local artifacts exist;
+  check only intended new paths separately. Do not enumerate protected data.
+- Read only guidance/source needed for the task. Verify the handoff against current
+  evidence; do not rediscover the whole repository.
+- Before editing, state the file boundary and six-field task contract in
+  [CONTRACT.md](docs/agent-ops/CONTRACT.md#bounded-task-contract). Reuse a complete
+  user contract. No unrelated cleanup or speculative refactors.
+- Use [RUNBOOK.md](docs/agent-ops/RUNBOOK.md) for checkpoints and independent review;
+  consult [STANDARDS.md](docs/agent-ops/STANDARDS.md) for detailed standards.
 
-Typical invocation:
+## Codex context budget
 
-> "Continue the current Coin Analyzer work. Inspect the repository, follow
-> AGENTS.md, complete the next bounded work package, validate it, and report
-> changed files, tests, risks, and stop conditions."
+These are repository operating thresholds, not model capacity claims. K = 1,000
+tokens of accumulated thread context/work; compaction does not reset this budget.
+Use available session accounting; label estimates. If accounting is unavailable,
+report that limitation rather than invent a count. Checkpoint at each bounded
+work-package boundary and rotate before another substantive package; genuinely
+nearly-complete current work may finish only under the exception below.
+Check at task start, work-package boundaries, and before substantive new steps.
 
-## Operating Model
+| Threshold | Required action |
+| --- | --- |
+| 50K | Warn the user; report current state and remaining work. |
+| 65K | Prepare a durable checkpoint/handoff now; stop beginning new substantive steps. |
+| 75K | Normal hard rotation cap: stop work and rotate with the handoff; no substantive new work. |
+| 100K | Emergency ceiling only, never a planned working budget; stop by this limit. |
 
-### Roles
+Exception: finish a genuinely nearly-complete step only if stopping would create
+more work. Record the specific step, reason, and bounded exit; no new scope or
+extension past 100K. Then checkpoint and rotate. These are agent-enforced rules,
+not an installed token monitor. A stricter task-specific stop rule takes priority.
 
-- **User / repository owner**: owns product direction, architecture decisions,
-  privacy/evidence decisions, and final merge authority.
-- **Primary implementation agent (normally Codex)**: implements bounded vertical
-  slices, runs focused validation, and reports scope/test/risk evidence.
-- **Independent reviewer (when used)**: reviews against the frozen architecture,
-  invariants, tests, and diff without silently broadening scope.
-- **GitHub Actions**: authoritative automated gate for repository CI.
+## Architecture and protected boundaries
 
-The implementation agent and independent reviewer should be separated where
-practical. CI evidence outranks agent confidence.
-
-## Core Principles
-
-### 1. Architecture-First Production Changes
-
-Production behavior changes must be supported by the applicable architecture or
-contract documentation. If the requested behavior is absent from, or contradicts,
-the frozen architecture, the agent must stop and propose the smallest necessary
-architecture amendment before changing production behavior.
-
-Documentation, CI, tests, developer tooling, and repository-hygiene changes do
-not require an unrelated production architecture amendment, but they must still
-preserve project invariants.
-
-### 2. Bounded Vertical Slices, Not Artificially Tiny Prompts
-
-Prefer one substantial, reviewable work package over many microscopic prompts.
-A work package may span multiple related files when they form one coherent
-vertical slice.
-
-Each work package must define:
-
-- objective and acceptance criteria;
-- files/components expected to change;
-- explicit invariants and out-of-scope items;
-- focused validation plus the required regression/CI gates;
-- risks and stop conditions.
-
-Do not mix unrelated cleanup, speculative refactors, or opportunistic feature
-work into the same package.
-
-### 3. Inspect Before Editing
-
-Before changing code, the implementation agent should inspect the relevant
-repository state and source rather than rely on memory. In a local checkout this
-includes `git status`; through remote tooling it includes the current branch/head,
-relevant files, PR state, and current CI evidence.
-
-Preserve unrelated local or untracked files. Never infer that an untracked file
-is disposable or publishable.
-
-### 4. Validation Ladder
-
-Use the narrowest meaningful validation first, then escalate:
-
-1. focused tests/checks for the changed behavior;
-2. affected module/integration tests where applicable;
-3. compilation/static checks where applicable;
-4. authoritative GitHub Actions regression before merge.
-
-Current blocking repository gates include the Windows/Ubuntu unittest matrix,
-Ruff syntax checks, Gitleaks, and the explicitly ratcheted bounded Pyright check.
-Whole-repo Pyright remains advisory/non-blocking.
-
-Do not weaken production semantics merely to make a test pass.
-
-### 5. Independent Review Before Significant Closure
-
-Before a significant feature/sprint is considered complete, perform an
-independent review when practical. Review should verify:
-
-- architecture/contract alignment;
-- state-transition and invariant correctness;
-- edge cases and fail-closed behavior;
-- privacy, provenance, licensing, and evidence boundaries;
-- test coverage and whether the selected tests actually prove the claim;
-- unnecessary churn or scope expansion.
-
-Review conclusion: **PASS**, **PASS WITH NOTES**, or **FAIL**.
-
-### 6. Documentation Follows Verified Reality
-
-Update traceability, project state, recovery matrices, portfolio claims, and
-other status documents only after the underlying implementation or CI evidence
-is verified.
-
-Do not overstate benchmark completion, confidence semantics, corpus readiness,
-or test results. Prefer exact evidence over promotional wording.
-
-### 7. Repository Mutation and Authority
-
-The user retains final merge authority.
-
-The agent may create branches, commits, pushes, PRs, comments, and CI-supporting
-changes only when the user has authorized that bounded work. Authorization can
-be explicit for one action or can cover a clearly scoped work package.
-
-For merges:
-
-- do not merge a PR with failing, cancelled, stale, or incomplete blocking gates;
-- use the current PR head SHA when possible to prevent stale merges;
-- report merge readiness and wait for explicit human merge authorization for
-  that PR;
-- never infer merge authority from authorization to implement, commit, push,
-  open a PR, or perform earlier work.
-
-No force-pushes, destructive history rewrites, releases, or tags without explicit
-user authorization.
-
-### 8. Private Data and Protected Local Files
-
+- Production behavior must follow applicable frozen architecture/contracts.
+  If absent or contradictory, stop and propose the smallest architecture amendment.
+  Docs, tests, CI, tooling, and hygiene need no unrelated production amendment.
+- Preserve local-first behavior and optional network/AI features. Recognition and
+  evaluation are advisory; they do not own persistence or collector decisions.
 - Never inspect, commit, upload, or migrate collection backups, exports, live
-  collection records, collector notes, credentials, or private photographs
-  unless the user explicitly authorizes the exact material and operation.
-- Collection backups and exports remain outside source control. Tests use
-  sanitized synthetic fixtures and temporary directories.
-- The ten JPEGs under `test_coins/` are **UNCERTAIN / LOCAL-ONLY**. They may
-  support their existing local test role but must not be uploaded to CI artifacts
-  or external providers, redistributed, or promoted into public benchmark
-  manifests.
-- Secret scanning is defense in depth, not permission to commit sensitive data.
+  records, notes, credentials, or private photos without authorization for the
+  exact material and operation. Backups/exports remain outside source control.
+- Preserve unrelated local/untracked files and ignored private benchmark artifacts.
+  Do not investigate `data/imports/` permission warnings unless required by scope.
+- The ten JPEGs in `test_coins/` are **UNCERTAIN / LOCAL-ONLY**: existing local
+  test use only; no CI artifacts, external providers, redistribution, or public
+  benchmark manifests. Secret scanning does not authorize sensitive publication.
+- Tests use sanitized synthetic fixtures and temporary directories. Evaluation
+  inputs require sanitized relative references and explicit privacy classification;
+  private/uncertain inputs stay out of cloud CI and provider comparisons.
+- Ground truth must be provenance-backed; otherwise report it as unavailable.
+  Do not manufacture ground truth, provenance, or evidence. Do not turn heuristic
+  or source-specific scores into probability confidence; report unavailable
+  confidence when semantics are indefensible.
 
-### 9. Recognition and Evaluation Boundaries
+## Validation, review, and authority
 
-- Recognition and evaluation outputs are advisory; they do not own collection
-  persistence, confirmed observations, or collector decisions.
-- Do not convert heuristic or source-specific scores into generic probability
-  confidence. Use unavailable confidence when semantics are not defensible.
-- Ground truth must be provenance-backed. Never manufacture labels to satisfy a
-  schema, benchmark, or test.
-- Evaluation inputs use sanitized relative references and explicit privacy
-  classification. Private or uncertain inputs do not enter cloud CI or provider
-  comparisons.
+- Validate narrowly first: focused checks, affected integration, then applicable
+  static checks. Docs-only tasks use lightweight checks, not expensive regression
+  solely for docs. Preserve [TESTING.md](TESTING.md) and executable CI contracts.
+- Root regression: `python -m unittest discover -s . -p "test_*.py"`.
+  Authoritative merge gates remain GitHub Actions: Windows/Ubuntu unittest,
+  Ruff syntax, Gitleaks, and ratcheted bounded Pyright; whole-repo Pyright is advisory.
+- Do not weaken behavior/tests for a pass. Report exact evidence and unrun checks;
+  update status/traceability claims only after underlying evidence is verified.
+- For significant closure, use an independent verifier when practical, with
+  **PASS**, **PASS WITH NOTES**, or **FAIL**; see the runbook. CI outranks confidence.
+- Use a dedicated non-default branch. Branches, commits, pushes, PRs, comments,
+  and CI changes require authorization covering the bounded action. Stage exact
+  paths only. Task-specific restrictions override default workflow suggestions.
+  Implementation alone does not authorize commit, push, or PR creation; see
+  [action authority](docs/agent-ops/CONTRACT.md#default-authority).
+- The owner retains architecture, privacy/evidence decisions, and final merge
+  authority. Require explicit human authorization for each PR merge and current
+  passing blocking gates; never merge stale, incomplete, cancelled, or failed gates.
+  Use the current PR head SHA when possible. No force-push, destructive history
+  rewrite, release, or tag without explicit authorization.
 
-### 10. Reporting Discipline
+## Stop and report
 
-Every completed implementation work package should report, as applicable:
+Stop for architecture contradiction, security/privacy/provenance risk, scope
+expansion, validation failure not safely resolvable in scope, blocking review
+finding, exceeded authority, or the budget rules above. Report the blocker and
+smallest next decision; do not improvise around it.
 
-- objective and scope completed;
-- changed files and why;
-- focused tests/checks and results;
-- authoritative CI/regression status;
-- review findings;
-- known risks and deferred work;
-- commit/PR status;
-- whether any manual validation remains (for example native Tk acceptance).
+At closure, report scope/files, checks and results, CI status, review findings,
+risks/deferred work, commit/PR state, and remaining manual acceptance. Do not
+hard-code a repository-wide test total; use the latest authoritative CI evidence.
 
-Avoid hard-coding a repository-wide expected test total in this file. The latest
-successful authoritative CI run is the source of truth because the suite grows
-as work is merged.
+## Task-specific references (load only when relevant)
 
-## Stop Conditions
-
-Stop and report rather than improvising when any of the following occurs:
-
-1. **Architecture contradiction** — implementation requires behavior outside or
-   inconsistent with the frozen specification.
-2. **Security/privacy/provenance issue** — a change risks secrets, private data,
-   unauthorized evidence, or a fail-open boundary.
-3. **Scope expansion** — a prerequisite or unrelated change would broaden the
-   approved work package.
-4. **Failed validation** — focused or authoritative blocking checks fail and the
-   cause cannot be safely resolved within the bounded task.
-5. **Blocking review finding** — review discovers a substantive correctness,
-   architecture, or evidence-boundary discrepancy.
-6. **Authority boundary** — the next mutation would exceed the user's explicit
-   or clearly scoped authorization.
-
-## Validation Commands
-
-### Focused examples
-
-```bash
-python -m unittest tests.test_durable_persistence_contracts
-python -m unittest tests.test_durable_persistence_services
-python -m unittest tests.test_capture_package_recovery_matrix
-python -m unittest tests.test_capture_package_execution
-python -m unittest tests.test_capture_package_durability
-python -m unittest tests.test_capture_import_lock
-python -m unittest tests.test_capture_import_snapshot
-python -m unittest tests.test_workflow_models
-python -m unittest tests.test_workflow_pipeline
-python -m unittest tests.test_workflow_execution
-python -m unittest tests.test_workflow_workspace
-python -m unittest tests.test_workflow_integration
-python -m unittest tests.test_workflow_reference_stages
-```
-
-### Full regression
-
-```bash
-python -m unittest discover -s . -p "test_*.py"
-```
-
-Root discovery remains the authoritative Python regression command. GitHub
-Actions additionally supplies the cross-platform and repository-quality gates.
-See `TESTING.md` and `.github/workflows/` for the current executable CI contract.
-
-## Project-Specific Invariants
-
-- Frozen spec: `docs/architecture/durable-persistence.md` at SHA-256
+- [Frozen persistence spec](docs/architecture/durable-persistence.md), SHA-256
   `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`
-- Recovery matrix: `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_MATRIX.md`
-- Recovery invariants: `docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_INVARIANTS.md`
-- Traceability: `docs/architecture/durable-persistence-traceability.md`
-- Tool evaluation: `docs/AI_TOOL_EVALUATION.md`
-
-## Practical Default
-
-For normal Coin Analyzer work, use this sequence:
-
-1. inspect current state;
-2. define one bounded vertical slice and acceptance criteria;
-3. implement the slice;
-4. run focused validation;
-5. run/await authoritative CI;
-6. perform independent review when the change is significant;
-7. report changed files, tests, risks, and deferred work;
-8. report merge readiness; merge only after explicit user authorization for that
-   PR.
+- [Recovery matrix](docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_MATRIX.md)
+- [Recovery invariants](docs/DESKTOP_PACKAGE_IMPORT_RECOVERY_INVARIANTS.md)
+- [Traceability](docs/architecture/durable-persistence-traceability.md)
+- [Tool evaluation](docs/AI_TOOL_EVALUATION.md)
