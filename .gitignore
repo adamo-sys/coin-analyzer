@@ -35,3 +35,13 @@ Thumbs.db
 
 # Generated best-effort inference telemetry
 /collection_data/telemetry/
+
+# Private phone-photo benchmark inventory and freeze digest are local-only.
+/benchmarks/phone-photo-v1/manifest.json
+/benchmarks/phone-photo-v1/manifest.sha256
+# Allow only sanitized documentation here; exclude photos, previews, raw output,
+# journals, alternate manifests, and any future private benchmark artifacts.
+/benchmarks/phone-photo-v1/*
+!/benchmarks/phone-photo-v1/README.md
+!/benchmarks/phone-photo-v1/RESULTS.md
+# Runtime reports and previews also remain covered by /debug_outputs/ above.
