@@ -38,7 +38,7 @@ def project_run_status(run: OrchestratorRun) -> CommandCenterStatus:
 def project_repository_status(branch, head, upstream, clean, default_branch='main'):
     on_default = branch == default_branch
     state = 'STOPPED' if on_default or not branch else ('DIRTY' if not clean else 'READY')
-    action = 'Move implementation work to an authorized non-default branch.' if on_default else ('Review tracked changes before further work.' if not clean else 'Repository state permits bounded work; authorization rules still apply.')
+    action = 'Restore an authorized named non-default branch before further work.' if not branch else ('Move implementation work to an authorized non-default branch.' if on_default else ('Review tracked changes before further work.' if not clean else 'Repository state permits bounded work; authorization rules still apply.'))
     return RepositoryStatus(branch, head, upstream, clean, on_default, state, action)
 
 

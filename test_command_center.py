@@ -47,6 +47,7 @@ class RepositoryStatusTests(unittest.TestCase):
     def test_detached_head_is_stopped(self):
         status = project_repository_status('', 'abc123', None, True)
         self.assertEqual(status.state, 'STOPPED')
+        self.assertIn('Restore an authorized named non-default branch', status.next_authorized_action)
 
     def test_default_branch_is_stopped(self):
         status = project_repository_status('main', 'abc123', 'origin/main', True)
