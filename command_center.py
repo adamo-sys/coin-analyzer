@@ -55,6 +55,45 @@ def project_command_center_snapshot(
     return CommandCenterSnapshot(repository=repository, run=run)
 
 
+def project_operator_status(snapshot: CommandCenterSnapshot) -> str:
+    """Render supplied observations as state, result, and next authorized action.
+
+    Precedence: repository STOPPED, run STOPPED, repository DIRTY, then run
+    status (including NEEDS_AUTHORIZATION). The winning component supplies the
+    action verbatim. Both states and pending review remain visible regardless
+    of precedence. This is display selection, never a lifecycle transition or
+    authorization to perform the displayed action.
+    """
+    repository, run = snapshot.repository, snapshot.run
+    if repository.state == "STOPPED":
+        state, action = repository.state, repository.next_authorized_action
+    elif run.state == "STOPPED":
+        state, action = run.state, run.next_authorized_action
+    elif repository.state == "DIRTY":
+        state, action = repository.state, repository.next_authorized_action
+    else:
+        state, action = run.state, run.next_authorized_action
+
+    results = [run.result]
+    if repository.state == "STOPPED":
+        results.append(
+            f"Repository STOPPED (branch={repository.branch!r}, "
+            f"on_default_branch={repository.on_default_branch})."
+        )
+    elif repository.state == "DIRTY":
+        results.append("Repository has tracked changes.")
+    if run.blocker:
+        results.append(f"Blocker: {run.blocker}")
+    pending = "yes" if snapshot.human_review_pending else "no"
+    return (
+        f"STATE: {state} | repository={repository.state} | run={run.state} | "
+        f"authority={snapshot.execution_authority.value} | "
+        f"human_review_pending={pending}\n"
+        f"RESULT: {' '.join(results)}\n"
+        f"NEXT ACTION: {action}"
+    )
+
+
 def project_run_status(run: OrchestratorRun) -> CommandCenterStatus:
     if run.state is OrchestratorState.READY_FOR_HUMAN_REVIEW:
         return CommandCenterStatus(run.run_id, "NEEDS_AUTHORIZATION", "Machine-side pipeline complete; human review required.", None, "Human review; any governed follow-on action requires explicit authorization.", True)
