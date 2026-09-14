@@ -1,0 +1,43 @@
+schema_version: 1
+guidance:
+  - AGENTS.md
+  - docs/agent-ops/CONTRACT.md
+  - docs/agent-ops/RUNBOOK.md
+  - docs/agent-ops/STANDARDS.md
+  - TESTING.md
+validation_profiles:
+  documentation:
+    - Check whitespace and relevant local links.
+  tests:
+    - Run changed tests with unittest and affected regressions.
+    - Run applicable static checks.
+  tooling:
+    - Run focused synthetic tool tests and entry-point smoke checks.
+    - Run applicable Ruff E9 and bounded Pyright checks.
+  production:
+    - Run focused behavior tests and affected integration/regression checks.
+    - Run applicable static checks and required CI gates.
+task_classes:
+  documentation: {validation_profile: documentation}
+  tests: {validation_profile: tests}
+  tooling: {validation_profile: tooling}
+  production: {validation_profile: production}
+protected_paths:
+  - data
+  - test_coins
+  - debug_outputs
+  - backups
+  - exports
+  - notes
+  - credentials
+  - .env*
+  - '*.pem'
+  - '*.key'
+  - '*.jpg'
+  - '*.jpeg'
+  - '*.png'
+  - '*.webp'
+  - '*.heic'
+  - '*.sqlite*'
+  - '*.db'
+  - benchmarks/phone-photo-v1
