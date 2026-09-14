@@ -31,6 +31,11 @@ def unsafe_component(value: str) -> bool:
             or bool(re.fullmatch(r'(?i)(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\..*)?', value)))
 
 
+def unsafe_component_no_alias(value: str) -> bool:
+    return (value.endswith((' ', '.'))
+            or bool(re.fullmatch(r'(?i)(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\..*)?', value)))
+
+
 def relative_path(value: str) -> str:
     """Accept literal, portable relative paths, never Git pathspec expressions."""
     if (not value or '\\' in value or ':' in value or value.startswith('/')
@@ -47,11 +52,17 @@ def load_config(path: Path) -> dict[str, Any]:
     # resolving would follow links before the protected-path and link checks.
     if '..' in path.parts:
         raise PreflightError('Configuration must not contain traversal.')
+    # Validate lexical relative-path aliases before absolutizing. Absolute parent
+    # directories may legitimately include platform-generated alias components.
+    if (not path.is_absolute()
+            and any(unsafe_component(part) or part == '..' or ':' in part or any(ord(c) < 32 for c in part)
+                    for part in path.parts)):
+        raise PreflightError('Configuration must not be a protected or linked path.')
     try:
         path = path.absolute()
     except OSError as exc:
         raise PreflightError('Configuration path is unavailable.', 3) from exc
-    if (any(unsafe_component(part) or part == '..' or ':' in part or any(ord(c) < 32 for c in part)
+    if (any(unsafe_component_no_alias(part) or part == '..' or ':' in part or any(ord(c) < 32 for c in part)
             for part in path.parts if part != path.anchor)
             or protected(path.as_posix(), MINIMUM_PROTECTED) or linked_path(path)):
         raise PreflightError('Configuration must not be a protected or linked path.')

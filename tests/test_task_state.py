@@ -204,9 +204,14 @@ class PreflightTests(unittest.TestCase):
             with self.subTest(value=value):
                 with mock.patch.object(task_state.Git, 'run', side_effect=AssertionError('Git must not run')):
                     self.assertEqual(self.invoke('--expect-path', value)[0], 2)
+        for value in ('data./private.yml', 'notes /private.yml', 'aux.txt', 'COM1'):
+            with self.subTest(value='config-' + value):
                 config = self.repo / value
                 with mock.patch.object(task_state, 'linked_path', side_effect=AssertionError('No filesystem access')):
                     self.assertEqual(self.invoke('--config', str(config))[0], 2)
+        with chdir(self.repo), \
+                mock.patch.object(task_state, 'linked_path', side_effect=AssertionError('No filesystem access')):
+            self.assertEqual(self.invoke('--config', 'TEST_C~1/photo.txt')[0], 2)
 
     def test_config_cannot_disable_minimum_protection(self):
         config = task_state.load_config(ROOT / '.ops/tasks.yml')
