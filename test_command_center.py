@@ -63,6 +63,32 @@ class RepositoryStatusTests(unittest.TestCase):
         self.assertEqual(status.state, 'STOPPED')
         self.assertTrue(status.on_default_branch)
 
+    def test_custom_default_branch_is_stopped(self):
+        status = project_repository_status(
+            'develop', 'abc123', 'origin/develop', True,
+            default_branch='develop',
+        )
+        self.assertEqual(status.state, 'STOPPED')
+        self.assertTrue(status.on_default_branch)
+        self.assertEqual(
+            status.next_authorized_action,
+            'Move implementation work to an authorized non-default branch.',
+        )
+
+
+    def test_dirty_custom_default_branch_is_stopped(self):
+        status = project_repository_status(
+            'develop', 'abc123', 'origin/develop', False,
+            default_branch='develop',
+        )
+        self.assertFalse(status.clean)
+        self.assertTrue(status.on_default_branch)
+        self.assertEqual(status.state, 'STOPPED')
+        self.assertEqual(
+            status.next_authorized_action,
+            'Move implementation work to an authorized non-default branch.',
+        )
+
 
 class CommandCenterSnapshotTests(unittest.TestCase):
     def test_ready_repository_with_pending_human_review(self):
