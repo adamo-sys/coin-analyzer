@@ -44,6 +44,22 @@ The baseline is a measurement target, not permission to spend additional provide
 
 ## Serena trial
 
+### Phase A evidence
+
+Owner-provided results:
+
+- Serena version: **1.7.0**.
+- Semantic symbol/reference discovery confirmed that custom `default_branch`
+  is already honored; no production defect was found.
+- Completed one authorized test-only semantic edit in `test_command_center.py`.
+  No production edits were made.
+- Serena diagnostics: clean.
+- External focused validation: `RepositoryStatusTests` **5/5 passed**.
+- Windows shell-helper and headless approval/session friction required
+  interactive Codex.
+- Provisional decision: **OPTIONAL**, positive.
+- Exact configuration, elapsed time, and tool/model cost were not supplied.
+
 ### Required evidence
 
 - exact Serena version;
@@ -61,6 +77,26 @@ The baseline is a measurement target, not permission to spend additional provide
 Serena earns `adopt` or `optional` only if it provides measurable signal such as lower exploratory churn, better symbol/impact discovery, less unnecessary editing, or a useful dependency/defect observation. Novelty alone is not signal.
 
 ## Superpowers trial
+
+### Phase B evidence
+
+Owner-provided results:
+
+- Superpowers version: **6.3.0**.
+- Model/configuration: **gpt-5.6-terra**, medium reasoning effort.
+- Phase B: complete.
+- A bounded independent static review was separated from fresh verification.
+- Static review: **PASS WITH NOTES**; no Critical, Important, or Minor findings.
+- Fresh focused validation: `RepositoryStatusTests` **5/5 passed**.
+- Verification-before-completion was satisfied for the focused class. Historical
+  Phase A test evidence was not treated as current verification.
+- No broader suite, CI, or PR validation was performed.
+- No production-code or configuration changes occurred.
+- Plugin installation/marketplace verification and multiple gated
+  inspection/review/verification steps added operational ceremony, but provided
+  useful verification discipline.
+- Timing and token/cost: not measured.
+- Provisional decision: **OPTIONAL**, positive.
 
 ### Required evidence
 
@@ -80,16 +116,25 @@ Superpowers earns `adopt` or `optional` only if its planning/TDD/verification be
 
 ## Combined trial
 
-Run only if Serena and Superpowers each show individual value. Reuse the same bounded task family; do not broaden scope. Serena supplies semantic repository navigation and Superpowers supplies process discipline. Repository instructions, tests, CI, and human authority remain authoritative.
+Completed after Serena and Superpowers each showed individual value. The trial reused the bounded repository-status test family without broadening scope. Repository instructions, tests, CI, and human authority remained authoritative.
+
+### Completed combined evidence
+
+- **Task:** added `test_dirty_custom_default_branch_is_stopped` for a dirty `develop` branch when `develop` is the custom `default_branch`, locking STOPPED precedence over DIRTY.
+- **Serena contribution:** semantic inspection located the insertion point and confirmed the precedence contract in `project_repository_status()`; Serena also performed the focused test edit. No diagnostics were reported for the affected test file.
+- **Superpowers contribution:** bounded workflow, independent read-only review, and evidence-first verification. The reviewer returned **PASS** with no findings.
+- **Fresh focused validation:** `python -m unittest test_command_center.RepositoryStatusTests` completed successfully: **6/6 PASS**.
+- **Boundaries and interventions:** no production changes, configuration changes, or corrective interventions. A RED-stage run was not performed because the regression locks already-correct production behavior; the fresh focused passing result is retained as validation evidence.
+- **Combined value and final pilot recommendation:** **OPTIONAL — positive.** The combined tools added useful bounded signal, but their added ceremony does not justify mandatory routine adoption.
 
 ## Scorecard
 
 | Tool | Completion | Useful signal | Defects/scope violations | Unnecessary churn | Human interventions | Time | Cost | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Baseline Codex/OpenCode | TBD | TBD | TBD | TBD | TBD | TBD | TBD | baseline |
-| Serena | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
-| Superpowers | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
-| Combined | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| Serena | Phase A complete | Semantic symbol/reference discovery; one test-only semantic edit | No production defect found; no production edits | Windows shell-helper and headless approval/session friction | Interactive Codex required | Not measured | Not measured | OPTIONAL — provisional, positive |
+| Superpowers | Phase B complete | Bounded independent review and fresh verification discipline | No Critical, Important, or Minor findings; no production-code or configuration changes | Plugin installation/marketplace verification and gated inspection/review/verification steps | Not measured | Not measured | Not measured | OPTIONAL — provisional, positive |
+| Combined | Complete | Dirty custom-default STOPPED-precedence regression; Serena semantic inspection/edit; Superpowers independent review and fresh verification | No production changes; no diagnostics; no interventions | Added process ceremony, but useful bounded signal | None | Not measured | Not measured | OPTIONAL — final, positive |
 
 ## Decision rules
 
@@ -105,8 +150,8 @@ A successful pilot demonstrates the tool's behavior on this task only. It does n
 ## Current status
 
 - Scaffold branch: `tooling/serena-superpowers-pilot`
-- Pilot task: selected; execution pending local Terminus setup
-- Serena: not yet installed/measured
-- Superpowers: not yet installed/measured
-- Combined trial: deferred until individual trials pass
+- Pilot task: Serena Phase A complete; external `RepositoryStatusTests` 5/5 passed
+- Serena: 1.7.0; provisional OPTIONAL, positive
+- Superpowers: 6.3.0 on gpt-5.6-terra (medium); Phase B complete; fresh `RepositoryStatusTests` 5/5 passed; provisional OPTIONAL, positive
+- Combined trial: complete; dirty custom-default STOPPED-precedence regression added; Serena semantic inspection/edit and Superpowers independent review completed; no diagnostics, production changes, or interventions; fresh `RepositoryStatusTests` 6/6 PASS; final OPTIONAL, positive
 - Merge authority: human
