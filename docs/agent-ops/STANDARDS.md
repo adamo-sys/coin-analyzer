@@ -121,3 +121,11 @@ Example format:
 Update these standards through normal repository review.
 
 Do not rewrite standards merely to make an agent's preferred behavior acceptable.
+
+## Security Review Standard
+
+- Security findings must be grounded in inspected source, configuration, tests, or retained execution evidence; do not present an inferred vulnerability as confirmed.
+- Label plausible but unverified security concerns as `needs_validation`; record what evidence is missing and the smallest validation step that could confirm or reject the concern.
+- Record review coverage explicitly: components, files, trust boundaries, and threat classes actually inspected, plus material areas not reviewed. No findings means no finding within that recorded coverage, not that the repository is secure.
+- Mark a security finding confirmed only when retained evidence establishes the relevant preconditions and reachable security-relevant behavior or impact. Do not manufacture exploitability, severity, or impact from unsupported assumptions.
+- A security review grants no additional authority: discovery does not authorize remediation, protected-data access, commits, pushes, pull requests, CI changes, releases, or merges. Follow the existing task contract and human authorization boundaries.
