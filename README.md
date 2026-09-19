@@ -250,7 +250,7 @@ See [TESTING.md](TESTING.md) for fixture, OCR experiment, GUI, and manual-accept
 
 ## Project direction
 
-The internal `v8.x` and `v9.x` labels document historical development phases. Public semantic-version release preparation is tracked separately and will not rewrite that history.
+The internal `v8.x` and `v9.x` labels document historical development phases. Public semantic-version release preparation is tracked separately and will not rewrite that history. Runtime provenance uses the public semantic-version line; unreleased development builds use the latest published version with a `+dev` suffix.
 
 See the [roadmap](ROADMAP.md) for current direction. Feature candidates require repository inspection, explicit acceptance criteria, and an approval gate before implementation.
 
