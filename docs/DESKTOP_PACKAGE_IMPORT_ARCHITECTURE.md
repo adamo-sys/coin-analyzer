@@ -925,11 +925,12 @@ the user guide must not claim otherwise.
 
 ## Version and Repository Preconditions
 
-Architecture work may proceed independently of release numbering. Before
-implementation starts, reconcile the authoritative checkout with the released
-repository and decide whether `APPLICATION_VERSION = "v8.8.0"` is an internal
-milestone identifier or stale public release metadata. Implementation must not
-invent a version based on README prose.
+Architecture work may proceed independently of release numbering. The version
+namespace is now explicit: `APPLICATION_VERSION` is runtime build provenance on
+the public semantic-version line, while historical `v8.x`/`v9.x` labels remain
+internal development milestones only. Published builds use their exact public tag;
+unreleased main-line development uses the latest published version plus `+dev`.
+Release metadata remains owned by `application_metadata.py`, not README prose.
 
 ## Explicit Non-Goals
 
