@@ -1,5 +1,27 @@
 # Project State
 
+## Current Release Preparation — 2026-09-19
+
+
+
+- Public release baseline: `v1.2.0` at `1857e3372b7a6ba24c529eec2cac6c31e93260dc`.
+
+- Target public release: `v1.3.0`.
+
+- Release candidate target: `v1.3.0-rc1`.
+
+- Release-prep branch: `release/v1.3.0-rc1-prep`.
+
+- Release scope: merged work on `main` after `v1.2.0` through PR #245; no new feature expansion during RC preparation.
+
+- Runtime provenance during release preparation: `v1.2.0+dev`.
+
+- Historical internal `v8.x`/`v9.x` milestone labels below are not current public runtime version identifiers.
+
+- Current task: reconcile release metadata and source-of-truth documents, then execute the release checklist evidence and audit gates.
+
+- Release status: preparation only; `v1.3.0-rc1` has not been tagged or released.
+
 ## Current reconciliation — 2026-09-08
 
 The dated records below are historical snapshots, including their old pending

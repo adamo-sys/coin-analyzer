@@ -1,4 +1,29 @@
-# AI Handoff
+# AI Handof
+
+## Current Handoff — 2026-09-19
+
+
+
+- Public release baseline: `v1.2.0`.
+
+- Target public release: `v1.3.0`.
+
+- Release candidate target: `v1.3.0-rc1`.
+
+- Release-prep branch: `release/v1.3.0-rc1-prep`.
+
+- Upstream `main` at release-prep start: `d388542fda7e034a2edc946cd1f9b5017c067d1e`.
+
+- Scope is frozen to work already merged after `v1.2.0` through PR #245; do not add new features during RC preparation.
+
+- Runtime provenance for unreleased development: `v1.2.0+dev`.
+
+- Current task: finish source-of-truth reconciliation, then execute release testing, documentation, audit, Git verification, and RC tagging gates.
+
+- No `v1.3.0-rc1` tag or release has been created or pushed.
+
+- Historical `v8.x`/`v9.x` roadmap and release records below remain historical context and are not current public runtime version identifiers.
+
 
 ## Snapshot
 

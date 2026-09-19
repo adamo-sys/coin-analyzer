@@ -1,5 +1,35 @@
 # Task Queue
 
+## v1.3.0 RC1 Release Preparation — 2026-09-19
+
+
+
+- [x] Verify clean release-prep baseline from `main`.
+
+- [x] Confirm latest published public release is `v1.2.0`.
+
+- [x] Lock target public release as `v1.3.0` and candidate as `v1.3.0-rc1`.
+
+- [x] Freeze RC scope to merged work after `v1.2.0` through PR #245; no new feature expansion.
+
+- [x] Reconcile unreleased runtime provenance to `v1.2.0+dev`.
+
+- [ ] Reconcile `PROJECT_STATE.md`, `TASK_QUEUE.md`, and `AI_HANDOFF.md`.
+
+- [ ] Execute required release tests and collect evidence.
+
+- [ ] Complete release documentation and release audit.
+
+- [ ] Verify Git state and release commit.
+
+- [ ] Create annotated `v1.3.0-rc1` tag.
+
+- [ ] Push and verify the candidate remotely.
+
+
+
+Current task: complete source-of-truth reconciliation. Do not begin new feature, recognition-tuning, architecture, or tooling work during RC preparation.
+
 
 ## Phone Intake MVP — local implementation, review pending
 
