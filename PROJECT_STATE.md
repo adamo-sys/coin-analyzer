@@ -16,9 +16,11 @@
 
 - Runtime provenance during release preparation: `v1.2.0+dev`.
 
+- Full regression evidence: 5,731 passed, 32 skipped, 0 failures in 766.97 seconds; working tree remained clean after the completed run.
+
 - Historical internal `v8.x`/`v9.x` milestone labels below are not current public runtime version identifiers.
 
-- Current task: reconcile release metadata and source-of-truth documents, then execute the release checklist evidence and audit gates.
+- Current task: complete Phase 5 release documentation, then execute the Phase 6 release audit gates.
 
 - Release status: preparation only; `v1.3.0-rc1` has not been tagged or released.
 

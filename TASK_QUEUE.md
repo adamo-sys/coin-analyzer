@@ -14,11 +14,11 @@
 
 - [x] Reconcile unreleased runtime provenance to `v1.2.0+dev`.
 
-- [ ] Reconcile `PROJECT_STATE.md`, `TASK_QUEUE.md`, and `AI_HANDOFF.md`.
+- [x] Reconcile `PROJECT_STATE.md`, `TASK_QUEUE.md`, and `AI_HANDOFF.md`.
 
-- [ ] Execute required release tests and collect evidence.
+- [x] Execute required release tests and collect evidence.
 
-- [ ] Complete release documentation and release audit.
+- [ ] Complete release audit.
 
 - [ ] Verify Git state and release commit.
 
@@ -28,7 +28,7 @@
 
 
 
-Current task: complete source-of-truth reconciliation. Do not begin new feature, recognition-tuning, architecture, or tooling work during RC preparation.
+Current task: complete Phase 5 release documentation, then execute the Phase 6 release audit. Do not begin new feature, recognition-tuning, architecture, or tooling work during RC preparation.
 
 
 ## Phone Intake MVP — local implementation, review pending

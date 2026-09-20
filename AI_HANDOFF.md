@@ -18,7 +18,9 @@
 
 - Runtime provenance for unreleased development: `v1.2.0+dev`.
 
-- Current task: finish source-of-truth reconciliation, then execute release testing, documentation, audit, Git verification, and RC tagging gates.
+- Full regression evidence: 5,731 passed, 32 skipped, 0 failures in 766.97 seconds; working tree remained clean after the completed run.
+
+- Current task: complete Phase 5 release documentation, then execute the Phase 6 release audit, Git verification, and RC tagging gates.
 
 - No `v1.3.0-rc1` tag or release has been created or pushed.
 

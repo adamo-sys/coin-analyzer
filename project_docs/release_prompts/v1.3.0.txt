@@ -1,0 +1,94 @@
+Prepare v1.3.0 Release Candidate 1 under the repository release checklist.
+
+Public release baseline:
+v1.2.0
+
+Target public release:
+v1.3.0
+
+Release candidate:
+v1.3.0-rc1
+
+Mission:
+Audit and package the already-merged post-v1.2.0 work into a bounded, evidence-backed release candidate without expanding product or architecture scope.
+
+Frozen implementation scope:
+All merged work after v1.2.0 through PR #245.
+
+Major included areas:
+- Phone intake workflow and GUI integration
+- Standalone image intake integration
+- Phone-photo v1 benchmark harness, evidence, and baseline decision
+- Agent Harness v1 and context-budget controls
+- Command Center v0.1, repository status, observation snapshot, and operator-status projection
+- Foundation Slice 1 task-state and preflight controls
+- Adopted agent-operations integration updates
+- Serena/Superpowers bounded pilot closeout
+- Dependency and GitHub Actions maintenance
+- Application-version provenance clarification
+
+Before RC finalization, review:
+- RELEASE_CHECKLIST.md
+- README.md
+- PROJECT_STATE.md
+- TASK_QUEUE.md
+- AI_HANDOFF.md
+- RELEASE_HISTORY.md
+- docs/releases/v1.3.0.md
+- docs/CODEX_WORKFLOW.md
+- docs/agent-ops/CONTRACT.md
+- docs/agent-ops/RUNBOOK.md
+- docs/agent-ops/STANDARDS.md
+- docs/adr/ADR-012-phone-photo-v1-baseline.md
+
+Permanent release constraints:
+- Do not expand RC scope with new features.
+- Do not introduce new recognition tuning during RC preparation.
+- Do not introduce new architecture experiments during RC preparation.
+- Do not duplicate existing business logic.
+- Preserve backwards compatibility unless a breaking change is explicitly documented and approved.
+- Preserve deterministic and reviewable behavior.
+- Keep the desktop application and established service boundaries authoritative.
+- Historical internal v8.x/v9.x milestone labels are not current public runtime version identifiers.
+- Unreleased development provenance remains based on the latest published public release plus +dev until the applicable release gate changes it.
+- Do not create or push an RC tag until all required release gates pass.
+
+Required RC evidence:
+- Full regression suite passes with no failures.
+- Regression count does not decrease without documented explanation.
+- Release documentation is complete.
+- Architecture boundaries are respected.
+- GUI behavior is verified where applicable.
+- Export behavior is verified where applicable.
+- Backwards compatibility is audited.
+- Git state and release commit are verified.
+- RC tag is annotated.
+- Remote branch/tag state is verified after push.
+
+Known full-regression evidence during RC preparation:
+5,731 passed, 32 skipped, 0 failures in 766.97 seconds.
+
+Required release documentation:
+- README.md
+- PROJECT_STATE.md
+- TASK_QUEUE.md
+- AI_HANDOFF.md
+- RELEASE_HISTORY.md
+- docs/releases/v1.3.0.md
+- project_docs/release_prompts/v1.3.0.txt
+
+Stop conditions:
+If implementation state, tests, documentation, architecture, GUI behavior, exports, backwards compatibility, Git state, or release provenance are ambiguous or failing, stop RC finalization and record the blocker. Do not tag or push around a failed gate.
+
+Definition of done for RC1:
+- Scope remains frozen.
+- Required tests pass.
+- Required documentation is reconciled.
+- Release audit passes.
+- Runtime/release metadata is finalized appropriately.
+- Release commit is verified.
+- Annotated v1.3.0-rc1 tag is created.
+- Release branch/main and tag are pushed as intended.
+- Remote state is verified.
+
+Do not begin post-v1.3.0 feature work as part of this release task.

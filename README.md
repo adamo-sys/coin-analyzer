@@ -252,6 +252,8 @@ See [TESTING.md](TESTING.md) for fixture, OCR experiment, GUI, and manual-accept
 
 The internal `v8.x` and `v9.x` labels document historical development phases. Public semantic-version release preparation is tracked separately and will not rewrite that history. Runtime provenance uses the public semantic-version line; unreleased development builds use the latest published version with a `+dev` suffix.
 
+The latest published public release is `v1.2.0` (2026-09-11). The next target is `v1.3.0`; `v1.3.0-rc1` is currently in release preparation and has not been tagged or released.
+
 See the [roadmap](ROADMAP.md) for current direction. Feature candidates require repository inspection, explicit acceptance criteria, and an approval gate before implementation.
 
 ## Contributing
