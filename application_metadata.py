@@ -7,4 +7,4 @@ release plus ``+dev``. Historical internal v8.x/v9.x milestone labels are not
 current runtime provenance identifiers.
 """
 
-APPLICATION_VERSION = "v1.2.0+dev"
+APPLICATION_VERSION = "v1.3.0-rc1"
