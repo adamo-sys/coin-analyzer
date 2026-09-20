@@ -7,7 +7,7 @@ The public semantic-version release line is distinct from the historical interna
 | Version | Date | Release Hash | Summary |
 | --- | --- | --- | --- |
 | `v1.2.0` | 2026-09-11 | `1857e33` | Public release baseline incorporating identification/evaluation infrastructure, runtime-readiness and acceptance hardening, AI execution audit support, collector work-queue foundations, accuracy-research documentation, and collector-confirmed type/design persistence. |
-| `v1.3.0-rc1` | Pending | Pending | Release candidate for the post-`v1.2.0` scope through PR #245: phone intake, phone-photo benchmark and baseline decision, Agent Harness and context-budget controls, Command Center status/observation tooling, Foundation task/preflight controls, adopted agent-operations integrations, dependency/CI maintenance, Serena/Superpowers pilot closeout, and clarified application-version provenance. Full regression evidence: 5,731 passed, 32 skipped, 0 failures. |
+| `v1.3.0-rc1` | Pending | Pending | Release candidate for the post-`v1.2.0` scope through PR #245: phone intake, phone-photo benchmark and baseline decision, Agent Harness and context-budget controls, Command Center status/observation tooling, Foundation task/preflight controls, adopted agent-operations integrations, dependency/CI maintenance, Serena/Superpowers pilot closeout, and clarified application-version provenance. Full regression evidence: 5,732 passed, 32 skipped, 0 failures. |
 
 ## Historical Internal Milestones
 
