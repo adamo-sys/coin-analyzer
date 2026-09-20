@@ -195,6 +195,40 @@ class PhotoInboxManagerTests(unittest.TestCase):
             self.assertEqual(1, result.missing)
             self.assertEqual(InboxPhotoState.MISSING, photo.state)
 
+    def test_missing_photo_set_recovers_when_file_returns(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            clock = FixedClock()
+            manager = self.make_manager(tmpdir, clock=clock)
+            path = self.write_photo(
+                manager.config.inbox_folder,
+                "front.jpg",
+                modified_at=clock.current - timedelta(minutes=5),
+            )
+            manager.scan()
+            photo_set_id = manager.get_pending_sets()[0].id
+
+            os.remove(path)
+            manager.scan()
+
+            self.assertEqual(
+                PhotoSetState.ERROR,
+                manager.state.photo_sets[photo_set_id].state,
+            )
+
+            self.write_photo(
+                manager.config.inbox_folder,
+                "front.jpg",
+                modified_at=clock.current - timedelta(minutes=5),
+            )
+            manager.scan()
+
+            photo = next(iter(manager.state.photos.values()))
+            photo_set = manager.state.photo_sets[photo_set_id]
+
+            self.assertEqual(InboxPhotoState.READY, photo.state)
+            self.assertEqual(PhotoSetState.NEW, photo_set.state)
+            self.assertEqual("", photo_set.error)
+
     def test_state_transitions_are_persisted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             clock = FixedClock()

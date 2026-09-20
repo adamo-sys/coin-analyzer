@@ -417,6 +417,7 @@ class PhotoInboxManager:
                 self.state.seen_fingerprints[fingerprint] = photo_id
 
         result.missing = self._mark_missing(current_photo_ids, now_text)
+        self._recover_missing_photo_sets(now_text)
         self._build_photo_sets(now_text)
         result.photo_sets = len(self.state.photo_sets)
         self.state.last_scan_at = now_text
@@ -543,6 +544,18 @@ class PhotoInboxManager:
                     self.state.photo_sets[photo.photo_set_id].state = PhotoSetState.ERROR
                     self.state.photo_sets[photo.photo_set_id].error = photo.error
         return missing
+
+    def _recover_missing_photo_sets(self, now_text: str) -> None:
+        missing_error = "Photo file is missing from the inbox folder."
+        for photo_set in self.state.photo_sets.values():
+            if photo_set.state != PhotoSetState.ERROR or photo_set.error != missing_error:
+                continue
+            photos = self.get_photo_set_photos(photo_set.id)
+            if not photos or any(photo.state == InboxPhotoState.MISSING for photo in photos):
+                continue
+            photo_set.state = PhotoSetState.NEW
+            photo_set.error = ""
+            photo_set.updated_at = now_text
 
     def _build_photo_sets(self, now_text: str) -> None:
         ready_photos = [
