@@ -66,7 +66,7 @@ Required RC evidence:
 - Remote branch/tag state is verified after push.
 
 Known full-regression evidence during RC preparation:
-5,732 passed, 32 skipped, 0 failures in 263.39 seconds.
+5,732 passed, 32 skipped, 0 failures in 234.14 seconds.
 
 Required release documentation:
 - README.md

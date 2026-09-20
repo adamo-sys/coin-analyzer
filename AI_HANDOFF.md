@@ -16,9 +16,9 @@
 
 - Scope is frozen to work already merged after `v1.2.0` through PR #245; do not add new features during RC preparation.
 
-- Runtime provenance for unreleased development: `v1.2.0+dev`.
+- Runtime provenance for the release candidate: `v1.3.0-rc1`.
 
-- Full regression evidence: 5,732 passed, 32 skipped, 0 failures in 263.39 seconds; working tree remained clean after the completed run.
+- Full regression evidence: 5,732 passed, 32 skipped, 0 failures in 234.14 seconds; working tree remained clean after the completed run.
 
 - Current task: complete final Git verification, then proceed to the RC tagging and remote-verification gates.
 

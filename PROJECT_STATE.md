@@ -14,9 +14,9 @@
 
 - Release scope: merged work on `main` after `v1.2.0` through PR #245; no new feature expansion during RC preparation.
 
-- Runtime provenance during release preparation: `v1.2.0+dev`.
+- Runtime provenance for the release candidate: `v1.3.0-rc1`.
 
-- Full regression evidence: 5,732 passed, 32 skipped, 0 failures in 263.39 seconds; working tree remained clean after the completed run.
+- Full regression evidence: 5,732 passed, 32 skipped, 0 failures in 234.14 seconds; working tree remained clean after the completed run.
 
 - Historical internal `v8.x`/`v9.x` milestone labels below are not current public runtime version identifiers.
 
