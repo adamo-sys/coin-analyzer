@@ -43,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--case-id", action="append", dest="case_ids")
     parser.add_argument("--retrieval-limit", type=int, default=10)
     parser.add_argument(
+        "--evidence-report",
+        type=Path,
+        help="write a compact deterministic per-case evidence/provenance report",
+    )
+    parser.add_argument(
         "--diagnostics",
         action="store_true",
         help="print deterministic verification diagnostics for each case",
@@ -335,6 +340,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(
             json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+    if args.evidence_report is not None:
+        evidence_rows = [
+            {
+                "case_id": row["case_id"],
+                "localized_roles": [
+                    item["role"]
+                    for item in row["localizations"]
+                    if item["localized"]
+                ],
+                "observed_roles": [
+                    item["role"]
+                    for item in row["observations"]
+                    if (
+                        item["visible_text"]
+                        or item["date_like"] is not None
+                        or item["denomination_mark"] is not None
+                    )
+                ],
+                "retrieved_candidate_ids": row["retrieved_candidate_ids"],
+                "verified_candidate_ids": row["verified_candidate_ids"],
+                "decision": row["decision"],
+                "predicted_candidate_id": row["predicted_candidate_id"],
+                "reason": row["reason"],
+            }
+            for row in rows
+        ]
+        evidence_report = {
+            "schema": "coin-analyzer-recognition30-evidence-report-v1",
+            "dataset_version": dataset.version,
+            "rows": evidence_rows,
+        }
+        args.evidence_report.parent.mkdir(parents=True, exist_ok=True)
+        args.evidence_report.write_text(
+            json.dumps(evidence_report, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
 
