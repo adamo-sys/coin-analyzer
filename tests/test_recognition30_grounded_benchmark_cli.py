@@ -8,6 +8,7 @@ from capture_import.grounded_visual_observation import (
 )
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition30_grounded_benchmark_cli import (
+    build_parser,
     _load_dataset,
     _localized_image_bytes,
     _media_type,
@@ -281,3 +282,13 @@ def test_verification_diagnostics_are_available_from_run_case(tmp_path):
     assert row.supporting_roles == ("obverse", "reverse")
     assert row.supporting_text == ("ELIZABETH", "CANADA")
     assert row.verified
+
+
+def test_diagnostics_flag_is_opt_in():
+    parser = build_parser()
+
+    default_args = parser.parse_args(["dataset"])
+    diagnostic_args = parser.parse_args(["dataset", "--diagnostics"])
+
+    assert default_args.diagnostics is False
+    assert diagnostic_args.diagnostics is True
