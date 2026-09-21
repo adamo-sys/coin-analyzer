@@ -16,6 +16,7 @@ import cv2
 from pathlib import Path
 from typing import Sequence
 
+from .adaptive_grounded_observation import decide_secondary_observation
 from .evidence_candidate_resolver import CatalogueCandidate
 from .grounded_recognition_pipeline import run_grounded_recognition_pipeline
 from .grounded_visual_observation import (
@@ -57,6 +58,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--evidence-report",
         type=Path,
         help="write a compact deterministic per-case evidence/provenance report",
+    )
+    parser.add_argument(
+        "--adaptive-views",
+        action="store_true",
+        help=(
+            "observe full_face first and request rim only when deterministic "
+            "primary evidence is insufficient"
+        ),
     )
     parser.add_argument(
         "--diagnostics",
@@ -219,7 +228,14 @@ def _localized_evidence_views(
     return tuple(encoded_views)
 
 
-def run_case(case, *, provider, retriever, retrieval_limit: int):
+def run_case(
+    case,
+    *,
+    provider,
+    retriever,
+    retrieval_limit: int,
+    adaptive_views: bool = False,
+):
     reports = []
     localizations = []
     provider_failures = []
@@ -228,7 +244,15 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
         _, _, localization = _localized_image_bytes(image.path)
         localizations.append({"role": role, **localization})
         view_reports = []
-        for view_name, image_bytes, media_type in _localized_evidence_views(image.path):
+        evidence_views = _localized_evidence_views(image.path)
+        for view_index, (view_name, image_bytes, media_type) in enumerate(evidence_views):
+            if adaptive_views and view_index > 0:
+                primary = view_reports[0].report.observation if view_reports else None
+                if primary is None:
+                    break
+                routing = decide_secondary_observation(primary)
+                if not routing.request_secondary:
+                    break
             try:
                 report = provider.observe(
                     GroundedVisualObservationRequest(
@@ -249,7 +273,7 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
                         "message": str(exc),
                     }
                 )
-                continue
+                break
             view_reports.append(
                 GroundedObservationViewReport(view=view_name, report=report)
             )
@@ -343,6 +367,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             provider=provider,
             retriever=retriever,
             retrieval_limit=args.retrieval_limit,
+            adaptive_views=args.adaptive_views,
         )
         outcomes.append(outcome)
         rows.append(
