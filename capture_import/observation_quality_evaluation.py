@@ -24,6 +24,18 @@ class ViewQuality:
 
 
 @dataclass(frozen=True, slots=True)
+class ObservationExecutionAccounting:
+    cases: int
+    successful_calls: int
+    failed_calls: int
+    attempted_calls: int
+    maximum_two_view_calls: int
+    avoided_calls: int
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass(frozen=True, slots=True)
 class ViewPairQuality:
     role: str
     primary_view: str
@@ -154,3 +166,43 @@ def _agreement(left: str | None, right: str | None) -> bool | None:
     if left is None or right is None:
         return None
     return left.casefold() == right.casefold()
+
+
+def evaluate_execution_accounting(
+    rows: Iterable[Mapping[str, object]],
+) -> ObservationExecutionAccounting:
+    """Account for provider work from persisted benchmark evidence only.
+
+    The Recognition30 multiview contract permits at most two views for each of
+    two physical sides, so four calls per case is the deterministic ceiling.
+    Successful calls come from view provenance; failed calls come from the
+    explicit provider-failure ledger. No provider calls are made here.
+    """
+
+    materialized = tuple(rows)
+    provenance = tuple(
+        item
+        for row in materialized
+        for item in row.get("view_provenance", ())
+        if isinstance(item, Mapping)
+    )
+    failures = tuple(
+        item
+        for row in materialized
+        for item in row.get("provider_failures", ())
+        if isinstance(item, Mapping)
+    )
+    successful = len(provenance)
+    failed = len(failures)
+    attempted = successful + failed
+    maximum = len(materialized) * 4
+    return ObservationExecutionAccounting(
+        cases=len(materialized),
+        successful_calls=successful,
+        failed_calls=failed,
+        attempted_calls=attempted,
+        maximum_two_view_calls=maximum,
+        avoided_calls=max(0, maximum - attempted),
+        input_tokens=sum(int(item.get("input_tokens") or 0) for item in provenance),
+        output_tokens=sum(int(item.get("output_tokens") or 0) for item in provenance),
+    )
