@@ -1,6 +1,7 @@
 from capture_import.observation_quality_evaluation import (
     compare_view_pairs,
     evaluate_view_quality,
+    evaluate_execution_accounting,
 )
 
 
@@ -79,3 +80,34 @@ def test_pair_comparison_is_truth_free_and_does_not_score_identity():
     assert pair.incremental_comparison_text == ("ALSO WRONG",)
     assert not hasattr(pair, "correct")
     assert not hasattr(pair, "candidate_id")
+
+
+def test_execution_accounting_counts_success_failures_and_avoided_calls():
+    rows = (
+        {
+            "view_provenance": (
+                {"view": "full_face", "input_tokens": 100, "output_tokens": 10},
+                {"view": "rim", "input_tokens": 90, "output_tokens": 9},
+            ),
+            "provider_failures": (),
+        },
+        {
+            "view_provenance": (
+                {"view": "full_face", "input_tokens": 110, "output_tokens": 11},
+            ),
+            "provider_failures": (
+                {"view": "rim", "error_type": "Malformed"},
+            ),
+        },
+    )
+
+    accounting = evaluate_execution_accounting(rows)
+
+    assert accounting.cases == 2
+    assert accounting.successful_calls == 3
+    assert accounting.failed_calls == 1
+    assert accounting.attempted_calls == 4
+    assert accounting.maximum_two_view_calls == 8
+    assert accounting.avoided_calls == 4
+    assert accounting.input_tokens == 300
+    assert accounting.output_tokens == 30
