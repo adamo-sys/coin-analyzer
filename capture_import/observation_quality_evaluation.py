@@ -36,6 +36,17 @@ class ObservationExecutionAccounting:
 
 
 @dataclass(frozen=True, slots=True)
+class SecondaryViewPolicyEvaluation:
+    paired_roles: int
+    secondary_requested: int
+    secondary_avoided: int
+    useful_secondary: int
+    useful_secondary_rate: float | None
+    secondary_input_tokens: int
+    useful_secondary_input_tokens: int
+
+
+@dataclass(frozen=True, slots=True)
 class ViewPairQuality:
     role: str
     primary_view: str
@@ -205,4 +216,60 @@ def evaluate_execution_accounting(
         avoided_calls=max(0, maximum - attempted),
         input_tokens=sum(int(item.get("input_tokens") or 0) for item in provenance),
         output_tokens=sum(int(item.get("output_tokens") or 0) for item in provenance),
+    )
+
+
+def evaluate_secondary_view_policy(
+    provenance: Iterable[Mapping[str, object]],
+    *,
+    primary_view: str = "full_face",
+    secondary_view: str = "rim",
+) -> SecondaryViewPolicyEvaluation:
+    """Replay the current adaptive policy over already-collected paired views.
+
+    This is counterfactual/offline: the primary determines whether the policy
+    would request the secondary, while the persisted secondary is used only to
+    measure whether that request added literal/numeral evidence.
+    """
+
+    from .adaptive_grounded_observation import decide_secondary_observation
+
+    pairs = compare_view_pairs(
+        provenance, primary_view=primary_view, comparison_view=secondary_view
+    )
+    requested = 0
+    useful = 0
+    secondary_tokens = 0
+    useful_tokens = 0
+    for pair in pairs:
+        primary = GroundedVisualObservation(
+            role=pair.role,
+            visible_text=pair.primary_text,
+            date_like=pair.primary_date,
+            denomination_mark=pair.primary_denomination,
+        )
+        if not decide_secondary_observation(primary).request_secondary:
+            continue
+        requested += 1
+        secondary_tokens += pair.comparison_input_tokens
+        added = bool(pair.incremental_comparison_text)
+        added = added or (
+            pair.primary_date is None and pair.comparison_date is not None
+        )
+        added = added or (
+            pair.primary_denomination is None
+            and pair.comparison_denomination is not None
+        )
+        if added:
+            useful += 1
+            useful_tokens += pair.comparison_input_tokens
+
+    return SecondaryViewPolicyEvaluation(
+        paired_roles=len(pairs),
+        secondary_requested=requested,
+        secondary_avoided=len(pairs) - requested,
+        useful_secondary=useful,
+        useful_secondary_rate=(useful / requested if requested else None),
+        secondary_input_tokens=secondary_tokens,
+        useful_secondary_input_tokens=useful_tokens,
     )
