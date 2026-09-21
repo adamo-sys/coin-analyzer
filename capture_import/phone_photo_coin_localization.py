@@ -168,6 +168,39 @@ def crop_localized_coin(
     ].copy()
 
 
+def build_coin_evidence_views(
+    image: np.ndarray, localization: CoinCircleLocalization
+) -> tuple[tuple[str, np.ndarray], ...]:
+    """Build deterministic full-face and rim-emphasis views for observation.
+
+    The rim view masks the central disk rather than inventing pixels or rotating
+    the coin. It is intended only to make peripheral inscriptions more salient.
+    """
+
+    full_face = crop_localized_coin(image, localization)
+    crop_center_x = localization.center_x - localization.crop_x
+    crop_center_y = localization.center_y - localization.crop_y
+    rim = full_face.copy()
+    inner_radius = max(1, int(round(localization.radius * 0.58)))
+    cv2.circle(
+        rim,
+        (crop_center_x, crop_center_y),
+        inner_radius,
+        _neutral_fill_value(rim),
+        thickness=-1,
+    )
+    return (("full_face", full_face), ("rim", rim))
+
+
+def _neutral_fill_value(image: np.ndarray):
+    """Return a deterministic neutral fill compatible with grayscale/BGR crops."""
+
+    if image.ndim == 2:
+        return int(np.median(image))
+    median = np.median(image.reshape(-1, image.shape[2]), axis=0)
+    return tuple(int(value) for value in median)
+
+
 def _normalized_center_distance(
     x: float, y: float, *, width: int, height: int
 ) -> float:
