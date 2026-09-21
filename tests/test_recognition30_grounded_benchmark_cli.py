@@ -8,6 +8,7 @@ from capture_import.grounded_visual_observation import (
 )
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition30_grounded_benchmark_cli import (
+    _load_dataset,
     _media_type,
     _select_cases,
     run_case,
@@ -131,13 +132,69 @@ def test_media_type_is_explicit_and_bounded():
 def test_case_selection_preserves_requested_order_and_rejects_unknown():
     a = SimpleNamespace(case_id="a")
     b = SimpleNamespace(case_id="b")
-    manifest = SimpleNamespace(cases=(a, b))
+    dataset = SimpleNamespace(cases=(a, b))
 
-    assert _select_cases(manifest, ("b", "a")) == (b, a)
+    assert _select_cases(dataset, ("b", "a")) == (b, a)
 
     try:
-        _select_cases(manifest, ("missing",))
+        _select_cases(dataset, ("missing",))
     except SystemExit as exc:
         assert "unknown" in str(exc)
     else:
         raise AssertionError("expected SystemExit")
+
+
+def test_csv_dataset_loader_uses_pair_manifest_and_ground_truth(tmp_path):
+    root = tmp_path / "recognition30_v1"
+    images = root / "images"
+    images.mkdir(parents=True)
+    (images / "IMG_1.JPEG").write_bytes(b"one")
+    (images / "IMG_2.JPEG").write_bytes(b"two")
+    (root / "pair_manifest.csv").write_text(
+        "case_id,image_1,image_2\nCA-R30-001,IMG_1.JPEG,IMG_2.JPEG\n",
+        encoding="utf-8",
+    )
+    (root / "ground_truth.csv").write_text(
+        "case_id,image_1,image_2,country,denomination,year,variety,notes,truth_status\n"
+        "CA-R30-001,IMG_1.JPEG,IMG_2.JPEG,Netherlands,10 cents,1974,Juliana,,Standard\n",
+        encoding="utf-8",
+    )
+
+    dataset = _load_dataset(root)
+
+    assert dataset.version == "recognition30_v1"
+    assert len(dataset.cases) == 1
+    case = dataset.cases[0]
+    assert case.case_id == "CA-R30-001"
+    assert case.obverse.path == images / "IMG_1.JPEG"
+    assert case.reverse.path == images / "IMG_2.JPEG"
+    assert case.expected == {
+        "country": "Netherlands",
+        "denomination": "10 cents",
+        "year": "1974",
+        "type_design": "Juliana",
+    }
+
+
+def test_csv_dataset_loader_fails_closed_on_pair_truth_mismatch(tmp_path):
+    root = tmp_path / "recognition30_v1"
+    images = root / "images"
+    images.mkdir(parents=True)
+    (images / "IMG_1.JPEG").write_bytes(b"one")
+    (images / "IMG_2.JPEG").write_bytes(b"two")
+    (root / "pair_manifest.csv").write_text(
+        "case_id,image_1,image_2\nCA-R30-001,IMG_1.JPEG,IMG_2.JPEG\n",
+        encoding="utf-8",
+    )
+    (root / "ground_truth.csv").write_text(
+        "case_id,image_1,image_2,country,denomination,year,variety,notes,truth_status\n"
+        "CA-R30-001,WRONG.JPEG,IMG_2.JPEG,Netherlands,10 cents,1974,Juliana,,Standard\n",
+        encoding="utf-8",
+    )
+
+    try:
+        _load_dataset(root)
+    except ValueError as exc:
+        assert "mismatch" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")

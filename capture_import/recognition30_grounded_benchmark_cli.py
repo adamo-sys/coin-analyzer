@@ -7,7 +7,8 @@ decision has been produced.
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+import csv
+from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 from typing import Sequence
@@ -27,32 +28,109 @@ from .recognition30_grounded_evaluation import (
     compare_to_baseline,
     evaluate_case,
 )
-from .visual_evaluation_harness import load_visual_manifest
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="coin-analyzer-recognition30-grounded-benchmark"
     )
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("dataset", type=Path)
     parser.add_argument("--json", type=Path)
     parser.add_argument("--case-id", action="append", dest="case_ids")
     parser.add_argument("--retrieval-limit", type=int, default=10)
     return parser
 
 
-def _select_cases(manifest, case_ids: Sequence[str] | None):
+
+@dataclass(frozen=True, slots=True)
+class _BenchmarkImage:
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class _BenchmarkCase:
+    case_id: str
+    obverse: _BenchmarkImage
+    reverse: _BenchmarkImage
+    expected: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class _BenchmarkDataset:
+    version: str
+    cases: tuple[_BenchmarkCase, ...]
+
+
+def _load_dataset(root: Path) -> _BenchmarkDataset:
+    pair_path = root / "pair_manifest.csv"
+    truth_path = root / "ground_truth.csv"
+    images_root = root / "images"
+    if not pair_path.is_file() or not truth_path.is_file() or not images_root.is_dir():
+        raise ValueError(
+            "dataset must contain pair_manifest.csv, ground_truth.csv, and images/."
+        )
+
+    with truth_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        truth_rows = tuple(csv.DictReader(handle))
+    truth_by_id = {row.get("case_id", "").strip(): row for row in truth_rows}
+    if "" in truth_by_id or len(truth_by_id) != len(truth_rows):
+        raise ValueError("ground_truth.csv case_id values must be non-empty and unique.")
+
+    cases = []
+    with pair_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        pair_rows = tuple(csv.DictReader(handle))
+    seen = set()
+    for row in pair_rows:
+        case_id = (row.get("case_id") or "").strip()
+        image_1 = (row.get("image_1") or "").strip()
+        image_2 = (row.get("image_2") or "").strip()
+        if not case_id or case_id in seen or not image_1 or not image_2:
+            raise ValueError("pair_manifest.csv rows require unique case_id and two images.")
+        seen.add(case_id)
+        truth = truth_by_id.get(case_id)
+        if truth is None:
+            raise ValueError(f"missing ground truth for {case_id}.")
+        if truth.get("image_1", "").strip() != image_1 or truth.get("image_2", "").strip() != image_2:
+            raise ValueError(f"pair/truth image mismatch for {case_id}.")
+        expected = {
+            "country": (truth.get("country") or "").strip(),
+            "denomination": (truth.get("denomination") or "").strip(),
+            "year": (truth.get("year") or "").strip(),
+        }
+        variety = (truth.get("variety") or "").strip()
+        if variety:
+            expected["type_design"] = variety
+        if any(not expected[field] for field in ("country", "denomination", "year")):
+            raise ValueError(f"incomplete identity truth for {case_id}.")
+        obverse = images_root / image_1
+        reverse = images_root / image_2
+        if not obverse.is_file() or not reverse.is_file():
+            raise ValueError(f"missing benchmark image for {case_id}.")
+        cases.append(
+            _BenchmarkCase(
+                case_id=case_id,
+                obverse=_BenchmarkImage(obverse),
+                reverse=_BenchmarkImage(reverse),
+                expected=expected,
+            )
+        )
+    if set(truth_by_id) != seen:
+        raise ValueError("pair_manifest.csv and ground_truth.csv case IDs must match.")
+    return _BenchmarkDataset(version=root.name, cases=tuple(cases))
+
+
+def _select_cases(dataset, case_ids: Sequence[str] | None):
     if not case_ids:
-        return manifest.cases
+        return dataset.cases
     requested = tuple(dict.fromkeys(case_ids))
-    by_id = {case.case_id: case for case in manifest.cases}
+    by_id = {case.case_id: case for case in dataset.cases}
     missing = tuple(case_id for case_id in requested if case_id not in by_id)
     if missing:
         raise SystemExit(f"unknown --case-id(s): {', '.join(missing)}")
     return tuple(by_id[case_id] for case_id in requested)
 
 
-def _catalogue(manifest) -> tuple[CatalogueCandidate, ...]:
+def _catalogue(dataset) -> tuple[CatalogueCandidate, ...]:
     return tuple(
         CatalogueCandidate(
             candidate_id=case.case_id,
@@ -61,9 +139,8 @@ def _catalogue(manifest) -> tuple[CatalogueCandidate, ...]:
             year=case.expected["year"],
             type_design=case.expected.get("type_design"),
         )
-        for case in manifest.cases
+        for case in dataset.cases
     )
-
 
 def _media_type(path: Path) -> str:
     suffix = path.suffix.casefold()
@@ -107,12 +184,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not 1 <= args.retrieval_limit <= 25:
         raise SystemExit("--retrieval-limit must be between 1 and 25")
 
-    manifest = load_visual_manifest(args.manifest)
-    cases = _select_cases(manifest, args.case_ids)
+    dataset = _load_dataset(args.dataset)
+    cases = _select_cases(dataset, args.case_ids)
     provider = OpenAIGroundedVisualObservationProvider()
     retriever = InMemoryCatalogueRetriever(
-        _catalogue(manifest),
-        retriever_id=f"recognition30-{manifest.version}-oracle-catalogue",
+        _catalogue(dataset),
+        retriever_id=f"recognition30-{dataset.version}-oracle-catalogue",
     )
 
     outcomes = []
@@ -181,7 +258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     comparison = compare_to_baseline(metrics)
     report = {
         "schema": "coin-analyzer-recognition30-grounded-v1",
-        "dataset_version": manifest.version,
+        "dataset_version": dataset.version,
         "provider_id": provider.provider_id,
         "model_id": provider.model_id,
         "retrieval_limit": args.retrieval_limit,
