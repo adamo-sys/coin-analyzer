@@ -2,6 +2,7 @@ from capture_import.observation_quality_evaluation import (
     compare_view_pairs,
     evaluate_view_quality,
     evaluate_execution_accounting,
+    evaluate_secondary_view_policy,
 )
 
 
@@ -111,3 +112,38 @@ def test_execution_accounting_counts_success_failures_and_avoided_calls():
     assert accounting.avoided_calls == 4
     assert accounting.input_tokens == 300
     assert accounting.output_tokens == 30
+
+
+def test_secondary_policy_replay_measures_only_requested_view_utility():
+    provenance = (
+        {
+            "role": "obverse", "view": "full_face",
+            "visible_text": ("LIBERTAS",), "date_like": None,
+            "denomination_mark": None, "input_tokens": 100,
+        },
+        {
+            "role": "obverse", "view": "rim",
+            "visible_text": ("1918",), "date_like": "1918",
+            "denomination_mark": None, "input_tokens": 80,
+        },
+        {
+            "role": "reverse", "view": "full_face",
+            "visible_text": ("1968", "2 FR"), "date_like": "1968",
+            "denomination_mark": "2 FR", "input_tokens": 110,
+        },
+        {
+            "role": "reverse", "view": "rim",
+            "visible_text": ("EXTRA",), "date_like": None,
+            "denomination_mark": None, "input_tokens": 70,
+        },
+    )
+
+    result = evaluate_secondary_view_policy(provenance)
+
+    assert result.paired_roles == 2
+    assert result.secondary_requested == 1
+    assert result.secondary_avoided == 1
+    assert result.useful_secondary == 1
+    assert result.useful_secondary_rate == 1.0
+    assert result.secondary_input_tokens == 80
+    assert result.useful_secondary_input_tokens == 80
