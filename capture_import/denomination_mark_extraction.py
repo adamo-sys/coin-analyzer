@@ -54,7 +54,12 @@ def extract_denomination_marks(
     candidates: list[DenominationMarkEvidence] = []
     seen: set[tuple[str, str, str]] = set()
     for observation in rows:
-        if observation.denomination_mark is not None:
+        if (
+            observation.denomination_mark is not None
+            and _supported_by_visible_text(
+                observation.denomination_mark, observation.visible_text
+            )
+        ):
             _append_if_mark(
                 candidates,
                 seen,
@@ -118,3 +123,10 @@ def _is_explicit_mark(value: str) -> bool:
 def _comparison_key(value: str) -> str:
     # Comparison only: preserve the first literal spelling in resolved_value.
     return _SPACE.sub(" ", value.strip()).casefold()
+
+
+def _supported_by_visible_text(value: str, visible_text: tuple[str, ...]) -> bool:
+    """Require specialized denomination evidence to match same-side transcription."""
+
+    key = _comparison_key(value)
+    return any(_comparison_key(text) == key for text in visible_text)

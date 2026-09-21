@@ -30,7 +30,7 @@ def test_date_and_denomination_compose_into_normalized_evidence():
 
 def test_date_only_is_retrieval_ready_without_inventing_denomination():
     result = build_numeral_evidence_envelope(
-        (_observation(date_like="1918"),)
+        (_observation(date_like="1918", visible_text=("1918",)),)
     )
 
     assert result.normalized.year == "1918"
@@ -40,7 +40,7 @@ def test_date_only_is_retrieval_ready_without_inventing_denomination():
 
 def test_denomination_only_is_retrieval_ready_without_inventing_year():
     result = build_numeral_evidence_envelope(
-        (_observation(denomination_mark="10 PISO"),)
+        (_observation(denomination_mark="10 PISO", visible_text=("10 PISO",)),)
     )
 
     assert result.normalized.year is None
@@ -62,8 +62,8 @@ def test_visible_text_alone_can_be_retrieval_ready_but_not_identity_evidence():
 def test_conflicting_dates_block_retrieval_ready():
     result = build_numeral_evidence_envelope(
         (
-            _observation("obverse", date_like="1918"),
-            _observation("reverse", date_like="1919"),
+            _observation("obverse", date_like="1918", visible_text=("1918",)),
+            _observation("reverse", date_like="1919", visible_text=("1919",)),
         )
     )
 
@@ -76,8 +76,8 @@ def test_conflicting_dates_block_retrieval_ready():
 def test_conflicting_denominations_block_retrieval_ready():
     result = build_numeral_evidence_envelope(
         (
-            _observation("obverse", denomination_mark="5 CENTS"),
-            _observation("reverse", denomination_mark="10 CENTS"),
+            _observation("obverse", denomination_mark="5 CENTS", visible_text=("5 CENTS",)),
+            _observation("reverse", denomination_mark="10 CENTS", visible_text=("10 CENTS",)),
         )
     )
 
@@ -89,7 +89,7 @@ def test_conflicting_denominations_block_retrieval_ready():
 
 def test_uncertain_date_is_preserved_but_not_promoted_to_normalized_year():
     result = build_numeral_evidence_envelope(
-        (_observation(date_like="19?8"),)
+        (_observation(date_like="19?8", visible_text=("19?8",)),)
     )
 
     assert result.date.candidates[0].value == "19?8"
@@ -119,7 +119,7 @@ def test_empty_observation_is_not_retrieval_ready():
 
 def test_envelope_has_no_identity_acceptance_or_confidence_fields():
     result = build_numeral_evidence_envelope(
-        (_observation(date_like="1955", denomination_mark="25 CENTS"),)
+        (_observation(date_like="1955", denomination_mark="25 CENTS", visible_text=("1955", "25 CENTS")),)
     )
 
     assert not hasattr(result, "identity")
