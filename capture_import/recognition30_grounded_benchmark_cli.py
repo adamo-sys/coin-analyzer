@@ -275,6 +275,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if pipeline.summary is not None
                     else []
                 ),
+                "verification_rows": (
+                    [
+                        {
+                            "candidate_id": row.candidate.candidate_id,
+                            "matched_fields": list(row.matched_fields),
+                            "conflicting_fields": list(row.conflicting_fields),
+                            "supporting_roles": list(row.supporting_roles),
+                            "supporting_text": list(row.supporting_text),
+                            "verified": row.verified,
+                        }
+                        for row in pipeline.verification.rows
+                    ]
+                    if pipeline.verification is not None
+                    else []
+                ),
             }
         )
         print(
