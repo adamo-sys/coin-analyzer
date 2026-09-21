@@ -85,6 +85,23 @@ class GroundedVisualObservationMalformedOutput(
 ):
     """Provider output cannot become a grounded observation."""
 
+    def __init__(self, message: str, *, response_id: str | None = None,
+                 output_text_length: int | None = None,
+                 output_text_empty: bool | None = None,
+                 finish_reason: str | None = None) -> None:
+        super().__init__(message)
+        self.response_id = response_id
+        self.output_text_length = output_text_length
+        self.output_text_empty = output_text_empty
+        self.finish_reason = finish_reason
+
+    @property
+    def diagnostics(self) -> Mapping[str, object]:
+        return {"response_id": self.response_id,
+                "output_text_length": self.output_text_length,
+                "output_text_empty": self.output_text_empty,
+                "finish_reason": self.finish_reason}
+
 
 class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider):
     """One-side observation provider with no identity semantics."""
@@ -162,7 +179,11 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             raw = json.loads(raw_text)
         except (TypeError, json.JSONDecodeError) as exc:
             raise GroundedVisualObservationMalformedOutput(
-                "provider response is not valid structured JSON."
+                "provider response is not valid structured JSON.",
+                response_id=_response_id(response),
+                output_text_length=len(raw_text) if isinstance(raw_text, str) else None,
+                output_text_empty=not raw_text.strip() if isinstance(raw_text, str) else True,
+                finish_reason=_finish_reason(response),
             ) from exc
 
         observation = _validated_observation(raw, role=request.image.role)
@@ -237,3 +258,16 @@ def _token_count(value: object) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
     return value
+
+def _response_id(response: object) -> str | None:
+    value = getattr(response, "id", None)
+    return value if isinstance(value, str) and value else None
+
+
+def _finish_reason(response: object) -> str | None:
+    incomplete = getattr(response, "incomplete_details", None)
+    reason = getattr(incomplete, "reason", None)
+    if isinstance(reason, str) and reason:
+        return reason
+    status = getattr(response, "status", None)
+    return status if isinstance(status, str) and status else None
