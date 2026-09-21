@@ -265,14 +265,16 @@ def run_case(
                     )
                 )
             except GroundedVisualObservationContractError as exc:
-                provider_failures.append(
-                    {
-                        "role": role,
-                        "view": view_name,
-                        "error_type": type(exc).__name__,
-                        "message": str(exc),
-                    }
-                )
+                failure = {
+                    "role": role,
+                    "view": view_name,
+                    "error_type": type(exc).__name__,
+                    "message": str(exc),
+                }
+                diagnostics = getattr(exc, "diagnostics", None)
+                if isinstance(diagnostics, Mapping):
+                    failure["diagnostics"] = dict(diagnostics)
+                provider_failures.append(failure)
                 break
             view_reports.append(
                 GroundedObservationViewReport(view=view_name, report=report)
