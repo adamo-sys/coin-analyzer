@@ -19,6 +19,7 @@ from typing import Sequence
 from .evidence_candidate_resolver import CatalogueCandidate
 from .grounded_recognition_pipeline import run_grounded_recognition_pipeline
 from .grounded_visual_observation import (
+    GroundedVisualObservationContractError,
     GroundedVisualObservationImage,
     GroundedVisualObservationRequest,
 )
@@ -27,6 +28,7 @@ from .phone_photo_coin_localization import crop_localized_coin, localize_coin_ci
 from .openai_grounded_visual_observation_provider import (
     OpenAIGroundedVisualObservationProvider,
 )
+from .recognition_decision_gate import RecognitionDecision, RecognitionGateResult
 from .recognition30_grounded_evaluation import (
     aggregate_metrics,
     compare_to_baseline,
@@ -190,20 +192,47 @@ def _localized_image_bytes(path: Path) -> tuple[bytes, str, dict[str, object]]:
 def run_case(case, *, provider, retriever, retrieval_limit: int):
     reports = []
     localizations = []
+    provider_failures = []
     for role, image in (("obverse", case.obverse), ("reverse", case.reverse)):
         image_bytes, media_type, localization = _localized_image_bytes(image.path)
-        report = provider.observe(
-            GroundedVisualObservationRequest(
-                scan_id=case.case_id,
-                image=GroundedVisualObservationImage(
-                    role=role,
-                    media_type=media_type,
-                    data=image_bytes,
-                ),
-            )
-        )
-        reports.append(report)
         localizations.append({"role": role, **localization})
+        try:
+            report = provider.observe(
+                GroundedVisualObservationRequest(
+                    scan_id=case.case_id,
+                    image=GroundedVisualObservationImage(
+                        role=role,
+                        media_type=media_type,
+                        data=image_bytes,
+                    ),
+                )
+            )
+        except GroundedVisualObservationContractError as exc:
+            provider_failures.append(
+                {
+                    "role": role,
+                    "error_type": type(exc).__name__,
+                    "message": str(exc),
+                }
+            )
+            continue
+        reports.append(report)
+
+    if provider_failures:
+        decision = RecognitionGateResult(
+            decision=RecognitionDecision.ABSTAIN,
+            candidate_id=None,
+            reason="provider_observation_failure",
+            observation_roles=tuple(
+                report.observation.role for report in reports
+            ),
+        )
+        outcome = evaluate_case(
+            case_id=case.case_id,
+            expected_candidate_id=case.case_id,
+            decision=decision,
+        )
+        return outcome, reports, None, tuple(localizations), tuple(provider_failures)
 
     pipeline = run_grounded_recognition_pipeline(
         tuple(report.observation for report in reports),
@@ -215,7 +244,7 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
         expected_candidate_id=case.case_id,
         decision=pipeline.decision,
     )
-    return outcome, reports, pipeline, tuple(localizations)
+    return outcome, reports, pipeline, tuple(localizations), tuple(provider_failures)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -234,7 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     outcomes = []
     rows = []
     for case in cases:
-        outcome, reports, pipeline, localizations = run_case(
+        outcome, reports, pipeline, localizations, provider_failures = run_case(
             case,
             provider=provider,
             retriever=retriever,
@@ -251,6 +280,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "unsafe_wrong_identification": outcome.unsafe_wrong_identification,
                 "reason": outcome.reason,
                 "localizations": list(localizations),
+                "provider_failures": list(provider_failures),
                 "observations": [
                     {
                         "role": report.observation.role,
@@ -267,22 +297,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ],
                 "retriever_id": (
                     pipeline.retrieval.retriever_id
-                    if pipeline.retrieval is not None
+                    if pipeline is not None and pipeline.retrieval is not None
                     else None
                 ),
                 "query_id": (
                     pipeline.retrieval.query_id
-                    if pipeline.retrieval is not None
+                    if pipeline is not None and pipeline.retrieval is not None
                     else None
                 ),
                 "retrieved_candidate_ids": (
                     [candidate.candidate_id for candidate in pipeline.retrieval.candidates]
-                    if pipeline.retrieval is not None
+                    if pipeline is not None and pipeline.retrieval is not None
                     else []
                 ),
                 "verified_candidate_ids": (
                     list(pipeline.summary.verified_candidate_ids)
-                    if pipeline.summary is not None
+                    if pipeline is not None and pipeline.summary is not None
                     else []
                 ),
                 "verification_rows": (
@@ -297,7 +327,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         }
                         for row in pipeline.verification.rows
                     ]
-                    if pipeline.verification is not None
+                    if pipeline is not None and pipeline.verification is not None
                     else []
                 ),
             }
@@ -361,6 +391,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         or item["denomination_mark"] is not None
                     )
                 ],
+                "provider_failures": row["provider_failures"],
                 "retrieved_candidate_ids": row["retrieved_candidate_ids"],
                 "verified_candidate_ids": row["verified_candidate_ids"],
                 "decision": row["decision"],
