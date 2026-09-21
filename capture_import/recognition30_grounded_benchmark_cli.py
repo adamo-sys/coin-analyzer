@@ -330,7 +330,6 @@ def run_case(
             tuple(localizations),
             tuple(provider_failures),
             tuple(provenance),
-            tuple(adaptive_routing),
         )
 
     pipeline = run_grounded_recognition_pipeline(
@@ -350,7 +349,6 @@ def run_case(
         tuple(localizations),
         tuple(provider_failures),
         tuple(provenance),
-        tuple(adaptive_routing),
     )
 
 
@@ -377,7 +375,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             localizations,
             provider_failures,
             provenance,
-            adaptive_routing,
         ) = run_case(
             case,
             provider=provider,
