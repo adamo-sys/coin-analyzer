@@ -247,3 +247,37 @@ def test_localized_image_bytes_emits_bounded_jpeg_crop(tmp_path, monkeypatch):
     assert metadata["localized"] is True
     assert metadata["crop_width"] == 80
     assert metadata["crop_height"] == 80
+
+
+def test_verification_diagnostics_are_available_from_run_case(tmp_path):
+    case = SimpleNamespace(
+        case_id="CA-R30-017",
+        obverse=_image(tmp_path, "diag-obverse.png"),
+        reverse=_image(tmp_path, "diag-reverse.png"),
+    )
+    retriever = InMemoryCatalogueRetriever(
+        (
+            CatalogueCandidate(
+                "CA-R30-017",
+                "Canada",
+                "25 cents",
+                "1955",
+                legends=("ELIZABETH II", "CANADA"),
+            ),
+        )
+    )
+
+    _, _, pipeline, _ = run_case(
+        case,
+        provider=FixtureProvider(),
+        retriever=retriever,
+        retrieval_limit=10,
+    )
+
+    row = pipeline.verification.rows[0]
+    assert row.candidate.candidate_id == "CA-R30-017"
+    assert row.matched_fields == ("year", "denomination", "visible_text")
+    assert row.conflicting_fields == ()
+    assert row.supporting_roles == ("obverse", "reverse")
+    assert row.supporting_text == ("ELIZABETH", "CANADA")
+    assert row.verified
