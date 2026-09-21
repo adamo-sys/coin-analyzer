@@ -226,3 +226,25 @@ def test_invalid_usage_metadata_is_not_coerced():
 
     assert report.input_tokens is None
     assert report.output_tokens is None
+
+
+def test_non_json_failure_retains_safe_response_diagnostics():
+    response = SimpleNamespace(
+        output_text="",
+        id="resp-malformed",
+        status="incomplete",
+        incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+        usage=SimpleNamespace(input_tokens=10, output_tokens=8),
+    )
+    provider = OpenAIGroundedVisualObservationProvider(client=FakeClient(response))
+
+    with pytest.raises(GroundedVisualObservationMalformedOutput) as caught:
+        provider.observe(_request())
+
+    assert caught.value.diagnostics == {
+        "response_id": "resp-malformed",
+        "output_text_length": 0,
+        "output_text_empty": True,
+        "finish_reason": "max_output_tokens",
+    }
+    assert "output_text" not in caught.value.diagnostics
