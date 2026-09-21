@@ -338,7 +338,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"correct={outcome.correct} | reason={outcome.reason}",
             flush=True,
         )
-        if args.diagnostics and pipeline.verification is not None:
+        if args.diagnostics and provider_failures:
+            for failure in provider_failures:
+                print(
+                    "  provider_failure: "
+                    f"role={failure['role']} "
+                    f"type={failure['error_type']} "
+                    f"message={failure['message']}",
+                    flush=True,
+                )
+        if (
+            args.diagnostics
+            and pipeline is not None
+            and pipeline.verification is not None
+        ):
             if not pipeline.verification.rows:
                 print("  verification: no candidate rows", flush=True)
             for verification_row in pipeline.verification.rows:
