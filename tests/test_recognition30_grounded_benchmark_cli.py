@@ -77,7 +77,7 @@ def test_run_case_executes_observe_pipeline_and_post_decision_truth_scoring(tmp_
         )
     )
 
-    outcome, reports, pipeline, localizations, failures = run_case(
+    outcome, reports, pipeline, localizations, failures, provenance = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -115,7 +115,7 @@ def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
         )
     )
 
-    outcome, _, _, _, failures = run_case(
+    outcome, _, _, _, failures, provenance = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -271,7 +271,7 @@ def test_verification_diagnostics_are_available_from_run_case(tmp_path):
         )
     )
 
-    _, _, pipeline, _, failures = run_case(
+    _, _, pipeline, _, failures, provenance = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -337,7 +337,7 @@ def test_run_case_provider_failure_abstains_and_preserves_successful_side(tmp_pa
         )
     )
 
-    outcome, reports, pipeline, localizations, failures = run_case(
+    outcome, reports, pipeline, localizations, failures, provenance = run_case(
         case,
         provider=FailingReverseProvider(),
         retriever=retriever,
@@ -382,7 +382,7 @@ def test_provider_failure_does_not_retry_failed_side(tmp_path):
         )
     )
 
-    outcome, reports, pipeline, _, failures = run_case(
+    outcome, reports, pipeline, _, failures, provenance = run_case(
         case,
         provider=CountingFailureProvider(),
         retriever=retriever,
@@ -412,3 +412,43 @@ def test_diagnostics_guard_allows_provider_failure_without_pipeline():
     assert args.diagnostics
     assert provider_failures
     assert pipeline is None
+
+
+def test_multiview_execution_is_bounded_to_two_calls_per_localized_side(tmp_path):
+    calls = []
+
+    class CountingProvider(FixtureProvider):
+        def observe(self, request):
+            calls.append(request.image.role)
+            return super().observe(request)
+
+    case = SimpleNamespace(
+        case_id="CA-R30-017",
+        obverse=_image(tmp_path, "multi-obverse.png"),
+        reverse=_image(tmp_path, "multi-reverse.png"),
+    )
+    retriever = InMemoryCatalogueRetriever(
+        (
+            CatalogueCandidate(
+                "CA-R30-017",
+                "Canada",
+                "25 cents",
+                "1955",
+                legends=("ELIZABETH II", "CANADA"),
+            ),
+        )
+    )
+
+    outcome, reports, pipeline, _, failures, provenance = run_case(
+        case,
+        provider=CountingProvider(),
+        retriever=retriever,
+        retrieval_limit=10,
+    )
+
+    assert calls == ["obverse", "obverse", "reverse", "reverse"]
+    assert len(reports) == 2
+    assert len(provenance) == 4
+    assert failures == ()
+    assert outcome.decision is RecognitionDecision.IDENTIFY
+    assert pipeline is not None

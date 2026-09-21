@@ -24,6 +24,11 @@ from .grounded_visual_observation import (
     GroundedVisualObservationRequest,
 )
 from .in_memory_catalogue_retriever import InMemoryCatalogueRetriever
+from .multiview_grounded_observation import (
+    GroundedObservationViewReport,
+    union_grounded_observation_views,
+    view_provenance,
+)
 from .phone_photo_coin_localization import (
     build_coin_evidence_views,
     crop_localized_coin,
@@ -218,30 +223,54 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
     reports = []
     localizations = []
     provider_failures = []
+    provenance = []
     for role, image in (("obverse", case.obverse), ("reverse", case.reverse)):
-        image_bytes, media_type, localization = _localized_image_bytes(image.path)
+        _, _, localization = _localized_image_bytes(image.path)
         localizations.append({"role": role, **localization})
-        try:
-            report = provider.observe(
-                GroundedVisualObservationRequest(
-                    scan_id=case.case_id,
-                    image=GroundedVisualObservationImage(
-                        role=role,
-                        media_type=media_type,
-                        data=image_bytes,
+        view_reports = []
+        for view_name, image_bytes, media_type in _localized_evidence_views(image.path):
+            try:
+                report = provider.observe(
+                    GroundedVisualObservationRequest(
+                        scan_id=case.case_id,
+                        image=GroundedVisualObservationImage(
+                            role=role,
+                            media_type=media_type,
+                            data=image_bytes,
+                        ),
+                    )
+                )
+            except GroundedVisualObservationContractError as exc:
+                provider_failures.append(
+                    {
+                        "role": role,
+                        "view": view_name,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+                continue
+            view_reports.append(
+                GroundedObservationViewReport(view=view_name, report=report)
+            )
+        if view_reports:
+            provenance.extend(view_provenance(tuple(view_reports)))
+            unioned = union_grounded_observation_views(tuple(view_reports))
+            first = view_reports[0].report
+            reports.append(
+                type(first)(
+                    observation=unioned,
+                    provider_id=first.provider_id,
+                    model_id=first.model_id,
+                    response_id=first.response_id,
+                    input_tokens=sum(
+                        item.report.input_tokens or 0 for item in view_reports
+                    ),
+                    output_tokens=sum(
+                        item.report.output_tokens or 0 for item in view_reports
                     ),
                 )
             )
-        except GroundedVisualObservationContractError as exc:
-            provider_failures.append(
-                {
-                    "role": role,
-                    "error_type": type(exc).__name__,
-                    "message": str(exc),
-                }
-            )
-            continue
-        reports.append(report)
 
     if provider_failures:
         decision = RecognitionGateResult(
@@ -257,7 +286,14 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
             expected_candidate_id=case.case_id,
             decision=decision,
         )
-        return outcome, reports, None, tuple(localizations), tuple(provider_failures)
+        return (
+            outcome,
+            reports,
+            None,
+            tuple(localizations),
+            tuple(provider_failures),
+            tuple(provenance),
+        )
 
     pipeline = run_grounded_recognition_pipeline(
         tuple(report.observation for report in reports),
@@ -269,7 +305,14 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
         expected_candidate_id=case.case_id,
         decision=pipeline.decision,
     )
-    return outcome, reports, pipeline, tuple(localizations), tuple(provider_failures)
+    return (
+        outcome,
+        reports,
+        pipeline,
+        tuple(localizations),
+        tuple(provider_failures),
+        tuple(provenance),
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -288,7 +331,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     outcomes = []
     rows = []
     for case in cases:
-        outcome, reports, pipeline, localizations, provider_failures = run_case(
+        (
+            outcome,
+            reports,
+            pipeline,
+            localizations,
+            provider_failures,
+            provenance,
+        ) = run_case(
             case,
             provider=provider,
             retriever=retriever,
@@ -306,6 +356,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason": outcome.reason,
                 "localizations": list(localizations),
                 "provider_failures": list(provider_failures),
+                "view_provenance": list(provenance),
                 "observations": [
                     {
                         "role": report.observation.role,
@@ -368,6 +419,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(
                     "  provider_failure: "
                     f"role={failure['role']} "
+                    f"view={failure.get('view', 'source')} "
                     f"type={failure['error_type']} "
                     f"message={failure['message']}",
                     flush=True,
