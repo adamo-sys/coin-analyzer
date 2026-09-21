@@ -156,3 +156,94 @@ def test_verification_has_no_acceptance_identity_or_confidence_fields():
     assert not hasattr(report, "confidence")
     assert not hasattr(report.rows[0], "accepted")
     assert not hasattr(report.rows[0], "confidence")
+
+
+def test_structured_year_and_country_alias_on_opposite_side_preserve_two_side_support():
+    report = verify_retrieved_candidates(
+        _result(
+            CatalogueCandidate(
+                "swiss",
+                "Switzerland",
+                "2 1/2 francs",
+                "1968",
+            )
+        ),
+        (
+            GroundedVisualObservation(
+                role="obverse",
+                date_like="1968",
+                visible_text=("1968",),
+            ),
+            GroundedVisualObservation(
+                role="reverse",
+                visible_text=("HELVETIA",),
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert row.verified
+    assert row.matched_fields == ("year", "visible_text")
+    assert row.supporting_roles == ("obverse", "reverse")
+    assert row.supporting_text == ("HELVETIA",)
+
+
+def test_year_text_does_not_double_count_structured_year_as_text_support():
+    report = verify_retrieved_candidates(
+        _result(_candidate(legends=())),
+        (
+            GroundedVisualObservation(
+                role="obverse",
+                date_like="1955",
+                visible_text=("1955",),
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert row.matched_fields == ("year",)
+    assert row.supporting_roles == ("obverse",)
+    assert not row.verified
+
+
+def test_denomination_text_does_not_double_count_structured_denomination():
+    report = verify_retrieved_candidates(
+        _result(_candidate(legends=())),
+        (
+            GroundedVisualObservation(
+                role="reverse",
+                denomination_mark="25 CENTS",
+                visible_text=("25 CENTS",),
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert row.matched_fields == ("denomination",)
+    assert row.supporting_roles == ("reverse",)
+    assert not row.verified
+
+
+def test_country_alias_can_supply_independent_text_support_without_legends():
+    report = verify_retrieved_candidates(
+        _result(
+            CatalogueCandidate(
+                "swiss",
+                "Switzerland",
+                "2 francs",
+                "1968",
+            )
+        ),
+        (
+            GroundedVisualObservation(
+                role="obverse",
+                date_like="1968",
+                visible_text=("HELVETIA",),
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert row.verified
+    assert row.supporting_text == ("HELVETIA",)
+    assert row.supporting_roles == ("obverse",)

@@ -7,7 +7,13 @@ import re
 from typing import Iterable
 
 from .catalogue_retrieval import CatalogueRetrievalResult
-from .evidence_candidate_resolver import CatalogueCandidate, normalize_denomination, normalize_year
+from .evidence_candidate_resolver import (
+    CatalogueCandidate,
+    NormalizedEvidence,
+    normalize_country,
+    normalize_denomination,
+    normalize_year,
+)
 from .grounded_visual_observation import GroundedVisualObservation
 from .numeral_evidence_envelope import build_numeral_evidence_envelope
 
@@ -62,47 +68,89 @@ def verify_retrieved_candidates(
     )
 
 
-def _verify(candidate, sides, evidence):
+
+def _verify(
+    candidate: CatalogueCandidate,
+    sides: tuple[GroundedVisualObservation, ...],
+    evidence: NormalizedEvidence,
+) -> CandidateVerification:
     matched: list[str] = []
     conflicts: list[str] = []
 
+    candidate_year = normalize_year(candidate.year)
+    candidate_denomination = normalize_denomination(candidate.denomination)
+    candidate_country = normalize_country(candidate.country)
+
     if evidence.year is not None:
-        if normalize_year(candidate.year) == evidence.year:
+        if candidate_year == evidence.year:
             matched.append("year")
         else:
             conflicts.append("year")
 
     if evidence.denomination is not None:
-        if normalize_denomination(candidate.denomination) == evidence.denomination:
+        if candidate_denomination == evidence.denomination:
             matched.append("denomination")
         else:
             conflicts.append("denomination")
 
-    catalogue_tokens = set()
-    for value in (candidate.country, candidate.denomination, candidate.year, *candidate.legends):
-        catalogue_tokens.update(_tokens(value))
+    legend_tokens = {
+        token
+        for legend in candidate.legends
+        for token in _tokens(legend)
+        if len(token) >= 2
+    }
+    excluded_text_tokens = set()
+    if evidence.year is not None:
+        excluded_text_tokens.update(_tokens(evidence.year))
+    if evidence.denomination is not None:
+        excluded_text_tokens.update(_tokens(evidence.denomination))
 
     supporting_roles: list[str] = []
     supporting_text: list[str] = []
+    text_supported = False
     for side in sides:
         side_supported = False
+
+        # Structured evidence retains its side provenance. A matching date or
+        # denomination therefore counts as support from the side that supplied it.
+        if side.date_like is not None and normalize_year(side.date_like) == candidate_year:
+            side_supported = True
+        if (
+            side.denomination_mark is not None
+            and normalize_denomination(side.denomination_mark) == candidate_denomination
+        ):
+            side_supported = True
+
         for text in side.visible_text:
-            tokens = {token for token in _tokens(text) if len(token) >= 2}
-            if tokens and tokens & catalogue_tokens:
+            tokens = {
+                token for token in _tokens(text)
+                if len(token) >= 2 and token not in excluded_text_tokens
+            }
+            if not tokens:
+                continue
+
+            legend_match = bool(tokens & legend_tokens)
+            country_match = (
+                candidate_country is not None
+                and normalize_country(text) == candidate_country
+            )
+            if legend_match or country_match:
                 side_supported = True
+                text_supported = True
                 if text not in supporting_text:
                     supporting_text.append(text)
+
         if side_supported:
             supporting_roles.append(side.role)
 
-    if supporting_text:
+    if text_supported:
         matched.append("visible_text")
 
-    # "verified" means conflict-free candidate/evidence agreement with at least
-    # one strong structured match and grounded text support. It is deliberately
-    # not an identity acceptance decision.
+    # Verification requires conflict-free structured agreement plus independent
+    # textual catalogue support. supporting_roles records all sides that supplied
+    # candidate-consistent evidence, not merely the sides with matching text.
     strong_match = "year" in matched or "denomination" in matched
-    verified = not conflicts and strong_match and bool(supporting_text)
+    verified = not conflicts and strong_match and text_supported
 
     return CandidateVerification(
         candidate=candidate,
@@ -112,7 +160,6 @@ def _verify(candidate, sides, evidence):
         supporting_text=tuple(supporting_text),
         verified=verified,
     )
-
 
 def _tokens(value: object) -> tuple[str, ...]:
     return tuple(_TOKEN.findall(str(value).casefold()))
