@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", type=Path)
     parser.add_argument("--case-id", action="append", dest="case_ids")
     parser.add_argument("--retrieval-limit", type=int, default=10)
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="print deterministic verification diagnostics for each case",
+    )
     return parser
 
 
@@ -298,6 +303,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"correct={outcome.correct} | reason={outcome.reason}",
             flush=True,
         )
+        if args.diagnostics and pipeline.verification is not None:
+            if not pipeline.verification.rows:
+                print("  verification: no candidate rows", flush=True)
+            for verification_row in pipeline.verification.rows:
+                print(
+                    "  verification: "
+                    f"candidate={verification_row.candidate.candidate_id} "
+                    f"verified={verification_row.verified} "
+                    f"matched={list(verification_row.matched_fields)} "
+                    f"conflicts={list(verification_row.conflicting_fields)} "
+                    f"roles={list(verification_row.supporting_roles)} "
+                    f"text={list(verification_row.supporting_text)}",
+                    flush=True,
+                )
 
     metrics = aggregate_metrics(outcomes)
     comparison = compare_to_baseline(metrics)
