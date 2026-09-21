@@ -110,6 +110,39 @@ def test_prompt_forbids_identity_guessing_and_prefers_missing_evidence():
     assert "missing evidence is preferred" in prompt
 
 
+def test_prompt_requires_literal_full_face_transcription_without_reconstruction():
+    prompt = OPENAI_GROUNDED_OBSERVATION_PROMPT.casefold()
+
+    for required in (
+        "literal transcription",
+        "full coin face",
+        "rim legend",
+        "separate item",
+        "alphabetic legends",
+        "readable fragment",
+        "do not fill",
+        "second copy",
+        "bare numeral",
+    ):
+        assert required in prompt
+    for prohibited_behavior in (
+        "do not translate",
+        "normalize",
+        "reconstruct",
+        "silently correct",
+        "complete",
+    ):
+        assert prohibited_behavior in prompt
+
+
+def test_prompt_keeps_date_and_denomination_pixel_grounded():
+    prompt = OPENAI_GROUNDED_OBSERVATION_PROMPT.casefold()
+
+    assert "not permission to infer a year" in prompt
+    assert "preserve a visible unit or currency mark" in prompt
+    assert "do not turn a bare numeral into a denomination" in prompt
+
+
 def test_schema_has_no_identity_or_confidence_fields():
     provider = OpenAIGroundedVisualObservationProvider(client=FakeClient(_response()))
     schema = provider.configuration["structured_output_schema"]
