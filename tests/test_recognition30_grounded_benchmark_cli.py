@@ -292,3 +292,15 @@ def test_diagnostics_flag_is_opt_in():
 
     assert default_args.diagnostics is False
     assert diagnostic_args.diagnostics is True
+
+
+def test_evidence_report_flag_is_optional():
+    parser = build_parser()
+
+    default_args = parser.parse_args(["dataset"])
+    report_args = parser.parse_args(
+        ["dataset", "--evidence-report", "evidence.json"]
+    )
+
+    assert default_args.evidence_report is None
+    assert report_args.evidence_report == Path("evidence.json")
