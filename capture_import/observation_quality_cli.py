@@ -11,6 +11,7 @@ from typing import Sequence
 from .observation_quality_evaluation import (
     compare_view_pairs,
     evaluate_execution_accounting,
+    evaluate_secondary_view_policy,
     evaluate_view_quality,
 )
 
@@ -33,6 +34,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     quality = evaluate_view_quality(provenance)
     pairs = compare_view_pairs(provenance)
     accounting = evaluate_execution_accounting(tuple(source.get("rows", ())))
+    policy = evaluate_secondary_view_policy(provenance)
 
     result = {
         "schema": "coin-analyzer-observation-quality-v1",
@@ -40,6 +42,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "views": [asdict(item) for item in quality],
         "pairs": [asdict(item) for item in pairs],
         "execution": asdict(accounting),
+        "adaptive_policy": asdict(policy),
     }
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -63,6 +66,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"avoided={accounting.avoided_calls} "
         f"input_tokens={accounting.input_tokens} "
         f"output_tokens={accounting.output_tokens}"
+    )
+    print(
+        f"adaptive_policy: paired_roles={policy.paired_roles} "
+        f"requested={policy.secondary_requested} avoided={policy.secondary_avoided} "
+        f"useful={policy.useful_secondary} "
+        f"useful_rate={policy.useful_secondary_rate} "
+        f"secondary_input_tokens={policy.secondary_input_tokens} "
+        f"useful_secondary_input_tokens={policy.useful_secondary_input_tokens}"
     )
     incremental = sum(len(item.incremental_comparison_text) for item in pairs)
     comparison_tokens = sum(item.comparison_input_tokens for item in pairs)
