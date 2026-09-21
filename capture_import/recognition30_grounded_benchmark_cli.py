@@ -24,7 +24,11 @@ from .grounded_visual_observation import (
     GroundedVisualObservationRequest,
 )
 from .in_memory_catalogue_retriever import InMemoryCatalogueRetriever
-from .phone_photo_coin_localization import crop_localized_coin, localize_coin_circle
+from .phone_photo_coin_localization import (
+    build_coin_evidence_views,
+    crop_localized_coin,
+    localize_coin_circle,
+)
 from .openai_grounded_visual_observation_provider import (
     OpenAIGroundedVisualObservationProvider,
 )
@@ -187,6 +191,27 @@ def _localized_image_bytes(path: Path) -> tuple[bytes, str, dict[str, object]]:
         "crop_height": localization.crop_height,
         "score": localization.score,
     }
+
+
+def _localized_evidence_views(
+    path: Path,
+) -> tuple[tuple[str, bytes, str], ...]:
+    """Return deterministic observation views without provider-dependent routing."""
+
+    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError(f"unable to decode benchmark image: {path}")
+    localization = localize_coin_circle(image)
+    if localization is None:
+        return (("source", path.read_bytes(), _media_type(path)),)
+
+    encoded_views = []
+    for view_name, view in build_coin_evidence_views(image, localization):
+        ok, encoded = cv2.imencode(".jpg", view, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        if not ok:
+            raise ValueError(f"unable to encode {view_name} evidence view: {path}")
+        encoded_views.append((view_name, encoded.tobytes(), "image/jpeg"))
+    return tuple(encoded_views)
 
 
 def run_case(case, *, provider, retriever, retrieval_limit: int):
