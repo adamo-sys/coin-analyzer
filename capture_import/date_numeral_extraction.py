@@ -52,7 +52,12 @@ def extract_date_numerals(
     candidates: list[DateNumeralEvidence] = []
     seen: set[tuple[str, str, str]] = set()
     for observation in rows:
-        if observation.date_like is not None:
+        if (
+            observation.date_like is not None
+            and _supported_by_visible_text(
+                observation.date_like, observation.visible_text
+            )
+        ):
             _append_tokens(
                 candidates,
                 seen,
@@ -113,3 +118,17 @@ def _append_tokens(
                 uncertain="?" in value,
             )
         )
+
+
+def _supported_by_visible_text(value: str, visible_text: tuple[str, ...]) -> bool:
+    """Require specialized date evidence to be backed by same-side transcription."""
+
+    specialized = {match.group(1) for match in _DATE_TOKEN.finditer(value)}
+    if not specialized:
+        return False
+    transcribed = {
+        match.group(1)
+        for text in visible_text
+        for match in _DATE_TOKEN.finditer(text)
+    }
+    return specialized.issubset(transcribed)
