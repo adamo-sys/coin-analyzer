@@ -10,6 +10,7 @@ from capture_import.phone_photo_coin_localization import (
     _circle_outside_ratio,
     _normalized_center_distance,
     _padded_square,
+    build_coin_evidence_views,
     crop_localized_coin,
     localize_coin_circle,
 )
@@ -192,3 +193,58 @@ def test_real_synthetic_circle_is_localized_without_mocking_hough():
     assert result.crop_y >= 0
     assert result.crop_x + result.crop_width <= 600
     assert result.crop_y + result.crop_height <= 600
+
+
+def test_evidence_views_are_deterministic_and_preserve_full_face():
+    image = np.full((100, 100, 3), 200, dtype=np.uint8)
+    cv2.circle(image, (50, 50), 20, (50, 60, 70), -1)
+    localization = CoinCircleLocalization(
+        center_x=50,
+        center_y=50,
+        radius=20,
+        score=1.0,
+        radius_ratio=0.2,
+        center_distance=0.0,
+        outside_ratio=0.0,
+        crop_x=25,
+        crop_y=25,
+        crop_width=50,
+        crop_height=50,
+        source_width=100,
+        source_height=100,
+    )
+
+    first = build_coin_evidence_views(image, localization)
+    second = build_coin_evidence_views(image, localization)
+
+    assert tuple(name for name, _ in first) == ("full_face", "rim")
+    assert np.array_equal(first[0][1], crop_localized_coin(image, localization))
+    assert np.array_equal(first[0][1], second[0][1])
+    assert np.array_equal(first[1][1], second[1][1])
+
+
+def test_rim_view_masks_center_but_preserves_periphery():
+    image = np.arange(100 * 100, dtype=np.uint16).reshape(100, 100)
+    localization = CoinCircleLocalization(
+        center_x=50,
+        center_y=50,
+        radius=20,
+        score=1.0,
+        radius_ratio=0.2,
+        center_distance=0.0,
+        outside_ratio=0.0,
+        crop_x=25,
+        crop_y=25,
+        crop_width=50,
+        crop_height=50,
+        source_width=100,
+        source_height=100,
+    )
+
+    views = dict(build_coin_evidence_views(image, localization))
+    full_face = views["full_face"]
+    rim = views["rim"]
+
+    assert rim.shape == full_face.shape
+    assert rim[25, 25] != full_face[25, 25]
+    assert rim[0, 0] == full_face[0, 0]
