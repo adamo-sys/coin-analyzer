@@ -8,7 +8,11 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .observation_quality_evaluation import compare_view_pairs, evaluate_view_quality
+from .observation_quality_evaluation import (
+    compare_view_pairs,
+    evaluate_execution_accounting,
+    evaluate_view_quality,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,12 +32,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     quality = evaluate_view_quality(provenance)
     pairs = compare_view_pairs(provenance)
+    accounting = evaluate_execution_accounting(tuple(source.get("rows", ())))
 
     result = {
         "schema": "coin-analyzer-observation-quality-v1",
         "source_schema": source.get("schema"),
         "views": [asdict(item) for item in quality],
         "pairs": [asdict(item) for item in pairs],
+        "execution": asdict(accounting),
     }
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +56,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"dates={item.date_yield} denominations={item.denomination_yield} "
             f"input_tokens={item.input_tokens}"
         )
+    print(
+        f"execution: attempted={accounting.attempted_calls} "
+        f"successful={accounting.successful_calls} failed={accounting.failed_calls} "
+        f"maximum={accounting.maximum_two_view_calls} "
+        f"avoided={accounting.avoided_calls} "
+        f"input_tokens={accounting.input_tokens} "
+        f"output_tokens={accounting.output_tokens}"
+    )
     incremental = sum(len(item.incremental_comparison_text) for item in pairs)
     comparison_tokens = sum(item.comparison_input_tokens for item in pairs)
     print(
