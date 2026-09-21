@@ -6,8 +6,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
-from .denomination_mark_extraction import extract_denomination_mark
-from .date_numeral_extraction import extract_date_numeral
+from .denomination_mark_extraction import extract_denomination_marks
+from .date_numeral_extraction import extract_date_numerals
 from .grounded_visual_observation import GroundedVisualObservation
 
 
@@ -143,11 +143,11 @@ def _text(row: Mapping[str, object]) -> tuple[str, ...]:
 
 
 def _date(row: Mapping[str, object]) -> str | None:
-    return extract_date_numeral((_observation(row),)).value
+    return extract_date_numerals((_observation(row),)).resolved_value
 
 
 def _denomination(row: Mapping[str, object]) -> str | None:
-    return extract_denomination_mark((_observation(row),)).value
+    return extract_denomination_marks((_observation(row),)).resolved_value
 
 
 def _agreement(left: str | None, right: str | None) -> bool | None:
