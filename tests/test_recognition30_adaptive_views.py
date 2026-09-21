@@ -25,3 +25,13 @@ def test_secondary_routing_is_based_only_on_primary_evidence():
 
     assert decide_secondary_observation(strong).request_secondary is False
     assert decide_secondary_observation(weak).request_secondary is True
+
+
+def test_secondary_decision_exposes_reason_and_missing_evidence():
+    weak = GroundedVisualObservation(role="reverse", visible_text=("LIBERTAS",))
+
+    decision = decide_secondary_observation(weak)
+
+    assert decision.request_secondary is True
+    assert decision.reason == "primary_literal_text_only"
+    assert decision.missing_evidence == ("year", "denomination")
