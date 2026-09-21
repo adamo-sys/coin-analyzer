@@ -9,6 +9,7 @@ from capture_import.grounded_visual_observation import (
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition30_grounded_benchmark_cli import (
     _load_dataset,
+    _localized_image_bytes,
     _media_type,
     _select_cases,
     run_case,
@@ -46,8 +47,13 @@ class FixtureProvider:
 
 
 def _image(tmp_path, name):
+    import cv2
+    import numpy as np
+
     path = tmp_path / name
-    path.write_bytes(b"fixture")
+    image = np.zeros((500, 500, 3), dtype=np.uint8)
+    cv2.circle(image, (250, 250), 180, (255, 255, 255), 8)
+    assert cv2.imwrite(str(path), image)
     return SimpleNamespace(path=path)
 
 
@@ -69,7 +75,7 @@ def test_run_case_executes_observe_pipeline_and_post_decision_truth_scoring(tmp_
         )
     )
 
-    outcome, reports, pipeline = run_case(
+    outcome, reports, pipeline, localizations = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -84,6 +90,8 @@ def test_run_case_executes_observe_pipeline_and_post_decision_truth_scoring(tmp_
         "reverse",
     )
     assert pipeline.decision.candidate_id == "CA-R30-017"
+    assert len(localizations) == 2
+    assert all("localized" in row for row in localizations)
 
 
 def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
@@ -104,7 +112,7 @@ def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
         )
     )
 
-    outcome, _, _ = run_case(
+    outcome, _, _, _ = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -198,3 +206,44 @@ def test_csv_dataset_loader_fails_closed_on_pair_truth_mismatch(tmp_path):
         assert "mismatch" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_localized_image_bytes_falls_back_when_no_circle(tmp_path):
+    import cv2
+    import numpy as np
+
+    path = tmp_path / "blank.png"
+    assert cv2.imwrite(str(path), np.zeros((200, 200, 3), dtype=np.uint8))
+
+    data, media_type, metadata = _localized_image_bytes(path)
+
+    assert data == path.read_bytes()
+    assert media_type == "image/png"
+    assert metadata == {"localized": False}
+
+
+def test_localized_image_bytes_emits_bounded_jpeg_crop(tmp_path, monkeypatch):
+    import cv2
+    import numpy as np
+    from capture_import.phone_photo_coin_localization import CoinCircleLocalization
+
+    path = tmp_path / "coin.png"
+    assert cv2.imwrite(str(path), np.zeros((100, 120, 3), dtype=np.uint8))
+    localization = CoinCircleLocalization(
+        center_x=60, center_y=50, radius=30, score=1.0, radius_ratio=0.3,
+        center_distance=0.0, outside_ratio=0.0, crop_x=20, crop_y=10,
+        crop_width=80, crop_height=80, source_width=120, source_height=100,
+    )
+    monkeypatch.setattr(
+        "capture_import.recognition30_grounded_benchmark_cli.localize_coin_circle",
+        lambda image: localization,
+    )
+
+    data, media_type, metadata = _localized_image_bytes(path)
+
+    decoded = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+    assert decoded.shape[:2] == (80, 80)
+    assert media_type == "image/jpeg"
+    assert metadata["localized"] is True
+    assert metadata["crop_width"] == 80
+    assert metadata["crop_height"] == 80
