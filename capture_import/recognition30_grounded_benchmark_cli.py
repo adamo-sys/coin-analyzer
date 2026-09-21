@@ -240,6 +240,7 @@ def run_case(
     localizations = []
     provider_failures = []
     provenance = []
+    adaptive_routing = []
     for role, image in (("obverse", case.obverse), ("reverse", case.reverse)):
         _, _, localization = _localized_image_bytes(image.path)
         localizations.append({"role": role, **localization})
@@ -251,6 +252,16 @@ def run_case(
                 if primary is None:
                     break
                 routing = decide_secondary_observation(primary)
+                adaptive_routing.append(
+                    {
+                        "role": role,
+                        "primary_view": evidence_views[0][0],
+                        "secondary_view": view_name,
+                        "requested": routing.request_secondary,
+                        "reason": routing.reason,
+                        "missing_evidence": list(routing.missing_evidence),
+                    }
+                )
                 if not routing.request_secondary:
                     break
             try:
@@ -319,6 +330,7 @@ def run_case(
             tuple(localizations),
             tuple(provider_failures),
             tuple(provenance),
+            tuple(adaptive_routing),
         )
 
     pipeline = run_grounded_recognition_pipeline(
@@ -338,6 +350,7 @@ def run_case(
         tuple(localizations),
         tuple(provider_failures),
         tuple(provenance),
+        tuple(adaptive_routing),
     )
 
 
@@ -364,6 +377,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             localizations,
             provider_failures,
             provenance,
+            adaptive_routing,
         ) = run_case(
             case,
             provider=provider,
@@ -384,6 +398,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "localizations": list(localizations),
                 "provider_failures": list(provider_failures),
                 "view_provenance": list(provenance),
+                "adaptive_routing": list(adaptive_routing),
                 "observations": [
                     {
                         "role": report.observation.role,
