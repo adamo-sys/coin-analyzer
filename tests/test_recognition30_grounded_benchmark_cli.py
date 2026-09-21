@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from capture_import.evidence_candidate_resolver import CatalogueCandidate
 from capture_import.grounded_visual_observation import (
     GroundedVisualObservation,
+    GroundedVisualObservationContractError,
     GroundedVisualObservationReport,
 )
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
@@ -76,7 +77,7 @@ def test_run_case_executes_observe_pipeline_and_post_decision_truth_scoring(tmp_
         )
     )
 
-    outcome, reports, pipeline, localizations = run_case(
+    outcome, reports, pipeline, localizations, failures = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -93,6 +94,7 @@ def test_run_case_executes_observe_pipeline_and_post_decision_truth_scoring(tmp_
     assert pipeline.decision.candidate_id == "CA-R30-017"
     assert len(localizations) == 2
     assert all("localized" in row for row in localizations)
+    assert failures == ()
 
 
 def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
@@ -113,7 +115,7 @@ def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
         )
     )
 
-    outcome, _, _, _ = run_case(
+    outcome, _, _, _, failures = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -123,6 +125,7 @@ def test_run_case_wrong_candidate_is_measured_as_unsafe(tmp_path):
     assert outcome.decision is RecognitionDecision.IDENTIFY
     assert not outcome.correct
     assert outcome.unsafe_wrong_identification
+    assert failures == ()
 
 
 def test_media_type_is_explicit_and_bounded():
@@ -268,7 +271,7 @@ def test_verification_diagnostics_are_available_from_run_case(tmp_path):
         )
     )
 
-    _, _, pipeline, _ = run_case(
+    _, _, pipeline, _, failures = run_case(
         case,
         provider=FixtureProvider(),
         retriever=retriever,
@@ -282,6 +285,7 @@ def test_verification_diagnostics_are_available_from_run_case(tmp_path):
     assert row.supporting_roles == ("obverse", "reverse")
     assert row.supporting_text == ("ELIZABETH", "CANADA")
     assert row.verified
+    assert failures == ()
 
 
 def test_diagnostics_flag_is_opt_in():
@@ -304,3 +308,89 @@ def test_evidence_report_flag_is_optional():
 
     assert default_args.evidence_report is None
     assert report_args.evidence_report == Path("evidence.json")
+
+
+class FailingReverseProvider(FixtureProvider):
+    def observe(self, request):
+        if request.image.role == "reverse":
+            raise GroundedVisualObservationContractError(
+                "provider response is not valid structured JSON."
+            )
+        return super().observe(request)
+
+
+def test_run_case_provider_failure_abstains_and_preserves_successful_side(tmp_path):
+    case = SimpleNamespace(
+        case_id="CA-R30-017",
+        obverse=_image(tmp_path, "failure-obverse.png"),
+        reverse=_image(tmp_path, "failure-reverse.png"),
+    )
+    retriever = InMemoryCatalogueRetriever(
+        (
+            CatalogueCandidate(
+                "CA-R30-017",
+                "Canada",
+                "25 cents",
+                "1955",
+                legends=("ELIZABETH II", "CANADA"),
+            ),
+        )
+    )
+
+    outcome, reports, pipeline, localizations, failures = run_case(
+        case,
+        provider=FailingReverseProvider(),
+        retriever=retriever,
+        retrieval_limit=10,
+    )
+
+    assert outcome.decision is RecognitionDecision.ABSTAIN
+    assert outcome.reason == "provider_observation_failure"
+    assert not outcome.unsafe_wrong_identification
+    assert pipeline is None
+    assert tuple(report.observation.role for report in reports) == ("obverse",)
+    assert len(localizations) == 2
+    assert failures == (
+        {
+            "role": "reverse",
+            "error_type": "GroundedVisualObservationContractError",
+            "message": "provider response is not valid structured JSON.",
+        },
+    )
+
+
+def test_provider_failure_does_not_retry_failed_side(tmp_path):
+    calls = []
+
+    class CountingFailureProvider(FixtureProvider):
+        def observe(self, request):
+            calls.append(request.image.role)
+            if request.image.role == "obverse":
+                raise GroundedVisualObservationContractError("malformed")
+            return super().observe(request)
+
+    case = SimpleNamespace(
+        case_id="CA-R30-017",
+        obverse=_image(tmp_path, "no-retry-obverse.png"),
+        reverse=_image(tmp_path, "no-retry-reverse.png"),
+    )
+    retriever = InMemoryCatalogueRetriever(
+        (
+            CatalogueCandidate(
+                "CA-R30-017", "Canada", "25 cents", "1955"
+            ),
+        )
+    )
+
+    outcome, reports, pipeline, _, failures = run_case(
+        case,
+        provider=CountingFailureProvider(),
+        retriever=retriever,
+        retrieval_limit=10,
+    )
+
+    assert calls == ["obverse", "reverse"]
+    assert outcome.decision is RecognitionDecision.ABSTAIN
+    assert pipeline is None
+    assert tuple(report.observation.role for report in reports) == ("reverse",)
+    assert len(failures) == 1
