@@ -394,3 +394,21 @@ def test_provider_failure_does_not_retry_failed_side(tmp_path):
     assert pipeline is None
     assert tuple(report.observation.role for report in reports) == ("reverse",)
     assert len(failures) == 1
+
+
+def test_diagnostics_guard_allows_provider_failure_without_pipeline():
+    parser = build_parser()
+    args = parser.parse_args(["dataset", "--diagnostics"])
+
+    pipeline = None
+    provider_failures = (
+        {
+            "role": "obverse",
+            "error_type": "GroundedVisualObservationMalformedOutput",
+            "message": "provider response is not valid structured JSON.",
+        },
+    )
+
+    assert args.diagnostics
+    assert provider_failures
+    assert pipeline is None
