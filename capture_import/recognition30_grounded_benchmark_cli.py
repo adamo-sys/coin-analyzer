@@ -14,7 +14,7 @@ import json
 import cv2
 
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from .adaptive_grounded_observation import decide_secondary_observation
 from .evidence_candidate_resolver import CatalogueCandidate
