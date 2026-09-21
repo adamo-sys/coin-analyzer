@@ -1,2 +1,2 @@
 -r requirements.txt
-openai>=3.13.0
+openai>=3.16.2
