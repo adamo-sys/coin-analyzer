@@ -10,6 +10,9 @@ import argparse
 import csv
 from dataclasses import asdict, dataclass
 import json
+
+import cv2
+
 from pathlib import Path
 from typing import Sequence
 
@@ -20,6 +23,7 @@ from .grounded_visual_observation import (
     GroundedVisualObservationRequest,
 )
 from .in_memory_catalogue_retriever import InMemoryCatalogueRetriever
+from .phone_photo_coin_localization import crop_localized_coin, localize_coin_circle
 from .openai_grounded_visual_observation_provider import (
     OpenAIGroundedVisualObservationProvider,
 )
@@ -151,20 +155,45 @@ def _media_type(path: Path) -> str:
     raise ValueError(f"unsupported benchmark image type: {path.suffix}")
 
 
+def _localized_image_bytes(path: Path) -> tuple[bytes, str, dict[str, object]]:
+    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError(f"unable to decode benchmark image: {path}")
+    localization = localize_coin_circle(image)
+    if localization is None:
+        return path.read_bytes(), _media_type(path), {"localized": False}
+
+    crop = crop_localized_coin(image, localization)
+    ok, encoded = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    if not ok:
+        raise ValueError(f"unable to encode localized benchmark crop: {path}")
+    return encoded.tobytes(), "image/jpeg", {
+        "localized": True,
+        "crop_x": localization.crop_x,
+        "crop_y": localization.crop_y,
+        "crop_width": localization.crop_width,
+        "crop_height": localization.crop_height,
+        "score": localization.score,
+    }
+
+
 def run_case(case, *, provider, retriever, retrieval_limit: int):
     reports = []
+    localizations = []
     for role, image in (("obverse", case.obverse), ("reverse", case.reverse)):
+        image_bytes, media_type, localization = _localized_image_bytes(image.path)
         report = provider.observe(
             GroundedVisualObservationRequest(
                 scan_id=case.case_id,
                 image=GroundedVisualObservationImage(
                     role=role,
-                    media_type=_media_type(image.path),
-                    data=image.path.read_bytes(),
+                    media_type=media_type,
+                    data=image_bytes,
                 ),
             )
         )
         reports.append(report)
+        localizations.append({"role": role, **localization})
 
     pipeline = run_grounded_recognition_pipeline(
         tuple(report.observation for report in reports),
@@ -176,7 +205,7 @@ def run_case(case, *, provider, retriever, retrieval_limit: int):
         expected_candidate_id=case.case_id,
         decision=pipeline.decision,
     )
-    return outcome, reports, pipeline
+    return outcome, reports, pipeline, tuple(localizations)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -195,7 +224,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     outcomes = []
     rows = []
     for case in cases:
-        outcome, reports, pipeline = run_case(
+        outcome, reports, pipeline, localizations = run_case(
             case,
             provider=provider,
             retriever=retriever,
@@ -211,6 +240,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "abstain": outcome.abstain,
                 "unsafe_wrong_identification": outcome.unsafe_wrong_identification,
                 "reason": outcome.reason,
+                "localizations": list(localizations),
                 "observations": [
                     {
                         "role": report.observation.role,
