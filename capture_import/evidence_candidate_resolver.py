@@ -39,6 +39,8 @@ DENOMINATION_ALIASES = {
     "2 francs": "2 francs",
 }
 
+_ORE_UNIT = re.compile(r"\b(?:ore|öre)\b", flags=re.IGNORECASE)
+
 
 @dataclass(frozen=True, slots=True)
 class NormalizedEvidence:
@@ -100,6 +102,7 @@ def normalize_denomination(value: object) -> str | None:
     text = _clean(value)
     if text is None:
         return None
+    text = _ORE_UNIT.sub("ore", text)
     key = _key(text)
     if key in DENOMINATION_ALIASES:
         return DENOMINATION_ALIASES[key]

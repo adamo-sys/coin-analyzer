@@ -1,3 +1,5 @@
+import pytest
+
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 from capture_import.numeral_evidence_envelope import (
     build_numeral_evidence_envelope,
@@ -46,6 +48,15 @@ def test_denomination_only_is_retrieval_ready_without_inventing_year():
     assert result.normalized.year is None
     assert result.normalized.denomination == "10 pesos"
     assert result.retrieval_ready
+
+
+@pytest.mark.parametrize("mark", ["10 ÖRE", "5 öre", "10 ORE", "5 ore"])
+def test_ore_marks_normalize_to_ascii_ore(mark):
+    result = build_numeral_evidence_envelope(
+        (_observation(denomination_mark=mark, visible_text=(mark,)),)
+    )
+
+    assert result.normalized.denomination == mark.split()[0] + " ore"
 
 
 def test_visible_text_alone_can_be_retrieval_ready_but_not_identity_evidence():
