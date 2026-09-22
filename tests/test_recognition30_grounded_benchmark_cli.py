@@ -1,11 +1,16 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from capture_import.evidence_candidate_resolver import CatalogueCandidate
 from capture_import.grounded_visual_observation import (
     GroundedVisualObservation,
     GroundedVisualObservationContractError,
     GroundedVisualObservationReport,
+)
+from capture_import.openai_grounded_visual_observation_provider import (
+    GroundedVisualObservationProviderTimeout,
 )
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition30_grounded_benchmark_cli import (
@@ -14,6 +19,8 @@ from capture_import.recognition30_grounded_benchmark_cli import (
     _localized_image_bytes,
     _media_type,
     _select_cases,
+    _recognition_semantics,
+    _validate_execution_options,
     run_case,
 )
 from capture_import.recognition_decision_gate import RecognitionDecision
@@ -298,6 +305,35 @@ def test_diagnostics_flag_is_opt_in():
     assert diagnostic_args.diagnostics is True
 
 
+def test_cli_provider_timeout_default_and_override_are_explicit():
+    parser = build_parser()
+
+    assert parser.parse_args(["dataset"]).provider_timeout_seconds == 120.0
+    assert (
+        parser.parse_args(["dataset", "--provider-timeout-seconds", "7.5"])
+        .provider_timeout_seconds
+        == 7.5
+    )
+
+
+@pytest.mark.parametrize("value", ("0", "-1"))
+def test_cli_rejects_non_positive_provider_timeout_before_execution(value):
+    args = build_parser().parse_args(
+        ["dataset", "--provider-timeout-seconds", value]
+    )
+
+    with pytest.raises(SystemExit, match="positive"):
+        _validate_execution_options(args)
+
+
+def test_timeout_is_execution_metadata_not_recognition_semantics():
+    parser = build_parser()
+    short = parser.parse_args(["dataset", "--provider-timeout-seconds", "1"])
+    default = parser.parse_args(["dataset"])
+
+    assert _recognition_semantics(short) == _recognition_semantics(default)
+
+
 def test_cli_declares_oracle_candidate_scope():
     parser = build_parser()
 
@@ -361,9 +397,10 @@ def test_run_case_provider_failure_abstains_and_preserves_successful_side(tmp_pa
         {
             "role": "reverse",
             "view": "full_face",
-            "error_type": "GroundedVisualObservationContractError",
-            "message": "provider response is not valid structured JSON.",
-        },
+                "error_type": "GroundedVisualObservationContractError",
+                "message": "provider response is not valid structured JSON.",
+                "failure_kind": "provider_contract",
+            },
     )
 
 
@@ -402,6 +439,40 @@ def test_provider_failure_does_not_retry_failed_side(tmp_path):
     assert pipeline is None
     assert tuple(report.observation.role for report in reports) == ("reverse",)
     assert len(failures) == 1
+
+
+def test_timeout_is_structured_pipeline_failure_and_next_side_runs(tmp_path):
+    calls = []
+
+    class TimeoutThenSuccessProvider(FixtureProvider):
+        def observe(self, request):
+            calls.append(request.image.role)
+            if request.image.role == "obverse":
+                raise GroundedVisualObservationProviderTimeout(120.0)
+            return super().observe(request)
+
+    case = SimpleNamespace(
+        case_id="CA-R30-017",
+        obverse=_image(tmp_path, "timeout-obverse.png"),
+        reverse=_image(tmp_path, "timeout-reverse.png"),
+    )
+    retriever = InMemoryCatalogueRetriever(
+        (CatalogueCandidate("CA-R30-017", "Canada", "25 cents", "1955"),)
+    )
+
+    outcome, _, pipeline, _, failures, _ = run_case(
+        case,
+        provider=TimeoutThenSuccessProvider(),
+        retriever=retriever,
+        retrieval_limit=10,
+    )
+
+    assert calls == ["obverse", "reverse", "reverse"]
+    assert outcome.decision is RecognitionDecision.ABSTAIN
+    assert outcome.reason == "provider_observation_failure"
+    assert pipeline is None
+    assert failures[0]["failure_kind"] == "provider_timeout"
+    assert failures[0]["diagnostics"]["timeout_seconds"] == 120.0
 
 
 def test_diagnostics_guard_allows_provider_failure_without_pipeline():

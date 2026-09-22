@@ -10,7 +10,9 @@ from capture_import.grounded_visual_observation import (
 )
 from capture_import.openai_grounded_visual_observation_provider import (
     OPENAI_GROUNDED_OBSERVATION_PROMPT,
+    OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS,
     OpenAIGroundedVisualObservationProvider,
+    GroundedVisualObservationProviderTimeout,
     GroundedVisualObservationMalformedOutput,
 )
 
@@ -28,6 +30,21 @@ class FakeResponses:
 class FakeClient:
     def __init__(self, response):
         self.responses = FakeResponses(response)
+
+
+class TimeoutResponses:
+    def create(self, **kwargs):
+        raise type("APITimeoutError", (Exception,), {"__module__": "openai"})()
+
+
+class TimeoutClient:
+    def __init__(self):
+        self.responses = TimeoutResponses()
+        self.timeouts = []
+
+    def with_options(self, *, timeout):
+        self.timeouts.append(timeout)
+        return self
 
 
 def _request(role="obverse"):
@@ -74,6 +91,20 @@ def test_provider_returns_contract_report_and_preserves_role():
     assert report.response_id == "resp-1"
     assert report.input_tokens == 123
     assert report.output_tokens == 45
+
+
+def test_provider_uses_default_timeout_through_sdk_options():
+    client = TimeoutClient()
+    provider = OpenAIGroundedVisualObservationProvider(client=client)
+
+    with pytest.raises(GroundedVisualObservationProviderTimeout) as caught:
+        provider.observe(_request())
+
+    assert client.timeouts == [OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS]
+    assert caught.value.diagnostics == {
+        "failure_kind": "provider_timeout",
+        "timeout_seconds": OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS,
+    }
 
 
 def test_provider_sends_exactly_one_image_and_disables_tools_and_storage():
