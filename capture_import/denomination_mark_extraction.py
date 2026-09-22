@@ -54,16 +54,31 @@ def extract_denomination_marks(
     candidates: list[DenominationMarkEvidence] = []
     seen: set[tuple[str, str, str]] = set()
     for observation in rows:
-        if (
-            observation.denomination_mark is not None
-            and _supported_by_visible_text(
-                observation.denomination_mark, observation.visible_text
+        visible_marks = tuple(
+            value
+            for text in observation.visible_text
+            if (value := _explicit_mark(text)) is not None
+        )
+        structured_mark = (
+            _explicit_mark(observation.denomination_mark)
+            if observation.denomination_mark is not None
+            else None
+        )
+        retain_structured = (
+            structured_mark is not None
+            and (
+                not visible_marks
+                or any(
+                    _comparison_key(structured_mark) == _comparison_key(visible)
+                    for visible in visible_marks
+                )
             )
-        ):
+        )
+        if retain_structured:
             _append_if_mark(
                 candidates,
                 seen,
-                observation.denomination_mark,
+                observation.denomination_mark or "",
                 role=observation.role,
                 source_field="denomination_mark",
             )
@@ -74,6 +89,11 @@ def extract_denomination_marks(
                 text,
                 role=observation.role,
                 source_field="visible_text",
+                skip_keys=(
+                    frozenset({_comparison_key(structured_mark)})
+                    if retain_structured and structured_mark is not None
+                    else frozenset()
+                ),
             )
 
     values = {_comparison_key(item.value) for item in candidates}
@@ -94,12 +114,13 @@ def _append_if_mark(
     *,
     role: str,
     source_field: str,
+    skip_keys: frozenset[str] = frozenset(),
 ) -> None:
-    value = _SPACE.sub(" ", text.strip())
-    if not _is_explicit_mark(value):
+    value = _explicit_mark(text)
+    if value is None:
         return
     key = (_comparison_key(value), role, source_field)
-    if key in seen or len(candidates) >= _MAX_CANDIDATES:
+    if key[0] in skip_keys or key in seen or len(candidates) >= _MAX_CANDIDATES:
         return
     seen.add(key)
     candidates.append(
@@ -120,13 +141,11 @@ def _is_explicit_mark(value: str) -> bool:
     return _NUMBER.search(value) is not None and _UNIT.search(value) is not None
 
 
+def _explicit_mark(text: str) -> str | None:
+    value = _SPACE.sub(" ", text.strip())
+    return value if _is_explicit_mark(value) else None
+
+
 def _comparison_key(value: str) -> str:
     # Comparison only: preserve the first literal spelling in resolved_value.
     return _SPACE.sub(" ", value.strip()).casefold()
-
-
-def _supported_by_visible_text(value: str, visible_text: tuple[str, ...]) -> bool:
-    """Require specialized denomination evidence to match same-side transcription."""
-
-    key = _comparison_key(value)
-    return any(_comparison_key(text) == key for text in visible_text)

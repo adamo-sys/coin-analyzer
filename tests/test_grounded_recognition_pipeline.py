@@ -54,7 +54,7 @@ def test_pipeline_abstains_when_retrieval_is_ambiguous():
     assert result.decision.reason == "ambiguous_verified"
 
 
-def test_pipeline_abstains_when_catalogue_has_no_matching_candidate():
+def test_pipeline_abstains_when_retrieved_candidate_fails_verification():
     result = run_grounded_recognition_pipeline(
         _sides(),
         InMemoryCatalogueRetriever(
@@ -63,7 +63,7 @@ def test_pipeline_abstains_when_catalogue_has_no_matching_candidate():
     )
 
     assert result.decision.decision is RecognitionDecision.ABSTAIN
-    assert result.decision.reason == "no_candidates"
+    assert result.decision.reason == "none_verified"
 
 
 def test_pipeline_abstains_before_retrieval_on_conflicting_evidence():

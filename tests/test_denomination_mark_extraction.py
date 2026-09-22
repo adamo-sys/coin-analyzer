@@ -92,7 +92,7 @@ def test_duplicate_same_source_mark_is_deduplicated():
     assert len(result.candidates) == 1
 
 
-def test_field_and_visible_text_keep_distinct_provenance():
+def test_matching_field_precedes_duplicate_visible_text_evidence():
     result = extract_denomination_marks(
         (
             _observation(
@@ -102,11 +102,8 @@ def test_field_and_visible_text_keep_distinct_provenance():
         )
     )
 
-    assert len(result.candidates) == 2
-    assert {item.source_field for item in result.candidates} == {
-        "denomination_mark",
-        "visible_text",
-    }
+    assert len(result.candidates) == 1
+    assert result.candidates[0].source_field == "denomination_mark"
 
 
 def test_empty_evidence_abstains():
@@ -157,7 +154,7 @@ def test_uncorroborated_denomination_mark_is_not_promoted():
     assert not result.conflict
 
 
-def test_denomination_mark_requires_same_side_transcription():
+def test_structured_mark_is_not_discarded_for_cross_side_visible_text():
     result = extract_denomination_marks(
         (
             _observation("obverse", denomination_mark="25 CENTS"),
@@ -165,6 +162,9 @@ def test_denomination_mark_requires_same_side_transcription():
         )
     )
 
-    assert len(result.candidates) == 1
-    assert result.candidates[0].role == "reverse"
-    assert result.candidates[0].source_field == "visible_text"
+    assert len(result.candidates) == 2
+    assert {item.role for item in result.candidates} == {"obverse", "reverse"}
+    assert {item.source_field for item in result.candidates} == {
+        "denomination_mark",
+        "visible_text",
+    }

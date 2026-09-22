@@ -12,7 +12,7 @@ def test_structured_primary_evidence_does_not_request_secondary():
     )
     assert decision.request_secondary is False
     assert decision.reason == "primary_structured_evidence_sufficient"
-    assert decision.missing_evidence == ("denomination",)
+    assert decision.missing_evidence == ()
 
 
 def test_no_visible_text_requests_secondary_with_explicit_gaps():
