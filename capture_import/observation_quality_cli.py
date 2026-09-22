@@ -10,6 +10,7 @@ from typing import Sequence
 
 from .observation_quality_evaluation import (
     compare_view_pairs,
+    evaluate_adaptive_routing_accounting,
     evaluate_execution_accounting,
     evaluate_secondary_view_policy,
     evaluate_view_quality,
@@ -35,6 +36,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     pairs = compare_view_pairs(provenance)
     accounting = evaluate_execution_accounting(tuple(source.get("rows", ())))
     policy = evaluate_secondary_view_policy(provenance)
+    routing = evaluate_adaptive_routing_accounting(tuple(source.get("rows", ())))
 
     result = {
         "schema": "coin-analyzer-observation-quality-v1",
@@ -43,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "pairs": [asdict(item) for item in pairs],
         "execution": asdict(accounting),
         "adaptive_policy": asdict(policy),
+        "adaptive_routing": asdict(routing),
     }
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +77,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"useful_rate={policy.useful_secondary_rate} "
         f"secondary_input_tokens={policy.secondary_input_tokens} "
         f"useful_secondary_input_tokens={policy.useful_secondary_input_tokens}"
+    )
+    print(
+        f"adaptive_routing: decisions={routing.decisions} "
+        f"requested={routing.requested} avoided={routing.avoided} "
+        f"reasons={dict(routing.reasons)} "
+        f"missing_evidence={dict(routing.missing_evidence)}"
     )
     incremental = sum(len(item.incremental_comparison_text) for item in pairs)
     comparison_tokens = sum(item.comparison_input_tokens for item in pairs)
