@@ -18,6 +18,20 @@ def test_explicit_numeric_unit_marks_resolve(mark):
     assert result.candidates[0].source_field == "denomination_mark"
 
 
+@pytest.mark.parametrize(
+    "mark",
+    ["10 ÖRE", "5 öre", "10 ORE", "5 ore"],
+)
+def test_numeric_ore_marks_resolve(mark):
+    result = extract_denomination_marks(
+        (_observation(denomination_mark=mark, visible_text=(mark,)),)
+    )
+
+    assert result.resolved_value == mark
+    assert not result.conflict
+    assert not result.unresolved
+
+
 def test_visible_text_can_supply_explicit_mark():
     result = extract_denomination_marks(
         (_observation(visible_text=("LIBERTY", "25 CENTS", "1968")),)
@@ -38,7 +52,7 @@ def test_ambiguous_bare_number_or_unit_does_not_resolve(value):
     assert result.unresolved
 
 
-@pytest.mark.parametrize("value", ["V027", "X123", "7 Q"])
+@pytest.mark.parametrize("value", ["V027", "X123", "7 Q", "10 ÖL", "5 café"])
 def test_arbitrary_latin_letters_are_not_denomination_units(value):
     result = extract_denomination_marks(
         (_observation(denomination_mark=value, visible_text=(value,)),)
