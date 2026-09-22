@@ -132,7 +132,7 @@ def _verify(
             legend_match = bool(tokens & legend_tokens)
             country_match = (
                 candidate_country is not None
-                and normalize_country(text) == candidate_country
+                and _same_country(text, candidate_country)
             )
             if legend_match or country_match:
                 side_supported = True
@@ -163,3 +163,8 @@ def _verify(
 
 def _tokens(value: object) -> tuple[str, ...]:
     return tuple(_TOKEN.findall(str(value).casefold()))
+
+
+def _same_country(observed: object, candidate_country: str) -> bool:
+    normalized = normalize_country(observed)
+    return normalized is not None and normalized.casefold() == candidate_country.casefold()
