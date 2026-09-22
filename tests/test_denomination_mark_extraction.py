@@ -38,6 +38,17 @@ def test_ambiguous_bare_number_or_unit_does_not_resolve(value):
     assert result.unresolved
 
 
+@pytest.mark.parametrize("value", ["V027", "X123", "7 Q"])
+def test_arbitrary_latin_letters_are_not_denomination_units(value):
+    result = extract_denomination_marks(
+        (_observation(denomination_mark=value, visible_text=(value,)),)
+    )
+
+    assert result.candidates == ()
+    assert result.resolved_value is None
+    assert result.unresolved
+
+
 def test_matching_marks_across_sides_resolve_without_normalizing_currency():
     result = extract_denomination_marks(
         (
