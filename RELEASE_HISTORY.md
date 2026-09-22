@@ -8,7 +8,7 @@ The public semantic-version release line is distinct from the historical interna
 | --- | --- | --- | --- |
 | `v1.2.0` | 2026-09-11 | `1857e33` | Public release baseline incorporating identification/evaluation infrastructure, runtime-readiness and acceptance hardening, AI execution audit support, collector work-queue foundations, accuracy-research documentation, and collector-confirmed type/design persistence. |
 | `v1.3.0-rc1` | 2026-09-20 | `8776d46` | Historical first release candidate, published as the annotated tag. |
-| `v1.3.0-rc2` | Pending | `6856b464` (intended) | Repaired PR #288 candidate; exact-tip CI passed, tag/release pending. |
+| `v1.3.0-rc2` | Pending | Technically accepted application lineage: `d209d14`; final tag target pending documentation-only reconciliation | Repaired PR #288 candidate with RC2 metadata/runtime reconciliation. Technical acceptance is complete; manual acceptance, explicit tag authorization, and release remain pending. |
 
 ## Historical Internal Milestones
 
