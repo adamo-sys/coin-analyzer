@@ -1,6 +1,6 @@
 # Task Queue
 
-## v1.3.0 RC1 Release Preparation — 2026-09-19
+## v1.3.0 RC2 Release Preparation — 2026-09-22
 
 
 
@@ -8,7 +8,7 @@
 
 - [x] Confirm latest published public release is `v1.2.0`.
 
-- [x] Lock target public release as `v1.3.0` and candidate as `v1.3.0-rc1`.
+- [x] Preserve historical RC1 tag; set repaired RC2 target to `6856b464` after PR #288 / `520d5d8`.
 
 - [x] Freeze RC scope to merged work after `v1.2.0` through PR #245; no new feature expansion.
 
@@ -16,15 +16,15 @@
 
 - [x] Reconcile `PROJECT_STATE.md`, `TASK_QUEUE.md`, and `AI_HANDOFF.md`.
 
-- [x] Execute required release tests and collect evidence.
+- [x] Record successful exact-tip CI evidence for `6856b464`.
 
-- [ ] Complete release audit.
+- [ ] Review and disposition advisory Pyright debt report.
 
-- [ ] Verify Git state and release commit.
+- [ ] Complete clean isolated-worktree validation and manual acceptance for RC2.
 
-- [ ] Create annotated `v1.3.0-rc1` tag.
+- [ ] Reconcile runtime version provenance with RC2.
 
-- [ ] Push and verify the candidate remotely.
+- [ ] Obtain approval, then create and push annotated `v1.3.0-rc2` tag.
 
 
 
