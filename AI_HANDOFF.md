@@ -8,7 +8,7 @@
 
 - Target public release: `v1.3.0`.
 
-- Historical RC1 tag: 1.3.0-rc1 at 8776d46b8d036ce1f3f3240fe0727885a7b4f65d. The technically accepted RC2 application lineage is `d209d14b39161d398ecddd7ef144f57a1dc36e1b`, containing PR #288 / `520d5d8`, RC2 metadata / `53445ac`, and runtime reconciliation / `bf8ecc9`; `APPLICATION_VERSION` is `v1.3.0-rc2`. Exact-lineage PR #290 CI was green for Windows/Ubuntu, Ruff, bounded Pyright, Gitleaks, privacy boundaries, OpenAI smoke, hypothesis pilot, and advisory Pyright. Advisory Pyright is ACCEPT_FOR_RC2; no RC2-introduced blocker was identified. No RC2 tag or GitHub Release exists.
+- Historical RC1 tag: v1.3.0-rc1 at 8776d46b8d036ce1f3f3240fe0727885a7b4f65d. The technically accepted RC2 application lineage is `d209d14b39161d398ecddd7ef144f57a1dc36e1b`, containing PR #288 / `520d5d8`, RC2 metadata / `53445ac`, and runtime reconciliation / `bf8ecc9`; `APPLICATION_VERSION` is `v1.3.0-rc2`. Exact-lineage PR #290 CI was green for Windows/Ubuntu, Ruff, bounded Pyright, Gitleaks, privacy boundaries, OpenAI smoke, hypothesis pilot, and advisory Pyright. Advisory Pyright is ACCEPT_FOR_RC2; no RC2-introduced blocker was identified. No RC2 tag or GitHub Release exists.
 
 - Release-prep branch: `release/v1.3.0-rc1-prep`.
 
