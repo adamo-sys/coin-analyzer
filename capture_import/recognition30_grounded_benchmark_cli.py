@@ -9,12 +9,14 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import asdict, dataclass
+import hashlib
 import json
 
 import cv2
 
 from pathlib import Path
 from typing import Mapping, Sequence
+from uuid import uuid4
 
 from .adaptive_grounded_observation import decide_secondary_observation
 from .evidence_candidate_resolver import CatalogueCandidate
@@ -37,7 +39,13 @@ from .phone_photo_coin_localization import (
     localize_coin_circle,
 )
 from .openai_grounded_visual_observation_provider import (
+    GroundedVisualObservationProviderTimeout,
     OpenAIGroundedVisualObservationProvider,
+)
+from .recognition30_checkpoint import (
+    CheckpointJournal,
+    Recognition30RunIdentity,
+    create_continuation,
 )
 from .recognition_decision_gate import RecognitionDecision, RecognitionGateResult
 from .recognition30_grounded_evaluation import (
@@ -59,6 +67,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", type=Path)
     parser.add_argument("--case-id", action="append", dest="case_ids")
     parser.add_argument("--retrieval-limit", type=int, default=10)
+    parser.add_argument("--provider-timeout-seconds", type=float, default=120.0)
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=Path,
+        help="new append-only checkpoint run directory",
+    )
+    parser.add_argument(
+        "--continue-from",
+        type=Path,
+        help="validated checkpoint parent; requires --checkpoint-dir",
+    )
     parser.add_argument(
         "--evidence-report",
         type=Path,
@@ -286,6 +305,11 @@ def run_case(
                     "view": view_name,
                     "error_type": type(exc).__name__,
                     "message": str(exc),
+                    "failure_kind": (
+                        "provider_timeout"
+                        if isinstance(exc, GroundedVisualObservationProviderTimeout)
+                        else "provider_contract"
+                    ),
                 }
                 diagnostics = getattr(exc, "diagnostics", None)
                 if isinstance(diagnostics, Mapping):
@@ -393,22 +417,82 @@ def _adaptive_routing_provenance(
     return tuple(rows)
 
 
+def _dataset_fingerprint(root: Path) -> str:
+    """Fingerprint benchmark inputs without writing or exposing their contents."""
+
+    digest = hashlib.sha256()
+    for path in sorted(
+        (root / "pair_manifest.csv", root / "ground_truth.csv", *(root / "images").iterdir()),
+        key=lambda item: item.name,
+    ):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _recognition_semantics(args: argparse.Namespace) -> dict[str, object]:
+    """Frozen identity of existing recognition behavior, not execution controls."""
+
+    return {
+        "adaptive_views": args.adaptive_views,
+        "evidence_views": "localized-full-face-rim-v1",
+        "localization": "coin-circle-v1",
+        "retrieval_mode": "oracle-catalogue",
+        "retrieval_limit": args.retrieval_limit,
+        "verification": "grounded-pipeline-v1",
+        "two_side_gate": "recognition-gate-v1",
+        "scoring": "recognition30-grounded-v1",
+    }
+
+
+def _validate_execution_options(args: argparse.Namespace) -> None:
+    if args.provider_timeout_seconds <= 0:
+        raise SystemExit("--provider-timeout-seconds must be positive")
+    if args.continue_from is not None and args.checkpoint_dir is None:
+        raise SystemExit("--continue-from requires --checkpoint-dir")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if not 1 <= args.retrieval_limit <= 25:
         raise SystemExit("--retrieval-limit must be between 1 and 25")
 
+    _validate_execution_options(args)
     dataset = _load_dataset(args.dataset)
     cases = _select_cases(dataset, args.case_ids)
-    provider = OpenAIGroundedVisualObservationProvider()
+    provider = OpenAIGroundedVisualObservationProvider(
+        timeout_seconds=args.provider_timeout_seconds
+    )
     retriever = InMemoryCatalogueRetriever(
         _catalogue(dataset),
         retriever_id=f"recognition30-{dataset.version}-oracle-catalogue",
     )
 
+    journal = None
+    completed_case_ids = frozenset()
+    if args.checkpoint_dir is not None:
+        identity = Recognition30RunIdentity(
+            run_id=str(uuid4()),
+            dataset_version=dataset.version,
+            dataset_fingerprint=_dataset_fingerprint(args.dataset),
+            provider_id=provider.provider_id,
+            model_id=provider.model_id,
+            recognition_semantics=_recognition_semantics(args),
+            execution_metadata={"provider_timeout_seconds": args.provider_timeout_seconds},
+        )
+        if args.continue_from is None:
+            journal = CheckpointJournal(args.checkpoint_dir, identity)
+        else:
+            journal, completed_case_ids = create_continuation(
+                args.continue_from, args.checkpoint_dir, identity
+            )
+        cases = tuple(case for case in cases if case.case_id not in completed_case_ids)
+
     outcomes = []
     rows = []
-    for case in cases:
+    for completion_order, case in enumerate(cases, start=1):
         (
             outcome,
             reports,
@@ -427,8 +511,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         adaptive_routing = (
             _adaptive_routing_provenance(provenance) if args.adaptive_views else ()
         )
-        rows.append(
-            {
+        row = {
                 "case_id": case.case_id,
                 "decision": outcome.decision.value,
                 "predicted_candidate_id": outcome.predicted_candidate_id,
@@ -490,7 +573,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                     else []
                 ),
             }
-        )
+        rows.append(row)
+        if journal is not None:
+            journal.append_terminal(
+                {
+                    "case_id": case.case_id,
+                    "terminal_outcome": (
+                        "PIPELINE_FAILURE"
+                        if provider_failures
+                        else outcome.decision.value.upper()
+                    ),
+                    "completion_order": completion_order,
+                    "execution_metadata": {
+                        "provider_timeout_seconds": args.provider_timeout_seconds,
+                    },
+                    "diagnostics": {
+                        "reason": outcome.reason,
+                        "provider_failures": list(provider_failures),
+                    },
+                    "provenance": {
+                        "dataset_version": dataset.version,
+                        "provider_id": provider.provider_id,
+                        "model_id": provider.model_id,
+                    },
+                }
+            )
         print(
             f"{case.case_id} | {outcome.decision.value.upper()} | "
             f"candidate={outcome.predicted_candidate_id} | "
@@ -534,6 +641,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "provider_id": provider.provider_id,
         "model_id": provider.model_id,
         "retrieval_limit": args.retrieval_limit,
+        "provider_timeout_seconds": args.provider_timeout_seconds,
         "rows": rows,
         "metrics": asdict(metrics),
         "baseline_comparison": dict(comparison),

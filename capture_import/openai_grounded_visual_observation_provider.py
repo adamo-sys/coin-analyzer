@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Mapping
+from typing import Any, Mapping
 
 from .grounded_visual_observation import (
     GroundedVisualObservation,
@@ -20,6 +20,33 @@ OPENAI_GROUNDED_OBSERVATION_MODEL_ID = "gpt-5.6-terra"
 OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT = "low"
 OPENAI_GROUNDED_OBSERVATION_IMAGE_DETAIL = "original"
 OPENAI_GROUNDED_OBSERVATION_MAX_OUTPUT_TOKENS = 800
+OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS = 120.0
+
+
+class GroundedVisualObservationProviderTimeout(GroundedVisualObservationContractError):
+    """The provider did not complete within the configured execution timeout."""
+
+    def __init__(self, timeout_seconds: float) -> None:
+        super().__init__(f"provider timed out after {timeout_seconds} seconds.")
+        self.diagnostics = {
+            "failure_kind": "provider_timeout",
+            "timeout_seconds": timeout_seconds,
+        }
+
+
+def _is_sdk_timeout_error(exc: Exception) -> bool:
+    """Recognize the SDK's dedicated timeout type without swallowing other bugs."""
+
+    try:
+        from openai import APITimeoutError
+    except ImportError:
+        api_timeout_error = ()
+    else:
+        api_timeout_error = (APITimeoutError,)
+    return isinstance(exc, (TimeoutError, *api_timeout_error)) or (
+        type(exc).__name__ == "APITimeoutError"
+        and type(exc).__module__.startswith("openai")
+    )
 
 OPENAI_GROUNDED_OBSERVATION_PROMPT = (
     "Observe only visually defensible evidence in this single coin-side image. "
@@ -109,12 +136,15 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
     provider_id = OPENAI_GROUNDED_OBSERVATION_PROVIDER_ID
     model_id = OPENAI_GROUNDED_OBSERVATION_MODEL_ID
 
-    def __init__(self, *, client: object | None = None) -> None:
+    def __init__(self, *, client: object | None = None, timeout_seconds: float = OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS) -> None:
         if client is None:
             from openai import OpenAI
 
             client = OpenAI()
         self._client = client
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive.")
+        self._timeout_seconds = timeout_seconds
 
     @property
     def configuration(self) -> Mapping[str, object]:
@@ -126,6 +156,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             "reasoning_effort": OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT,
             "image_detail": OPENAI_GROUNDED_OBSERVATION_IMAGE_DETAIL,
             "max_output_tokens": OPENAI_GROUNDED_OBSERVATION_MAX_OUTPUT_TOKENS,
+            "timeout_seconds": self._timeout_seconds,
             "tools": [],
             "store": False,
             "prompt": OPENAI_GROUNDED_OBSERVATION_PROMPT,
@@ -140,9 +171,14 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
                 "request must be GroundedVisualObservationRequest."
             )
         encoded = base64.b64encode(request.image.data).decode("ascii")
-        response = self._client.responses.create(
-            model=self.model_id,
-            input=[
+        client: Any = self._client
+        with_options = getattr(client, "with_options", None)
+        if callable(with_options):
+            client = with_options(timeout=self._timeout_seconds)
+        try:
+            response = client.responses.create(
+                model=self.model_id,
+                input=[
                 {
                     "role": "user",
                     "content": [
@@ -161,7 +197,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
                 }
             ],
             reasoning={"effort": OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT},
-            text={
+                text={
                 "format": {
                     "type": "json_schema",
                     "name": "grounded_visual_observation",
@@ -173,7 +209,13 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             tools=[],
             max_output_tokens=OPENAI_GROUNDED_OBSERVATION_MAX_OUTPUT_TOKENS,
             store=False,
-        )
+            )
+        except Exception as exc:
+            if _is_sdk_timeout_error(exc):
+                raise GroundedVisualObservationProviderTimeout(
+                    self._timeout_seconds
+                ) from exc
+            raise
         raw_text = getattr(response, "output_text", None)
         try:
             raw = json.loads(raw_text)
