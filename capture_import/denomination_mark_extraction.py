@@ -13,7 +13,12 @@ _MAX_CANDIDATES = 8
 _SPACE = re.compile(r"\s+")
 _ALLOWED = re.compile(r"^[0-9A-Za-z./½¼¾$¢€£¥₹₱₽₩₫₦₵₡₲₴₸₺₼₾₿ -]{1,32}$")
 _NUMBER = re.compile(r"\d+(?:[./]\d+)?|[½¼¾]")
-_UNIT = re.compile(r"[A-Za-z$¢€£¥₹₱₽₩₫₦₵₡₲₴₸₺₼₾₿]")
+_CURRENCY_SYMBOLS = frozenset("$¢€£¥₹₱₽₩₫₦₵₡₲₴₸₺₼₾₿")
+_UNIT_TOKEN = re.compile(
+    r"(?<![A-Za-z])(?:cent(?:s)?|dollar(?:s)?|fr\.?|franc(?:s)?|"
+    r"piso|peso(?:s)?|rp|rupiah|rupee(?:s)?)(?![A-Za-z])",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,9 +141,13 @@ def _is_explicit_mark(value: str) -> bool:
     if not value or _ALLOWED.fullmatch(value) is None:
         return False
     # Bare numerals such as "25" are ambiguous: they may be dates, mint marks,
-    # catalogue annotations, or denomination numerals. Require a visible unit
-    # token/symbol as well as a numeric component.
-    return _NUMBER.search(value) is not None and _UNIT.search(value) is not None
+    # catalogue annotations, or denomination numerals. Require a numeric
+    # component plus either a supported currency symbol or a recognized unit
+    # token; an arbitrary Latin letter is not denomination evidence.
+    return _NUMBER.search(value) is not None and (
+        bool(_CURRENCY_SYMBOLS.intersection(value))
+        or _UNIT_TOKEN.search(value) is not None
+    )
 
 
 def _explicit_mark(text: str) -> str | None:
