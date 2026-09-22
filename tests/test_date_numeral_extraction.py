@@ -102,16 +102,13 @@ def test_duplicate_same_source_token_is_deduplicated():
     assert len(result.candidates) == 1
 
 
-def test_date_like_and_visible_text_keep_distinct_provenance():
+def test_matching_date_like_precedes_duplicate_visible_text_evidence():
     result = extract_date_numerals(
         (_observation(date_like="1918", visible_text=("1918",)),)
     )
 
-    assert len(result.candidates) == 2
-    assert {item.source_field for item in result.candidates} == {
-        "date_like",
-        "visible_text",
-    }
+    assert len(result.candidates) == 1
+    assert result.candidates[0].source_field == "date_like"
 
 
 def test_empty_evidence_abstains():
@@ -155,7 +152,7 @@ def test_uncorroborated_date_like_is_not_promoted():
     assert not result.conflict
 
 
-def test_date_like_requires_same_side_transcription():
+def test_structured_date_is_not_discarded_for_cross_side_visible_text():
     result = extract_date_numerals(
         (
             _observation("obverse", date_like="1968"),
@@ -163,6 +160,9 @@ def test_date_like_requires_same_side_transcription():
         )
     )
 
-    assert len(result.candidates) == 1
-    assert result.candidates[0].role == "reverse"
-    assert result.candidates[0].source_field == "visible_text"
+    assert len(result.candidates) == 2
+    assert {item.role for item in result.candidates} == {"obverse", "reverse"}
+    assert {item.source_field for item in result.candidates} == {
+        "date_like",
+        "visible_text",
+    }

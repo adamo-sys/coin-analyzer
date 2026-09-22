@@ -9,7 +9,7 @@ from typing import Iterable
 from .grounded_visual_observation import GroundedVisualObservation
 
 
-_DATE_TOKEN = re.compile(r"(?<!\d)([0-9?]{4})(?!\d)")
+_DATE_TOKEN = re.compile(r"(?<![0-9A-Za-z])([0-9?]{4})(?![0-9A-Za-z])")
 _MAX_CANDIDATES = 8
 
 
@@ -52,16 +52,27 @@ def extract_date_numerals(
     candidates: list[DateNumeralEvidence] = []
     seen: set[tuple[str, str, str]] = set()
     for observation in rows:
-        if (
-            observation.date_like is not None
-            and _supported_by_visible_text(
-                observation.date_like, observation.visible_text
-            )
-        ):
+        visible_tokens = tuple(
+            token
+            for text in observation.visible_text
+            for token in _date_tokens(text)
+        )
+        structured_tokens = (
+            _date_tokens(observation.date_like)
+            if observation.date_like is not None
+            else ()
+        )
+        retained_structured = tuple(
+            token
+            for token in structured_tokens
+            if not visible_tokens
+            or any(_compatible(token, visible) for visible in visible_tokens)
+        )
+        if retained_structured:
             _append_tokens(
                 candidates,
                 seen,
-                observation.date_like,
+                observation.date_like or "",
                 role=observation.role,
                 source_field="date_like",
             )
@@ -72,6 +83,7 @@ def extract_date_numerals(
                 text,
                 role=observation.role,
                 source_field="visible_text",
+                skip_values=frozenset(retained_structured),
             )
 
     exact_values = {item.value for item in candidates if not item.uncertain}
@@ -101,9 +113,11 @@ def _append_tokens(
     *,
     role: str,
     source_field: str,
+    skip_values: frozenset[str] = frozenset(),
 ) -> None:
-    for match in _DATE_TOKEN.finditer(text):
-        value = match.group(1)
+    for value in _date_tokens(text):
+        if value in skip_values:
+            continue
         key = (value, role, source_field)
         if key in seen:
             continue
@@ -120,15 +134,12 @@ def _append_tokens(
         )
 
 
-def _supported_by_visible_text(value: str, visible_text: tuple[str, ...]) -> bool:
-    """Require specialized date evidence to be backed by same-side transcription."""
+def _date_tokens(text: str) -> tuple[str, ...]:
+    return tuple(match.group(1) for match in _DATE_TOKEN.finditer(text))
 
-    specialized = {match.group(1) for match in _DATE_TOKEN.finditer(value)}
-    if not specialized:
-        return False
-    transcribed = {
-        match.group(1)
-        for text in visible_text
-        for match in _DATE_TOKEN.finditer(text)
-    }
-    return specialized.issubset(transcribed)
+
+def _compatible(left: str, right: str) -> bool:
+    return all(
+        left_digit == right_digit or "?" in (left_digit, right_digit)
+        for left_digit, right_digit in zip(left, right)
+    )

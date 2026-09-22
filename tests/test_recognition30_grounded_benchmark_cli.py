@@ -353,6 +353,7 @@ def test_run_case_provider_failure_abstains_and_preserves_successful_side(tmp_pa
     assert failures == (
         {
             "role": "reverse",
+            "view": "full_face",
             "error_type": "GroundedVisualObservationContractError",
             "message": "provider response is not valid structured JSON.",
         },
@@ -389,7 +390,7 @@ def test_provider_failure_does_not_retry_failed_side(tmp_path):
         retrieval_limit=10,
     )
 
-    assert calls == ["obverse", "reverse"]
+    assert calls == ["obverse", "reverse", "reverse"]
     assert outcome.decision is RecognitionDecision.ABSTAIN
     assert pipeline is None
     assert tuple(report.observation.role for report in reports) == ("reverse",)
