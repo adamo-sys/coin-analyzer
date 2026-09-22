@@ -117,7 +117,8 @@ class PreflightTests(unittest.TestCase):
         code, report = self.invoke_inventory()
 
         self.assertEqual(code, 0)
-        self.assertIn(feature, [Path(item['path']) for item in report['worktrees']])
+        self.assertIn(feature.resolve(),
+                      [Path(item['path']).resolve() for item in report['worktrees']])
 
     def test_inventory_rejects_missing_base(self):
         code, report = self.invoke_inventory('--base', 'not-a-revision')
@@ -152,11 +153,13 @@ class PreflightTests(unittest.TestCase):
             self.assertIn(subcommand[0], allowed)
             self.assertEqual(call.kwargs['env']['GIT_OPTIONAL_LOCKS'], '0')
             self.assertEqual(call.kwargs['env']['GIT_NO_LAZY_FETCH'], '1')
-        feature_status = next(
+        status_calls = [
             call for call in observed.call_args_list
-            if call.kwargs['cwd'] == feature and call.args[0][-1] == '--no-renames'
-        )
-        self.assertNotIn(f'safe.directory={feature}', feature_status.args[0])
+            if call.args[0][-1] == '--no-renames'
+        ]
+        self.assertEqual(len(status_calls), 2)
+        for call in status_calls:
+            self.assertNotIn(f'safe.directory={call.kwargs["cwd"]}', call.args[0])
 
     def test_inventory_retries_dubious_ownership_with_process_local_trust(self):
         normal = mock.Mock(returncode=128, stdout=b'', stderr=b'fatal: detected dubious ownership')
