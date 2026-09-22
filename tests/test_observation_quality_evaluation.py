@@ -1,5 +1,6 @@
 from capture_import.observation_quality_evaluation import (
     compare_view_pairs,
+    evaluate_adaptive_routing_accounting,
     evaluate_view_quality,
     evaluate_execution_accounting,
     evaluate_secondary_view_policy,
@@ -147,3 +148,35 @@ def test_secondary_policy_replay_measures_only_requested_view_utility():
     assert result.useful_secondary_rate == 1.0
     assert result.secondary_input_tokens == 80
     assert result.useful_secondary_input_tokens == 80
+
+
+def test_adaptive_routing_accounting_uses_persisted_decisions():
+    rows = (
+        {
+            "adaptive_routing": (
+                {
+                    "role": "obverse",
+                    "requested": True,
+                    "reason": "primary_literal_text_only",
+                    "missing_evidence": ("year", "denomination"),
+                },
+                {
+                    "role": "reverse",
+                    "requested": False,
+                    "reason": "primary_structured_evidence_sufficient",
+                    "missing_evidence": ("denomination",),
+                },
+            )
+        },
+    )
+
+    result = evaluate_adaptive_routing_accounting(rows)
+
+    assert result.decisions == 2
+    assert result.requested == 1
+    assert result.avoided == 1
+    assert dict(result.reasons) == {
+        "primary_literal_text_only": 1,
+        "primary_structured_evidence_sufficient": 1,
+    }
+    assert dict(result.missing_evidence) == {"denomination": 2, "year": 1}
