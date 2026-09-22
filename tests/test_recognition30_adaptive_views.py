@@ -2,7 +2,10 @@ from types import SimpleNamespace
 
 from capture_import.adaptive_grounded_observation import decide_secondary_observation
 from capture_import.grounded_visual_observation import GroundedVisualObservation
-from capture_import.recognition30_grounded_benchmark_cli import (\n    _adaptive_routing_provenance,\n    build_parser,\n)
+from capture_import.recognition30_grounded_benchmark_cli import (
+    _adaptive_routing_provenance,
+    build_parser,
+)
 
 
 def test_adaptive_views_flag_is_opt_in():
