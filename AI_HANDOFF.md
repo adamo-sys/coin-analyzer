@@ -1,6 +1,6 @@
 # AI Handof
 
-## Current Handoff — 2026-09-20
+## Current Handoff — 2026-09-22
 
 
 
@@ -8,7 +8,7 @@
 
 - Target public release: `v1.3.0`.
 
-- Release candidate target: `v1.3.0-rc1`.
+- Historical RC1 tag: `v1.3.0-rc1` at `8776d46b8d036ce1f3f3240fe0727885a7b4f65d`. Current repaired RC2: `v1.3.0-rc2` intended for `6856b4647016dc2ba8dfce2ae4882fd8eef22302`; no RC2 tag or GitHub Release exists. RC2 incorporates PR #288 / `520d5d888b6b27d451abcf49db196ce7eb4b1308`. Exact-tip CI passed Windows/Ubuntu regression, Ruff, bounded Pyright, Gitleaks, privacy boundaries, OpenAI smoke, hypothesis pilot, and advisory Pyright; advisory debt still needs owner disposition.
 
 - Release-prep branch: `release/v1.3.0-rc1-prep`.
 
@@ -16,13 +16,13 @@
 
 - Scope is frozen to work already merged after `v1.2.0` through PR #245; do not add new features during RC preparation.
 
-- Runtime provenance for the release candidate: `v1.3.0-rc1`.
+- Remaining RC2 gates: clean isolated-worktree validation, manual acceptance, runtime-version reconciliation, advisory-report disposition, and explicit approval before tagging.
 
 - Full regression evidence: 5,732 passed, 32 skipped, 0 failures in 234.14 seconds; working tree remained clean after the completed run.
 
-- Current task: complete final Git verification, then proceed to the RC tagging and remote-verification gates.
+- Current task: complete the remaining RC2 gates; do not create or publish RC2 yet.
 
-- No `v1.3.0-rc1` tag or release has been created or pushed.
+- The published RC1 tag remains historical and unchanged.
 
 - Historical `v8.x`/`v9.x` roadmap and release records below remain historical context and are not current public runtime version identifiers.
 
