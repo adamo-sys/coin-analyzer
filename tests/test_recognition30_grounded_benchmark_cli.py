@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,7 +15,11 @@ from capture_import.openai_grounded_visual_observation_provider import (
 )
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition30_grounded_benchmark_cli import (
+    RECOGNITION30_DATASET_FINGERPRINT_SCHEME,
+    RECOGNITION30_V1_DATASET_FINGERPRINT,
     build_parser,
+    _dataset_fingerprint,
+    _executable_dataset_identity,
     _load_dataset,
     _localized_image_bytes,
     _media_type,
@@ -53,6 +58,65 @@ class FixtureProvider:
             input_tokens=10,
             output_tokens=5,
         )
+
+
+def _fingerprint_fixture(root, *, image_order=("IMG_B.JPEG", "IMG_A.JPEG")):
+    images = root / "images"
+    images.mkdir(parents=True)
+    for name in image_order:
+        (images / name).write_bytes(name.encode("ascii"))
+    (root / "pair_manifest.csv").write_bytes(
+        b'"case_id","image_1","image_2"\r\n'
+        b'"CA-R30-001","IMG_A.JPEG","IMG_B.JPEG"\r\n'
+    )
+    (root / "ground_truth.csv").write_bytes(
+        b"case_id,image_1,image_2,country,denomination,year,variety,notes,truth_status\n"
+        b"CA-R30-001,IMG_A.JPEG,IMG_B.JPEG,Example,1 unit,2000,,,Standard\n"
+    )
+    return root
+
+
+def test_dataset_fingerprint_is_deterministic_and_sorted_by_basename(tmp_path):
+    first = _fingerprint_fixture(tmp_path / "first")
+    second = _fingerprint_fixture(
+        tmp_path / "second", image_order=("IMG_A.JPEG", "IMG_B.JPEG")
+    )
+
+    assert _dataset_fingerprint(first) == _dataset_fingerprint(first)
+    assert _dataset_fingerprint(first) == _dataset_fingerprint(second)
+
+
+def test_dataset_fingerprint_changes_when_an_included_file_changes(tmp_path):
+    root = _fingerprint_fixture(tmp_path / "dataset")
+    baseline = _dataset_fingerprint(root)
+
+    (root / "images" / "IMG_A.JPEG").write_bytes(b"changed-image")
+
+    assert _dataset_fingerprint(root) != baseline
+
+
+def test_dataset_fingerprint_excludes_timestamp_metadata(tmp_path):
+    root = _fingerprint_fixture(tmp_path / "dataset")
+    baseline = _dataset_fingerprint(root)
+
+    os.utime(root / "ground_truth.csv", (1_000_000_000, 1_000_000_000))
+
+    assert _dataset_fingerprint(root) == baseline
+
+
+def test_recognition30_v1_executable_identity_rejects_legacy_fingerprint():
+    with pytest.raises(ValueError, match="does not match"):
+        _executable_dataset_identity(
+            "recognition30_v1",
+            "4f6988ed84fd5c4db1e06452e942bcfb75b0f495f74c5d54ad37e44c17b534de",
+        )
+
+    assert _executable_dataset_identity(
+        "recognition30_v1", RECOGNITION30_V1_DATASET_FINGERPRINT
+    ) == {
+        "scheme": RECOGNITION30_DATASET_FINGERPRINT_SCHEME,
+        "fingerprint": RECOGNITION30_V1_DATASET_FINGERPRINT,
+    }
 
 
 def _image(tmp_path, name):

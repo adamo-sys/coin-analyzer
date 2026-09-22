@@ -18,6 +18,7 @@ def _identity(**overrides):
     values = {
         "run_id": "run-a",
         "dataset_version": "recognition30_v1",
+        "dataset_fingerprint_scheme": "recognition30-dataset-fingerprint-v1",
         "dataset_fingerprint": "dataset-sha256",
         "provider_id": "fixture-provider",
         "model_id": "fixture-model",
@@ -105,6 +106,7 @@ def test_continuation_creates_new_run_skips_completed_and_parent_is_unchanged(tm
     "override, message",
     [
         ({"dataset_fingerprint": "different"}, "dataset"),
+        ({"dataset_fingerprint_scheme": "other-scheme"}, "dataset fingerprint scheme"),
         ({"provider_id": "other-provider"}, "provider"),
         ({"model_id": "other-model"}, "model"),
         ({"recognition_semantics": {"adaptive_views": True}}, "recognition semantics"),

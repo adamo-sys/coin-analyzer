@@ -55,6 +55,12 @@ from .recognition30_grounded_evaluation import (
 )
 
 
+RECOGNITION30_DATASET_FINGERPRINT_SCHEME = "recognition30-dataset-fingerprint-v1"
+RECOGNITION30_V1_DATASET_FINGERPRINT = (
+    "5ce59a80db35b58950358eb3441cdd78b350f5bcecf0326678202366ab737a20"
+)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="coin-analyzer-recognition30-grounded-benchmark",
@@ -432,6 +438,25 @@ def _dataset_fingerprint(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _executable_dataset_identity(
+    dataset_version: str, dataset_fingerprint: str
+) -> dict[str, str]:
+    """Fail closed when the frozen Recognition30 v1 inputs differ."""
+
+    if (
+        dataset_version == "recognition30_v1"
+        and dataset_fingerprint != RECOGNITION30_V1_DATASET_FINGERPRINT
+    ):
+        raise ValueError(
+            "recognition30_v1 dataset fingerprint does not match "
+            "recognition30-dataset-fingerprint-v1."
+        )
+    return {
+        "scheme": RECOGNITION30_DATASET_FINGERPRINT_SCHEME,
+        "fingerprint": dataset_fingerprint,
+    }
+
+
 def _recognition_semantics(args: argparse.Namespace) -> dict[str, object]:
     """Frozen identity of existing recognition behavior, not execution controls."""
 
@@ -461,6 +486,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     _validate_execution_options(args)
     dataset = _load_dataset(args.dataset)
+    dataset_identity = _executable_dataset_identity(
+        dataset.version, _dataset_fingerprint(args.dataset)
+    )
     cases = _select_cases(dataset, args.case_ids)
     provider = OpenAIGroundedVisualObservationProvider(
         timeout_seconds=args.provider_timeout_seconds
@@ -476,7 +504,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         identity = Recognition30RunIdentity(
             run_id=str(uuid4()),
             dataset_version=dataset.version,
-            dataset_fingerprint=_dataset_fingerprint(args.dataset),
+            dataset_fingerprint_scheme=dataset_identity["scheme"],
+            dataset_fingerprint=dataset_identity["fingerprint"],
             provider_id=provider.provider_id,
             model_id=provider.model_id,
             recognition_semantics=_recognition_semantics(args),
