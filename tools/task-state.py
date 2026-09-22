@@ -115,19 +115,37 @@ def load_config(path: Path) -> dict[str, Any]:
 
 
 class Git:
-    def __init__(self, cwd: Path):
+    def __init__(self, cwd: Path, retry_safe_directory: bool = False):
         self.cwd = cwd
+        self.retry_safe_directory = retry_safe_directory
 
     def run(self, *args: str, allowed: tuple[int, ...] = (0,)) -> str:
         env = dict(os.environ, GIT_OPTIONAL_LOCKS='0', GIT_TERMINAL_PROMPT='0', GIT_NO_LAZY_FETCH='1')
+
+        def command(trusted: bool) -> list[str]:
+            result = ['git', '--no-optional-locks', '-c', 'core.fsmonitor=false']
+            if trusted:
+                result.extend(('-c', f'safe.directory={self.cwd}'))
+            return [*result, *args]
+
         try:
             result = subprocess.run(
-                ['git', '--no-optional-locks', '-c', 'core.fsmonitor=false', *args],
+                command(False),
                 cwd=self.cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 timeout=15, check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise PreflightError('Git is unavailable or its read-only inspection timed out.', 3) from exc
+        if (result.returncode not in allowed and self.retry_safe_directory
+                and b'detected dubious ownership' in result.stderr.lower()):
+            try:
+                result = subprocess.run(
+                    command(True),
+                    cwd=self.cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    timeout=15, check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise PreflightError('Git is unavailable or its read-only inspection timed out.', 3) from exc
         if result.returncode not in allowed:
             # Never echo raw Git output: it may contain private paths or remote URLs.
             raise PreflightError('A read-only Git inspection failed; verify repository access and trust.', 3)
@@ -183,6 +201,72 @@ def status_records(raw: str) -> list[tuple[str, str]]:
                 raise PreflightError('Git returned an incomplete rename record.', 3)
             records.append((item[:2], source))
     return records
+
+
+def worktree_records(raw: str) -> list[dict[str, str | None]]:
+    """Parse the documented, line-delimited Git worktree porcelain format."""
+    records: list[dict[str, str | None]] = []
+    for block in raw.split('\n\n'):
+        if not block:
+            continue
+        path: str | None = None
+        head: str | None = None
+        branch: str | None = None
+        detached = False
+        for line in block.splitlines():
+            if line.startswith('worktree ') and path is None:
+                path = line.removeprefix('worktree ')
+            elif line.startswith('HEAD ') and head is None:
+                head = line.removeprefix('HEAD ')
+            elif line.startswith('branch refs/heads/') and branch is None:
+                branch = line.removeprefix('branch refs/heads/')
+            elif line == 'detached' and not detached:
+                detached = True
+            elif line == 'locked' or line.startswith('locked '):
+                continue
+            elif line == 'prunable' or line.startswith('prunable '):
+                continue
+            else:
+                raise PreflightError('Git returned invalid worktree metadata.', 3)
+        if (not path or not head or not re.fullmatch(r'[0-9a-fA-F]{40}|[0-9a-fA-F]{64}', head)
+                or (branch is None) == (not detached)):
+            raise PreflightError('Git returned invalid worktree metadata.', 3)
+        records.append({'path': path, 'head': head.lower(), 'branch': branch})
+    if not records or len({item['path'] for item in records}) != len(records):
+        raise PreflightError('Git returned invalid worktree metadata.', 3)
+    return sorted(records, key=lambda item: item['path'] or '')
+
+
+def inventory(args: argparse.Namespace) -> dict[str, Any]:
+    """Observe registered worktree state without assigning a disposition."""
+    git = Git(Path(args.repo))
+    root = Path(git.run('rev-parse', '--show-toplevel').strip())
+    git.cwd = root
+    base = git.ref(args.base)
+    if base is None:
+        raise PreflightError('Inventory base revision is unavailable.', 3)
+    shallow = git.run('rev-parse', '--is-shallow-repository').strip() == 'true'
+    worktrees = []
+    for record in worktree_records(git.run('worktree', 'list', '--porcelain')):
+        child = Git(Path(record['path'] or ''), retry_safe_directory=True)
+        tracked_dirty = bool(status_records(child.run(
+            'status', '--porcelain=v1', '-z', '--untracked-files=no', '--no-renames'
+        )))
+        relation = child.relationship(record['head'], base) if not shallow else None
+        worktrees.append({
+            **record,
+            'tracked_dirty': tracked_dirty,
+            'head_contained_by_base': relation['ahead'] == 0 if relation else None,
+            'unique_commits_vs_base': relation['ahead'] if relation else None,
+        })
+    return {
+        'schema_version': 1, 'operation': 'inventory',
+        'repository': {'root': str(root), 'identity': str(root), 'base': base, 'shallow': shallow},
+        'worktrees': worktrees,
+        'evidence': {'remote_freshness': 'unverified_local_ref_only',
+                     'validation': 'not_run', 'ci': 'unverified',
+                     'authority': 'observations_only'},
+    }
 
 
 def inspect(args: argparse.Namespace, config: dict[str, Any]) -> dict[str, Any]:
@@ -296,7 +380,8 @@ def markdown(report: dict[str, Any]) -> str:
         fence = '`' * max(1, max((len(m.group()) + 1 for m in re.finditer(r'`+', payload)), default=1))
         return fence + ' ' + payload + ' ' + fence
 
-    lines = ['# Task preflight', '', 'Observations only; no execution or publication authority.', '']
+    title = 'Task preflight' if report['operation'] == 'preflight' else 'Task inventory'
+    lines = ['# ' + title, '', 'Observations only; no execution or publication authority.', '']
     for key, value in report.items():
         lines.extend(['## ' + key.replace('_', ' ').capitalize(), ''])
         if isinstance(value, dict):
@@ -323,12 +408,20 @@ def main(argv: list[str] | None = None) -> int:
     preflight.add_argument('--expect-path', action='append', default=[])
     preflight.add_argument('--scope-path', action='append', default=[])
     preflight.add_argument('--candidate-branch')
+    inventory_command = commands.add_parser('inventory')
+    inventory_command.add_argument('--repo', default='.')
+    inventory_command.add_argument('--base', required=True)
+    inventory_command.add_argument('--format', choices=('markdown', 'json'), default='markdown')
     args = parser.parse_args(argv)
     try:
-        report = inspect(args, load_config(Path(args.config)))
-        code = 4 if report['mismatches'] else 0
+        if args.command == 'preflight':
+            report = inspect(args, load_config(Path(args.config)))
+            code = 4 if report['mismatches'] else 0
+        else:
+            report = inventory(args)
+            code = 0
     except PreflightError as exc:
-        report = {'schema_version': 1, 'operation': 'preflight', 'error': str(exc), 'exit_code': exc.code}
+        report = {'schema_version': 1, 'operation': args.command, 'error': str(exc), 'exit_code': exc.code}
         code = exc.code
     print(json.dumps(report, sort_keys=True, indent=2, ensure_ascii=True) if args.format == 'json' else markdown(report))
     return code

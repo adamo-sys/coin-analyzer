@@ -99,6 +99,28 @@ python -B tools/task-state.py preflight --task-class tooling --candidate-branch 
 - `--require-clean` requires clean **tracked** state; it cannot certify a wholly
   empty untracked namespace.
 
+## Inventory registered worktrees
+
+Use the separate inventory command when a human needs factual consolidation
+evidence for every worktree registered by the selected local repository:
+
+```text
+python -B tools/task-state.py inventory --repo . --base main --format json
+```
+
+The command reports registered path, branch or detached state, HEAD,
+tracked-dirty presence, and local ancestry/count observations relative to the
+selected base. It uses only local refs: it never fetches, reads a remote URL,
+or establishes remote freshness. Dirty state excludes untracked files and never
+prints changed filenames. In shallow repositories, base-relationship fields are
+unavailable rather than guessed.
+
+Inventory output is observation-only. It does not classify a worktree, branch,
+or stash as preserveable, unfinished, merged, or disposable; does not assess
+equivalence after squash/cherry-pick; and never authorizes deletion, cleanup,
+branch changes, stash changes, or another Git mutation. A human must review the
+reported evidence before making any disposition decision.
+
 ## Output and evidence semantics
 
 Markdown presents labeled sections containing literal observations. JSON emits

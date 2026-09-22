@@ -51,10 +51,124 @@ class PreflightTests(unittest.TestCase):
                                     '--task-class', 'tooling', '--format', 'json', *args])
         return code, json.loads(stream.getvalue())
 
+    def invoke_inventory(self, *args):
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            code = task_state.main(['inventory', '--repo', str(self.repo),
+                                    '--base', self.base, '--format', 'json', *args])
+        return code, json.loads(stream.getvalue())
+
+    def invoke_inventory_markdown(self):
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            code = task_state.main(['inventory', '--repo', str(self.repo),
+                                    '--base', self.base, '--format', 'markdown'])
+        return code, stream.getvalue()
+
+    def git_at(self, directory, *args):
+        result = subprocess.run(['git', '-c', 'commit.gpgSign=false', *args],
+                                cwd=directory, check=True, capture_output=True, text=True)
+        return result.stdout
+
+    def add_worktree(self, name, *args, revision=None):
+        path = self.repo / 'synthetic-worktrees' / name
+        command = ['worktree', 'add', *args, str(path)]
+        if revision is not None:
+            command.append(revision)
+        self.git(*command)
+        self.addCleanup(self.remove_worktree, path)
+        return path
+
+    def remove_worktree(self, path):
+        subprocess.run(['git', '-c', 'commit.gpgSign=false', 'worktree', 'unlock', str(path)],
+                       cwd=self.repo, check=False, capture_output=True, text=True)
+        self.git('worktree', 'remove', '--force', str(path))
+
     def commit_change(self):
         (self.repo / 'source.txt').write_text('synthetic change\n', encoding='utf-8')
         self.git('add', 'source.txt')
         self.git('commit', '-m', 'Synthetic change')
+
+    def test_inventory_reports_sorted_factual_worktree_state(self):
+        feature = self.add_worktree('feature', '-b', 'feature')
+        (feature / 'source.txt').write_text('feature commit\n', encoding='utf-8')
+        self.git_at(feature, 'add', 'source.txt')
+        self.git_at(feature, 'commit', '-m', 'Synthetic feature change')
+        (feature / 'source.txt').write_text('feature dirty\n', encoding='utf-8')
+        self.add_worktree('detached', '--detach', revision=self.base)
+
+        code, report = self.invoke_inventory()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(report['operation'], 'inventory')
+        self.assertEqual([item['path'] for item in report['worktrees']],
+                         sorted(item['path'] for item in report['worktrees']))
+        feature_report = next(item for item in report['worktrees'] if item['branch'] == 'feature')
+        self.assertFalse(feature_report['head_contained_by_base'])
+        self.assertEqual(feature_report['unique_commits_vs_base'], 1)
+        self.assertTrue(feature_report['tracked_dirty'])
+        detached_report = next(item for item in report['worktrees'] if item['branch'] is None)
+        self.assertEqual(detached_report['head'], self.base)
+
+    def test_inventory_includes_locked_worktree(self):
+        feature = self.add_worktree('locked-feature', '-b', 'locked-feature')
+        self.git('worktree', 'lock', '--reason', 'synthetic lock', str(feature))
+
+        code, report = self.invoke_inventory()
+
+        self.assertEqual(code, 0)
+        self.assertIn(feature, [Path(item['path']) for item in report['worktrees']])
+
+    def test_inventory_rejects_missing_base(self):
+        code, report = self.invoke_inventory('--base', 'not-a-revision')
+        self.assertEqual(code, 3)
+        self.assertEqual(report['operation'], 'inventory')
+        self.assertIn('error', report)
+
+    def test_inventory_markdown_identifies_its_operation(self):
+        code, report = self.invoke_inventory_markdown()
+        self.assertEqual(code, 0)
+        self.assertTrue(report.startswith('# Task inventory\n'))
+
+    def test_inventory_uses_only_bounded_read_only_git_commands(self):
+        def snapshot():
+            return {str(p.relative_to(self.repo)): hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in self.repo.rglob('*') if p.is_file()}
+
+        feature = self.add_worktree('feature', '-b', 'feature')
+        before = snapshot()
+        run = task_state.subprocess.run
+        with mock.patch.object(task_state.subprocess, 'run', wraps=run) as observed:
+            self.assertEqual(self.invoke_inventory()[0], 0)
+        self.assertEqual(before, snapshot())
+        allowed = {'rev-parse', 'worktree', 'status', 'rev-list'}
+        for call in observed.call_args_list:
+            command = call.args[0]
+            self.assertEqual(command[:4], ['git', '--no-optional-locks', '-c', 'core.fsmonitor=false'])
+            subcommand = command[4:]
+            if subcommand[:1] == ['-c']:
+                self.assertEqual(subcommand[1], f'safe.directory={call.kwargs["cwd"]}')
+                subcommand = subcommand[2:]
+            self.assertIn(subcommand[0], allowed)
+            self.assertEqual(call.kwargs['env']['GIT_OPTIONAL_LOCKS'], '0')
+            self.assertEqual(call.kwargs['env']['GIT_NO_LAZY_FETCH'], '1')
+        feature_status = next(
+            call for call in observed.call_args_list
+            if call.kwargs['cwd'] == feature and call.args[0][-1] == '--no-renames'
+        )
+        self.assertNotIn(f'safe.directory={feature}', feature_status.args[0])
+
+    def test_inventory_retries_dubious_ownership_with_process_local_trust(self):
+        normal = mock.Mock(returncode=128, stdout=b'', stderr=b'fatal: detected dubious ownership')
+        trusted = mock.Mock(returncode=0, stdout=b'ok', stderr=b'')
+        with mock.patch.object(task_state.subprocess, 'run', side_effect=(normal, trusted)) as run:
+            result = task_state.Git(Path('C:/synthetic-worktree'), retry_safe_directory=True).run('status')
+
+        self.assertEqual(result, 'ok')
+        first, second = [call.args[0] for call in run.call_args_list]
+        safe_setting = f'safe.directory={Path("C:/synthetic-worktree")}'
+        self.assertNotIn(safe_setting, first)
+        self.assertIn(safe_setting, second)
 
     def test_clean_expected_branch_and_head(self):
         code, report = self.invoke('--expect-branch', 'main', '--expect-head', self.base, '--require-clean')
