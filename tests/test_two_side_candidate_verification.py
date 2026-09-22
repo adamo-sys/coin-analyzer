@@ -1,3 +1,5 @@
+import pytest
+
 from capture_import.catalogue_retrieval import CatalogueRetrievalResult
 from capture_import.evidence_candidate_resolver import CatalogueCandidate
 from capture_import.grounded_visual_observation import GroundedVisualObservation
@@ -247,3 +249,37 @@ def test_country_alias_can_supply_independent_text_support_without_legends():
     assert row.verified
     assert row.supporting_text == ("HELVETIA",)
     assert row.supporting_roles == ("obverse",)
+
+
+@pytest.mark.parametrize(
+    ("country", "visible_text"),
+    (("Singapore", "SINGAPORE"), ("New Zealand", "NEW ZEALAND")),
+)
+def test_country_text_support_is_case_insensitive(country, visible_text):
+    report = verify_retrieved_candidates(
+        _result(CatalogueCandidate("country", country, "25 cents", "1955")),
+        (
+            GroundedVisualObservation(
+                role="obverse", date_like="1955", visible_text=(visible_text,)
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert row.verified
+    assert row.supporting_text == (visible_text,)
+
+
+def test_casefolding_does_not_promote_nonmatching_country_text():
+    report = verify_retrieved_candidates(
+        _result(CatalogueCandidate("country", "Singapore", "25 cents", "1955")),
+        (
+            GroundedVisualObservation(
+                role="obverse", date_like="1955", visible_text=("SINGAPOREAN",)
+            ),
+        ),
+    )
+
+    row = report.rows[0]
+    assert not row.verified
+    assert row.supporting_text == ()
