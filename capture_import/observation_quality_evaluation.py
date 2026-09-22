@@ -47,6 +47,15 @@ class SecondaryViewPolicyEvaluation:
 
 
 @dataclass(frozen=True, slots=True)
+class AdaptiveRoutingAccounting:
+    decisions: int
+    requested: int
+    avoided: int
+    reasons: tuple[tuple[str, int], ...]
+    missing_evidence: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ViewPairQuality:
     role: str
     primary_view: str
@@ -272,4 +281,34 @@ def evaluate_secondary_view_policy(
         useful_secondary_rate=(useful / requested if requested else None),
         secondary_input_tokens=secondary_tokens,
         useful_secondary_input_tokens=useful_tokens,
+    )
+
+
+def evaluate_adaptive_routing_accounting(
+    rows: Iterable[Mapping[str, object]],
+) -> AdaptiveRoutingAccounting:
+    """Summarize persisted routing decisions without replaying provider work."""
+
+    reason_counts: dict[str, int] = defaultdict(int)
+    missing_counts: dict[str, int] = defaultdict(int)
+    requested = 0
+    avoided = 0
+    decisions = 0
+    for row in rows:
+        for item in row.get("adaptive_routing", ()):
+            if not isinstance(item, Mapping):
+                continue
+            decisions += 1
+            is_requested = bool(item.get("requested"))
+            requested += int(is_requested)
+            avoided += int(not is_requested)
+            reason_counts[str(item.get("reason") or "unknown")] += 1
+            for value in item.get("missing_evidence", ()) or ():
+                missing_counts[str(value)] += 1
+    return AdaptiveRoutingAccounting(
+        decisions=decisions,
+        requested=requested,
+        avoided=avoided,
+        reasons=tuple(sorted(reason_counts.items())),
+        missing_evidence=tuple(sorted(missing_counts.items())),
     )

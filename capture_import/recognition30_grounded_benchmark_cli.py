@@ -20,6 +20,7 @@ from .adaptive_grounded_observation import decide_secondary_observation
 from .evidence_candidate_resolver import CatalogueCandidate
 from .grounded_recognition_pipeline import run_grounded_recognition_pipeline
 from .grounded_visual_observation import (
+    GroundedVisualObservation,
     GroundedVisualObservationContractError,
     GroundedVisualObservationImage,
     GroundedVisualObservationRequest,
@@ -352,6 +353,42 @@ def run_case(
     )
 
 
+
+def _adaptive_routing_provenance(
+    provenance: Sequence[Mapping[str, object]],
+) -> tuple[dict[str, object], ...]:
+    """Reconstruct deterministic routing decisions from successful primary views."""
+
+    rows = []
+    for item in provenance:
+        if str(item.get("view")) != "full_face":
+            continue
+        observation = GroundedVisualObservation(
+            role=str(item["role"]),
+            visible_text=tuple(str(value) for value in item.get("visible_text") or ()),
+            date_like=(
+                str(item["date_like"]) if item.get("date_like") is not None else None
+            ),
+            denomination_mark=(
+                str(item["denomination_mark"])
+                if item.get("denomination_mark") is not None
+                else None
+            ),
+        )
+        decision = decide_secondary_observation(observation)
+        rows.append(
+            {
+                "role": observation.role,
+                "primary_view": "full_face",
+                "secondary_view": "rim",
+                "requested": decision.request_secondary,
+                "reason": decision.reason,
+                "missing_evidence": list(decision.missing_evidence),
+            }
+        )
+    return tuple(rows)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if not 1 <= args.retrieval_limit <= 25:
@@ -383,6 +420,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             adaptive_views=args.adaptive_views,
         )
         outcomes.append(outcome)
+        adaptive_routing = (
+            _adaptive_routing_provenance(provenance) if args.adaptive_views else ()
+        )
         rows.append(
             {
                 "case_id": case.case_id,
