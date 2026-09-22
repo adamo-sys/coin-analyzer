@@ -25,6 +25,7 @@ class CheckpointValidationError(ValueError):
 class Recognition30RunIdentity:
     run_id: str
     dataset_version: str
+    dataset_fingerprint_scheme: str
     dataset_fingerprint: str
     provider_id: str
     model_id: str
@@ -36,6 +37,7 @@ class Recognition30RunIdentity:
         for name in (
             "run_id",
             "dataset_version",
+            "dataset_fingerprint_scheme",
             "dataset_fingerprint",
             "provider_id",
             "model_id",
@@ -59,6 +61,7 @@ class Recognition30RunIdentity:
             return cls(
                 run_id=value["run_id"],
                 dataset_version=value["dataset_version"],
+                dataset_fingerprint_scheme=value["dataset_fingerprint_scheme"],
                 dataset_fingerprint=value["dataset_fingerprint"],
                 provider_id=value["provider_id"],
                 model_id=value["model_id"],
@@ -93,6 +96,8 @@ def _validate_identity_compatibility(
 ) -> None:
     if parent.dataset_version != candidate.dataset_version:
         raise CheckpointValidationError("dataset version is incompatible.")
+    if parent.dataset_fingerprint_scheme != candidate.dataset_fingerprint_scheme:
+        raise CheckpointValidationError("dataset fingerprint scheme is incompatible.")
     if parent.dataset_fingerprint != candidate.dataset_fingerprint:
         raise CheckpointValidationError("dataset fingerprint is incompatible.")
     if parent.provider_id != candidate.provider_id:
@@ -219,6 +224,7 @@ def create_continuation(
     child_identity = Recognition30RunIdentity(
         run_id=identity.run_id,
         dataset_version=identity.dataset_version,
+        dataset_fingerprint_scheme=identity.dataset_fingerprint_scheme,
         dataset_fingerprint=identity.dataset_fingerprint,
         provider_id=identity.provider_id,
         model_id=identity.model_id,
@@ -260,6 +266,7 @@ def join_checkpoint_runs(run_roots: Sequence[Path]) -> dict[str, object]:
     return {
         "schema": _SCHEMA,
         "dataset_version": identities[0].dataset_version,
+        "dataset_fingerprint_scheme": identities[0].dataset_fingerprint_scheme,
         "dataset_fingerprint": identities[0].dataset_fingerprint,
         "recognition_semantics": dict(identities[0].recognition_semantics),
         "segments": [identity.run_id for identity in identities],
