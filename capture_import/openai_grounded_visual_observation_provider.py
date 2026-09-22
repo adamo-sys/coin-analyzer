@@ -140,7 +140,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
         if client is None:
             from openai import OpenAI
 
-            client = OpenAI()
+            client = OpenAI(max_retries=0)
         self._client = client
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive.")
