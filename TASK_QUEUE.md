@@ -8,27 +8,25 @@
 
 - [x] Confirm latest published public release is `v1.2.0`.
 
-- [x] Preserve historical RC1 tag; set repaired RC2 target to `6856b464` after PR #288 / `520d5d8`.
+- [x] Preserve historical RC1 tag; technically accept repaired RC2 application lineage `d209d14` after PR #288 / `520d5d8`, metadata / `53445ac`, and runtime reconciliation / `bf8ecc9`.
 
 - [x] Freeze RC scope to merged work after `v1.2.0` through PR #245; no new feature expansion.
 
-- [x] Reconcile unreleased runtime provenance to `v1.2.0+dev`.
+- [x] Reconcile runtime provenance to `v1.3.0-rc2`.
 
 - [x] Reconcile `PROJECT_STATE.md`, `TASK_QUEUE.md`, and `AI_HANDOFF.md`.
 
-- [x] Record successful exact-tip CI evidence for `6856b464`.
+- [x] Record successful exact-lineage PR #290 CI evidence for the RC2 application lineage at `d209d14`.
 
-- [ ] Review and disposition advisory Pyright debt report.
+- [x] Review and disposition advisory Pyright debt as ACCEPT_FOR_RC2.
 
-- [ ] Complete clean isolated-worktree validation and manual acceptance for RC2.
+- [x] Complete technical RC2 acceptance, including clean isolated-worktree validation evidence and the transparent transient Hypothesis health-check disposition.
 
-- [ ] Reconcile runtime version provenance with RC2.
-
-- [ ] Obtain approval, then create and push annotated `v1.3.0-rc2` tag.
+- [ ] Obtain owner manual acceptance and explicit authorization, then create and push annotated `v1.3.0-rc2` at the final merged release-branch tip.
 
 
 
-Current task: complete Phase 5 release documentation, then execute the Phase 6 release audit. Do not begin new feature, recognition-tuning, architecture, or tooling work during RC preparation.
+Current task: complete owner manual acceptance and tag authorization. Do not begin new feature, recognition-tuning, architecture, or tooling work during RC preparation.
 
 
 ## Phone Intake MVP — local implementation, review pending
