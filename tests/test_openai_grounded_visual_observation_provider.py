@@ -1,4 +1,5 @@
 import json
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -105,6 +106,28 @@ def test_provider_uses_default_timeout_through_sdk_options():
         "failure_kind": "provider_timeout",
         "timeout_seconds": OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS,
     }
+
+
+def test_provider_constructs_sdk_client_with_automatic_retries_disabled(monkeypatch):
+    constructed_options = []
+
+    class ConstructedClient:
+        pass
+
+    def fake_openai_factory(**kwargs):
+        constructed_options.append(kwargs)
+        return ConstructedClient()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "openai",
+        SimpleNamespace(OpenAI=fake_openai_factory),
+    )
+
+    provider = OpenAIGroundedVisualObservationProvider()
+
+    assert isinstance(provider._client, ConstructedClient)
+    assert constructed_options == [{"max_retries": 0}]
 
 
 def test_provider_sends_exactly_one_image_and_disables_tools_and_storage():
