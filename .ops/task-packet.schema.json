@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coin Analyzer Task Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "execution_class",
+    "objective",
+    "rationale",
+    "known_state",
+    "evidence",
+    "scope",
+    "likely_files",
+    "acceptance_criteria",
+    "required_gates",
+    "do_not_touch",
+    "stop_conditions",
+    "expected_artifact"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "execution_class": {"enum": ["NO_CODEX", "CODEX_IMPLEMENT", "CODEX_INVESTIGATE"]},
+    "objective": {"type": "string", "minLength": 1},
+    "rationale": {"type": "string", "minLength": 1},
+    "known_state": {"$ref": "#/$defs/string_list"},
+    "evidence": {"$ref": "#/$defs/string_list"},
+    "scope": {"$ref": "#/$defs/string_list"},
+    "likely_files": {"$ref": "#/$defs/string_list"},
+    "acceptance_criteria": {"$ref": "#/$defs/string_list"},
+    "required_gates": {"$ref": "#/$defs/string_list"},
+    "do_not_touch": {"$ref": "#/$defs/string_list"},
+    "stop_conditions": {"$ref": "#/$defs/string_list"},
+    "expected_artifact": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "string_list": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
