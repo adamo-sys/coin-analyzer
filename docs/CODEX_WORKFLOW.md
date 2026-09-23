@@ -183,3 +183,32 @@ Tests create synthetic temporary repositories. They do not use collection data,
 photos, the operator's branch layout, or historical validation as ground truth.
 Full regression and authoritative remote CI remain separate from this focused
 Slice 1 verification. Future validate/handoff work needs its own bounded task.
+
+## Task Packets and Outcome Packets
+
+Task Packets and Outcome Packets are workflow contracts and evidence artifacts.
+They are **not** autonomous execution authorization; repository governance and
+explicit human authority still control implementation, commits, pushes, pull
+requests, and merges.
+
+Use the hand-authorable JSON templates in `.ops/task-packet.template.json` and
+`.ops/outcome-packet.template.json`. Their corresponding JSON Schema artifacts
+define the required shape. Validate a packet without network or model calls:
+
+```text
+python -B tools/task-packet.py validate --kind task --path path/to/task.json
+python -B tools/task-packet.py validate --kind outcome --path path/to/outcome.json
+```
+
+The intended workflow is:
+
+1. Decide and specify outside Codex where practical.
+2. Classify the task before dispatch.
+3. Send Codex a bounded Task Packet.
+4. Use deterministic tooling and CI to prove the result.
+5. Produce an Outcome Packet.
+6. Review the outcome before authorizing additional agent work.
+7. Future Better Harness experiments may compare workflows using these artifacts.
+
+Outcome usage fields accept observed counts, useful local proxies, or an
+explicit unavailable value. They must not be used to invent Codex telemetry.

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coin Analyzer Outcome Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "execution_class",
+    "actual_change_action",
+    "evidence_produced",
+    "gates_run",
+    "final_status",
+    "rework_count",
+    "human_intervention_count",
+    "codex_usage",
+    "instruction_compliance_result",
+    "lessons_follow_up"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "execution_class": {"enum": ["NO_CODEX", "CODEX_IMPLEMENT", "CODEX_INVESTIGATE"]},
+    "actual_change_action": {"type": "string", "minLength": 1},
+    "evidence_produced": {"$ref": "#/$defs/string_list"},
+    "gates_run": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+    "final_status": {"enum": ["completed", "stopped", "needs_review"]},
+    "rework_count": {"type": "integer", "minimum": 0},
+    "human_intervention_count": {"type": "integer", "minimum": 0},
+    "codex_usage": {"$ref": "#/$defs/codex_usage"},
+    "instruction_compliance_result": {"enum": ["compliant", "partial", "non_compliant", "unavailable"]},
+    "lessons_follow_up": {"$ref": "#/$defs/string_list"}
+  },
+  "$defs": {
+    "string_list": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "result"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "result": {"enum": ["passed", "failed", "not_run", "unavailable"]}
+      }
+    },
+    "usage_value": {
+      "anyOf": [
+        {"type": "integer", "minimum": 0},
+        {"type": "string", "minLength": 1},
+        {"type": "null"}
+      ]
+    },
+    "codex_usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["context_usage", "tool_calls", "notes"],
+      "properties": {
+        "context_usage": {"$ref": "#/$defs/usage_value"},
+        "tool_calls": {"$ref": "#/$defs/usage_value"},
+        "notes": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

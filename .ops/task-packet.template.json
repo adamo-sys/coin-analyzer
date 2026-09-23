@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task_id": "example-task",
+  "execution_class": "CODEX_IMPLEMENT",
+  "objective": "State the bounded outcome and observable completion condition.",
+  "rationale": "State why this work is needed.",
+  "known_state": ["State verified branch, baseline, and relevant repository facts."],
+  "evidence": ["State the evidence supporting the task decision."],
+  "scope": ["State the permitted files, components, and actions."],
+  "likely_files": ["docs/example.md"],
+  "acceptance_criteria": ["State an observable completion condition."],
+  "required_gates": ["State deterministic checks and required CI."],
+  "do_not_touch": ["State protected paths, behavior, and unrelated work."],
+  "stop_conditions": ["State conditions that require stopping for a human decision."],
+  "expected_artifact": "State the expected change, investigation result, or other output."
+}

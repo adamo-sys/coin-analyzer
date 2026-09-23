@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "task_id": "example-task",
+  "execution_class": "CODEX_IMPLEMENT",
+  "actual_change_action": "State the actual bounded change or investigation performed.",
+  "evidence_produced": ["State links, commit IDs, test output, or unavailable evidence."],
+  "gates_run": [{"name": "focused tests", "result": "not_run"}],
+  "final_status": "needs_review",
+  "rework_count": 0,
+  "human_intervention_count": 0,
+  "codex_usage": {
+    "context_usage": "unavailable",
+    "tool_calls": "unavailable",
+    "notes": "Record only observable usage or an unavailable proxy; do not invent telemetry."
+  },
+  "instruction_compliance_result": "unavailable",
+  "lessons_follow_up": ["State lessons, follow-up, or that none are known."]
+}
