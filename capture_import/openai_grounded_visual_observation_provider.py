@@ -136,7 +136,14 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
     provider_id = OPENAI_GROUNDED_OBSERVATION_PROVIDER_ID
     model_id = OPENAI_GROUNDED_OBSERVATION_MODEL_ID
 
-    def __init__(self, *, client: object | None = None, timeout_seconds: float = OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS, prompt: str = OPENAI_GROUNDED_OBSERVATION_PROMPT) -> None:
+    def __init__(
+        self,
+        *,
+        client: object | None = None,
+        timeout_seconds: float = OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS,
+        prompt: str = OPENAI_GROUNDED_OBSERVATION_PROMPT,
+        reasoning_effort: str = OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT,
+    ) -> None:
         if client is None:
             from openai import OpenAI
 
@@ -146,8 +153,11 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             raise ValueError("timeout_seconds must be positive.")
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("prompt must be non-empty text.")
+        if reasoning_effort not in {"low", "medium"}:
+            raise ValueError("reasoning_effort must be 'low' or 'medium'.")
         self._timeout_seconds = timeout_seconds
         self._prompt = prompt
+        self._reasoning_effort = reasoning_effort
 
     @property
     def configuration(self) -> Mapping[str, object]:
@@ -156,7 +166,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             "provider": "OpenAI",
             "provider_id": self.provider_id,
             "model": self.model_id,
-            "reasoning_effort": OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT,
+            "reasoning_effort": self._reasoning_effort,
             "image_detail": OPENAI_GROUNDED_OBSERVATION_IMAGE_DETAIL,
             "max_output_tokens": OPENAI_GROUNDED_OBSERVATION_MAX_OUTPUT_TOKENS,
             "timeout_seconds": self._timeout_seconds,
@@ -199,7 +209,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
                     ],
                 }
             ],
-            reasoning={"effort": OPENAI_GROUNDED_OBSERVATION_REASONING_EFFORT},
+            reasoning={"effort": self._reasoning_effort},
                 text={
                 "format": {
                     "type": "json_schema",
