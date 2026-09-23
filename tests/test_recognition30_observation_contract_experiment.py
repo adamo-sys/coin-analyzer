@@ -44,6 +44,86 @@ def test_build_manifest_plans_two_arms_for_each_side_and_view(monkeypatch, tmp_p
     assert all(request.image_sha256 for request in manifest.requests)
 
 
+def test_selected_cases_build_sixteen_request_manifest_in_canonical_order(monkeypatch, tmp_path):
+    cases = _fixture_cases(tmp_path)
+    _stub_manifest_dependencies(monkeypatch, cases)
+
+    manifest = experiment.build_manifest(
+        tmp_path, case_ids=("CA-R30-011", "CA-R30-030")
+    )
+
+    assert len(manifest.requests) == 16
+    assert manifest.case_ids == ("CA-R30-011", "CA-R30-030")
+
+
+def test_reversed_selected_cases_produce_same_manifest(monkeypatch, tmp_path):
+    cases = _fixture_cases(tmp_path)
+    _stub_manifest_dependencies(monkeypatch, cases)
+
+    forward = experiment.build_manifest(tmp_path, case_ids=("CA-R30-011", "CA-R30-030"))
+    reverse = experiment.build_manifest(tmp_path, case_ids=("CA-R30-030", "CA-R30-011"))
+
+    assert forward.public_record() == reverse.public_record()
+
+
+def test_one_selected_case_builds_eight_request_manifest(monkeypatch, tmp_path):
+    cases = _fixture_cases(tmp_path)
+    _stub_manifest_dependencies(monkeypatch, cases)
+
+    assert len(experiment.build_manifest(tmp_path, case_ids=("CA-R30-011",)).requests) == 8
+
+
+def test_selected_dry_run_constructs_no_provider(monkeypatch, tmp_path):
+    cases = _fixture_cases(tmp_path)
+    _stub_manifest_dependencies(monkeypatch, cases)
+
+    class UnexpectedProvider:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("dry run must not construct a provider")
+
+    monkeypatch.setattr(experiment, "OpenAIGroundedVisualObservationProvider", UnexpectedProvider)
+    output = tmp_path / "manifest.json"
+    experiment.run_dry_run(
+        tmp_path, output, case_ids=("CA-R30-011", "CA-R30-030")
+    )
+
+    assert '"planned_call_count": 16' in output.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("case_ids", [("CA-R30-999",), ("CA-R30-011", "CA-R30-011")])
+def test_invalid_case_selection_fails_before_provider_construction(monkeypatch, tmp_path, case_ids):
+    cases = _fixture_cases(tmp_path)
+    _stub_manifest_dependencies(monkeypatch, cases)
+
+    with pytest.raises(ValueError):
+        experiment.build_manifest(tmp_path, case_ids=case_ids)
+
+
+def _fixture_cases(tmp_path):
+    cases = tuple(
+        experiment.ExperimentCase(
+            case_id=case_id,
+            obverse=tmp_path / f"{case_id}-obverse.jpg",
+            reverse=tmp_path / f"{case_id}-reverse.jpg",
+        )
+        for case_id in experiment.EXPERIMENT_5_CASE_IDS
+    )
+    for case in cases:
+        case.obverse.write_bytes(b"obverse")
+        case.reverse.write_bytes(b"reverse")
+    return cases
+
+
+def _stub_manifest_dependencies(monkeypatch, cases):
+    monkeypatch.setattr(experiment, "load_cases", lambda _: cases)
+    monkeypatch.setattr(experiment, "_dataset_fingerprint", lambda _: "fingerprint")
+    monkeypatch.setattr(
+        experiment,
+        "build_evidence_views",
+        lambda path: (("full_face", b"full", "image/jpeg"), ("rim", b"rim", "image/jpeg")),
+    )
+
+
 def test_dry_run_writes_manifest_without_constructing_provider(monkeypatch, tmp_path):
     class UnexpectedProvider:
         def __init__(self, *args, **kwargs):
@@ -54,7 +134,7 @@ def test_dry_run_writes_manifest_without_constructing_provider(monkeypatch, tmp_
         dataset_fingerprint="fingerprint",
         requests=(),
     )
-    monkeypatch.setattr(experiment, "build_manifest", lambda _: manifest)
+    monkeypatch.setattr(experiment, "build_manifest", lambda *_, **__: manifest)
 
     output = tmp_path / "manifest.json"
     experiment.run_dry_run(tmp_path, output)

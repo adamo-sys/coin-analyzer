@@ -87,12 +87,15 @@ class PlannedObservationRequest:
 class ExperimentManifest:
     dataset_fingerprint: str
     requests: tuple[PlannedObservationRequest, ...]
+    case_ids: tuple[str, ...] = ()
 
     def public_record(self) -> dict[str, object]:
         return {
             "schema": "coin-analyzer-recognition30-observation-experiment-v1",
             "dataset_fingerprint_scheme": "recognition30-dataset-fingerprint-v1",
             "dataset_fingerprint": self.dataset_fingerprint,
+            "case_ids": list(self.case_ids),
+            "case_selection_sha256": _sha256_text("\n".join(self.case_ids)),
             "planned_call_count": len(self.requests),
             "control_prompt_sha256": _sha256_text(OPENAI_GROUNDED_OBSERVATION_PROMPT),
             "treatment_prompt_sha256": _sha256_text(treatment_prompt()),
@@ -130,11 +133,14 @@ def build_evidence_views(path: Path) -> tuple[tuple[str, bytes, str], ...]:
     return _localized_evidence_views(path)
 
 
-def build_manifest(dataset_root: Path) -> ExperimentManifest:
-    """Build the fixed 64-call plan without contacting a provider."""
+def build_manifest(
+    dataset_root: Path, *, case_ids: tuple[str, ...] | None = None
+) -> ExperimentManifest:
+    """Build a deterministic selected-case plan without contacting a provider."""
 
     requests: list[PlannedObservationRequest] = []
-    for case_index, case in enumerate(load_cases(dataset_root)):
+    cases = _select_cases(load_cases(dataset_root), case_ids)
+    for case_index, case in enumerate(cases):
         arms: tuple[Literal["control", "treatment"], ...] = (
             ("control", "treatment")
             if case_index % 2 == 0
@@ -165,18 +171,36 @@ def build_manifest(dataset_root: Path) -> ExperimentManifest:
                             image_sha256=_sha256_bytes(image_data),
                         )
                     )
-    if len(requests) != 64:
-        raise AssertionError("Experiment 5 plan must contain exactly 64 calls.")
     return ExperimentManifest(
         dataset_fingerprint=_dataset_fingerprint(dataset_root),
         requests=tuple(requests),
+        case_ids=tuple(case.case_id for case in cases),
     )
 
 
-def run_dry_run(dataset_root: Path, output: Path) -> ExperimentManifest:
+def _select_cases(
+    cases: tuple[ExperimentCase, ...], case_ids: tuple[str, ...] | None
+) -> tuple[ExperimentCase, ...]:
+    if case_ids is None:
+        return cases
+    if not case_ids:
+        raise ValueError("explicit case selection must not be empty.")
+    if len(set(case_ids)) != len(case_ids):
+        raise ValueError("duplicate case IDs are not permitted.")
+    selected = set(case_ids)
+    by_id = {case.case_id: case for case in cases}
+    unknown = sorted(selected - set(by_id))
+    if unknown:
+        raise ValueError(f"unknown experiment case IDs: {', '.join(unknown)}")
+    return tuple(case for case in cases if case.case_id in selected)
+
+
+def run_dry_run(
+    dataset_root: Path, output: Path, *, case_ids: tuple[str, ...] | None = None
+) -> ExperimentManifest:
     """Write a non-sensitive request manifest without provider construction."""
 
-    manifest = build_manifest(dataset_root)
+    manifest = build_manifest(dataset_root, case_ids=case_ids)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(manifest.public_record(), indent=2, ensure_ascii=False) + "\n",
@@ -239,6 +263,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("dataset", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--case-id", action="append", dest="case_ids")
+    parser.add_argument("--max-attempts", type=int)
     parser.add_argument(
         "--execute",
         action="store_true",
@@ -246,7 +272,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     manifest_path = args.output_dir / "request_manifest.json"
-    manifest = run_dry_run(args.dataset, manifest_path)
+    selected_case_ids = tuple(args.case_ids) if args.case_ids is not None else None
+    manifest = run_dry_run(args.dataset, manifest_path, case_ids=selected_case_ids)
+    if args.max_attempts is not None and len(manifest.requests) > args.max_attempts:
+        raise SystemExit("planned requests exceed --max-attempts")
     if args.execute:
         execute_manifest(
             manifest,
