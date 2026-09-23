@@ -33,6 +33,7 @@ DENOMINATION_ALIASES = {
     "10 piso": "10 pesos",
     "half dollar": "50 cents",
     "half-dollar": "50 cents",
+    "sixpence": "6 pence",
     "5 cents": "5 cents",
     "10 cents": "10 cents",
     "25 cents": "25 cents",
