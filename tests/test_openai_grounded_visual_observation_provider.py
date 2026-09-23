@@ -146,6 +146,45 @@ def test_provider_sends_exactly_one_image_and_disables_tools_and_storage():
     assert call["store"] is False
 
 
+def test_provider_defaults_to_low_reasoning_effort():
+    client = FakeClient(_response())
+    provider = OpenAIGroundedVisualObservationProvider(client=client)
+
+    assert provider.configuration["reasoning_effort"] == "low"
+
+    provider.observe(_request())
+
+    call = client.responses.calls[0]
+    assert call["reasoning"] == {"effort": "low"}
+
+
+def test_provider_supports_explicit_medium_reasoning_effort():
+    client = FakeClient(_response())
+    provider = OpenAIGroundedVisualObservationProvider(
+        client=client,
+        reasoning_effort="medium",
+    )
+
+    assert provider.configuration["reasoning_effort"] == "medium"
+
+    provider.observe(_request())
+
+    call = client.responses.calls[0]
+    assert call["reasoning"] == {"effort": "medium"}
+
+
+@pytest.mark.parametrize("reasoning_effort", ["", "high", "LOW", None])
+def test_provider_rejects_unsupported_reasoning_effort(reasoning_effort):
+    with pytest.raises(
+        ValueError,
+        match="reasoning_effort must be 'low' or 'medium'",
+    ):
+        OpenAIGroundedVisualObservationProvider(
+            client=FakeClient(_response()),
+            reasoning_effort=reasoning_effort,
+        )
+
+
 def test_prompt_forbids_identity_guessing_and_prefers_missing_evidence():
     prompt = OPENAI_GROUNDED_OBSERVATION_PROMPT.casefold()
     for forbidden in (
