@@ -136,7 +136,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
     provider_id = OPENAI_GROUNDED_OBSERVATION_PROVIDER_ID
     model_id = OPENAI_GROUNDED_OBSERVATION_MODEL_ID
 
-    def __init__(self, *, client: object | None = None, timeout_seconds: float = OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS) -> None:
+    def __init__(self, *, client: object | None = None, timeout_seconds: float = OPENAI_GROUNDED_OBSERVATION_TIMEOUT_SECONDS, prompt: str = OPENAI_GROUNDED_OBSERVATION_PROMPT) -> None:
         if client is None:
             from openai import OpenAI
 
@@ -144,7 +144,10 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
         self._client = client
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive.")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("prompt must be non-empty text.")
         self._timeout_seconds = timeout_seconds
+        self._prompt = prompt
 
     @property
     def configuration(self) -> Mapping[str, object]:
@@ -159,7 +162,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
             "timeout_seconds": self._timeout_seconds,
             "tools": [],
             "store": False,
-            "prompt": OPENAI_GROUNDED_OBSERVATION_PROMPT,
+            "prompt": self._prompt,
             "structured_output_schema": OPENAI_GROUNDED_OBSERVATION_SCHEMA,
         }
 
@@ -184,7 +187,7 @@ class OpenAIGroundedVisualObservationProvider(GroundedVisualObservationProvider)
                     "content": [
                         {
                             "type": "input_text",
-                            "text": OPENAI_GROUNDED_OBSERVATION_PROMPT,
+                            "text": self._prompt,
                         },
                         {
                             "type": "input_image",
