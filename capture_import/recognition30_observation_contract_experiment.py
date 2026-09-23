@@ -11,10 +11,12 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Literal, cast
 
 from .openai_grounded_visual_observation_provider import (
+    GroundedVisualObservationProviderTimeout,
     OPENAI_GROUNDED_OBSERVATION_PROMPT,
     OpenAIGroundedVisualObservationProvider,
 )
@@ -209,7 +211,9 @@ def run_dry_run(
     return manifest
 
 
-def execute_manifest(manifest: ExperimentManifest, *, provider_factory, output: Path) -> tuple[dict[str, object], ...]:
+def execute_manifest(
+    manifest: ExperimentManifest, *, provider_factory, output: Path, resume: bool = False
+) -> tuple[dict[str, object], ...]:
     """Execute a fixed manifest once per request; no retries or recognition."""
 
     providers = {
@@ -218,8 +222,11 @@ def execute_manifest(manifest: ExperimentManifest, *, provider_factory, output: 
     }
     records = []
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8") as handle:
+    completed = _completed_sequences(output) if resume and output.exists() else set()
+    with output.open("a" if resume else "w", encoding="utf-8") as handle:
         for planned in manifest.requests:
+            if planned.sequence in completed:
+                continue
             record = planned.public_record()
             try:
                 report = providers[planned.arm].observe(
@@ -233,7 +240,23 @@ def execute_manifest(manifest: ExperimentManifest, *, provider_factory, output: 
                     )
                 )
             except GroundedVisualObservationContractError as exc:
-                record.update({"status": "malformed_output", "error_type": type(exc).__name__})
+                record.update({
+                    "status": "provider_failure",
+                    "failure_kind": (
+                        "timeout"
+                        if isinstance(exc, GroundedVisualObservationProviderTimeout)
+                        else "contract"
+                    ),
+                    "error_type": type(exc).__name__,
+                    "message": "provider contract failure.",
+                })
+            except _provider_execution_exception_types() as exc:
+                record.update({
+                    "status": "provider_failure",
+                    "failure_kind": _failure_kind(exc),
+                    "error_type": type(exc).__name__,
+                    "message": "provider execution failed.",
+                })
             else:
                 observation = report.observation
                 record.update({
@@ -243,8 +266,35 @@ def execute_manifest(manifest: ExperimentManifest, *, provider_factory, output: 
                     "denomination_mark": observation.denomination_mark,
                 })
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
             records.append(record)
     return tuple(records)
+
+
+def _provider_execution_exception_types() -> tuple[type[Exception], ...]:
+    """Return only SDK exceptions representing a completed provider attempt."""
+
+    try:
+        from openai import APIConnectionError, APIStatusError
+    except ImportError:
+        return ()
+    return APIConnectionError, APIStatusError
+
+
+def _failure_kind(exc: Exception) -> str:
+    return "transport" if "Connection" in type(exc).__name__ or "Transport" in type(exc).__name__ else "provider_execution"
+
+
+def _completed_sequences(output: Path) -> set[int]:
+    completed = set()
+    for line in output.read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        sequence = record.get("sequence")
+        if not isinstance(sequence, int):
+            raise ValueError("malformed terminal record sequence")
+        completed.add(sequence)
+    return completed
 
 
 def _sha256_bytes(value: bytes) -> str:

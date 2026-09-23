@@ -5,6 +5,10 @@ import pytest
 
 from capture_import import recognition30_observation_contract_experiment as experiment
 from capture_import import recognition30_observation_contract_evaluator as evaluator
+from capture_import.grounded_visual_observation import GroundedVisualObservationContractError
+from capture_import.openai_grounded_visual_observation_provider import (
+    GroundedVisualObservationProviderTimeout,
+)
 
 
 def test_build_manifest_plans_two_arms_for_each_side_and_view(monkeypatch, tmp_path):
@@ -209,3 +213,96 @@ def test_execute_manifest_passes_arm_prompt_to_factory_and_never_retries(tmp_pat
 
     assert [record["status"] for record in records] == ["success", "success"]
     assert requested_prompts == [experiment.OPENAI_GROUNDED_OBSERVATION_PROMPT, experiment.treatment_prompt()]
+
+
+def test_transport_failure_is_terminal_durable_and_does_not_stop_later_requests(monkeypatch, tmp_path):
+    class TransportFailure(Exception):
+        pass
+
+    calls = []
+
+    class Provider:
+        def observe(self, request):
+            calls.append(request.image.data)
+            if request.image.data == b"one":
+                raise TransportFailure("sensitive transport details")
+            return type("Report", (), {"observation": type("Observation", (), {
+                "visible_text": (), "date_like": None, "denomination_mark": None,
+            })()})()
+
+    monkeypatch.setattr(experiment, "_provider_execution_exception_types", lambda: (TransportFailure,))
+    output = tmp_path / "records.jsonl"
+    records = experiment.execute_manifest(_two_request_manifest(), provider_factory=lambda _: Provider(), output=output)
+
+    assert calls == [b"one", b"two"]
+    assert records[0]["status"] == "provider_failure"
+    assert records[0]["failure_kind"] == "transport"
+    assert records[0]["message"] == "provider execution failed."
+    assert records[1]["status"] == "success"
+    assert len(output.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_resume_skips_durably_terminal_failed_requests(monkeypatch, tmp_path):
+    class TransportFailure(Exception):
+        pass
+
+    monkeypatch.setattr(experiment, "_provider_execution_exception_types", lambda: (TransportFailure,))
+    output = tmp_path / "records.jsonl"
+    output.write_text('{"sequence":1,"status":"provider_failure"}\n', encoding="utf-8")
+    calls = []
+
+    class Provider:
+        def observe(self, request):
+            calls.append(request.image.data)
+            if request.image.data == b"two":
+                raise TransportFailure()
+            raise AssertionError("terminal request must be skipped")
+
+    experiment.execute_manifest(_two_request_manifest(), provider_factory=lambda _: Provider(), output=output, resume=True)
+
+    assert calls == [b"two"]
+
+
+def test_unexpected_exception_escapes_executor(tmp_path):
+    class Provider:
+        def observe(self, request):
+            raise RuntimeError("programmer failure")
+
+    with pytest.raises(RuntimeError, match="programmer failure"):
+        experiment.execute_manifest(_two_request_manifest(), provider_factory=lambda _: Provider(), output=tmp_path / "records.jsonl")
+
+
+@pytest.mark.parametrize(
+    ("failure", "kind"),
+    [
+        (GroundedVisualObservationProviderTimeout(120.0), "timeout"),
+        (GroundedVisualObservationContractError("malformed"), "contract"),
+    ],
+)
+def test_timeout_and_contract_failure_are_terminal_without_retry(tmp_path, failure, kind):
+    calls = []
+
+    class Provider:
+        def observe(self, request):
+            calls.append(request.image.data)
+            if request.image.data == b"one":
+                raise failure
+            return type("Report", (), {"observation": type("Observation", (), {
+                "visible_text": (), "date_like": None, "denomination_mark": None,
+            })()})()
+
+    records = experiment.execute_manifest(_two_request_manifest(), provider_factory=lambda _: Provider(), output=tmp_path / "records.jsonl")
+
+    assert calls == [b"one", b"two"]
+    assert records[0]["failure_kind"] == kind
+
+
+def _two_request_manifest():
+    return experiment.ExperimentManifest(
+        dataset_fingerprint="fingerprint",
+        requests=(
+            experiment.PlannedObservationRequest(1, "control", "CA-R30-011", "obverse", "full_face", "image/jpeg", b"one", "a"),
+            experiment.PlannedObservationRequest(2, "treatment", "CA-R30-011", "obverse", "full_face", "image/jpeg", b"two", "b"),
+        ),
+        case_ids=("CA-R30-011",),
+    )
