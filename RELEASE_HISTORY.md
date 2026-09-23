@@ -8,7 +8,7 @@ The public semantic-version release line is distinct from the historical interna
 | --- | --- | --- | --- |
 | `v1.2.0` | 2026-09-11 | `1857e33` | Public release baseline incorporating identification/evaluation infrastructure, runtime-readiness and acceptance hardening, AI execution audit support, collector work-queue foundations, accuracy-research documentation, and collector-confirmed type/design persistence. |
 | `v1.3.0-rc1` | 2026-09-20 | `8776d46` | Historical first release candidate, published as the annotated tag. |
-| `v1.3.0-rc2` | Pending | Technically accepted application lineage: `d209d14`; PR #291 documentation reconciliation merged; current pre-correction release tip `8dd6664`; final tag target is the exact release-branch tip after this final documentation-only correction is merged and verified | Repaired PR #288 candidate with RC2 metadata/runtime reconciliation. Runtime is `v1.3.0-rc2`; technical acceptance is COMPLETE; manual owner acceptance and explicit tag authorization remain pending; the RC2 tag and GitHub Release have not been created. |
+| `v1.3.0-rc2` | 2026-09-22 | Annotated tag `v1.3.0-rc2` at `9cd848d` | Repaired PR #288 candidate with RC2 metadata/runtime reconciliation. Runtime is `v1.3.0-rc2`; technical acceptance is COMPLETE; owner manual acceptance and explicit authorization/ratification of the existing tag are recorded after local/remote peel verification. A GitHub Release is separately authorized and has not been created. |
 
 ## Historical Internal Milestones
 

@@ -8,19 +8,21 @@
 
 - Target public release: `v1.3.0`.
 
-- Historical RC1 tag: v1.3.0-rc1 at 8776d46b8d036ce1f3f3240fe0727885a7b4f65d. The technically accepted RC2 application lineage is `d209d14b39161d398ecddd7ef144f57a1dc36e1b`, containing PR #288 / `520d5d8`, RC2 metadata / `53445ac`, and runtime reconciliation / `bf8ecc9`; `APPLICATION_VERSION` is `v1.3.0-rc2`. Exact-lineage PR #290 CI was green for Windows/Ubuntu, Ruff, bounded Pyright, Gitleaks, privacy boundaries, OpenAI smoke, hypothesis pilot, and advisory Pyright. Advisory Pyright is ACCEPT_FOR_RC2; no RC2-introduced blocker was identified. No RC2 tag or GitHub Release exists.
+- Historical RC1 tag: v1.3.0-rc1 at 8776d46b8d036ce1f3f3240fe0727885a7b4f65d. The technically accepted RC2 application lineage is `d209d14b39161d398ecddd7ef144f57a1dc36e1b`, containing PR #288 / `520d5d8`, RC2 metadata / `53445ac`, and runtime reconciliation / `bf8ecc9`; `APPLICATION_VERSION` is `v1.3.0-rc2`. Exact-lineage PR #290 CI was green for Windows/Ubuntu, Ruff, bounded Pyright, Gitleaks, privacy boundaries, OpenAI smoke, hypothesis pilot, and advisory Pyright. Advisory Pyright is ACCEPT_FOR_RC2; no RC2-introduced blocker was identified. The existing annotated `v1.3.0-rc2` tag is verified locally and remotely at `9cd848da453d8657bef63529f0a609d14b1523d3`; no GitHub Release exists.
 
 - Release-prep branch: `release/v1.3.0-rc1-prep`.
 
 - Release scope: merged work on `main` after `v1.2.0` through PR #245; no new feature expansion during RC preparation.
 
+- Recognition30 Experiment 5 Stage 1 is closed as `EXPERIMENT_5_STAGE1_EXPAND_NOT_SUPPORTED`; no Experiment 5 expansion is approved, active, or required. This evidence did not alter RC2 production behavior or the existing tag.
+
 - Technical RC2 acceptance is COMPLETE. The owner-run 5,624-test regression had one timing-sensitive Hypothesis slow-input health-check event, not a functional assertion failure; the affected property module passed 2/2 in isolated follow-up. Local Ruff/privacy duplication met linked-worktree filesystem/ownership barriers, while equivalent exact-lineage CI passed without weakening Git ownership protections.
 
 - Historical internal `v8.x`/`v9.x` milestone labels below are not current public runtime version identifiers.
 
-- Current task: complete owner manual acceptance and tag authorization; do not create or publish RC2 yet.
+- Owner manual acceptance and authorization/ratification of the existing tag are recorded after exact-target verification. A GitHub Release remains a separately authorized, optional action and is not created by this reconciliation.
 
-- Release status: RC2 preparation; tag and release remain pending.
+- Release status: RC2 tag reconciled at `9cd848da453d8657bef63529f0a609d14b1523d3`; no additional RC2 tag creation is required.
 
 ## Current reconciliation — 2026-09-08
 
