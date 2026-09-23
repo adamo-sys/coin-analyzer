@@ -1,6 +1,7 @@
 import pytest
 
 from capture_import.denomination_mark_extraction import extract_denomination_marks
+from capture_import.evidence_candidate_resolver import normalize_denomination
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
@@ -216,3 +217,7 @@ def test_bare_denomination_words_are_not_promoted(value):
     assert result.candidates == ()
     assert result.resolved_value is None
     assert result.unresolved
+
+
+def test_sixpence_normalizes_to_six_pence():
+    assert normalize_denomination("SIXPENCE") == normalize_denomination("6 pence")
