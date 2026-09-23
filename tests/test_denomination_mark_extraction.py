@@ -193,3 +193,26 @@ def test_structured_mark_is_not_discarded_for_cross_side_visible_text():
         "denomination_mark",
         "visible_text",
     }
+
+
+@pytest.mark.parametrize("mark", ["SIXPENCE", "Sixpence", "sixpence"])
+def test_controlled_compound_sixpence_resolves_from_visible_text(mark):
+    result = extract_denomination_marks(
+        (_observation(visible_text=(mark,)),)
+    )
+
+    assert result.resolved_value == mark
+    assert not result.conflict
+    assert not result.unresolved
+    assert result.candidates[0].source_field == "visible_text"
+
+
+@pytest.mark.parametrize("value", ["PENCE", "SHILLING", "SHILLINGS", "CROWN", "MARK"])
+def test_bare_denomination_words_are_not_promoted(value):
+    result = extract_denomination_marks(
+        (_observation(visible_text=(value,)),)
+    )
+
+    assert result.candidates == ()
+    assert result.resolved_value is None
+    assert result.unresolved
