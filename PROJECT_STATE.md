@@ -1,5 +1,13 @@
 # Project State
 
+## Recognition30 Experiment 5 Stage 1 — 2026-09-22
+
+Experiment 5 Stage 1 is closed as
+[`EXPERIMENT_5_STAGE1_EXPAND_NOT_SUPPORTED`](docs/recognition30-experiment-005-stage1-closeout.md).
+The linked private immutable artifact record preserves the bounded pilot's
+identity, counts, hashes, findings, and non-expansion rationale.  No follow-on
+Experiment 5 expansion is approved, active, or required.
+
 ## Current reconciliation — 2026-09-08
 
 The dated records below are historical snapshots, including their old pending
