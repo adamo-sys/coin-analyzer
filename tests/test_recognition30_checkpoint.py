@@ -12,6 +12,7 @@ from capture_import.recognition30_checkpoint import (
     join_checkpoint_runs,
     load_checkpoint_records,
 )
+from capture_import import recognition30_checkpoint as checkpoint
 
 
 def _identity(**overrides):
@@ -166,3 +167,219 @@ def test_join_rejects_incompatible_segments(tmp_path):
 
     with pytest.raises(CheckpointValidationError, match="dataset"):
         join_checkpoint_runs((first, second))
+
+
+def test_reconciliation_substitutes_authorized_provider_failures_and_preserves_provenance(
+    tmp_path,
+):
+    replacement_case_ids = (
+        "CA-R30-009",
+        "CA-R30-017",
+        "CA-R30-022",
+        "CA-R30-026",
+        "CA-R30-029",
+    )
+    original = tmp_path / "official"
+    original_journal = CheckpointJournal(original, _identity(run_id="official-run"))
+    for completion_order, case_id in enumerate(
+        (f"CA-R30-{number:03d}" for number in range(1, 31)), start=1
+    ):
+        record = _record(case_id)
+        record["completion_order"] = completion_order
+        if case_id in replacement_case_ids:
+            record["terminal_outcome"] = "PIPELINE_FAILURE"
+            record["diagnostics"] = {
+                "reason": "provider_observation_failure",
+                "provider_failures": [{"failure_kind": "provider_timeout"}],
+            }
+        original_journal.append_terminal(record)
+    original_bytes = (original / "checkpoints.jsonl").read_bytes()
+
+    replacement = tmp_path / "replacement"
+    replacement_journal = CheckpointJournal(
+        replacement, _identity(run_id="replacement-run")
+    )
+    for completion_order, case_id in enumerate(replacement_case_ids, start=1):
+        record = _record(case_id)
+        record["completion_order"] = completion_order
+        replacement_journal.append_terminal(record)
+
+    authorization = checkpoint.Recognition30ReplacementAuthorization(
+        original_run_id="official-run",
+        replacement_run_id="replacement-run",
+        case_ids=replacement_case_ids,
+        reason="authorized infrastructure-invalid provider observations",
+    )
+
+    reconciled = checkpoint.reconcile_checkpoint_runs(
+        original, replacement, authorization
+    )
+
+    assert [record["case_id"] for record in reconciled["effective_records"]] == [
+        f"CA-R30-{number:03d}" for number in range(1, 31)
+    ]
+    assert reconciled["replacement_case_ids"] == list(replacement_case_ids)
+    assert reconciled["terminal_outcome_counts"] == {
+        "IDENTIFY": 30,
+        "ABSTAIN": 0,
+        "PIPELINE_FAILURE": 0,
+    }
+    assert reconciled["correctness_breakdown"] == "unavailable"
+    assert set(reconciled["input_artifact_hashes"]["original"]) == {
+        "run.json",
+        "checkpoints.jsonl",
+    }
+    replacement_row = reconciled["effective_records"][8]
+    assert replacement_row["case_id"] == "CA-R30-009"
+    assert replacement_row["provenance"]["original_record"]["terminal_outcome"] == (
+        "PIPELINE_FAILURE"
+    )
+    assert replacement_row["provenance"]["replacement_record"]["terminal_outcome"] == (
+        "IDENTIFY"
+    )
+    assert (original / "checkpoints.jsonl").read_bytes() == original_bytes
+
+
+def _reconciliation_fixture(tmp_path):
+    replacement_case_ids = ("CA-R30-009",)
+    original = tmp_path / "official"
+    original_journal = CheckpointJournal(original, _identity(run_id="official-run"))
+    for completion_order, case_id in enumerate(
+        (f"CA-R30-{number:03d}" for number in range(1, 31)), start=1
+    ):
+        record = _record(case_id)
+        record["completion_order"] = completion_order
+        if case_id in replacement_case_ids:
+            record["terminal_outcome"] = "PIPELINE_FAILURE"
+            record["diagnostics"] = {
+                "reason": "provider_observation_failure",
+                "provider_failures": [{"failure_kind": "provider_timeout"}],
+            }
+        original_journal.append_terminal(record)
+    replacement = tmp_path / "replacement"
+    replacement_journal = CheckpointJournal(
+        replacement, _identity(run_id="replacement-run")
+    )
+    replacement_record = _record("CA-R30-009")
+    replacement_journal.append_terminal(replacement_record)
+    authorization = checkpoint.Recognition30ReplacementAuthorization(
+        original_run_id="official-run",
+        replacement_run_id="replacement-run",
+        case_ids=replacement_case_ids,
+        reason="authorized infrastructure-invalid provider observations",
+    )
+    return original, replacement, authorization
+
+
+def test_reconciliation_rejects_replacement_of_valid_original_case(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    original = tmp_path / "valid-original"
+    journal = CheckpointJournal(original, _identity(run_id="official-run"))
+    for number in range(1, 31):
+        record = _record(f"CA-R30-{number:03d}")
+        record["completion_order"] = number
+        journal.append_terminal(record)
+
+    with pytest.raises(CheckpointValidationError, match="only infrastructure-invalid"):
+        checkpoint.reconcile_checkpoint_runs(original, replacement, authorization)
+
+
+def test_reconciliation_rejects_replacement_cases_outside_explicit_authorization(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    extra = tmp_path / "extra-replacement"
+    journal = CheckpointJournal(extra, _identity(run_id="replacement-run"))
+    for case_id in ("CA-R30-009", "CA-R30-010"):
+        journal.append_terminal(_record(case_id))
+
+    with pytest.raises(CheckpointValidationError, match="exactly match authorization"):
+        checkpoint.reconcile_checkpoint_runs(original, extra, authorization)
+
+
+def test_reconciliation_rejects_missing_required_replacement_case(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    missing = tmp_path / "missing-replacement"
+    CheckpointJournal(missing, _identity(run_id="replacement-run"))
+
+    with pytest.raises(CheckpointValidationError, match="exactly match authorization"):
+        checkpoint.reconcile_checkpoint_runs(original, missing, authorization)
+
+
+def test_reconciliation_rejects_incompatible_fingerprint_and_execution_metadata(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    fingerprint_mismatch = tmp_path / "fingerprint-mismatch"
+    CheckpointJournal(
+        fingerprint_mismatch,
+        _identity(run_id="replacement-run", dataset_fingerprint="different"),
+    ).append_terminal(_record("CA-R30-009"))
+    with pytest.raises(CheckpointValidationError, match="dataset"):
+        checkpoint.reconcile_checkpoint_runs(
+            original, fingerprint_mismatch, authorization
+        )
+
+    metadata_mismatch = tmp_path / "metadata-mismatch"
+    CheckpointJournal(
+        metadata_mismatch,
+        _identity(
+            run_id="replacement-run",
+            execution_metadata={"provider_timeout_seconds": 60.0},
+        ),
+    ).append_terminal(_record("CA-R30-009"))
+    with pytest.raises(CheckpointValidationError, match="execution metadata"):
+        checkpoint.reconcile_checkpoint_runs(original, metadata_mismatch, authorization)
+
+
+@pytest.mark.parametrize(
+    "terminal_outcome, diagnostics, message",
+    [
+        ("PIPELINE_FAILURE", {"reason": "fixture"}, "valid terminal recognition"),
+        (
+            "IDENTIFY",
+            {"reason": "fixture", "provider_failures": [{"failure_kind": "timeout"}]},
+            "infrastructure-invalid",
+        ),
+    ],
+)
+def test_reconciliation_rejects_nonterminal_or_infrastructure_invalid_replacement(
+    tmp_path, terminal_outcome, diagnostics, message
+):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    invalid = tmp_path / "invalid-replacement"
+    record = _record("CA-R30-009", terminal_outcome)
+    record["diagnostics"] = diagnostics
+    CheckpointJournal(invalid, _identity(run_id="replacement-run")).append_terminal(
+        record
+    )
+
+    with pytest.raises(CheckpointValidationError, match=message):
+        checkpoint.reconcile_checkpoint_runs(original, invalid, authorization)
+
+
+def test_reconciliation_rejects_malformed_replacement_record(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    journal = replacement / "checkpoints.jsonl"
+    journal.write_text('{"case_id":"CA-R30-009"}\n', encoding="utf-8")
+
+    with pytest.raises(CheckpointValidationError, match="malformed"):
+        checkpoint.reconcile_checkpoint_runs(original, replacement, authorization)
+
+
+def test_reconciliation_rejects_duplicate_replacement_record(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    journal = replacement / "checkpoints.jsonl"
+    journal.write_bytes(journal.read_bytes() + journal.read_bytes())
+
+    with pytest.raises(CheckpointValidationError, match="duplicate"):
+        checkpoint.reconcile_checkpoint_runs(original, replacement, authorization)
+
+
+def test_reconciliation_rejects_unrecognized_original_terminal_outcome(tmp_path):
+    original, replacement, authorization = _reconciliation_fixture(tmp_path)
+    journal = original / "checkpoints.jsonl"
+    records = journal.read_text(encoding="utf-8").splitlines()
+    corrupted = json.loads(records[0])
+    corrupted["terminal_outcome"] = "IN_PROGRESS"
+    records[0] = json.dumps(corrupted, sort_keys=True)
+    journal.write_text("\n".join(records) + "\n", encoding="utf-8")
+
+    with pytest.raises(CheckpointValidationError, match="valid terminal outcome"):
+        checkpoint.reconcile_checkpoint_runs(original, replacement, authorization)
