@@ -1,6 +1,7 @@
 import pytest
 
 from capture_import.denomination_mark_extraction import extract_denomination_marks
+from capture_import.evidence_candidate_resolver import normalize_denomination
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
@@ -193,3 +194,30 @@ def test_structured_mark_is_not_discarded_for_cross_side_visible_text():
         "denomination_mark",
         "visible_text",
     }
+
+
+@pytest.mark.parametrize("mark", ["SIXPENCE", "Sixpence", "sixpence"])
+def test_controlled_compound_sixpence_resolves_from_visible_text(mark):
+    result = extract_denomination_marks(
+        (_observation(visible_text=(mark,)),)
+    )
+
+    assert result.resolved_value == mark
+    assert not result.conflict
+    assert not result.unresolved
+    assert result.candidates[0].source_field == "visible_text"
+
+
+@pytest.mark.parametrize("value", ["PENCE", "SHILLING", "SHILLINGS", "CROWN", "MARK"])
+def test_bare_denomination_words_are_not_promoted(value):
+    result = extract_denomination_marks(
+        (_observation(visible_text=(value,)),)
+    )
+
+    assert result.candidates == ()
+    assert result.resolved_value is None
+    assert result.unresolved
+
+
+def test_sixpence_normalizes_to_six_pence():
+    assert normalize_denomination("SIXPENCE") == normalize_denomination("6 pence")

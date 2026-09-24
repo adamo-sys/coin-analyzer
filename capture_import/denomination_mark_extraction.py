@@ -19,6 +19,7 @@ _UNIT_TOKEN = re.compile(
     r"ore|öre|piso|peso(?:s)?|rp|rupiah|rupee(?:s)?)(?![A-Za-zÖö])",
     flags=re.IGNORECASE,
 )
+_COMPOUND_DENOMINATION_MARKS = frozenset({"sixpence"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +44,7 @@ class DenominationMarkExtraction:
 def extract_denomination_marks(
     observations: Iterable[GroundedVisualObservation],
 ) -> DenominationMarkExtraction:
-    """Extract explicit numeric/unit marks without currency normalization."""
+    """Extract explicit numeric/unit or controlled compound marks without currency normalization."""
 
     rows = tuple(observations)
     if not rows:
@@ -140,6 +141,8 @@ def _append_if_mark(
 def _is_explicit_mark(value: str) -> bool:
     if not value or _ALLOWED.fullmatch(value) is None:
         return False
+    if _comparison_key(value) in _COMPOUND_DENOMINATION_MARKS:
+        return True
     # Bare numerals such as "25" are ambiguous: they may be dates, mint marks,
     # catalogue annotations, or denomination numerals. Require a numeric
     # component plus either a supported currency symbol or a recognized unit

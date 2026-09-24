@@ -75,6 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--retrieval-limit", type=int, default=10)
     parser.add_argument("--provider-timeout-seconds", type=float, default=120.0)
     parser.add_argument(
+        "--reasoning-effort",
+        choices=("low", "medium"),
+        default="low",
+        help="grounded observation reasoning effort (default: low)",
+    )
+    parser.add_argument(
         "--checkpoint-dir",
         type=Path,
         help="new append-only checkpoint run directory",
@@ -491,7 +497,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     cases = _select_cases(dataset, args.case_ids)
     provider = OpenAIGroundedVisualObservationProvider(
-        timeout_seconds=args.provider_timeout_seconds
+        timeout_seconds=args.provider_timeout_seconds,
+        reasoning_effort=args.reasoning_effort,
     )
     retriever = InMemoryCatalogueRetriever(
         _catalogue(dataset),
@@ -509,7 +516,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             provider_id=provider.provider_id,
             model_id=provider.model_id,
             recognition_semantics=_recognition_semantics(args),
-            execution_metadata={"provider_timeout_seconds": args.provider_timeout_seconds},
+            execution_metadata={
+                "provider_timeout_seconds": args.provider_timeout_seconds,
+                "reasoning_effort": args.reasoning_effort,
+            },
         )
         if args.continue_from is None:
             journal = CheckpointJournal(args.checkpoint_dir, identity)
@@ -615,6 +625,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "completion_order": completion_order,
                     "execution_metadata": {
                         "provider_timeout_seconds": args.provider_timeout_seconds,
+                        "reasoning_effort": args.reasoning_effort,
                     },
                     "diagnostics": {
                         "reason": outcome.reason,
@@ -671,6 +682,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "model_id": provider.model_id,
         "retrieval_limit": args.retrieval_limit,
         "provider_timeout_seconds": args.provider_timeout_seconds,
+        "reasoning_effort": args.reasoning_effort,
         "rows": rows,
         "metrics": asdict(metrics),
         "baseline_comparison": dict(comparison),
