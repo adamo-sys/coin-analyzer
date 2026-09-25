@@ -1,7 +1,7 @@
 import pytest
 
 from capture_import.denomination_mark_extraction import extract_denomination_marks
-from capture_import.evidence_candidate_resolver import normalize_denomination
+from capture_import.evidence_candidate_resolver import normalize_country, normalize_denomination
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
@@ -221,3 +221,25 @@ def test_bare_denomination_words_are_not_promoted(value):
 
 def test_sixpence_normalizes_to_six_pence():
     assert normalize_denomination("SIXPENCE") == normalize_denomination("6 pence")
+
+
+def test_numeric_singular_cent_normalizes_to_plural_cents():
+    assert normalize_denomination("25 CENT") == normalize_denomination("25 cents")
+
+
+@pytest.mark.parametrize("value", ["25", "CENT", "SHILLING"])
+def test_ambiguous_bare_values_do_not_normalize_to_cents(value):
+    assert normalize_denomination(value) != "25 cents"
+
+
+@pytest.mark.parametrize(
+    ("literal", "expected"),
+    [("SVERIGE", "Sweden"), ("HELVETIA", "Switzerland")],
+)
+def test_controlled_country_aliases_normalize_exact_literals(literal, expected):
+    assert normalize_country(literal) == expected
+
+
+@pytest.mark.parametrize("literal", ["SVERIG", "EPUBLICA DOMINICANA", "HELVETICA"])
+def test_country_alias_near_matches_are_not_promoted(literal):
+    assert normalize_country(literal) == literal

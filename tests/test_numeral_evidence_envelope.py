@@ -70,6 +70,21 @@ def test_visible_text_alone_can_be_retrieval_ready_but_not_identity_evidence():
     assert result.retrieval_ready
 
 
+@pytest.mark.parametrize(
+    ("literal", "canonical"),
+    [("SVERIGE", "Sweden"), ("HELVETIA", "Switzerland")],
+)
+def test_controlled_country_alias_adds_retrieval_text_without_replacing_literal(
+    literal, canonical
+):
+    result = build_numeral_evidence_envelope(
+        (_observation("reverse", visible_text=(literal,)),)
+    )
+
+    assert result.normalized.country == canonical
+    assert result.normalized.visible_text == (literal, canonical)
+
+
 def test_conflicting_dates_block_retrieval_ready():
     result = build_numeral_evidence_envelope(
         (
