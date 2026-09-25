@@ -27,6 +27,26 @@ def test_visible_text_can_supply_date_without_date_like_field():
     assert result.candidates[0].source_field == "visible_text"
 
 
+def test_unicode_decimal_digits_normalize_before_existing_date_validation():
+    result = extract_date_numerals(
+        (_observation("obverse", date_like="١٩٦٩", visible_text=("١٩٦٩",)),)
+    )
+
+    assert result.resolved_value == "1969"
+    assert result.candidates[0].value == "1969"
+    assert result.candidates[0].raw_value == "١٩٦٩"
+    assert result.candidates[0].role == "obverse"
+    assert result.candidates[0].source_field == "date_like"
+
+
+@pytest.mark.parametrize("text", ["١٩", "١٩-٧٠", "١٩٦"])
+def test_unicode_decimal_normalization_does_not_reconstruct_partial_dates(text):
+    result = extract_date_numerals((_observation(visible_text=(text,)),))
+
+    assert result.candidates == ()
+    assert result.resolved_value is None
+
+
 def test_uncertain_digit_is_preserved_but_never_repaired_or_resolved():
     result = extract_date_numerals((_observation(date_like="19?8", visible_text=("19?8",)),))
 

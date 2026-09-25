@@ -10,7 +10,11 @@ from .denomination_mark_extraction import (
     DenominationMarkExtraction,
     extract_denomination_marks,
 )
-from .evidence_candidate_resolver import NormalizedEvidence, normalize_denomination
+from .evidence_candidate_resolver import (
+    NormalizedEvidence,
+    normalize_denomination,
+    normalize_observed_country_alias,
+)
 from .grounded_visual_observation import GroundedVisualObservation
 
 
@@ -40,11 +44,21 @@ def build_numeral_evidence_envelope(
         if denomination.resolved_value is not None
         else None
     )
-    visible_text = tuple(
+    raw_visible_text = tuple(
         dict.fromkeys(text for row in rows for text in row.visible_text)
     )
+    country_aliases = tuple(
+        dict.fromkeys(
+            alias
+            for text in raw_visible_text
+            if (alias := normalize_observed_country_alias(text)) is not None
+        )
+    )
+    visible_text = raw_visible_text + tuple(
+        alias for alias in country_aliases if alias not in raw_visible_text
+    )
     normalized = NormalizedEvidence(
-        country=None,
+        country=country_aliases[0] if len(country_aliases) == 1 else None,
         denomination=normalized_denomination,
         year=date.resolved_value,
         visible_text=visible_text,

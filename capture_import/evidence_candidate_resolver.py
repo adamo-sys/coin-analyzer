@@ -21,6 +21,12 @@ COUNTRY_ALIASES = {
     "republique francaise": "France",
     "republic of the philippines": "Philippines",
     "pilipinas": "Philippines",
+    "sverige": "Sweden",
+}
+
+OBSERVED_COUNTRY_ALIASES = {
+    "sverige": "Sweden",
+    "helvetia": "Switzerland",
 }
 
 DENOMINATION_ALIASES = {
@@ -99,12 +105,22 @@ def normalize_country(value: object) -> str | None:
     return COUNTRY_ALIASES.get(key, text)
 
 
+def normalize_observed_country_alias(value: object) -> str | None:
+    """Return a canonical country only for an exact observed-text alias."""
+
+    text = _clean(value)
+    if text is None:
+        return None
+    return OBSERVED_COUNTRY_ALIASES.get(_key(text))
+
+
 def normalize_denomination(value: object) -> str | None:
     text = _clean(value)
     if text is None:
         return None
     text = _ORE_UNIT.sub("ore", text)
     key = _key(text)
+    key = re.sub(r"^(\d+) cent$", r"\1 cents", key)
     if key in DENOMINATION_ALIASES:
         return DENOMINATION_ALIASES[key]
     # Normalize simple plural/unit variants without inventing a denomination.

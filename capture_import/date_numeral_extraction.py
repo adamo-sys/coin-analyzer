@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 from typing import Iterable
+import unicodedata
 
 from .grounded_visual_observation import GroundedVisualObservation
 
@@ -18,6 +19,7 @@ class DateNumeralEvidence:
     """One directly observed date-like token with explicit provenance."""
 
     value: str
+    raw_value: str
     role: str
     source_field: str
     uncertain: bool
@@ -127,6 +129,7 @@ def _append_tokens(
         candidates.append(
             DateNumeralEvidence(
                 value=value,
+                raw_value=text,
                 role=role,
                 source_field=source_field,
                 uncertain="?" in value,
@@ -135,7 +138,15 @@ def _append_tokens(
 
 
 def _date_tokens(text: str) -> tuple[str, ...]:
-    return tuple(match.group(1) for match in _DATE_TOKEN.finditer(text))
+    normalized = "".join(_normalize_decimal_digit(character) for character in text)
+    return tuple(match.group(1) for match in _DATE_TOKEN.finditer(normalized))
+
+
+def _normalize_decimal_digit(character: str) -> str:
+    try:
+        return str(unicodedata.decimal(character))
+    except ValueError:
+        return character
 
 
 def _compatible(left: str, right: str) -> bool:
