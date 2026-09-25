@@ -217,17 +217,25 @@ Tracking reference: Issue #213.
 
 
 
-## T11 Release Provenance and SBOM — QUEUED
+## T11 Release Provenance and SBOM ? COMPLETE / ADVISORY
 
-Evaluate GitHub Artifact Attestations and SBOM generation for a future proper release pipeline.
 
-Initial policy:
-- treat attestations as build provenance, not security certification;
-- retain exact source/build linkage and verification evidence;
-- preserve existing CI and human release authority;
-- avoid changing runtime behavior merely to satisfy provenance tooling.
 
-Tracking reference: Issue #213.
+Completed 2026-09-25.
+
+
+
+A bounded release-provenance/SBOM evaluation successfully generated CycloneDX 1.6 output from the repository's dependency inputs. The locked-input evaluation produced 9 components with 0 versionless components, demonstrating that reproducible dependency metadata can support useful SBOM generation.
+
+
+
+Disposition: RETAIN AS OPTIONAL ADVISORY. The evaluation establishes technical viability for release provenance and SBOM generation, but does not authorize deployment, CI gating, merge authority, release authority, or mandatory artifact attestation.
+
+
+
+Evidence: `docs/T11_RELEASE_PROVENANCE_SBOM_CLOSEOUT.txt`.
+
+
 
 ## T12 CI Runtime Observation — QUEUED
 
