@@ -183,17 +183,39 @@ pilot, not adoption of a CI gate. No blocking percentage or test weakening.
 
 Tracking reference: Issue #213.
 
-## T10 Diff-Aware Semgrep — QUEUED
+## T10 Diff-Aware Semgrep ? COMPLETE / ADVISORY
 
-Evaluate Semgrep against changed production Python, using a baseline/diff-aware scan rather than indiscriminate whole-repository scanning.
 
-Initial policy:
-- record useful findings, false positives, runtime, and timeouts;
-- keep findings advisory during the pilot;
-- evaluate repository-specific architectural rules only after the generic pilot demonstrates useful signal;
-- promote individual proven rules rather than treating every Semgrep rule as merge authority.
+
+Completed 2026-09-25.
+
+
+
+Semgrep OSS 1.178.0 completed a bounded diff-aware advisory scan against the
+
+three changed production Python files. 151 Python rules ran with 0 findings,
+
+0 blocking findings, 0 errors, ~100% parsing, and no observed timeout.
+
+
+
+Disposition: RETAIN AS OPTIONAL ADVISORY. This pilot establishes technical
+
+viability and low-friction diff-aware execution, but the zero-finding sample
+
+does not establish detection value or justify enforcement, CI gating,
+
+repository-specific rules, or additional Semgrep authority.
+
+
+
+Evidence: `docs/T10_SEMGREP_CLOSEOUT.txt` and `semgrep-t10.json`.
+
+
 
 Tracking reference: Issue #213.
+
+
 
 ## T11 Release Provenance and SBOM — QUEUED
 

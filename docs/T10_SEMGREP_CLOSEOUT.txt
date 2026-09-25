@@ -1,0 +1,75 @@
+﻿
+T10 Diff-Aware Semgrep Advisory Evaluation — Closeout
+
+Date: 2026-09-25
+
+
+
+STATUS
+
+COMPLETED / ADVISORY PILOT VALID; RETAIN AS OPTIONAL ADVISORY
+
+
+
+EXECUTION EVIDENCE
+
+- Semgrep version: 1.178.0
+
+- Mode: OSS, diff-aware advisory scan
+
+- Scope: 3 changed production Python files
+
+- Rules run: 151 Python rules
+
+- Findings: 0
+
+- Blocking findings: 0
+
+- Errors: 0
+
+- Parsed lines: ~100%
+
+- Baseline: 9c17ba475cb8491ea0e7ac0e67070286b4aba3cc
+
+- Target: bf843e58235cadd18e93bc64872d3f860ffd1085
+
+- Output artifact: semgrep-t10.json
+
+- Output artifact size: 1,509 bytes
+
+
+
+DISPOSITION
+
+Diff-aware Semgrep OSS 1.178.0 successfully scanned the three production Python
+
+files changed from the selected pre-PR311 baseline using 151 Python rules. The
+
+run completed with 0 findings, 0 errors, ~100% parsing, and no observed timeout.
+
+
+
+The pilot demonstrates that bounded diff-aware Semgrep execution is technically
+
+viable and low-friction for this repository. Because this sample produced no
+
+findings, it does not establish detection value or justify enforcement, CI
+
+gating, repository-specific rules, or additional Semgrep authority.
+
+
+
+Retain Semgrep as an optional advisory capability. Reconsider promotion only
+
+after future changed-code scans produce enough evidence to measure useful
+
+signal and false-positive burden.
+
+
+
+BOUNDARY
+
+This result validates the T10 pilot mechanism only. It does not establish that
+
+Semgrep should become a required production or CI gate.
+
