@@ -82,7 +82,7 @@ def _norm_issuer(value: object) -> str:
 
 
 def _norm_value(value: object) -> str:
-    text = unicoded_value = str(value).casefold()
+    text = str(value).casefold()
     # Keep the transformation deliberately narrow: observed catalogue spelling
     # variants only, rather than fuzzy denomination matching.
     for source, target in _VALUE_TOKEN_ALIASES.items():
