@@ -22,9 +22,10 @@ The visible coin is Peruvian and bears the legends `1/2 SOL DE ORO` and
 catalogue/reference research identifies this design family as Peru 1/2 Sol de
 Oro, small coat of arms, KM#260 / Numista N#9097 (1973–1975).
 
-The exact year is **not yet frozen as corrected truth**. The available query
-render does not expose enough of the date to establish it independently.
-Do not infer a year from a catalogue example.
+On 2026-09-26 the dataset owner supplied a new close-up photograph of the same
+physical coin and directly reported the date as **1972**. The photograph visibly
+shows the date at the bottom of the coat-of-arms side. This is direct specimen-level
+evidence for the corrected year; it is not inferred from a catalogue example.
 
 ## Consequences
 
@@ -42,9 +43,7 @@ Do not infer a year from a catalogue example.
 ## V2 repair procedure
 
 1. Preserve `recognition30_v1` byte-for-byte.
-2. Establish the exact year of the `IMG_8810.JPEG` / `IMG_8811.JPEG`
-   specimen from the physical coin, an uncropped original showing the date, or
-   equivalent direct evidence.
+2. Exact year established from owner-supplied physical-coin close-up: `1972`.
 3. Copy v1 to a new `recognition30_v2` dataset.
 4. Change only the defective `CA-R30-006` ground-truth identity unless a
    separate integrity finding requires another correction.
@@ -64,4 +63,4 @@ Do not infer a year from a catalogue example.
 - design: Small Coat of Arms; vicuña reverse
 - catalogue reference: KM#260
 - Numista type: N#9097
-- year: **PENDING DIRECT CONFIRMATION**
+- year: **1972 — DIRECTLY CONFIRMED FROM PHYSICAL COIN**
