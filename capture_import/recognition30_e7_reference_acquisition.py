@@ -12,6 +12,7 @@ import argparse
 import csv
 import hashlib
 import json
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
@@ -109,7 +110,7 @@ def acquire_batch(
             if url not in cache:
                 data = fetch(url)
                 digest = _sha256(data)
-                suffix = Path(urllib.request.urlparse(url).path).suffix.lower() or ".img"
+                suffix = Path(urllib.parse.urlparse(url).path).suffix.lower() or ".img"
                 path = output_dir / f"{digest}{suffix}"
                 path.write_bytes(data)
                 cache[url] = (path, digest, len(data))
