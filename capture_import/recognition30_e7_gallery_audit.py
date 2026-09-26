@@ -26,7 +26,7 @@ from typing import Callable, Mapping, Sequence
 
 
 API_ROOT = "https://api.numista.com/api/v3"
-USER_AGENT = "coin-analyzer-recognition30-e7-preflight/2"
+USER_AGENT = "coin-analyzer-recognition30-e7-preflight/3"
 JsonGet = Callable[[str], Mapping[str, object]]
 
 
@@ -65,7 +65,7 @@ _ISSUER_ALIASES = {
 _VALUE_TOKEN_ALIASES = {
     "sentimo": "sentimos",
 }
-_CATALOGUE_REF_RE = re.compile(r"\\b([A-Za-z]+)#\\s*([0-9]+(?:\\.[0-9]+)?)", re.IGNORECASE)
+_CATALOGUE_REF_RE = re.compile(r"\b([A-Za-z]+)#\s*([0-9]+[A-Za-z]?(?:\.[0-9]+)?)", re.IGNORECASE)
 
 
 def _norm(value: object) -> str:
@@ -225,22 +225,27 @@ def audit_identity(identity: Identity, get_json: JsonGet) -> dict[str, object]:
 
     resolution = "REVIEW_REQUIRED"
     selected_pair: tuple[int, Mapping[str, object]] | None = None
-    if len(exact) == 1:
-        selected_pair = exact[0]
-        resolution = "AUTO_EXACT_UNIQUE"
-    elif len(exact) > 1:
-        evidence_rows = [
-            (type_id, detail, _design_evidence(identity, detail))
-            for type_id, detail in exact
-        ]
-        catalogue_winners = [
-            (type_id, detail)
-            for type_id, detail, evidence in evidence_rows
-            if evidence["catalogue_reference_match"]
-        ]
+    expected_refs = _catalogue_refs(identity.type_design)
+    evidence_rows = [
+        (type_id, detail, _design_evidence(identity, detail))
+        for type_id, detail in exact
+    ]
+    catalogue_winners = [
+        (type_id, detail)
+        for type_id, detail, evidence in evidence_rows
+        if evidence["catalogue_reference_match"]
+    ]
+
+    # Frozen catalogue references are discriminating identity evidence. When
+    # present, they are authoritative: nominal issuer/value/year agreement
+    # alone must never override a mismatching or absent catalogue reference.
+    if expected_refs:
         if len(catalogue_winners) == 1:
             selected_pair = catalogue_winners[0]
             resolution = "AUTO_DESIGN_REFERENCE_UNIQUE"
+    elif len(exact) == 1:
+        selected_pair = exact[0]
+        resolution = "AUTO_EXACT_UNIQUE"
 
     selected = None
     if selected_pair is not None:
@@ -286,7 +291,7 @@ def summarize(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
         for ref in refs
     )
     return {
-        "schema": "coin-analyzer-recognition30-e7-gallery-audit-v2",
+        "schema": "coin-analyzer-recognition30-e7-gallery-audit-v3",
         "mode": "NUMISTA_METADATA_ONLY_ZERO_INFERENCE",
         "cases": len(rows),
         "auto_resolved_cases": resolved,

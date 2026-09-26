@@ -182,3 +182,69 @@ def test_ambiguous_nominal_match_without_unique_reference_stays_closed():
     row = audit_identity(identity, fake_get)
     assert row["resolution"] == "REVIEW_REQUIRED"
     assert row["selected"] is None
+
+
+def test_unique_nominal_match_with_conflicting_frozen_catalogue_ref_fails_closed():
+    identity = Identity(
+        "CA-R30-009",
+        "Spain",
+        "1 peseta",
+        "1975",
+        "Juan Carlos I; KM#806",
+    )
+    franco = detail(786, issuer="Spain", value="1 Peseta", lo=1967, hi=1975)
+    franco["title"] = "1 Peseta - Francisco Franco (Ávalos)"
+    franco["references"] = [{"catalogue": {"code": "KM"}, "number": "796"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 786}]}
+        return franco
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "REVIEW_REQUIRED"
+    assert row["selected"] is None
+    assert row["candidates"][0]["design_evidence"]["catalogue_reference_match"] is False
+
+
+def test_unique_nominal_match_with_matching_frozen_catalogue_ref_resolves():
+    identity = Identity(
+        "CA-R30-009",
+        "Spain",
+        "1 peseta",
+        "1975",
+        "Juan Carlos I; KM#806",
+    )
+    candidate = detail(787, issuer="Spain", value="1 Peseta", lo=1975, hi=1980)
+    candidate["title"] = "1 Peseta - Juan Carlos I"
+    candidate["references"] = [{"catalogue": {"code": "KM"}, "number": "806"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 787}]}
+        return candidate
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
+    assert row["selected"]["numista_type_id"] == 787
+    assert row["candidates"][0]["design_evidence"]["catalogue_reference_match"] is True
+
+
+def test_catalogue_reference_parser_accepts_decimal_and_suffix():
+    identity = Identity(
+        "CA-R30-X",
+        "Example",
+        "1 Unit",
+        "2000",
+        "Design; KM#241.1",
+    )
+    candidate = detail(1, issuer="Example", value="1 Unit", lo=2000, hi=2000)
+    candidate["references"] = [{"catalogue": {"code": "KM"}, "number": "241.1"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 1}]}
+        return candidate
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
