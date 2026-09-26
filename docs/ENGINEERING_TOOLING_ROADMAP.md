@@ -237,7 +237,7 @@ Evidence: `docs/T11_RELEASE_PROVENANCE_SBOM_CLOSEOUT.txt`.
 
 
 
-## T12 CI Runtime Observation — QUEUED
+## T12 CI Runtime Observation — PILOT ACTIVE
 
 Evaluate StepSecurity Harden-Runner on one low-risk workflow in audit mode before considering enforcement.
 
