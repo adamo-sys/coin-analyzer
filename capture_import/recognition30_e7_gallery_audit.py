@@ -1,4 +1,4 @@
-﻿"""Recognition30 E7 Numista metadata-only gallery audit.
+"""Recognition30 E7 Numista metadata-only gallery audit.
 
 Preflight only: reads frozen identity truth, queries Numista catalogue metadata,
 and writes candidate/reference provenance. It never downloads image bytes and
