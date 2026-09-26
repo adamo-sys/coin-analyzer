@@ -2318,3 +2318,14 @@ Use these priorities when designing gap reports, Buy Advisor changes, acquisitio
   - `test_collection_analysis.py`
   - `test_csv_import.py`
 - Commit hash: `ac1d4e7`
+
+## Queued — Recognition30 Selective Recognition / Evidence Sufficiency
+
+- Status: **QUEUED**
+- Canonical direction: `docs/recognition30-selective-recognition-direction.md`
+- Keep Recognition30 v1 frozen.
+- First bounded slice: evaluate `AUTO_ACCEPT / REVIEW / ABSTAIN` routing on existing Recognition30 outputs without changing production architecture.
+- Primary metrics: accepted-set error, coverage, review burden, abstention rate, false-auto-accepts.
+- Follow-on only if justified: small derived evidence-degradation suite.
+- Later architecture comparison: current baseline vs retrieval vs retrieval+VLM fusion on the same frozen specimens.
+- No heavyweight calibration/RL implementation is authorized by this queue item.
