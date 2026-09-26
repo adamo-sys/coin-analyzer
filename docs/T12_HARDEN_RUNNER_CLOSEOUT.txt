@@ -1,0 +1,41 @@
+T12 CI RUNTIME OBSERVATION — HARDEN-RUNNER CLOSEOUT
+
+Date: 2026-09-26
+Tracking: Issue #213
+Disposition: T12_EVALUATED_NOT_ADOPTED_CURRENT_CONTRACT
+
+OBJECTIVE
+Evaluate StepSecurity Harden-Runner on one low-risk GitHub Actions workflow in audit mode before considering enforcement.
+
+ORIGINAL T12 AUTHORITY BOUNDARY
+- begin with egress-policy: audit only;
+- establish normal network and process behavior across repeated runs;
+- investigate unexpected destinations or mutations before creating allowlists;
+- do not begin in block mode;
+- do not grant new workflow authority.
+
+PROPOSED PILOT
+The repository's .github/workflows/dependency-audit.yml was selected as the bounded candidate because it has contents: read permissions, checkout persist-credentials: false, pinned action SHAs, a 10-minute timeout, and a constrained pip-audit workload over three lockfiles.
+
+PRE-EXECUTION CONTRACT FINDING
+The evaluation stopped before modifying or executing the workflow because current Harden-Runner semantics do not satisfy the frozen T12 authority boundary.
+
+Although Harden-Runner supports egress-policy: audit, StepSecurity's documented Global Block List remains an enforcement mechanism for protected workflows. Therefore nominal audit mode is not equivalent to strictly observational execution: adding Harden-Runner would grant a vendor-maintained mechanism authority to deny selected network connections even though T12 explicitly prohibits granting new workflow authority.
+
+Because this mismatch is visible before execution, performing repeated live runs would require silently relaxing the T12 contract. The experiment therefore fails its pre-execution authority gate rather than proceeding to runtime observation.
+
+RESULT
+No Harden-Runner action was added to dependency-audit.yml.
+No egress allowlist was created.
+No block-mode policy was created.
+No workflow permissions were expanded.
+No runtime, merge, release, deploy, or promotion authority was added.
+The existing Dependency Audit workflow remains unchanged.
+
+DISPOSITION
+T12_EVALUATED_NOT_ADOPTED_CURRENT_CONTRACT
+
+This disposition is not a claim that Harden-Runner is unsafe or unsuitable generally. It records that the currently evaluated behavior does not fit T12's stricter observational-only contract. A future experiment may reconsider Harden-Runner only under a new, explicit authorization that acknowledges and accepts its narrowly defined enforcement behavior. Such an experiment must not be treated as continuation of this T12 pilot without an explicit roadmap/authority change.
+
+CLOSEOUT PRINCIPLE
+The assurance gate is considered successful when it prevents an experiment from acquiring authority outside its frozen contract. No live execution is required merely to manufacture runtime evidence after a pre-execution contract incompatibility has already been established.
