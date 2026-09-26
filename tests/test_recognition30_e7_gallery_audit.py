@@ -270,3 +270,49 @@ def test_value_normalization_remains_fail_closed_for_other_sol_values():
         identity,
         detail(1, issuer="Peru", value="1 Sol", lo=1966, hi=1973),
     )
+
+
+def test_audit_philippines_sentimo_alias_resolves_through_full_path():
+    identity = Identity(
+        "CA-R30-005",
+        "Philippines",
+        "25 sentimo",
+        "1990",
+        "Flora & Fauna; large type; KM#241.1",
+    )
+    candidate = detail(2462, issuer="Philippines", value="25 Sentimos", lo=1983, hi=1990)
+    candidate["title"] = "25 Sentimo (Large type)"
+    candidate["references"] = [{"catalogue": {"code": "KM"}, "number": "241.1"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 2462}]}
+        return candidate
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
+    assert row["selected"]["numista_type_id"] == 2462
+    assert row["candidates"][0]["exact_identity_match"] is True
+
+
+def test_audit_peru_half_sol_alias_resolves_through_full_path():
+    identity = Identity(
+        "CA-R30-006",
+        "Peru",
+        "1/2 Sol de Oro",
+        "1972",
+        "Large Coat of Arms; KM#247",
+    )
+    candidate = detail(909, issuer="Peru", value="½ Sol", lo=1966, hi=1973)
+    candidate["title"] = "½ Sol de Oro (Large Coat of Arms)"
+    candidate["references"] = [{"catalogue": {"code": "KM"}, "number": "247"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 909}]}
+        return candidate
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
+    assert row["selected"]["numista_type_id"] == 909
+    assert row["candidates"][0]["exact_identity_match"] is True

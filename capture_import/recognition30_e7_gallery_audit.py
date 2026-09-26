@@ -92,7 +92,8 @@ def _norm_value(value: object) -> str:
     # variants only, rather than fuzzy denomination matching.
     for source, target in _VALUE_TOKEN_ALIASES.items():
         text = re.sub(rf"\\b{re.escape(source)}\\b", target, text)
-    return _norm(text)
+    normalized = _norm(text)
+    return _VALUE_NORMALIZED_ALIASES.get(normalized, normalized)
 
 
 def _catalogue_refs(value: str | None) -> frozenset[tuple[str, str]]:
