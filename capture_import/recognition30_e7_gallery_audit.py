@@ -1,4 +1,4 @@
-"""Recognition30 E7 Numista metadata-only gallery audit.
+﻿"""Recognition30 E7 Numista metadata-only gallery audit.
 
 Preflight only: reads frozen identity truth, queries Numista catalogue metadata,
 and writes candidate/reference provenance. It never downloads image bytes and
@@ -91,7 +91,7 @@ def _norm_value(value: object) -> str:
     # Keep the transformation deliberately narrow: observed catalogue spelling
     # variants only, rather than fuzzy denomination matching.
     for source, target in _VALUE_TOKEN_ALIASES.items():
-        text = re.sub(rf"\\b{re.escape(source)}\\b", target, text)
+        text = re.sub(rf"\b{re.escape(source)}\b", target, text)
     normalized = _norm(text)
     return _VALUE_NORMALIZED_ALIASES.get(normalized, normalized)
 
@@ -359,3 +359,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
