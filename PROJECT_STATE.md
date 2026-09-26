@@ -1,5 +1,21 @@
 # Project State
 
+## Recognition30 selective-recognition direction — 2026-09-26
+
+Direction is now locked in
+[`docs/recognition30-selective-recognition-direction.md`](docs/recognition30-selective-recognition-direction.md).
+
+Canonical Recognition30 v1 remains frozen. Future uncertainty work is queued as a
+derived/selective-recognition evaluation using `AUTO_ACCEPT / REVIEW / ABSTAIN`
+routing and operational metrics such as accepted-set error, coverage, review
+burden, abstention rate, and false-auto-accepts. Evidence-degradation cases must
+remain separate derived artifacts. Planned specialized retrieval / candidate
+generation plus VLM fusion remains the preferred recognition direction, with a
+future frozen-specimen comparison against the current baseline. Research does not
+change architecture or sequencing unless it changes an existing decision and
+survives a bounded experiment.
+
+
 ## Recognition30 Experiment 5 Stage 1 — 2026-09-22
 
 Experiment 5 Stage 1 is closed as
