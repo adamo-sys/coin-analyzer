@@ -1,0 +1,135 @@
+﻿
+T11 RELEASE PROVENANCE AND SBOM CLOSEOUT
+
+
+
+Date: 2026-09-25
+
+Disposition: COMPLETE / ADVISORY
+
+
+
+PURPOSE
+
+
+
+Evaluate whether Coin Analyzer can produce useful software-bill-of-materials
+
+evidence from its existing dependency inputs, and determine whether release
+
+artifact attestation should be adopted at this stage.
+
+
+
+EXPERIMENT
+
+
+
+CycloneDX SBOM generation was evaluated using cyclonedx-bom through uvx with
+
+Python 3.12. No persistent project dependency was added.
+
+
+
+An initial SBOM generated from requirements.txt demonstrated basic generation
+
+viability but exposed that the unpinned input did not provide resolved package
+
+versions.
+
+
+
+A second SBOM was generated from requirements.lock.
+
+
+
+LOCKED-INPUT RESULT
+
+
+
+BOM format: CycloneDX
+
+CycloneDX specification: 1.6
+
+Components: 9
+
+Versionless components: 0
+
+
+
+Unlocked-input SHA256:
+
+87375EAE1C470594A999B2DC4C22D60FF3E2857F55753A256CEDA417837A75BA
+
+
+
+Locked-input SHA256:
+
+2023AA69152D339D53DE7830825F6E09AA8CA6899C22D17AC198835659BF5AE3
+
+
+
+The locked dependency input produced a version-resolved CycloneDX SBOM and
+
+therefore demonstrated that the repository's existing pinned dependency
+
+evidence is sufficient to generate useful dependency provenance without
+
+adding a persistent SBOM-generation dependency.
+
+
+
+ARTIFACT ATTESTATION
+
+
+
+GitHub Artifact Attestations were evaluated conceptually but are not being
+
+adopted by this pilot. The repository does not currently expose a defined
+
+release artifact/pipeline that warrants adding attestation infrastructure.
+
+
+
+Adding such infrastructure solely to satisfy this experiment would expand
+
+scope without demonstrating corresponding operational value.
+
+
+
+DISPOSITION
+
+
+
+T11 is COMPLETE / ADVISORY.
+
+
+
+SBOM generation from pinned dependency inputs is technically viable and may
+
+be used as an optional release/provenance capability.
+
+
+
+No CI gate, merge gate, release gate, mandatory SBOM generation, artifact
+
+attestation requirement, or additional tool authority is established.
+
+
+
+Artifact attestation should be reconsidered if Coin Analyzer later introduces
+
+a defined release artifact or release pipeline.
+
+
+
+BOUNDARY
+
+
+
+This closeout validates the T11 evaluation only. It does not authorize
+
+CycloneDX, cyclonedx-bom, GitHub Artifact Attestations, or any other provenance
+
+tool to become mandatory production, CI, merge, or release infrastructure.
+
