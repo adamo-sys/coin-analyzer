@@ -52,6 +52,17 @@ This roadmap records durable direction, not sprint commitments. Detailed work be
 6. **Portfolio-focused release milestone**
    - Prepare validated release notes, screenshots, setup guidance, and migration notes where required.
 
+### Recognition30 selective recognition / evidence sufficiency
+
+Direction is locked in [`docs/recognition30-selective-recognition-direction.md`](docs/recognition30-selective-recognition-direction.md).
+
+- Keep canonical Recognition30 v1 frozen.
+- Evaluate `AUTO_ACCEPT / REVIEW / ABSTAIN` routing using accepted-set error, coverage, review burden, abstention rate, and false-auto-accepts.
+- Keep any degradation suite derived and separate from Recognition30 v1.
+- Preserve the recognition direction of specialized visual evidence/retrieval -> candidate generation -> VLM reasoning/fusion -> conservative routing -> human confirmation.
+- Compare current baseline vs retrieval vs retrieval+VLM fusion on the same frozen specimens once retrieval infrastructure is ready.
+- Treat new research as `TEST NEXT`, `WATCH`, or `NO ACTION`; novelty alone does not change sequencing.
+
 ## Later Candidates
 
 - Collection Intelligence refinements
