@@ -65,6 +65,11 @@ _ISSUER_ALIASES = {
 _VALUE_TOKEN_ALIASES = {
     "sentimo": "sentimos",
 }
+_VALUE_NORMALIZED_ALIASES = {
+    # Numista shortens the displayed unit for this historical denomination.
+    # Keep this as an explicit whole-value equivalence rather than fuzzy matching.
+    "12soldeoro": "12sol",
+}
 _CATALOGUE_REF_RE = re.compile(r"\b([A-Za-z]+)#\s*([0-9]+[A-Za-z]?(?:\.[0-9]+)?)", re.IGNORECASE)
 
 

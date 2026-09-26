@@ -248,3 +248,25 @@ def test_catalogue_reference_parser_accepts_decimal_and_suffix():
 
     row = audit_identity(identity, fake_get)
     assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
+
+
+def test_exact_identity_match_normalizes_numista_half_sol_short_label():
+    identity = Identity(
+        "CA-R30-006",
+        "Peru",
+        "1/2 Sol de Oro",
+        "1972",
+        "Large Coat of Arms; KM#247",
+    )
+    assert exact_identity_match(
+        identity,
+        detail(909, issuer="Peru", value="½ Sol", lo=1966, hi=1973),
+    )
+
+
+def test_value_normalization_remains_fail_closed_for_other_sol_values():
+    identity = Identity("CA-R30-X", "Peru", "1/2 Sol de Oro", "1972")
+    assert not exact_identity_match(
+        identity,
+        detail(1, issuer="Peru", value="1 Sol", lo=1966, hi=1973),
+    )
