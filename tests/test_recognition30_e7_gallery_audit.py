@@ -110,3 +110,75 @@ def test_load_identities_requires_exactly_30_unique_rows(tmp_path: Path):
     path.write_text("case_id,country,denomination,year\nX,Example,1 Unit,2000\n")
     with pytest.raises(ValueError, match="exactly 30"):
         load_identities(tmp_path)
+
+
+def test_exact_identity_match_normalizes_diacritic_and_plural():
+    identity = Identity("CA-R30-X", "Sweden", "10 ore", "1970")
+    assert exact_identity_match(
+        identity,
+        detail(1504, issuer="Sweden", value="10 Öre", lo=1962, hi=1973),
+    )
+    identity = Identity("CA-R30-Y", "Philippines", "25 sentimo", "1990")
+    assert exact_identity_match(
+        identity,
+        detail(2462, issuer="Philippines", value="25 Sentimos", lo=1983, hi=1990),
+    )
+
+
+def test_exact_identity_match_normalizes_frozen_historical_issuer_alias():
+    identity = Identity(
+        "CA-R30-017",
+        "British Caribbean Territories, Eastern Group",
+        "25 cents",
+        "1955",
+    )
+    assert exact_identity_match(
+        identity,
+        detail(2283, issuer="Eastern Caribbean States", value="25 Cents", lo=1955, hi=1965),
+    )
+
+
+def test_ambiguous_nominal_match_uses_unique_catalogue_reference():
+    identity = Identity(
+        "CA-R30-004",
+        "Netherlands",
+        "1 gulden",
+        "1980",
+        "Juliana; nickel; KM#184a",
+    )
+    juliana = detail(738, value="1 Gulden", lo=1967, hi=1980)
+    juliana["title"] = "1 Gulden - Juliana"
+    juliana["references"] = [{"catalogue": {"code": "KM"}, "number": "184a"}]
+    beatrix = detail(5278, value="1 Gulden", lo=1980, hi=1980)
+    beatrix["title"] = "1 Gulden - Beatrix (Investiture of New Queen)"
+    beatrix["references"] = [{"catalogue": {"code": "KM"}, "number": "195"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 738}, {"id": 5278}]}
+        if url.endswith("/738"):
+            return juliana
+        if url.endswith("/5278"):
+            return beatrix
+        raise AssertionError(url)
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
+    assert row["selected"]["numista_type_id"] == 738
+
+
+def test_ambiguous_nominal_match_without_unique_reference_stays_closed():
+    identity = Identity(
+        "CA-R30-X", "Example", "1 Unit", "2000", "Special design"
+    )
+    a = detail(1, issuer="Example", value="1 Unit", lo=2000, hi=2000)
+    b = detail(2, issuer="Example", value="1 Unit", lo=2000, hi=2000)
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 1}, {"id": 2}]}
+        return a if url.endswith("/1") else b
+
+    row = audit_identity(identity, fake_get)
+    assert row["resolution"] == "REVIEW_REQUIRED"
+    assert row["selected"] is None
