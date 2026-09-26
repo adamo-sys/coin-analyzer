@@ -26,7 +26,7 @@ from typing import Callable, Mapping, Sequence
 
 
 API_ROOT = "https://api.numista.com/api/v3"
-USER_AGENT = "coin-analyzer-recognition30-e7-preflight/1"
+USER_AGENT = "coin-analyzer-recognition30-e7-preflight/2"
 JsonGet = Callable[[str], Mapping[str, object]]
 
 
@@ -59,8 +59,87 @@ def load_identities(dataset: Path) -> tuple[Identity, ...]:
     return tuple(rows)
 
 
+_ISSUER_ALIASES = {
+    "britishcaribbeanterritorieseasterngroup": "easterncaribbeanstates",
+}
+_VALUE_TOKEN_ALIASES = {
+    "sentimo": "sentimos",
+}
+_CATALOGUE_REF_RE = re.compile(r"\\b([A-Za-z]+)#\\s*([0-9]+(?:\\.[0-9]+)?)", re.IGNORECASE)
+
+
 def _norm(value: object) -> str:
-    return re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKD", str(value).casefold())
+    ascii_text = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", ascii_text)
+
+
+def _norm_issuer(value: object) -> str:
+    normalized = _norm(value)
+    return _ISSUER_ALIASES.get(normalized, normalized)
+
+
+def _norm_value(value: object) -> str:
+    text = unicoded_value = str(value).casefold()
+    # Keep the transformation deliberately narrow: observed catalogue spelling
+    # variants only, rather than fuzzy denomination matching.
+    for source, target in _VALUE_TOKEN_ALIASES.items():
+        text = re.sub(rf"\\b{re.escape(source)}\\b", target, text)
+    return _norm(text)
+
+
+def _catalogue_refs(value: str | None) -> frozenset[tuple[str, str]]:
+    if not value:
+        return frozenset()
+    return frozenset(
+        (catalogue.casefold(), number.casefold())
+        for catalogue, number in _CATALOGUE_REF_RE.findall(value)
+    )
+
+
+def _detail_catalogue_refs(detail: Mapping[str, object]) -> frozenset[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+    raw = detail.get("references")
+    if not isinstance(raw, list):
+        return frozenset()
+    for item in raw:
+        if not isinstance(item, Mapping):
+            continue
+        catalogue = item.get("catalogue")
+        number = item.get("number")
+        if isinstance(catalogue, Mapping) and number is not None:
+            code = catalogue.get("code")
+            if code:
+                refs.add((str(code).casefold(), str(number).casefold()))
+    return frozenset(refs)
+
+
+def _design_tokens(value: str | None) -> frozenset[str]:
+    if not value:
+        return frozenset()
+    stop = {"km", "y", "coin", "standard", "circulation"}
+    return frozenset(
+        token for token in re.findall(r"[a-z0-9]+", value.casefold())
+        if len(token) >= 3 and token not in stop and not token.isdigit()
+    )
+
+
+def _design_evidence(identity: Identity, detail: Mapping[str, object]) -> dict[str, object]:
+    expected_refs = _catalogue_refs(identity.type_design)
+    candidate_refs = _detail_catalogue_refs(detail)
+    ref_match = bool(expected_refs and expected_refs & candidate_refs)
+    haystack = " ".join(
+        str(detail.get(key) or "") for key in ("title", "comments")
+    )
+    expected_tokens = _design_tokens(identity.type_design)
+    title_tokens = _design_tokens(haystack)
+    overlap = sorted(expected_tokens & title_tokens)
+    return {
+        "catalogue_reference_match": ref_match,
+        "design_token_overlap": overlap,
+    }
 
 
 def _year_in_range(expected: str, candidate: Mapping[str, object]) -> bool:
@@ -85,9 +164,9 @@ def _value_text(candidate: Mapping[str, object]) -> str:
 
 def exact_identity_match(identity: Identity, detail: Mapping[str, object]) -> bool:
     return (
-        _norm(_issuer_name(detail)) == _norm(identity.country)
+        _norm_issuer(_issuer_name(detail)) == _norm_issuer(identity.country)
         and _year_in_range(identity.year, detail)
-        and _norm(_value_text(detail)) == _norm(identity.denomination)
+        and _norm_value(_value_text(detail)) == _norm_value(identity.denomination)
     )
 
 
@@ -138,15 +217,34 @@ def audit_identity(identity: Identity, get_json: JsonGet) -> dict[str, object]:
                 "min_year": detail.get("min_year"),
                 "max_year": detail.get("max_year"),
                 "exact_identity_match": is_exact,
+                "design_evidence": _design_evidence(identity, detail),
             }
         )
         if is_exact:
             exact.append((type_id, detail))
 
-    resolved = len(exact) == 1
+    resolution = "REVIEW_REQUIRED"
+    selected_pair: tuple[int, Mapping[str, object]] | None = None
+    if len(exact) == 1:
+        selected_pair = exact[0]
+        resolution = "AUTO_EXACT_UNIQUE"
+    elif len(exact) > 1:
+        evidence_rows = [
+            (type_id, detail, _design_evidence(identity, detail))
+            for type_id, detail in exact
+        ]
+        catalogue_winners = [
+            (type_id, detail)
+            for type_id, detail, evidence in evidence_rows
+            if evidence["catalogue_reference_match"]
+        ]
+        if len(catalogue_winners) == 1:
+            selected_pair = catalogue_winners[0]
+            resolution = "AUTO_DESIGN_REFERENCE_UNIQUE"
+
     selected = None
-    if resolved:
-        type_id, detail = exact[0]
+    if selected_pair is not None:
+        type_id, detail = selected_pair
         selected = {
             "numista_type_id": type_id,
             "numista_url": detail.get("url"),
@@ -168,14 +266,14 @@ def audit_identity(identity: Identity, get_json: JsonGet) -> dict[str, object]:
     return {
         "identity": asdict(identity),
         "query": query,
-        "resolution": "AUTO_EXACT_UNIQUE" if resolved else "REVIEW_REQUIRED",
+        "resolution": resolution,
         "selected": selected,
         "candidates": candidates,
     }
 
 
 def summarize(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
-    resolved = sum(row.get("resolution") == "AUTO_EXACT_UNIQUE" for row in rows)
+    resolved = sum(str(row.get("resolution", "")).startswith("AUTO_") for row in rows)
     refs = [
         ref
         for row in rows
@@ -188,7 +286,7 @@ def summarize(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
         for ref in refs
     )
     return {
-        "schema": "coin-analyzer-recognition30-e7-gallery-audit-v1",
+        "schema": "coin-analyzer-recognition30-e7-gallery-audit-v2",
         "mode": "NUMISTA_METADATA_ONLY_ZERO_INFERENCE",
         "cases": len(rows),
         "auto_resolved_cases": resolved,
