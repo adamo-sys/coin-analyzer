@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
@@ -182,6 +182,51 @@ class LocalPhoneEntryHost:
             response.set_cookie(_COOKIE_NAME, session_id, httponly=True, samesite="Strict")
             return response
 
+        @app.get("/")
+        def phone_home():
+            session = self._sessions.get(request.cookies.get(_COOKIE_NAME, ""))
+            if session is not None:
+                return redirect(url_for("capture_page"))
+            return self._page("PAIR", pairing=True)
+
+        @app.post("/pair")
+        def pair_page():
+            secret = request.form.get("pairing_secret", "")
+            if not isinstance(secret, str) or not self._consume_pairing_secret(secret) or self._sessions:
+                return self._page("PAIR", pairing=True, error="Pairing was not accepted."), 403
+            session_id, csrf_token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+            self._sessions[session_id] = _Session(csrf_token=csrf_token, entries=set(), approvals={})
+            response = redirect(url_for("capture_page"))
+            response.set_cookie(_COOKIE_NAME, session_id, httponly=True, samesite="Strict")
+            return response
+
+        @app.get("/capture")
+        def capture_page():
+            return self._page("CAPTURE", csrf=self._authenticated_session().csrf_token)
+
+        @app.post("/capture")
+        def capture_upload():
+            session = self._authenticated_session(); self._require_csrf(session)
+            if set(request.files) != {"front", "reverse"} or set(request.form) != {"csrf_token"}:
+                return self._page("CAPTURE", csrf=session.csrf_token, error="Select both explicit image roles."), 400
+            session.request_count += 1
+            if session.request_count > 10:
+                return self._page("CAPTURE", csrf=session.csrf_token, error="Capture request limit reached."), 429
+            staged, size = self._stage_pair(session=session, session_id=request.cookies[_COOKIE_NAME])
+            try:
+                draft = self.service.create_draft(front_path=str(staged["front"]), reverse_path=str(staged["reverse"]), session_id=request.cookies[_COOKIE_NAME])
+            except PhoneEntryError:
+                self._remove_paths(staged.values())
+                return self._page("CAPTURE", csrf=session.csrf_token, error="Images could not be accepted."), 400
+            session.entries.add(draft.entry_id); session.staged_bytes += size
+            return redirect(url_for("review_page", entry_id=draft.entry_id))
+
+        @app.get("/review/<entry_id>")
+        def review_page(entry_id: str):
+            session = self._authenticated_session(); self._require_entry(session, entry_id)
+            draft = self.service.reopen(entry_id)
+            return self._page("VERIFIED" if draft["state"] == "VERIFIED" else "REVIEW", csrf=session.csrf_token, draft=draft)
+
         @app.post("/drafts")
         def create_draft():
             session = self._authenticated_session()
@@ -219,9 +264,12 @@ class LocalPhoneEntryHost:
             session = self._authenticated_session()
             self._require_csrf(session)
             self._require_entry(session, entry_id)
-            body = request.get_json(silent=True)
+            body = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+            if not request.is_json:
+                body.pop("entry_id", None)
             if not isinstance(body, dict) or set(body) != {"csrf_token", "country", "denomination", "year", "type_design"}:
-                raise _RequestError("invalid_identity", 400)
+                if request.is_json: raise _RequestError("invalid_identity", 400)
+                return self._page("REVIEW", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Enter all required identity fields."), 400
             approval = self._issue_approval(session, entry_id, "VERIFY")
             try:
                 draft = self.service.verify(
@@ -233,23 +281,31 @@ class LocalPhoneEntryHost:
                     verification_approval=approval,
                 )
             except PhoneEntryError as error:
-                raise _RequestError("verification_rejected", 400) from error
-            return jsonify(draft.to_dict())
+                if request.is_json: raise _RequestError("verification_rejected", 400) from error
+                return self._page("REVIEW", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Verification was not accepted."), 400
+            return jsonify(draft.to_dict()) if request.is_json else redirect(url_for("review_page", entry_id=entry_id))
 
         @app.post("/draft/<entry_id>/save")
         def save_draft(entry_id: str):
             session = self._authenticated_session()
             self._require_csrf(session)
             self._require_entry(session, entry_id)
-            body = request.get_json(silent=True)
+            body = request.get_json(silent=True) if request.is_json else request.form.to_dict()
             if not isinstance(body, dict) or set(body) != {"csrf_token"}:
-                raise _RequestError("invalid_save", 400)
+                if request.is_json: raise _RequestError("invalid_save", 400)
+                return self._page("VERIFIED", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Save confirmation was not accepted."), 400
             approval = self._issue_approval(session, entry_id, "SAVE")
             try:
                 result: PhoneEntrySaveResult = self.service.save(entry_id, save_approval=approval)
             except PhoneEntryError as error:
-                raise _RequestError("save_recovery_required", 409) from error
-            return jsonify(entry_id=result.entry_id, state=result.state, item_id=result.item_id)
+                if request.is_json: raise _RequestError("save_recovery_required", 409) from error
+                return self._page("RECOVERY", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Recovery is required; do not retry save."), 409
+            return jsonify(entry_id=result.entry_id, state=result.state, item_id=result.item_id) if request.is_json else redirect(url_for("saved_page", entry_id=entry_id))
+
+        @app.get("/saved/<entry_id>")
+        def saved_page(entry_id: str):
+            session = self._authenticated_session(); self._require_entry(session, entry_id)
+            return self._page("SAVED", csrf=session.csrf_token, draft=self.service.reopen(entry_id))
 
         @app.get("/items/<item_id>")
         def get_item(item_id: str):
@@ -260,6 +316,9 @@ class LocalPhoneEntryHost:
             return jsonify(id=item.id, country=item.country, denomination=item.denomination, year=item.year, type_design=item.type_design)
 
         return app
+
+    def _page(self, state: str, *, csrf: str = "", draft: dict[str, Any] | None = None, pairing: bool = False, error: str = ""):
+        return render_template("phone_entry.html", state=state, csrf=csrf, draft=draft or {}, pairing=pairing, error=error)
 
     def _now(self) -> float:
         return self._clock() + self._test_offset
@@ -302,7 +361,7 @@ class LocalPhoneEntryHost:
 
     @staticmethod
     def _require_csrf(session: _Session) -> None:
-        supplied = request.form.get("csrf_token") if request.mimetype == "multipart/form-data" else (request.get_json(silent=True) or {}).get("csrf_token")
+        supplied = (request.get_json(silent=True) or {}).get("csrf_token") if request.is_json else request.form.get("csrf_token")
         if not isinstance(supplied, str) or not secrets.compare_digest(session.csrf_token, supplied):
             raise _RequestError("csrf_rejected", 403)
 
