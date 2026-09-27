@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import tkinter as tk
 from pathlib import Path
+from tkinter import messagebox
 
 from werkzeug.serving import make_server
 
@@ -26,6 +28,15 @@ def build_host(collection_path: str, state_root: str) -> LocalPhoneEntryHost:
     return LocalPhoneEntryHost(service=service, staging_root=root / "staging")
 
 
+def show_pairing_details(owner_window: tk.Tk, url: str, pairing_secret: str) -> None:
+    """Show the secret locally without writing it to an external log stream."""
+    messagebox.showinfo(
+        "Phone entry LAN mode active",
+        f"Open on the paired phone:\n{url}\n\nPairing secret (expires in 120 seconds):\n{pairing_secret}",
+        parent=owner_window,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one explicit trusted-LAN phone-entry session.")
     parser.add_argument("--lan-host", required=True, help="Desktop's private IPv4 address, for example 192.168.1.42")
@@ -36,12 +47,14 @@ def main() -> None:
     host = build_host(args.collection, args.state_root)
     secret = host.enable_lan(args.lan_host)
     url = f"http://{host.binding.host}:{args.port}/"
-    print(f"LAN mode active: {url}\nPairing secret (expires in 120 seconds): {secret}\nPress Ctrl+C to stop and revoke access.")
+    owner_window = tk.Tk(); owner_window.withdraw()
+    show_pairing_details(owner_window, url, secret)
+    print(f"LAN mode active: {url}. Pairing details are displayed locally. Press Ctrl+C to stop and revoke access.")
     server = make_server(host.binding.host, args.port, host.app)
     try:
         server.serve_forever()
     finally:
-        server.shutdown(); host.stop()
+        server.shutdown(); host.stop(); owner_window.destroy()
 
 
 if __name__ == "__main__":
