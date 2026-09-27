@@ -58,6 +58,8 @@ _ISSUER_ALIASES = {
     "dominicanrepublic1844date": "dominicanrepublic",
     "switzerland1848date": "switzerland",
     "federalrepublicofgermany": "westgermany",
+    # Numista's observed issuer label for the same historical state.
+    "germanyfederalrepublicof": "westgermany",
 }
 _VALUE_TOKEN_ALIASES = {"sentimo": "sentimos"}
 _VALUE_NORMALIZED_ALIASES = {
