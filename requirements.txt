@@ -3,3 +3,4 @@ opencv-python
 openpyxl
 pandas
 Pillow
+Flask>=3.1,<4

@@ -1,0 +1,382 @@
+"""Local-only HTTP boundary for the Packet 1 phone-entry service.
+
+This module owns listener policy, pairing, request authentication, and private
+image staging.  It deliberately owns neither collection persistence nor human
+review UI: the existing ``PhoneEntryService`` remains the only save authority.
+"""
+
+from __future__ import annotations
+
+import ipaddress
+import secrets
+from collections.abc import Callable
+from dataclasses import dataclass
+from hashlib import sha256
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+from flask import Flask, jsonify, request
+from PIL import Image, UnidentifiedImageError
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
+
+from phone_entry_service import PhoneEntryError, PhoneEntrySaveResult, PhoneEntryService
+
+_COOKIE_NAME = "phone_entry_session"
+_PAIRING_LIFETIME_SECONDS = 120
+_MAX_FILE_BYTES = 10 * 1024 * 1024
+_MAX_TOTAL_BYTES = 20 * 1024 * 1024
+_MAX_SESSION_BYTES = 20 * 1024 * 1024
+_MAX_PIXELS = 20_000_000
+_MAX_DIMENSION = 8_000
+
+
+class PhoneEntryHostError(ValueError):
+    """A local host request violates its fixed security contract."""
+
+
+@dataclass(frozen=True, slots=True)
+class HostBinding:
+    """The address selected by the desktop-owned host lifecycle."""
+
+    host: str
+    lan_enabled: bool
+
+
+@dataclass(slots=True)
+class _Session:
+    csrf_token: str
+    entries: set[str]
+    approvals: dict[str, str]
+    request_count: int = 0
+    staged_bytes: int = 0
+
+
+class LocalPhoneEntryHost:
+    """A desktop-controlled, one-device local HTTP adapter.
+
+    ``start_loopback``, ``enable_lan`` and ``stop`` are desktop integration
+    methods.  They are intentionally not HTTP routes.
+    """
+
+    def __init__(
+        self,
+        *,
+        service: PhoneEntryService,
+        staging_root: str | Path,
+        now: Callable[[], float] | None = None,
+    ) -> None:
+        self.service = service
+        # Packet 1 accepts only a trusted host-issued, action-bound approval.
+        # The request payload never supplies this capability.
+        self.service.approval_verifier = self
+        self.staging_root = Path(staging_root).absolute()
+        self._clock = now or __import__("time").time
+        self._test_offset = 0.0
+        self._binding: HostBinding | None = None
+        self._pairing_hash = ""
+        self._pairing_expires_at = 0.0
+        self._sessions: dict[str, _Session] = {}
+        self.app = self._create_app()
+
+    @property
+    def binding(self) -> HostBinding:
+        if self._binding is None:
+            raise PhoneEntryHostError("The local phone host is stopped.")
+        return self._binding
+
+    @property
+    def pairing_secret(self) -> str:
+        """Desktop-only pairing display value for testable controller wiring."""
+        if not hasattr(self, "_pairing_secret"):
+            raise PhoneEntryHostError("The local phone host is stopped.")
+        return self._pairing_secret
+
+    def start_loopback(self) -> str:
+        """Start in the safe loopback-only mode and issue a fresh pairing secret."""
+        self._binding = HostBinding(host="127.0.0.1", lan_enabled=False)
+        return self._replace_pairing_secret()
+
+    def enable_lan(self, host: str) -> str:
+        """Explicit desktop-owner action for a constrained trusted-LAN bind."""
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError as error:
+            raise PhoneEntryHostError("LAN binding requires a numeric private address.") from error
+        if address.version != 4 or not address.is_private or address.is_loopback or address.is_unspecified:
+            raise PhoneEntryHostError("LAN binding requires a private IPv4, non-loopback address.")
+        self._sessions.clear()
+        self._binding = HostBinding(host=str(address), lan_enabled=True)
+        return self._replace_pairing_secret()
+
+    def stop(self) -> None:
+        """Revoke pairing and every session before returning to the idle state."""
+        self._sessions.clear()
+        self._pairing_hash = ""
+        self._pairing_expires_at = 0.0
+        self._pairing_secret = ""
+        self._binding = None
+
+    def advance_for_test(self, seconds: float) -> None:
+        """Test-only deterministic clock hook; never used by the HTTP API."""
+        self._test_offset += seconds
+
+    def verify(self, *, entry_id: str, action: str, approval: str) -> bool:
+        """Packet 1 approval verifier: consume a host-issued action-bound token."""
+        digest = _digest(approval)
+        for session in self._sessions.values():
+            expected = session.approvals.pop(f"{entry_id}:{action}", None)
+            if expected is not None:
+                return secrets.compare_digest(expected, digest)
+        return False
+
+    def _create_app(self) -> Flask:
+        app = Flask(__name__)
+        app.config.update(
+            MAX_CONTENT_LENGTH=_MAX_TOTAL_BYTES + 64 * 1024,
+            MAX_FORM_MEMORY_SIZE=4 * 1024,
+            MAX_FORM_PARTS=4,
+        )
+
+        @app.before_request
+        def _request_boundary() -> None:
+            if self._binding is None:
+                raise _RequestError("session_required", 401)
+            if not self._valid_host(request.host):
+                raise _RequestError("invalid_host", 400)
+            if request.method == "POST" and not self._valid_origin(request.headers.get("Origin")):
+                raise _RequestError("invalid_origin", 403)
+
+        @app.errorhandler(_RequestError)
+        def _request_error(error: _RequestError):
+            return jsonify(error=error.category), error.status
+
+        @app.errorhandler(RequestEntityTooLarge)
+        def _too_large(_error: RequestEntityTooLarge):
+            return jsonify(error="payload_too_large"), 413
+
+        @app.errorhandler(HTTPException)
+        def _http_error(error: HTTPException):
+            return jsonify(error="method_not_allowed" if error.code == 405 else "request_rejected"), error.code
+
+        @app.errorhandler(Exception)
+        def _unexpected(_error: Exception):
+            return jsonify(error="request_rejected"), 400
+
+        @app.post("/session/pair")
+        def pair_session():
+            body = request.get_json(silent=True)
+            if not isinstance(body, dict) or set(body) != {"pairing_secret"}:
+                raise _RequestError("invalid_pairing", 400)
+            secret = body["pairing_secret"]
+            if not isinstance(secret, str) or not self._consume_pairing_secret(secret):
+                raise _RequestError("pairing_rejected", 403)
+            if self._sessions:
+                raise _RequestError("pairing_rejected", 403)
+            session_id = secrets.token_urlsafe(32)
+            csrf_token = secrets.token_urlsafe(32)
+            self._sessions[session_id] = _Session(csrf_token=csrf_token, entries=set(), approvals={})
+            response = jsonify(csrf_token=csrf_token)
+            response.status_code = 201
+            response.set_cookie(_COOKIE_NAME, session_id, httponly=True, samesite="Strict")
+            return response
+
+        @app.post("/drafts")
+        def create_draft():
+            session = self._authenticated_session()
+            self._require_csrf(session)
+            if set(request.files) != {"front", "reverse"} or set(request.form) != {"csrf_token"}:
+                raise _RequestError("invalid_upload", 400)
+            session.request_count += 1
+            if session.request_count > 10:
+                raise _RequestError("request_limit", 429)
+            staged, staged_bytes = self._stage_pair(session=session, session_id=request.cookies[_COOKIE_NAME])
+            try:
+                draft = self.service.create_draft(
+                    front_path=str(staged["front"]),
+                    reverse_path=str(staged["reverse"]),
+                    session_id=request.cookies[_COOKIE_NAME],
+                )
+            except PhoneEntryError as error:
+                self._remove_paths(staged.values())
+                raise _RequestError("draft_rejected", 400) from error
+            session.entries.add(draft.entry_id)
+            session.staged_bytes += staged_bytes
+            return jsonify(entry_id=draft.entry_id, state=draft.state, media=draft.to_dict()["media"]), 201
+
+        @app.get("/draft/<entry_id>")
+        def get_draft(entry_id: str):
+            session = self._authenticated_session()
+            self._require_entry(session, entry_id)
+            try:
+                return jsonify(self.service.reopen(entry_id))
+            except PhoneEntryError as error:
+                raise _RequestError("draft_unavailable", 404) from error
+
+        @app.post("/draft/<entry_id>/verify")
+        def verify_draft(entry_id: str):
+            session = self._authenticated_session()
+            self._require_csrf(session)
+            self._require_entry(session, entry_id)
+            body = request.get_json(silent=True)
+            if not isinstance(body, dict) or set(body) != {"csrf_token", "country", "denomination", "year", "type_design"}:
+                raise _RequestError("invalid_identity", 400)
+            approval = self._issue_approval(session, entry_id, "VERIFY")
+            try:
+                draft = self.service.verify(
+                    entry_id,
+                    country=str(body["country"]),
+                    denomination=str(body["denomination"]),
+                    year=str(body["year"]),
+                    type_design=str(body["type_design"]),
+                    verification_approval=approval,
+                )
+            except PhoneEntryError as error:
+                raise _RequestError("verification_rejected", 400) from error
+            return jsonify(draft.to_dict())
+
+        @app.post("/draft/<entry_id>/save")
+        def save_draft(entry_id: str):
+            session = self._authenticated_session()
+            self._require_csrf(session)
+            self._require_entry(session, entry_id)
+            body = request.get_json(silent=True)
+            if not isinstance(body, dict) or set(body) != {"csrf_token"}:
+                raise _RequestError("invalid_save", 400)
+            approval = self._issue_approval(session, entry_id, "SAVE")
+            try:
+                result: PhoneEntrySaveResult = self.service.save(entry_id, save_approval=approval)
+            except PhoneEntryError as error:
+                raise _RequestError("save_recovery_required", 409) from error
+            return jsonify(entry_id=result.entry_id, state=result.state, item_id=result.item_id)
+
+        @app.get("/items/<item_id>")
+        def get_item(item_id: str):
+            self._authenticated_session()
+            item = self.service.collection.get_item(item_id)
+            if item is None:
+                raise _RequestError("item_unavailable", 404)
+            return jsonify(id=item.id, country=item.country, denomination=item.denomination, year=item.year, type_design=item.type_design)
+
+        return app
+
+    def _now(self) -> float:
+        return self._clock() + self._test_offset
+
+    def _replace_pairing_secret(self) -> str:
+        self._sessions.clear()
+        self._pairing_secret = secrets.token_urlsafe(32)
+        self._pairing_hash = _digest(self._pairing_secret)
+        self._pairing_expires_at = self._now() + _PAIRING_LIFETIME_SECONDS
+        return self._pairing_secret
+
+    def _consume_pairing_secret(self, value: str) -> bool:
+        valid = (
+            bool(self._pairing_hash)
+            and self._now() <= self._pairing_expires_at
+            and secrets.compare_digest(self._pairing_hash, _digest(value))
+        )
+        if valid:
+            self._pairing_hash = ""
+            self._pairing_secret = ""
+        return valid
+
+    def _valid_host(self, host_header: str) -> bool:
+        host = host_header.split(":", 1)[0].lower()
+        if self.binding.lan_enabled:
+            return host == self.binding.host
+        return host in {"127.0.0.1", "localhost"}
+
+    def _valid_origin(self, origin: str | None) -> bool:
+        if not origin or not origin.startswith("http://"):
+            return False
+        return origin == f"http://{request.host}" and self._valid_host(request.host)
+
+    def _authenticated_session(self) -> _Session:
+        session_id = request.cookies.get(_COOKIE_NAME, "")
+        session = self._sessions.get(session_id)
+        if session is None:
+            raise _RequestError("session_required", 401)
+        return session
+
+    @staticmethod
+    def _require_csrf(session: _Session) -> None:
+        supplied = request.form.get("csrf_token") if request.mimetype == "multipart/form-data" else (request.get_json(silent=True) or {}).get("csrf_token")
+        if not isinstance(supplied, str) or not secrets.compare_digest(session.csrf_token, supplied):
+            raise _RequestError("csrf_rejected", 403)
+
+    @staticmethod
+    def _require_entry(session: _Session, entry_id: str) -> None:
+        if entry_id not in session.entries:
+            raise _RequestError("draft_unavailable", 404)
+
+    @staticmethod
+    def _issue_approval(session: _Session, entry_id: str, action: str) -> str:
+        approval = secrets.token_urlsafe(32)
+        session.approvals[f"{entry_id}:{action}"] = _digest(approval)
+        return approval
+
+    def _stage_pair(self, *, session: _Session, session_id: str) -> tuple[dict[str, Path], int]:
+        payloads = {role: request.files[role].read(_MAX_FILE_BYTES + 1) for role in ("front", "reverse")}
+        total_bytes = sum(map(len, payloads.values()))
+        if (
+            any(len(payload) > _MAX_FILE_BYTES for payload in payloads.values())
+            or total_bytes > _MAX_TOTAL_BYTES
+            or session.staged_bytes + total_bytes > _MAX_SESSION_BYTES
+        ):
+            raise _RequestError("upload_too_large", 413)
+        normalized = {role: _normalize_image(payload) for role, payload in payloads.items()}
+        if _digest(normalized["front"][0]) == _digest(normalized["reverse"][0]):
+            raise _RequestError("duplicate_media", 400)
+        root = self.staging_root / _digest(session_id) / uuid4().hex
+        root.mkdir(parents=True, exist_ok=False)
+        result: dict[str, Path] = {}
+        try:
+            for role, (payload, suffix) in normalized.items():
+                path = root / f"{uuid4().hex}{suffix}"
+                path.write_bytes(payload)
+                result[role] = path
+            return result, total_bytes
+        except OSError as error:
+            self._remove_paths(result.values())
+            raise _RequestError("staging_unavailable", 503) from error
+
+    @staticmethod
+    def _remove_paths(paths: Any) -> None:
+        for path in paths:
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+class _RequestError(Exception):
+    def __init__(self, category: str, status: int) -> None:
+        self.category = category
+        self.status = status
+
+
+def _normalize_image(payload: bytes) -> tuple[bytes, str]:
+    """Decode a supported still image and re-encode it without input metadata."""
+    try:
+        with Image.open(BytesIO(payload)) as probe:
+            image_format = probe.format
+            frames = getattr(probe, "n_frames", 1)
+            probe.verify()
+        if image_format not in {"JPEG", "PNG"} or frames != 1:
+            raise ValueError("unsupported image")
+        with Image.open(BytesIO(payload)) as source:
+            if source.width > _MAX_DIMENSION or source.height > _MAX_DIMENSION or source.width * source.height > _MAX_PIXELS:
+                raise ValueError("image dimensions exceed limit")
+            mode = "RGBA" if image_format == "PNG" and "A" in source.getbands() else "RGB"
+            normalized = source.convert(mode)
+            output = BytesIO()
+            normalized.save(output, format=image_format)
+            return output.getvalue(), ".jpg" if image_format == "JPEG" else ".png"
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
+        raise _RequestError("unsupported_image", 400) from error
+
+
+def _digest(value: str | bytes) -> str:
+    return sha256(value.encode("utf-8") if isinstance(value, str) else value).hexdigest()
