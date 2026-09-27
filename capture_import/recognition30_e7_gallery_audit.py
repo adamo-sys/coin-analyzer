@@ -61,14 +61,19 @@ def load_identities(dataset: Path) -> tuple[Identity, ...]:
 
 _ISSUER_ALIASES = {
     "britishcaribbeanterritorieseasterngroup": "easterncaribbeanstates",
+    # Numista appends modern-state date ranges to these issuer labels.
+    "dominicanrepublic1844date": "dominicanrepublic",
+    "switzerland1848date": "switzerland",
 }
 _VALUE_TOKEN_ALIASES = {
     "sentimo": "sentimos",
 }
 _VALUE_NORMALIZED_ALIASES = {
     # Numista shortens the displayed unit for this historical denomination.
-    # Keep this as an explicit whole-value equivalence rather than fuzzy matching.
+    # Keep these as explicit whole-value equivalences rather than fuzzy matching.
     "12soldeoro": "12sol",
+    "12peso": "12peso",
+    "halfcrown": "12crown",
 }
 _CATALOGUE_REF_RE = re.compile(r"\b([A-Za-z]+)#\s*([0-9]+[A-Za-z]?(?:\.[0-9]+)?)", re.IGNORECASE)
 
@@ -88,6 +93,9 @@ def _norm_issuer(value: object) -> str:
 
 def _norm_value(value: object) -> str:
     text = str(value).casefold()
+    # Unicode vulgar fractions are not decomposed to ASCII digits by _norm().
+    # Expand only the observed half-unit representation before normalization.
+    text = text.replace("½", "1/2")
     # Keep the transformation deliberately narrow: observed catalogue spelling
     # variants only, rather than fuzzy denomination matching.
     for source, target in _VALUE_TOKEN_ALIASES.items():
@@ -359,4 +367,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

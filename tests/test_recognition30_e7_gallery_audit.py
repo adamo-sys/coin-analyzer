@@ -316,3 +316,56 @@ def test_audit_peru_half_sol_alias_resolves_through_full_path():
     assert row["resolution"] == "AUTO_DESIGN_REFERENCE_UNIQUE"
     assert row["selected"]["numista_type_id"] == 909
     assert row["candidates"][0]["exact_identity_match"] is True
+
+
+def test_dominican_republic_historical_label_and_half_peso_are_bounded_aliases():
+    identity = Identity("CA-R30-020", "Dominican Republic", "1/2 peso", "1973")
+    assert exact_identity_match(
+        identity,
+        detail(5900, issuer="Dominican Republic (1844-date)", value="½ Peso", lo=1967, hi=1975),
+    )
+    assert not exact_identity_match(
+        identity,
+        detail(5900, issuer="Dominican Republic (1844-date)", value="1 Peso", lo=1967, hi=1975),
+    )
+
+
+def test_ireland_half_crown_alias_is_bounded():
+    identity = Identity("CA-R30-022", "Ireland", "half crown", "1954")
+    assert exact_identity_match(
+        identity,
+        detail(5188, issuer="Ireland", value="½ Crown", lo=1951, hi=1967),
+    )
+    assert not exact_identity_match(
+        identity,
+        detail(5188, issuer="Ireland", value="1 Crown", lo=1951, hi=1967),
+    )
+
+
+def test_switzerland_historical_label_does_not_override_catalogue_reference():
+    identity = Identity(
+        "CA-R30-028",
+        "Switzerland",
+        "2 francs",
+        "1968",
+        "Standing Helvetia; copper-nickel; KM#21a.1",
+    )
+    candidate = detail(
+        189,
+        issuer="Switzerland (1848-date)",
+        value="2 Francs",
+        lo=1968,
+        hi=1968,
+    )
+    candidate["title"] = "2 Francs - Standing Helvetia"
+    candidate["references"] = [{"catalogue": {"code": "KM"}, "number": "21a"}]
+
+    def fake_get(url):
+        if "/types?" in url:
+            return {"types": [{"id": 189}]}
+        return candidate
+
+    row = audit_identity(identity, fake_get)
+    assert row["candidates"][0]["exact_identity_match"] is True
+    assert row["resolution"] == "REVIEW_REQUIRED"
+    assert row["selected"] is None
