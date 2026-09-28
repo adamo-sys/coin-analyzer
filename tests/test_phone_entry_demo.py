@@ -24,11 +24,11 @@ class PhoneEntryDemoTests(unittest.TestCase):
                 self.assertEqual(redacted, expected)
                 self.assertNotIn("bootstrap-sentinel", redacted)
 
-    def test_qr_bootstrap_is_presented_locally_without_stdout_logging(self) -> None:
+    def test_qr_bootstrap_uses_a_visible_owner_window_without_stdout_logging(self) -> None:
         owner_window = Mock()
         dialog = Mock()
         with (
-            patch("phone_entry_demo.tk.Toplevel", return_value=dialog),
+            patch("phone_entry_demo.tk.Toplevel", return_value=dialog) as toplevel,
             patch("phone_entry_demo.tk.Label", return_value=Mock()),
             patch("phone_entry_demo.tk.Button", return_value=Mock()),
             patch("phone_entry_demo.qrcode.make") as made,
@@ -38,6 +38,11 @@ class PhoneEntryDemoTests(unittest.TestCase):
             show_pairing_details(owner_window, "http://192.168.1.42:8765/", "http://192.168.1.42:8765/bootstrap/bootstrap-sentinel")
 
         made.assert_called_once_with("http://192.168.1.42:8765/bootstrap/bootstrap-sentinel")
+        owner_window.deiconify.assert_called_once_with()
+        owner_window.lift.assert_called_once_with()
+        owner_window.focus_force.assert_called_once_with()
+        owner_window.wait_window.assert_called_once_with(owner_window)
+        toplevel.assert_not_called()
         self.assertNotIn("secret-sentinel", str(printed.call_args_list))
 
     def test_main_never_prints_pairing_secret(self) -> None:
@@ -45,11 +50,12 @@ class PhoneEntryDemoTests(unittest.TestCase):
         host.enable_lan.return_value = "secret-sentinel"
         server = Mock()
         server.serve_forever.side_effect = KeyboardInterrupt
+        owner_window = Mock()
         with (
             self.assertRaises(KeyboardInterrupt),
             patch("sys.argv", ["phone_entry_demo.py", "--lan-host", "192.168.1.42", "--collection", "test.json", "--state-root", "state"]),
             patch("phone_entry_demo.build_host", return_value=host),
-            patch("phone_entry_demo.tk.Tk", return_value=Mock()),
+            patch("phone_entry_demo.tk.Tk", return_value=owner_window),
             patch("phone_entry_demo.show_pairing_details", side_effect=KeyboardInterrupt),
             patch("phone_entry_demo.make_server", return_value=server) as make_server,
             patch("phone_entry_demo.wait_for_listener"),
@@ -60,6 +66,7 @@ class PhoneEntryDemoTests(unittest.TestCase):
 
         self.assertNotIn("secret-sentinel", str(printed.call_args_list))
         self.assertIs(make_server.call_args.kwargs["request_handler"], phone_entry_demo._PrivacySafeRequestHandler)
+        owner_window.withdraw.assert_not_called()
 
     def test_listener_serves_before_pairing_ui_instructs_phone_to_connect(self) -> None:
         app = Flask(__name__)

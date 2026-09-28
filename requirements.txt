@@ -1,7 +1,7 @@
 numpy
 opencv-python
 openpyxl
-pandas
+pandas==3.0.5
 Pillow
 Flask>=3.1,<4
 qrcode[pil]==8.2

@@ -53,20 +53,20 @@ def build_host(collection_path: str, state_root: str) -> LocalPhoneEntryHost:
 
 
 def show_pairing_details(owner_window: tk.Tk, url: str, bootstrap_url: str) -> None:
-    """Show a locally-rendered QR bootstrap without external logging."""
-    dialog = tk.Toplevel(owner_window)
-    dialog.title("Phone entry LAN mode active")
-    dialog.transient(owner_window)
+    """Show a visible desktop-local QR bootstrap without external logging."""
+    owner_window.title("Phone entry LAN mode active")
     qr_image = ImageTk.PhotoImage(qrcode.make(bootstrap_url))
-    label = tk.Label(dialog, text="Scan this code with the paired iPhone to begin.")
+    label = tk.Label(owner_window, text="Scan this code with the paired iPhone to begin.")
     label.pack(padx=16, pady=(16, 8))
-    qr_label = tk.Label(dialog, image=qr_image)
+    qr_label = tk.Label(owner_window, image=qr_image)
     qr_label.image = qr_image
     qr_label.pack(padx=16, pady=8)
-    tk.Label(dialog, text=f"Trusted private LAN only: {url}").pack(padx=16, pady=(0, 8))
-    tk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=(0, 16))
-    dialog.grab_set()
-    dialog.wait_window()
+    tk.Label(owner_window, text=f"Trusted private LAN only: {url}").pack(padx=16, pady=(0, 8))
+    tk.Button(owner_window, text="Close", command=owner_window.destroy).pack(pady=(0, 16))
+    owner_window.deiconify()
+    owner_window.lift()
+    owner_window.focus_force()
+    owner_window.wait_window(owner_window)
 
 
 def wait_for_listener(url: str) -> None:
@@ -97,13 +97,17 @@ def main() -> None:
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     wait_for_listener(url)
-    owner_window = tk.Tk(); owner_window.withdraw()
+    owner_window = tk.Tk()
     try:
         show_pairing_details(owner_window, url, bootstrap_url)
         print(f"LAN mode active: {url}. Scan the local QR display to pair. Press Ctrl+C to stop and revoke access.")
         server_thread.join()
     finally:
-        server.shutdown(); host.stop(); owner_window.destroy()
+        server.shutdown(); host.stop()
+        try:
+            owner_window.destroy()
+        except tk.TclError:
+            pass
 
 
 if __name__ == "__main__":
