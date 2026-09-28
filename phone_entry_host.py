@@ -15,6 +15,7 @@ from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
@@ -77,6 +78,8 @@ class LocalPhoneEntryHost:
         self._binding: HostBinding | None = None
         self._pairing_hash = ""
         self._pairing_expires_at = 0.0
+        self._bootstrap_hash = ""
+        self._bootstrap_expires_at = 0.0
         self._sessions: dict[str, _Session] = {}
         self.app = self._create_app()
 
@@ -96,6 +99,7 @@ class LocalPhoneEntryHost:
     def start_loopback(self) -> str:
         """Start in the safe loopback-only mode and issue a fresh pairing secret."""
         self._binding = HostBinding(host="127.0.0.1", lan_enabled=False)
+        self._clear_bootstrap_token()
         return self._replace_pairing_secret()
 
     def enable_lan(self, host: str) -> str:
@@ -108,7 +112,18 @@ class LocalPhoneEntryHost:
             raise PhoneEntryHostError("LAN binding requires a private IPv4, non-loopback address.")
         self._sessions.clear()
         self._binding = HostBinding(host=str(address), lan_enabled=True)
+        self._clear_bootstrap_token()
         return self._replace_pairing_secret()
+
+    def issue_bootstrap_url(self, base_url: str) -> str:
+        """Create the desktop-only, one-use QR bootstrap URL for this binding."""
+        parsed = urlparse(base_url)
+        if parsed.scheme != "http" or not parsed.netloc or not self._bootstrap_host_matches(parsed.hostname):
+            raise PhoneEntryHostError("Bootstrap URL must use the active local host binding.")
+        token = secrets.token_urlsafe(32)
+        self._bootstrap_hash = _digest(token)
+        self._bootstrap_expires_at = self._now() + _PAIRING_LIFETIME_SECONDS
+        return f"{base_url.rstrip('/')}/bootstrap/{token}"
 
     def stop(self) -> None:
         """Revoke pairing and every session before returning to the idle state."""
@@ -116,6 +131,7 @@ class LocalPhoneEntryHost:
         self._pairing_hash = ""
         self._pairing_expires_at = 0.0
         self._pairing_secret = ""
+        self._clear_bootstrap_token()
         self._binding = None
 
     def advance_for_test(self, seconds: float) -> None:
@@ -179,6 +195,15 @@ class LocalPhoneEntryHost:
             self._sessions[session_id] = _Session(csrf_token=csrf_token, entries=set(), approvals={})
             response = jsonify(csrf_token=csrf_token)
             response.status_code = 201
+            response.set_cookie(_COOKIE_NAME, session_id, httponly=True, samesite="Strict")
+            return response
+
+        @app.get("/bootstrap/<token>")
+        def bootstrap_session(token: str):
+            if self._sessions or not self._consume_bootstrap_token(token):
+                raise _RequestError("pairing_rejected", 403)
+            session_id, _csrf_token = self._create_session()
+            response = redirect(url_for("capture_page"))
             response.set_cookie(_COOKIE_NAME, session_id, httponly=True, samesite="Strict")
             return response
 
@@ -329,6 +354,32 @@ class LocalPhoneEntryHost:
         self._pairing_hash = _digest(self._pairing_secret)
         self._pairing_expires_at = self._now() + _PAIRING_LIFETIME_SECONDS
         return self._pairing_secret
+
+    def _create_session(self) -> tuple[str, str]:
+        session_id = secrets.token_urlsafe(32)
+        csrf_token = secrets.token_urlsafe(32)
+        self._sessions[session_id] = _Session(csrf_token=csrf_token, entries=set(), approvals={})
+        return session_id, csrf_token
+
+    def _bootstrap_host_matches(self, host: str | None) -> bool:
+        if host is None:
+            return False
+        if self.binding.lan_enabled:
+            return host == self.binding.host
+        return host in {"127.0.0.1", "localhost"}
+
+    def _clear_bootstrap_token(self) -> None:
+        self._bootstrap_hash = ""
+        self._bootstrap_expires_at = 0.0
+
+    def _consume_bootstrap_token(self, value: str) -> bool:
+        if not self._bootstrap_hash or self._now() > self._bootstrap_expires_at:
+            self._clear_bootstrap_token()
+            return False
+        valid = secrets.compare_digest(self._bootstrap_hash, _digest(value))
+        if valid:
+            self._clear_bootstrap_token()
+        return valid
 
     def _consume_pairing_secret(self, value: str) -> bool:
         valid = (
