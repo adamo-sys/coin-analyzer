@@ -108,6 +108,33 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertIsNone(year.proposed_value)
         self.assertEqual(year.candidate_ids, ("candidate-1975",))
 
+    def test_direct_year_outside_candidate_range_is_conflicting(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="obverse", date_like="1955")
+        result = project_coin_field_proposals(
+            source_coin_id="year-range",
+            date=extract_date_numerals((observation,)),
+            denomination=extract_denomination_marks((observation,)),
+            candidate_metadata=(("candidate-range", "year", "1965-1989"),),
+        )
+        self.assertEqual(result.field("year").status.value, "CONFLICTING")
+        self.assertIsNone(result.field("year").proposed_value)
+
+    def test_direct_field_derives_normalization_from_observed_values(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="obverse")
+        result = project_coin_field_proposals(
+            source_coin_id="masked-normalization",
+            date=extract_date_numerals((observation,)),
+            denomination=extract_denomination_marks((observation,)),
+            direct_evidence=(
+                ("country", "Canada", "canada", "obverse", "legend", "canada"),
+                ("country", "Other", "canada", "reverse", "legend", "other"),
+            ),
+        )
+        self.assertEqual(result.field("country").status.value, "CONFLICTING")
+        self.assertIsNone(result.field("country").proposed_value)
+
     def test_ambiguous_and_conflicting_direct_field_evidence_do_not_select_values(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals
 
@@ -232,6 +259,60 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         result = project_coin_field_proposals(source_coin_id="capture-2", date=extract_date_numerals(sides), denomination=extraction, candidate_support=support)
         self.assertEqual(result.field("denomination").status.value, "CONFLICTING")
 
+
+    def test_candidate_support_cannot_be_reused_for_different_observations_in_same_context(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        source_sides = (
+            GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),
+        )
+        replay_sides = (
+            GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS",)),
+        )
+        support = derive_unique_verified_denomination_support(
+            CatalogueRetrievalResult((CatalogueCandidate("one", "Canada", "25 cents", "1955", legends=("CANADA",)),), "fixture"),
+            source_sides,
+            extract_denomination_marks(source_sides),
+            validation_context_id="capture-1",
+        )
+        result = project_coin_field_proposals(
+            source_coin_id="capture-1",
+            date=extract_date_numerals(replay_sides),
+            denomination=extract_denomination_marks(replay_sides),
+            candidate_support=support,
+            observations=replay_sides,
+        )
+        self.assertEqual(result.field("denomination").status.value, "CONFLICTING")
+
+    def test_candidate_support_projects_only_with_matching_observations(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (
+            GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),
+        )
+        support = derive_unique_verified_denomination_support(
+            CatalogueRetrievalResult((CatalogueCandidate("one", "Canada", "25 cents", "1955", legends=("CANADA",)),), "fixture"),
+            sides,
+            extract_denomination_marks(sides),
+            validation_context_id="capture-1",
+        )
+        result = project_coin_field_proposals(
+            source_coin_id="capture-1",
+            date=extract_date_numerals(sides),
+            denomination=extract_denomination_marks(sides),
+            candidate_support=support,
+            observations=sides,
+        )
+        self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
+        self.assertEqual(result.field("denomination").candidate_ids, ("one",))
 
 if __name__ == "__main__":
     unittest.main()

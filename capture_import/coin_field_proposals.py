@@ -15,8 +15,12 @@ from dataclasses import field as dataclass_field
 from enum import Enum
 
 from .canonical_identity import canonicalize_jurisdiction
-from .date_numeral_extraction import DateNumeralExtraction
-from .denomination_mark_extraction import DenominationMarkExtraction
+from .date_numeral_extraction import DateNumeralExtraction, extract_date_numerals
+from .denomination_mark_extraction import (
+    DenominationMarkExtraction,
+    extract_denomination_marks,
+)
+from .grounded_visual_observation import GroundedVisualObservation
 from .two_side_candidate_verification import UniqueVerifiedCandidateDenominationSupport
 
 _FIELD_NAMES = ("country", "denomination", "year", "monarch", "reverse_design", "variety")
@@ -26,6 +30,7 @@ _MAX_CANDIDATES = 25
 _MAX_PRODUCERS = 8
 _MAX_TEXT = 255
 _EXACT_YEAR = re.compile(r"^\d{4}$")
+_YEAR_RANGE = re.compile(r"^(\d{4})-(\d{4})$")
 _SUPPORT_CONSTRUCTION = ContextVar("field_proposal_support_construction", default=False)
 
 
@@ -174,7 +179,8 @@ class CoinFieldProposalSet:
 def project_coin_field_proposals(
     *, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction,
     direct_evidence: Iterable[tuple[str, str, str, str, str, str]] = (),
-    candidate_metadata: Iterable[tuple[str, str, str]] = (), candidate_support: UniqueVerifiedCandidateDenominationSupport | None = None, producer_ids: tuple[str, ...] = (),
+    candidate_metadata: Iterable[tuple[str, str, str]] = (), candidate_support: UniqueVerifiedCandidateDenominationSupport | None = None,
+    observations: Iterable[GroundedVisualObservation] | None = None, producer_ids: tuple[str, ...] = (),
 ) -> CoinFieldProposalSet:
     """Project conservative literal/direct evidence into independent advisory fields.
 
@@ -190,7 +196,7 @@ def project_coin_field_proposals(
     country = _direct_field("country", direct["country"])
     fields = (
         country,
-        _denomination_field(denomination, country, candidate_support, source_coin_id),
+        _denomination_field(denomination, country, candidate_support, source_coin_id, date, observations),
         _year_field(date, metadata["year"]),
         _semantic_field("monarch", direct["monarch"], metadata["monarch"]),
         _semantic_field("reverse_design", direct["reverse_design"], metadata["reverse_design"]),
@@ -199,7 +205,7 @@ def project_coin_field_proposals(
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
-def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None, source_coin_id: str) -> FieldProposal:
+def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None, source_coin_id: str, date: DateNumeralExtraction, observations: Iterable[GroundedVisualObservation] | None) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
@@ -210,13 +216,22 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
         return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
     if not isinstance(support, UniqueVerifiedCandidateDenominationSupport):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",))
-    current_roles = {item.image_role.lower() for item in evidence if item.image_role is not None}
-    if support.validation_context_id != source_coin_id or not current_roles.intersection(support.supporting_roles):
+    if not _candidate_support_matches_current_observations(support, source_coin_id, date, extraction, observations):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("candidate_support_context_mismatch",), candidate_ids=(support.candidate_id,))
     if _normalize(support.denomination) != _normalize(extraction.resolved_value):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(support.candidate_id,))
     return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(support.candidate_id,))
 
+
+def _candidate_support_matches_current_observations(support: UniqueVerifiedCandidateDenominationSupport, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction, observations: Iterable[GroundedVisualObservation] | None) -> bool:
+    if observations is None or support.validation_context_id != source_coin_id:
+        return False
+    sides = tuple(observations)
+    return (
+        support.observations == sides
+        and date == extract_date_numerals(sides)
+        and denomination == extract_denomination_marks(sides)
+    )
 
 def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...], metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
     required_role = "OBVERSE" if field_name == "monarch" else "REVERSE"
@@ -243,9 +258,9 @@ def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, st
         return FieldProposal.unresolved("year", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_year_conflict",), candidate_ids=ids)
     if extraction.resolved_value is None:
         return FieldProposal.unresolved("year", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_exact_direct_year",), candidate_ids=ids)
-    exact_metadata = tuple(value for _, value in metadata if _EXACT_YEAR.fullmatch(value))
-    if exact_metadata and any(value != extraction.resolved_value for value in exact_metadata):
-        trails = evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, candidate_id, value) for candidate_id, value in metadata if _EXACT_YEAR.fullmatch(value))
+    constrained_metadata = tuple((candidate_id, value) for candidate_id, value in metadata if _is_year_constraint(value))
+    if any(not _year_constraint_matches(value, extraction.resolved_value) for _, value in constrained_metadata):
+        trails = evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, candidate_id, value) for candidate_id, value in constrained_metadata)
         return FieldProposal.unresolved("year", FieldProposalStatus.CONFLICTING, trails, reasons=("direct_year_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=ids)
     return _supported("year", extraction.resolved_value, extraction.resolved_value, evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=("exact_direct_year",), candidate_ids=ids)
 
@@ -278,10 +293,11 @@ def _supported(field_name: str, proposed_value: str, normalized_value: str, evid
 
 def _direct_by_field(rows: Iterable[tuple[str, str, str, str, str, str]]) -> dict[str, tuple[tuple[str, str, EvidenceReference], ...]]:
     result: dict[str, list[tuple[str, str, EvidenceReference]]] = {field: [] for field in _FIELD_NAMES}
-    for field, value, normalized, role, source, artifact_id in rows:
+    for field, value, _caller_normalized, role, source, artifact_id in rows:
         if field not in _FIELD_NAMES or field in {"year", "denomination", "variety"}:
             raise ValueError("direct evidence for year, denomination, and variety must use their dedicated safety paths.")
-        result[field].append((value, normalized, EvidenceReference(source, role.upper(), artifact_id, value)))
+        evidence = EvidenceReference(source, role.upper(), artifact_id, value)
+        result[field].append((value, _normalize(evidence.observed_value), evidence))
     return {field: tuple(items) for field, items in result.items()}
 
 
@@ -293,6 +309,19 @@ def _metadata_by_field(rows: Iterable[tuple[str, str, str]]) -> dict[str, tuple[
         result[field].append((candidate_id, value))
     return {field: tuple(items) for field, items in result.items()}
 
+
+def _is_year_constraint(value: str) -> bool:
+    return _EXACT_YEAR.fullmatch(value) is not None or _YEAR_RANGE.fullmatch(value) is not None
+
+
+def _year_constraint_matches(value: str, direct_year: str) -> bool:
+    if _EXACT_YEAR.fullmatch(value):
+        return value == direct_year
+    match = _YEAR_RANGE.fullmatch(value)
+    if match is None:
+        return True
+    start, end = match.groups()
+    return start <= direct_year <= end
 
 def _normalize(value: str) -> str:
     return " ".join(value.casefold().split())

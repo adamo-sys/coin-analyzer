@@ -53,6 +53,7 @@ class UniqueVerifiedCandidateDenominationSupport:
     denomination: str
     supporting_roles: tuple[str, ...]
     observation_roles: tuple[str, ...]
+    observations: tuple[GroundedVisualObservation, ...]
     validation_context_id: str
 
 
@@ -85,6 +86,7 @@ def derive_unique_verified_denomination_support(
     object.__setattr__(support, "denomination", row.candidate.denomination)
     object.__setattr__(support, "supporting_roles", row.supporting_roles)
     object.__setattr__(support, "observation_roles", tuple(side.role for side in sides))
+    object.__setattr__(support, "observations", sides)
     object.__setattr__(support, "validation_context_id", validation_context_id)
     return support
 
