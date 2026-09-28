@@ -121,15 +121,16 @@ class CoinFieldProposalContractTests(unittest.TestCase):
 
     def test_contract_represents_historical_issuer_and_denominations_without_special_cases(self) -> None:
         from capture_import.coin_field_proposals import (
+            EvidenceReference,
             FieldProposal,
             FieldProposalStatus,
             ProposalScope,
         )
-
-        issuer = FieldProposal.supported("country", "Province of Canada", "province-of-canada", (), scope=ProposalScope.CANDIDATE_METADATA)
-        fifty = FieldProposal.supported("denomination", "50 cents", "50-cents", (), scope=ProposalScope.CANDIDATE_METADATA)
-        twenty = FieldProposal.supported("denomination", "20 cents", "20-cents", (), scope=ProposalScope.CANDIDATE_METADATA)
-        dollar_design = FieldProposal.supported("reverse_design", "Voyageur", "voyageur", (), scope=ProposalScope.CANDIDATE_METADATA)
+        evidence = (EvidenceReference("legend", "OBVERSE", "issuer", "Province of Canada"),)
+        issuer = FieldProposal.supported("country", "Province of Canada", "province-of-canada", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
+        fifty = FieldProposal.supported("denomination", "50 cents", "50-cents", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
+        twenty = FieldProposal.supported("denomination", "20 cents", "20-cents", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
+        dollar_design = FieldProposal.supported("reverse_design", "Voyageur", "voyageur", (EvidenceReference("motif", "REVERSE", "design", "Voyageur"),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, candidate_ids=("voyageur",))
         self.assertIs(issuer.status, FieldProposalStatus.SUPPORTED)
         self.assertNotEqual(fifty.normalized_value, twenty.normalized_value)
         self.assertNotEqual(dollar_design.field_name, fifty.field_name)
@@ -155,11 +156,28 @@ class CoinFieldProposalContractTests(unittest.TestCase):
             FieldProposal("country", FieldProposalStatus.AMBIGUOUS, "Canada", "canada", (), ("bad",), __import__("capture_import.coin_field_proposals", fromlist=["ProposalScope"]).ProposalScope.DIRECT_OBSERVATION)
 
     def test_monarch_values_are_data_not_schema_branches(self) -> None:
-        from capture_import.coin_field_proposals import FieldProposal, ProposalScope
+        from capture_import.coin_field_proposals import (
+            EvidenceReference,
+            FieldProposal,
+            ProposalScope,
+        )
         for value in ("Elizabeth II", "Charles III", "George VI", "George V", "Edward VII", "Victoria"):
             with self.subTest(value=value):
-                proposal = FieldProposal.supported("monarch", value, value.casefold(), (), scope=ProposalScope.CANDIDATE_METADATA)
+                proposal = FieldProposal.supported("monarch", value, value.casefold(), (EvidenceReference("portrait", "OBVERSE", "portrait", value),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, candidate_ids=("candidate",))
                 self.assertEqual(proposal.proposed_value, value)
+
+    def test_denomination_requires_explicit_mark_and_issuer_context(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="reverse", visible_text=("10",))
+        result = project_coin_field_proposals(source_coin_id="bare", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)))
+        self.assertEqual(result.field("denomination").status.value, "ABSTAIN")
+
+    def test_monarch_and_reverse_require_correct_side_and_matching_candidate(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="obverse")
+        result = project_coin_field_proposals(source_coin_id="semantic", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), direct_evidence=(("monarch", "Elizabeth II", "elizabeth ii", "reverse", "portrait", "r"), ("reverse_design", "Bluenose", "bluenose", "obverse", "motif", "o")), candidate_metadata=(("candidate", "monarch", "Elizabeth II"), ("candidate", "reverse_design", "Bluenose")))
+        self.assertEqual(result.field("monarch").status.value, "ABSTAIN")
+        self.assertEqual(result.field("reverse_design").status.value, "ABSTAIN")
 
 
 if __name__ == "__main__":

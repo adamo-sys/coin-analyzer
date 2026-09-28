@@ -19,6 +19,7 @@ _FIELD_NAMES = ("country", "denomination", "year", "monarch", "reverse_design", 
 _IMAGE_ROLES = {"OBVERSE", "REVERSE"}
 _MAX_EVIDENCE = 8
 _MAX_CANDIDATES = 25
+_MAX_PRODUCERS = 8
 _MAX_TEXT = 255
 _EXACT_YEAR = re.compile(r"^\d{4}$")
 
@@ -87,6 +88,8 @@ class FieldProposal:
         if self.status is FieldProposalStatus.SUPPORTED:
             if not self.proposed_value or not self.normalized_value:
                 raise ValueError("supported proposals require proposed and normalized values.")
+            if not isinstance(self.proposed_value, str) or not isinstance(self.normalized_value, str) or len(self.proposed_value) > _MAX_TEXT or len(self.normalized_value) > _MAX_TEXT:
+                raise ValueError("supported values must be bounded text.")
         elif self.proposed_value is not None or self.normalized_value is not None:
             raise ValueError("non-supported proposals cannot select a value.")
         if not isinstance(self.evidence, tuple) or len(self.evidence) > _MAX_EVIDENCE or any(not isinstance(item, EvidenceReference) for item in self.evidence):
@@ -95,6 +98,12 @@ class FieldProposal:
             raise ValueError("reasons must be stable non-empty reason codes.")
         if not isinstance(self.candidate_ids, tuple) or len(self.candidate_ids) > _MAX_CANDIDATES or any(not _bounded_id(item) for item in self.candidate_ids):
             raise ValueError("candidate_ids must be bounded opaque identifiers.")
+        if self.status is FieldProposalStatus.SUPPORTED and not self.evidence:
+            raise ValueError("supported proposals require retained provenance evidence.")
+        if self.field_name in {"monarch", "reverse_design"} and self.status is FieldProposalStatus.SUPPORTED:
+            required_role = "OBVERSE" if self.field_name == "monarch" else "REVERSE"
+            if not self.candidate_ids or not any(item.image_role == required_role for item in self.evidence):
+                raise ValueError("supported semantic proposals require role-correct direct evidence and candidate provenance.")
         if self.field_name == "year" and self.status is FieldProposalStatus.SUPPORTED:
             if self.scope is not ProposalScope.DIRECT_OBSERVATION or not _EXACT_YEAR.fullmatch(self.proposed_value or ""):
                 raise ValueError("a supported year requires direct exact observed evidence.")
@@ -144,7 +153,7 @@ class CoinFieldProposalSet:
             raise ValueError("proposal fields must be the complete canonical ordered field set.")
         if any(not isinstance(item, FieldProposal) for item in self.fields):
             raise TypeError("fields must contain FieldProposal values.")
-        if not isinstance(self.producer_ids, tuple) or any(not _bounded_id(item) for item in self.producer_ids):
+        if not isinstance(self.producer_ids, tuple) or len(self.producer_ids) > _MAX_PRODUCERS or any(not _bounded_id(item) for item in self.producer_ids):
             raise ValueError("producer_ids must be bounded identifiers.")
 
     def field(self, field_name: str) -> FieldProposal:
@@ -168,24 +177,45 @@ def project_coin_field_proposals(
         raise TypeError("date and denomination must be existing conservative extraction artifacts.")
     direct = _direct_by_field(direct_evidence)
     metadata = _metadata_by_field(candidate_metadata)
+    country = _direct_field("country", direct["country"])
     fields = (
-        _direct_field("country", direct["country"]),
-        _denomination_field(denomination),
+        country,
+        _denomination_field(denomination, country),
         _year_field(date, metadata["year"]),
-        _direct_field("monarch", direct["monarch"]),
-        _direct_field("reverse_design", direct["reverse_design"]),
+        _semantic_field("monarch", direct["monarch"], metadata["monarch"]),
+        _semantic_field("reverse_design", direct["reverse_design"], metadata["reverse_design"]),
         FieldProposal.unresolved("variety", FieldProposalStatus.ABSTAIN, reasons=("variety_disabled",)),
     )
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
-def _denomination_field(extraction: DenominationMarkExtraction) -> FieldProposal:
+def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
     if extraction.resolved_value is None:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_defensible_denomination_evidence",))
-    return FieldProposal.supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=("explicit_denomination_mark",))
+    if country.status is not FieldProposalStatus.SUPPORTED:
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("denomination_requires_issuer_context",))
+    return FieldProposal.supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_issuer_context",))
+
+
+def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...], metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
+    required_role = "OBVERSE" if field_name == "monarch" else "REVERSE"
+    valid = tuple(row for row in rows if row[2].image_role == required_role)
+    if not valid:
+        return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, tuple(row[2] for row in rows), reasons=("missing_role_correct_direct_evidence",))
+    direct = _direct_field(field_name, valid)
+    if direct.status is not FieldProposalStatus.SUPPORTED:
+        return direct
+    matches = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) == direct.normalized_value)
+    conflicting = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) != direct.normalized_value)
+    if conflicting:
+        trails = direct.evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, item, "conflicting_metadata") for item in conflicting)
+        return FieldProposal.unresolved(field_name, FieldProposalStatus.CONFLICTING, trails, reasons=("direct_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=matches + conflicting)
+    if len(matches) != 1:
+        return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, direct.evidence, reasons=("unique_candidate_metadata_required",), candidate_ids=matches)
+    return FieldProposal.supported(field_name, direct.proposed_value or "", direct.normalized_value or "", direct.evidence + (EvidenceReference("CANDIDATE_METADATA", None, matches[0], direct.proposed_value or ""),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("role_correct_direct_and_candidate_metadata",), candidate_ids=matches)
 
 
 def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
