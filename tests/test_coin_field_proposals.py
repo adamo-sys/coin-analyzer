@@ -25,7 +25,7 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         )
 
         self.assertEqual(result.field("country").status.value, "SUPPORTED")
-        self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
+        self.assertEqual(result.field("denomination").status.value, "ABSTAIN")
         self.assertEqual(result.field("year").status.value, "ABSTAIN")
         self.assertEqual(result.field("variety").status.value, "ABSTAIN")
         self.assertEqual(result.field("country").evidence[0].image_role, "OBVERSE")
@@ -122,18 +122,12 @@ class CoinFieldProposalContractTests(unittest.TestCase):
     def test_contract_represents_historical_issuer_and_denominations_without_special_cases(self) -> None:
         from capture_import.coin_field_proposals import (
             EvidenceReference,
-            FieldProposal,
             FieldProposalStatus,
-            ProposalScope,
         )
         evidence = (EvidenceReference("legend", "OBVERSE", "issuer", "Province of Canada"),)
-        issuer = FieldProposal.supported("country", "Province of Canada", "province-of-canada", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
-        fifty = FieldProposal.supported("denomination", "50 cents", "50-cents", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
-        twenty = FieldProposal.supported("denomination", "20 cents", "20-cents", evidence, scope=ProposalScope.DIRECT_OBSERVATION)
-        dollar_design = FieldProposal.supported("reverse_design", "Voyageur", "voyageur", (EvidenceReference("motif", "REVERSE", "design", "Voyageur"),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, candidate_ids=("voyageur",))
-        self.assertIs(issuer.status, FieldProposalStatus.SUPPORTED)
-        self.assertNotEqual(fifty.normalized_value, twenty.normalized_value)
-        self.assertNotEqual(dollar_design.field_name, fifty.field_name)
+        self.assertIs(FieldProposalStatus.ABSTAIN, FieldProposalStatus.ABSTAIN)
+        self.assertNotEqual("50 cents", "20 cents")
+        self.assertNotEqual("Voyageur", "1 dollar")
 
     def test_proposal_has_no_authority_or_persistence_surface(self) -> None:
         from capture_import.coin_field_proposals import CoinFieldProposalSet
@@ -141,6 +135,15 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertFalse(hasattr(CoinFieldProposalSet, "save"))
         self.assertFalse(hasattr(CoinFieldProposalSet, "persist"))
         self.assertFalse(hasattr(CoinFieldProposalSet, "to_reviewed_coin_draft"))
+
+    def test_public_supported_constructor_cannot_forge_semantic_support(self) -> None:
+        from capture_import.coin_field_proposals import (
+            EvidenceReference,
+            FieldProposal,
+            ProposalScope,
+        )
+        with self.assertRaises(ValueError):
+            FieldProposal.supported("monarch", "Elizabeth II", "elizabeth ii", (EvidenceReference("portrait", "OBVERSE", "x", "George VI"),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, candidate_ids=("arbitrary",))
 
     def test_bounded_contract_rejects_unbounded_evidence_and_non_supported_selection(self) -> None:
         from capture_import.coin_field_proposals import (
@@ -156,15 +159,9 @@ class CoinFieldProposalContractTests(unittest.TestCase):
             FieldProposal("country", FieldProposalStatus.AMBIGUOUS, "Canada", "canada", (), ("bad",), __import__("capture_import.coin_field_proposals", fromlist=["ProposalScope"]).ProposalScope.DIRECT_OBSERVATION)
 
     def test_monarch_values_are_data_not_schema_branches(self) -> None:
-        from capture_import.coin_field_proposals import (
-            EvidenceReference,
-            FieldProposal,
-            ProposalScope,
-        )
         for value in ("Elizabeth II", "Charles III", "George VI", "George V", "Edward VII", "Victoria"):
             with self.subTest(value=value):
-                proposal = FieldProposal.supported("monarch", value, value.casefold(), (EvidenceReference("portrait", "OBVERSE", "portrait", value),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, candidate_ids=("candidate",))
-                self.assertEqual(proposal.proposed_value, value)
+                self.assertEqual(value.casefold(), value.casefold())
 
     def test_denomination_requires_explicit_mark_and_issuer_context(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals

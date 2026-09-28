@@ -12,6 +12,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
+from .canonical_identity import canonicalize_jurisdiction
 from .date_numeral_extraction import DateNumeralExtraction
 from .denomination_mark_extraction import DenominationMarkExtraction
 
@@ -116,7 +117,7 @@ class FieldProposal:
         evidence: Sequence[EvidenceReference], *, scope: ProposalScope,
         reasons: tuple[str, ...] = ("direct_field_evidence",), candidate_ids: tuple[str, ...] = (),
     ) -> FieldProposal:
-        return cls(field_name, FieldProposalStatus.SUPPORTED, proposed_value, normalized_value, tuple(evidence), reasons, scope, candidate_ids)
+        raise ValueError("SUPPORTED proposals are created only by the field-aware projector.")
 
     @classmethod
     def unresolved(
@@ -195,9 +196,10 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
     if extraction.resolved_value is None:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_defensible_denomination_evidence",))
-    if country.status is not FieldProposalStatus.SUPPORTED:
+    canonical = canonicalize_jurisdiction(country.proposed_value)
+    if country.status is not FieldProposalStatus.SUPPORTED or not canonical.is_mapped:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("denomination_requires_issuer_context",))
-    return FieldProposal.supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_issuer_context",))
+    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
 
 
 def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...], metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
@@ -215,7 +217,7 @@ def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReferen
         return FieldProposal.unresolved(field_name, FieldProposalStatus.CONFLICTING, trails, reasons=("direct_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=matches + conflicting)
     if len(matches) != 1:
         return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, direct.evidence, reasons=("unique_candidate_metadata_required",), candidate_ids=matches)
-    return FieldProposal.supported(field_name, direct.proposed_value or "", direct.normalized_value or "", direct.evidence + (EvidenceReference("CANDIDATE_METADATA", None, matches[0], direct.proposed_value or ""),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("role_correct_direct_and_candidate_metadata",), candidate_ids=matches)
+    return _supported(field_name, direct.proposed_value or "", direct.normalized_value or "", direct.evidence + (EvidenceReference("CANDIDATE_METADATA", None, matches[0], direct.proposed_value or ""),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("role_correct_direct_and_candidate_metadata",), candidate_ids=matches)
 
 
 def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
@@ -229,7 +231,7 @@ def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, st
     if exact_metadata and any(value != extraction.resolved_value for value in exact_metadata):
         trails = evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, candidate_id, value) for candidate_id, value in metadata if _EXACT_YEAR.fullmatch(value))
         return FieldProposal.unresolved("year", FieldProposalStatus.CONFLICTING, trails, reasons=("direct_year_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=ids)
-    return FieldProposal.supported("year", extraction.resolved_value, extraction.resolved_value, evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=("exact_direct_year",), candidate_ids=ids)
+    return _supported("year", extraction.resolved_value, extraction.resolved_value, evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=("exact_direct_year",), candidate_ids=ids)
 
 
 def _direct_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...]) -> FieldProposal:
@@ -242,8 +244,16 @@ def _direct_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference
         if len(roles) == 1:
             return FieldProposal.unresolved(field_name, FieldProposalStatus.AMBIGUOUS, evidence, reasons=("multiple_compatible_direct_values",))
         return FieldProposal.unresolved(field_name, FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_field_conflict",))
-    value, normalized, _ = rows[0]
-    return FieldProposal.supported(field_name, value, normalized, evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=(("one_side_supported",) if len({item.image_role for item in evidence}) == 1 else ("direct_field_agreement",)))
+    value, _, _ = rows[0]
+    return _supported(field_name, value, _normalize(value), evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=(("one_side_supported",) if len({item.image_role for item in evidence}) == 1 else ("direct_field_agreement",)))
+
+
+def _supported(field_name: str, proposed_value: str, normalized_value: str, evidence: Sequence[EvidenceReference], *, scope: ProposalScope, reasons: tuple[str, ...], candidate_ids: tuple[str, ...] = ()) -> FieldProposal:
+    if not any(_normalize(item.observed_value) == normalized_value for item in evidence if item.image_role is not None):
+        raise ValueError("supported proposal value must correspond to direct evidence.")
+    if field_name in {"monarch", "reverse_design"} and not any(item.source == "CANDIDATE_METADATA" and _normalize(item.observed_value) == normalized_value for item in evidence):
+        raise ValueError("semantic supported proposal requires matching candidate metadata evidence.")
+    return FieldProposal(field_name, FieldProposalStatus.SUPPORTED, proposed_value, normalized_value, tuple(evidence), reasons, scope, candidate_ids)
 
 
 def _direct_by_field(rows: Iterable[tuple[str, str, str, str, str, str]]) -> dict[str, tuple[tuple[str, str, EvidenceReference], ...]]:
