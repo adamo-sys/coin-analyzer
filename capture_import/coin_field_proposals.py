@@ -15,6 +15,7 @@ from enum import Enum
 from .canonical_identity import canonicalize_jurisdiction
 from .date_numeral_extraction import DateNumeralExtraction
 from .denomination_mark_extraction import DenominationMarkExtraction
+from .two_side_candidate_verification import CandidateVerificationReport
 
 _FIELD_NAMES = ("country", "denomination", "year", "monarch", "reverse_design", "variety")
 _IMAGE_ROLES = {"OBVERSE", "REVERSE"}
@@ -103,7 +104,7 @@ class FieldProposal:
             raise ValueError("supported proposals require retained provenance evidence.")
         if self.field_name in {"monarch", "reverse_design"} and self.status is FieldProposalStatus.SUPPORTED:
             required_role = "OBVERSE" if self.field_name == "monarch" else "REVERSE"
-            if not self.candidate_ids or not any(item.image_role == required_role for item in self.evidence):
+            if not self.candidate_ids or not any(item.image_role == required_role and _normalize(item.observed_value) == self.normalized_value for item in self.evidence) or not any(item.source == "CANDIDATE_METADATA" and item.artifact_id in self.candidate_ids and _normalize(item.observed_value) == self.normalized_value for item in self.evidence):
                 raise ValueError("supported semantic proposals require role-correct direct evidence and candidate provenance.")
         if self.field_name == "year" and self.status is FieldProposalStatus.SUPPORTED:
             if self.scope is not ProposalScope.DIRECT_OBSERVATION or not _EXACT_YEAR.fullmatch(self.proposed_value or ""):
@@ -167,7 +168,7 @@ class CoinFieldProposalSet:
 def project_coin_field_proposals(
     *, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction,
     direct_evidence: Iterable[tuple[str, str, str, str, str, str]] = (),
-    candidate_metadata: Iterable[tuple[str, str, str]] = (), producer_ids: tuple[str, ...] = (),
+    candidate_metadata: Iterable[tuple[str, str, str]] = (), candidate_report: CandidateVerificationReport | None = None, producer_ids: tuple[str, ...] = (),
 ) -> CoinFieldProposalSet:
     """Project conservative literal/direct evidence into independent advisory fields.
 
@@ -181,7 +182,7 @@ def project_coin_field_proposals(
     country = _direct_field("country", direct["country"])
     fields = (
         country,
-        _denomination_field(denomination, country),
+        _denomination_field(denomination, country, candidate_report),
         _year_field(date, metadata["year"]),
         _semantic_field("monarch", direct["monarch"], metadata["monarch"]),
         _semantic_field("reverse_design", direct["reverse_design"], metadata["reverse_design"]),
@@ -190,16 +191,22 @@ def project_coin_field_proposals(
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
-def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal) -> FieldProposal:
+def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, report: CandidateVerificationReport | None) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
     if extraction.resolved_value is None:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_defensible_denomination_evidence",))
     canonical = canonicalize_jurisdiction(country.proposed_value)
-    if country.status is not FieldProposalStatus.SUPPORTED or not canonical.is_mapped:
-        return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("denomination_requires_issuer_context",))
-    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
+    if country.status is FieldProposalStatus.SUPPORTED and canonical.is_mapped:
+        return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
+    verified = () if report is None else tuple(row for row in report.rows if row.verified)
+    if len(verified) != 1:
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.AMBIGUOUS if len(verified) > 1 else FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",), candidate_ids=tuple(row.candidate.candidate_id for row in verified))
+    row = verified[0]
+    if _normalize(row.candidate.denomination) != _normalize(extraction.resolved_value):
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(row.candidate.candidate_id,))
+    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, row.candidate.candidate_id, row.candidate.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(row.candidate.candidate_id,))
 
 
 def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...], metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
