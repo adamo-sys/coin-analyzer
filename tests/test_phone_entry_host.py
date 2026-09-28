@@ -92,6 +92,38 @@ class LocalPhoneEntryHostTests(unittest.TestCase):
         )
         self.assertEqual(wrong_port.status_code, 403)
 
+    def test_qr_bootstrap_exchanges_one_use_token_for_session_and_redirects_token_free(self) -> None:
+        bootstrap_url = self.host.issue_bootstrap_url("http://localhost")
+        token = bootstrap_url.rsplit("/", 1)[1]
+        self.assertNotIn(token, repr(self.host.__dict__))
+
+        paired = self.client.get(f"/bootstrap/{token}", headers={"Host": "localhost"})
+
+        self.assertEqual(paired.status_code, 302)
+        self.assertEqual(paired.headers["Location"], "/capture")
+        self.assertNotIn(token, paired.headers["Location"])
+        self.assertIn("phone_entry_session=", paired.headers["Set-Cookie"])
+        self.assertEqual(self.client.get("/capture", headers={"Host": "localhost"}).status_code, 200)
+        replay = self.client.get(f"/bootstrap/{token}", headers={"Host": "localhost"})
+        self.assertEqual(replay.status_code, 403)
+        self.assertNotIn(token, replay.get_data(as_text=True))
+
+    def test_qr_bootstrap_expiry_stop_and_existing_session_fail_closed(self) -> None:
+        expired_url = self.host.issue_bootstrap_url("http://localhost")
+        self.host.advance_for_test(121)
+        self.assertEqual(self.client.get(expired_url, headers={"Host": "localhost"}).status_code, 403)
+
+        self.host.start_loopback()
+        active_url = self.host.issue_bootstrap_url("http://localhost")
+        self.assertEqual(self._pair(self.host.pairing_secret).status_code, 201)
+        original_session = next(iter(self.host._sessions))
+        blocked = self.client.get(active_url, headers={"Host": "localhost"})
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(set(self.host._sessions), {original_session})
+
+        self.host.stop()
+        self.assertEqual(self.client.get(active_url, headers={"Host": "localhost"}).status_code, 401)
+
     def test_upload_requires_session_csrf_origin_and_exact_roles(self) -> None:
         self.assertEqual(self.client.post("/drafts").status_code, 403)
         csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
