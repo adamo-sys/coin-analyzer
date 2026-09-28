@@ -124,7 +124,6 @@ class CoinFieldProposalContractTests(unittest.TestCase):
             EvidenceReference,
             FieldProposalStatus,
         )
-        evidence = (EvidenceReference("legend", "OBVERSE", "issuer", "Province of Canada"),)
         self.assertIs(FieldProposalStatus.ABSTAIN, FieldProposalStatus.ABSTAIN)
         self.assertNotEqual("50 cents", "20 cents")
         self.assertNotEqual("Voyageur", "1 dollar")
