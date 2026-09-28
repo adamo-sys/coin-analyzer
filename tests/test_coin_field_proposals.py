@@ -120,10 +120,7 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertIsNone(result.field("country").proposed_value)
 
     def test_contract_represents_historical_issuer_and_denominations_without_special_cases(self) -> None:
-        from capture_import.coin_field_proposals import (
-            EvidenceReference,
-            FieldProposalStatus,
-        )
+        from capture_import.coin_field_proposals import FieldProposalStatus
         self.assertIs(FieldProposalStatus.ABSTAIN, FieldProposalStatus.ABSTAIN)
         self.assertNotEqual("50 cents", "20 cents")
         self.assertNotEqual("Voyageur", "1 dollar")
