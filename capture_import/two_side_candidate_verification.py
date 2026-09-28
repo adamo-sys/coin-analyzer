@@ -22,6 +22,7 @@ from .grounded_visual_observation import GroundedVisualObservation
 from .numeral_evidence_envelope import build_numeral_evidence_envelope
 
 _TOKEN = re.compile(r"[a-z0-9]+")
+_TRUSTED_SUPPORT_WITNESS = object()
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +52,9 @@ class UniqueVerifiedCandidateDenominationSupport:
 
     candidate_id: str
     denomination: str
+    country: str
     supporting_roles: tuple[str, ...]
+    _trusted_witness: object
     observation_roles: tuple[str, ...]
     observations: tuple[GroundedVisualObservation, ...]
     validation_context_id: str
@@ -84,12 +87,17 @@ def derive_unique_verified_denomination_support(
     support = object.__new__(UniqueVerifiedCandidateDenominationSupport)
     object.__setattr__(support, "candidate_id", row.candidate.candidate_id)
     object.__setattr__(support, "denomination", row.candidate.denomination)
+    object.__setattr__(support, "country", row.candidate.country)
+    object.__setattr__(support, "_trusted_witness", _TRUSTED_SUPPORT_WITNESS)
     object.__setattr__(support, "supporting_roles", row.supporting_roles)
     object.__setattr__(support, "observation_roles", tuple(side.role for side in sides))
     object.__setattr__(support, "observations", sides)
     object.__setattr__(support, "validation_context_id", validation_context_id)
     return support
 
+
+def is_trusted_unique_verified_denomination_support(value: object) -> bool:
+    return isinstance(value, UniqueVerifiedCandidateDenominationSupport) and getattr(value, "_trusted_witness", None) is _TRUSTED_SUPPORT_WITNESS
 
 def verify_retrieved_candidates(
     result: CatalogueRetrievalResult,

@@ -21,7 +21,10 @@ from .denomination_mark_extraction import (
     extract_denomination_marks,
 )
 from .grounded_visual_observation import GroundedVisualObservation
-from .two_side_candidate_verification import UniqueVerifiedCandidateDenominationSupport
+from .two_side_candidate_verification import (
+    UniqueVerifiedCandidateDenominationSupport,
+    is_trusted_unique_verified_denomination_support,
+)
 
 _FIELD_NAMES = ("country", "denomination", "year", "monarch", "reverse_design", "variety")
 _IMAGE_ROLES = {"OBVERSE", "REVERSE"}
@@ -191,9 +194,9 @@ def project_coin_field_proposals(
         raise TypeError("date and denomination must be existing conservative extraction artifacts.")
     direct = _direct_by_field(direct_evidence)
     metadata = _metadata_by_field(candidate_metadata)
-    if metadata["country"]:
-        raise ValueError("candidate country metadata is not accepted by this packet's direct-issuer contract.")
-    country = _direct_field("country", direct["country"])
+    direct_country = _direct_field("country", direct["country"])
+    candidate_country = _candidate_country_field(candidate_support, source_coin_id, date, denomination, observations)
+    country = _reconcile_country(direct_country, candidate_country)
     fields = (
         country,
         _denomination_field(denomination, country, candidate_support, source_coin_id, date, observations),
@@ -205,12 +208,28 @@ def project_coin_field_proposals(
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
+def _candidate_country_field(support, source_coin_id, date, denomination, observations):
+    if not _candidate_support_matches_current_observations(support, source_coin_id, date, denomination, observations):
+        return FieldProposal.unresolved("country", FieldProposalStatus.ABSTAIN, reasons=("no_trusted_candidate_country_support",))
+    evidence = (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.country),)
+    return _supported("country", support.country, _normalize(support.country), evidence, scope=ProposalScope.CANDIDATE_METADATA, reasons=("unique_verified_candidate_country",), candidate_ids=(support.candidate_id,))
+
+def _reconcile_country(direct, candidate):
+    if direct.status is FieldProposalStatus.SUPPORTED and candidate.status is FieldProposalStatus.SUPPORTED:
+        if direct.normalized_value != candidate.normalized_value:
+            return FieldProposal.unresolved("country", FieldProposalStatus.CONFLICTING, direct.evidence + candidate.evidence, reasons=("direct_candidate_country_conflict",), candidate_ids=candidate.candidate_ids)
+        return direct
+    if not direct.evidence and direct.status is FieldProposalStatus.ABSTAIN:
+        return candidate
+    return direct
 def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None, source_coin_id: str, date: DateNumeralExtraction, observations: Iterable[GroundedVisualObservation] | None) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
     if extraction.resolved_value is None:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_defensible_denomination_evidence",))
+    if country.status is FieldProposalStatus.CONFLICTING:
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("country_evidence_conflict",))
     canonical = canonicalize_jurisdiction(country.proposed_value)
     if country.status is FieldProposalStatus.SUPPORTED and canonical.is_mapped:
         canonical_denomination = canonicalize_denomination(
@@ -235,7 +254,7 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
 
 
 def _candidate_support_matches_current_observations(support: UniqueVerifiedCandidateDenominationSupport, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction, observations: Iterable[GroundedVisualObservation] | None) -> bool:
-    if observations is None or support.validation_context_id != source_coin_id:
+    if not is_trusted_unique_verified_denomination_support(support) or observations is None or support.validation_context_id != source_coin_id:
         return False
     sides = tuple(observations)
     return (
@@ -291,8 +310,10 @@ def _direct_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference
 
 
 def _supported(field_name: str, proposed_value: str, normalized_value: str, evidence: Sequence[EvidenceReference], *, scope: ProposalScope, reasons: tuple[str, ...], candidate_ids: tuple[str, ...] = ()) -> FieldProposal:
-    if not any(_normalize(item.observed_value) == normalized_value for item in evidence if item.image_role is not None):
-        raise ValueError("supported proposal value must correspond to direct evidence.")
+    direct_match = any(_normalize(item.observed_value) == normalized_value for item in evidence if item.image_role is not None)
+    trusted_candidate_country = field_name == "country" and scope is ProposalScope.CANDIDATE_METADATA and bool(candidate_ids) and any(item.source == "CANDIDATE_VERIFICATION" and item.artifact_id in candidate_ids and _normalize(item.observed_value) == normalized_value for item in evidence)
+    if not direct_match and not trusted_candidate_country:
+        raise ValueError("supported proposal value must correspond to trusted evidence.")
     if field_name in {"monarch", "reverse_design"} and not any(item.source == "CANDIDATE_METADATA" and _normalize(item.observed_value) == normalized_value for item in evidence):
         raise ValueError("semantic supported proposal requires matching candidate metadata evidence.")
     token = _SUPPORT_CONSTRUCTION.set(True)

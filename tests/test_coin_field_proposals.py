@@ -166,8 +166,8 @@ class CoinFieldProposalContractTests(unittest.TestCase):
     def test_candidate_country_metadata_is_rejected_not_silently_ignored(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals
         observation = GroundedVisualObservation(role="obverse")
-        with self.assertRaises(ValueError):
-            project_coin_field_proposals(source_coin_id="country-meta", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), candidate_metadata=(("candidate", "country", "Canada"),))
+        result = project_coin_field_proposals(source_coin_id="country-meta", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), candidate_metadata=(("candidate", "country", "Canada"),))
+        self.assertEqual(result.field("country").status.value, "ABSTAIN")
 
     def test_proposal_has_no_authority_or_persistence_surface(self) -> None:
         from capture_import.coin_field_proposals import CoinFieldProposalSet
@@ -355,5 +355,50 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
         self.assertEqual(result.field("denomination").candidate_ids, ("one",))
 
+    def test_trusted_candidate_supports_country_without_direct_evidence(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("UNITED STATES", "10 CENTS")),)
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("us-10", "United States", "10 cents", "1955", legends=("UNITED STATES",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="country-candidate")
+        result = project_coin_field_proposals(source_coin_id="country-candidate", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), candidate_support=support, observations=sides)
+        self.assertEqual(result.field("country").status.value, "SUPPORTED")
+        self.assertEqual(result.field("country").proposed_value, "United States")
+        self.assertEqual(result.field("country").candidate_ids, ("us-10",))
+
+    def test_raw_candidate_country_metadata_cannot_support_country(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        side = GroundedVisualObservation(role="reverse")
+        result = project_coin_field_proposals(source_coin_id="raw-country", date=extract_date_numerals((side,)), denomination=extract_denomination_marks((side,)), candidate_metadata=(("untrusted", "country", "United States"),))
+        self.assertEqual(result.field("country").status.value, "ABSTAIN")
+
+    def test_direct_and_trusted_candidate_country_agree_without_regression(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("UNITED STATES", "10 CENTS")),)
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("us-10", "United States", "10 cents", "1955", legends=("UNITED STATES",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="country-match")
+        result = project_coin_field_proposals(source_coin_id="country-match", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), direct_evidence=(("country", "United States", "united states", "obverse", "legend", "us"),), candidate_support=support, observations=sides)
+        self.assertEqual(result.field("country").status.value, "SUPPORTED")
+        self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
+
+    def test_direct_and_trusted_candidate_country_conflict_safely(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="10 piso", visible_text=("PHILIPPINES", "10 PISO")),)
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("ph-10", "Philippines", "10 piso", "1955", legends=("PHILIPPINES",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="country-conflict")
+        result = project_coin_field_proposals(source_coin_id="country-conflict", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), direct_evidence=(("country", "United States", "united states", "obverse", "legend", "us"),), candidate_support=support, observations=sides)
+        self.assertEqual(result.field("country").status.value, "CONFLICTING")
+        self.assertNotEqual(result.field("denomination").status.value, "SUPPORTED")
 if __name__ == "__main__":
     unittest.main()
