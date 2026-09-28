@@ -221,7 +221,8 @@ def _candidate_verification_evidence(support, value):
 def _reconcile_country(direct, candidate):
     if direct.status is FieldProposalStatus.SUPPORTED and candidate.status is FieldProposalStatus.SUPPORTED:
         if direct.normalized_value != candidate.normalized_value:
-            return FieldProposal.unresolved("country", FieldProposalStatus.CONFLICTING, direct.evidence + candidate.evidence, reasons=("direct_candidate_country_conflict",), candidate_ids=candidate.candidate_ids)
+            evidence = direct.evidence[: _MAX_EVIDENCE - len(candidate.evidence)] + candidate.evidence
+            return FieldProposal.unresolved("country", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_country_conflict",), candidate_ids=candidate.candidate_ids)
         return direct
     if not direct.evidence and direct.status is FieldProposalStatus.ABSTAIN:
         return candidate

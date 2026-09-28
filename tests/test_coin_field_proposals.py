@@ -421,5 +421,24 @@ class CoinFieldProposalContractTests(unittest.TestCase):
                     candidate_evidence = tuple(item for item in proposal.evidence if item.source == "CANDIDATE_VERIFICATION")
                     self.assertEqual(tuple(item.image_role for item in candidate_evidence), expected_roles)
                     self.assertEqual(tuple(item["image_role"] for item in proposal.to_dict()["evidence"] if item["source"] == "CANDIDATE_VERIFICATION"), expected_roles)
+    def test_country_conflict_bounds_direct_evidence_and_retains_candidate_roles(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import (
+            _MAX_EVIDENCE,
+            project_coin_field_proposals,
+        )
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="obverse", denomination_mark="10 cents", visible_text=("CANADA",)), GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("10 CENTS",)))
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("ca-10", "Canada", "10 cents", "1955", legends=("CANADA",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="bounded")
+        direct = tuple(("country", "United States", "united states", "obverse", "legend", f"direct-{index}") for index in range(7))
+        results = tuple(project_coin_field_proposals(source_coin_id="bounded", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), direct_evidence=direct, candidate_support=support, observations=sides) for _ in range(2))
+        country = results[0].field("country")
+        self.assertEqual(country.status.value, "CONFLICTING")
+        self.assertLessEqual(len(country.evidence), _MAX_EVIDENCE)
+        self.assertEqual(tuple(item.image_role for item in country.evidence if item.source == "CANDIDATE_VERIFICATION"), ("OBVERSE", "REVERSE"))
+        self.assertEqual(results[0].to_dict(), results[1].to_dict())
 if __name__ == "__main__":
     unittest.main()
