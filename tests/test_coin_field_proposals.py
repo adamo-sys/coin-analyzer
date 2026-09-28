@@ -400,5 +400,26 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         result = project_coin_field_proposals(source_coin_id="country-conflict", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), direct_evidence=(("country", "United States", "united states", "obverse", "legend", "us"),), candidate_support=support, observations=sides)
         self.assertEqual(result.field("country").status.value, "CONFLICTING")
         self.assertNotEqual(result.field("denomination").status.value, "SUPPORTED")
+    def test_candidate_backed_evidence_preserves_trusted_supporting_roles(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        cases = (
+            ((GroundedVisualObservation(role="obverse", denomination_mark="10 cents", visible_text=("CANADA", "10 CENTS")),), ("OBVERSE",)),
+            ((GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("CANADA", "10 CENTS")),), ("REVERSE",)),
+            ((GroundedVisualObservation(role="obverse", denomination_mark="10 cents", visible_text=("CANADA",)), GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("10 CENTS",))), ("OBVERSE", "REVERSE")),
+        )
+        for sides, expected_roles in cases:
+            with self.subTest(expected_roles=expected_roles):
+                support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("ca-10", "Canada", "10 cents", "1955", legends=("CANADA",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="roles")
+                result = project_coin_field_proposals(source_coin_id="roles", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), candidate_support=support, observations=sides)
+                for field in ("country", "denomination"):
+                    proposal = result.field(field)
+                    candidate_evidence = tuple(item for item in proposal.evidence if item.source == "CANDIDATE_VERIFICATION")
+                    self.assertEqual(tuple(item.image_role for item in candidate_evidence), expected_roles)
+                    self.assertEqual(tuple(item["image_role"] for item in proposal.to_dict()["evidence"] if item["source"] == "CANDIDATE_VERIFICATION"), expected_roles)
 if __name__ == "__main__":
     unittest.main()

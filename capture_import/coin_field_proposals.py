@@ -211,8 +211,12 @@ def project_coin_field_proposals(
 def _candidate_country_field(support, source_coin_id, date, denomination, observations):
     if not _candidate_support_matches_current_observations(support, source_coin_id, date, denomination, observations):
         return FieldProposal.unresolved("country", FieldProposalStatus.ABSTAIN, reasons=("no_trusted_candidate_country_support",))
-    evidence = (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.country),)
+    evidence = _candidate_verification_evidence(support, support.country)
     return _supported("country", support.country, _normalize(support.country), evidence, scope=ProposalScope.CANDIDATE_METADATA, reasons=("unique_verified_candidate_country",), candidate_ids=(support.candidate_id,))
+
+def _candidate_verification_evidence(support, value):
+    roles = tuple(dict.fromkeys(role.upper() for role in support.supporting_roles))
+    return tuple(EvidenceReference("CANDIDATE_VERIFICATION", role, support.candidate_id, value) for role in roles)
 
 def _reconcile_country(direct, candidate):
     if direct.status is FieldProposalStatus.SUPPORTED and candidate.status is FieldProposalStatus.SUPPORTED:
@@ -250,7 +254,7 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("candidate_support_context_mismatch",), candidate_ids=(support.candidate_id,))
     if _normalize(support.denomination) != _normalize(extraction.resolved_value):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(support.candidate_id,))
-    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(support.candidate_id,))
+    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + _candidate_verification_evidence(support, support.denomination), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(support.candidate_id,))
 
 
 def _candidate_support_matches_current_observations(support: UniqueVerifiedCandidateDenominationSupport, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction, observations: Iterable[GroundedVisualObservation] | None) -> bool:
