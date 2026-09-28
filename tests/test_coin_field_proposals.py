@@ -8,6 +8,15 @@ from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
 class CoinFieldProposalContractTests(unittest.TestCase):
+    def test_public_field_proposal_cannot_represent_supported(self) -> None:
+        from capture_import.coin_field_proposals import (
+            EvidenceReference,
+            FieldProposal,
+            FieldProposalStatus,
+            ProposalScope,
+        )
+        with self.assertRaises(ValueError):
+            FieldProposal("country", FieldProposalStatus.SUPPORTED, "Canada", "canada", (EvidenceReference("legend", "OBVERSE", "x", "Canada"),), ("x",), ProposalScope.DIRECT_OBSERVATION)
     def test_projection_supports_fields_independently_and_preserves_side_evidence(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals
 

@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from enum import Enum
 
 from .canonical_identity import canonicalize_jurisdiction
 from .date_numeral_extraction import DateNumeralExtraction
 from .denomination_mark_extraction import DenominationMarkExtraction
-from .two_side_candidate_verification import CandidateVerificationReport
+from .two_side_candidate_verification import UniqueVerifiedCandidateDenominationSupport
 
 _FIELD_NAMES = ("country", "denomination", "year", "monarch", "reverse_design", "variety")
 _IMAGE_ROLES = {"OBVERSE", "REVERSE"}
@@ -24,6 +26,7 @@ _MAX_CANDIDATES = 25
 _MAX_PRODUCERS = 8
 _MAX_TEXT = 255
 _EXACT_YEAR = re.compile(r"^\d{4}$")
+_SUPPORT_CONSTRUCTION = ContextVar("field_proposal_support_construction", default=False)
 
 
 class FieldProposalStatus(str, Enum):
@@ -81,6 +84,7 @@ class FieldProposal:
     reasons: tuple[str, ...]
     scope: ProposalScope
     candidate_ids: tuple[str, ...] = ()
+    _validated: bool = dataclass_field(default=False, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.field_name not in _FIELD_NAMES:
@@ -88,6 +92,8 @@ class FieldProposal:
         if not isinstance(self.status, FieldProposalStatus) or not isinstance(self.scope, ProposalScope):
             raise TypeError("status and scope must be proposal enums.")
         if self.status is FieldProposalStatus.SUPPORTED:
+            if not _SUPPORT_CONSTRUCTION.get():
+                raise ValueError("SUPPORTED is produced only by field-aware validation.")
             if not self.proposed_value or not self.normalized_value:
                 raise ValueError("supported proposals require proposed and normalized values.")
             if not isinstance(self.proposed_value, str) or not isinstance(self.normalized_value, str) or len(self.proposed_value) > _MAX_TEXT or len(self.normalized_value) > _MAX_TEXT:
@@ -168,7 +174,7 @@ class CoinFieldProposalSet:
 def project_coin_field_proposals(
     *, source_coin_id: str, date: DateNumeralExtraction, denomination: DenominationMarkExtraction,
     direct_evidence: Iterable[tuple[str, str, str, str, str, str]] = (),
-    candidate_metadata: Iterable[tuple[str, str, str]] = (), candidate_report: CandidateVerificationReport | None = None, producer_ids: tuple[str, ...] = (),
+    candidate_metadata: Iterable[tuple[str, str, str]] = (), candidate_support: UniqueVerifiedCandidateDenominationSupport | None = None, producer_ids: tuple[str, ...] = (),
 ) -> CoinFieldProposalSet:
     """Project conservative literal/direct evidence into independent advisory fields.
 
@@ -182,7 +188,7 @@ def project_coin_field_proposals(
     country = _direct_field("country", direct["country"])
     fields = (
         country,
-        _denomination_field(denomination, country, candidate_report),
+        _denomination_field(denomination, country, candidate_support),
         _year_field(date, metadata["year"]),
         _semantic_field("monarch", direct["monarch"], metadata["monarch"]),
         _semantic_field("reverse_design", direct["reverse_design"], metadata["reverse_design"]),
@@ -191,7 +197,7 @@ def project_coin_field_proposals(
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
-def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, report: CandidateVerificationReport | None) -> FieldProposal:
+def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
@@ -200,13 +206,11 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
     canonical = canonicalize_jurisdiction(country.proposed_value)
     if country.status is FieldProposalStatus.SUPPORTED and canonical.is_mapped:
         return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
-    verified = () if report is None else tuple(row for row in report.rows if row.verified)
-    if len(verified) != 1:
-        return FieldProposal.unresolved("denomination", FieldProposalStatus.AMBIGUOUS if len(verified) > 1 else FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",), candidate_ids=tuple(row.candidate.candidate_id for row in verified))
-    row = verified[0]
-    if _normalize(row.candidate.denomination) != _normalize(extraction.resolved_value):
-        return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(row.candidate.candidate_id,))
-    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, row.candidate.candidate_id, row.candidate.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(row.candidate.candidate_id,))
+    if not isinstance(support, UniqueVerifiedCandidateDenominationSupport):
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",))
+    if _normalize(support.denomination) != _normalize(extraction.resolved_value):
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(support.candidate_id,))
+    return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(support.candidate_id,))
 
 
 def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...], metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
@@ -260,7 +264,11 @@ def _supported(field_name: str, proposed_value: str, normalized_value: str, evid
         raise ValueError("supported proposal value must correspond to direct evidence.")
     if field_name in {"monarch", "reverse_design"} and not any(item.source == "CANDIDATE_METADATA" and _normalize(item.observed_value) == normalized_value for item in evidence):
         raise ValueError("semantic supported proposal requires matching candidate metadata evidence.")
-    return FieldProposal(field_name, FieldProposalStatus.SUPPORTED, proposed_value, normalized_value, tuple(evidence), reasons, scope, candidate_ids)
+    token = _SUPPORT_CONSTRUCTION.set(True)
+    try:
+        return FieldProposal(field_name, FieldProposalStatus.SUPPORTED, proposed_value, normalized_value, tuple(evidence), reasons, scope, candidate_ids)
+    finally:
+        _SUPPORT_CONSTRUCTION.reset(token)
 
 
 def _direct_by_field(rows: Iterable[tuple[str, str, str, str, str, str]]) -> dict[str, tuple[tuple[str, str, EvidenceReference], ...]]:
