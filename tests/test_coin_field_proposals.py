@@ -134,6 +134,33 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertNotEqual(fifty.normalized_value, twenty.normalized_value)
         self.assertNotEqual(dollar_design.field_name, fifty.field_name)
 
+    def test_proposal_has_no_authority_or_persistence_surface(self) -> None:
+        from capture_import.coin_field_proposals import CoinFieldProposalSet
+        self.assertFalse(hasattr(CoinFieldProposalSet, "verify"))
+        self.assertFalse(hasattr(CoinFieldProposalSet, "save"))
+        self.assertFalse(hasattr(CoinFieldProposalSet, "persist"))
+        self.assertFalse(hasattr(CoinFieldProposalSet, "to_reviewed_coin_draft"))
+
+    def test_bounded_contract_rejects_unbounded_evidence_and_non_supported_selection(self) -> None:
+        from capture_import.coin_field_proposals import (
+            EvidenceReference,
+            FieldProposal,
+            FieldProposalStatus,
+        )
+        with self.assertRaises(ValueError):
+            EvidenceReference("x", "OBVERSE", "a" * 256, "value")
+        with self.assertRaises(ValueError):
+            FieldProposal.unresolved("country", FieldProposalStatus.ABSTAIN, reasons=("no_evidence",), candidate_ids=tuple("x" for _ in range(26)))
+        with self.assertRaises(ValueError):
+            FieldProposal("country", FieldProposalStatus.AMBIGUOUS, "Canada", "canada", (), ("bad",), __import__("capture_import.coin_field_proposals", fromlist=["ProposalScope"]).ProposalScope.DIRECT_OBSERVATION)
+
+    def test_monarch_values_are_data_not_schema_branches(self) -> None:
+        from capture_import.coin_field_proposals import FieldProposal, ProposalScope
+        for value in ("Elizabeth II", "Charles III", "George VI", "George V", "Edward VII", "Victoria"):
+            with self.subTest(value=value):
+                proposal = FieldProposal.supported("monarch", value, value.casefold(), (), scope=ProposalScope.CANDIDATE_METADATA)
+                self.assertEqual(proposal.proposed_value, value)
+
 
 if __name__ == "__main__":
     unittest.main()
