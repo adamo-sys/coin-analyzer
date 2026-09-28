@@ -129,10 +129,18 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertIsNone(result.field("country").proposed_value)
 
     def test_contract_represents_historical_issuer_and_denominations_without_special_cases(self) -> None:
-        from capture_import.coin_field_proposals import FieldProposalStatus
-        self.assertIs(FieldProposalStatus.ABSTAIN, FieldProposalStatus.ABSTAIN)
-        self.assertNotEqual("50 cents", "20 cents")
-        self.assertNotEqual("Voyageur", "1 dollar")
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="obverse", visible_text=("Province of Canada",))
+        result = project_coin_field_proposals(source_coin_id="historical", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), direct_evidence=(("country", "Province of Canada", "province of canada", "obverse", "legend", "issuer"),))
+        self.assertEqual(result.field("country").proposed_value, "Province of Canada")
+        self.assertEqual(result.field("country").evidence[0].image_role, "OBVERSE")
+        self.assertEqual(result.field("denomination").status.value, "ABSTAIN")
+
+    def test_candidate_country_metadata_is_rejected_not_silently_ignored(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        observation = GroundedVisualObservation(role="obverse")
+        with self.assertRaises(ValueError):
+            project_coin_field_proposals(source_coin_id="country-meta", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), candidate_metadata=(("candidate", "country", "Canada"),))
 
     def test_proposal_has_no_authority_or_persistence_surface(self) -> None:
         from capture_import.coin_field_proposals import CoinFieldProposalSet
@@ -180,6 +188,49 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         result = project_coin_field_proposals(source_coin_id="semantic", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)), direct_evidence=(("monarch", "Elizabeth II", "elizabeth ii", "reverse", "portrait", "r"), ("reverse_design", "Bluenose", "bluenose", "obverse", "motif", "o")), candidate_metadata=(("candidate", "monarch", "Elizabeth II"), ("candidate", "reverse_design", "Bluenose")))
         self.assertEqual(result.field("monarch").status.value, "ABSTAIN")
         self.assertEqual(result.field("reverse_design").status.value, "ABSTAIN")
+
+    def test_unique_candidate_support_is_collected_and_requires_one_matching_candidate(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+        result = CatalogueRetrievalResult((CatalogueCandidate("one", "Canada", "25 cents", "1955", legends=("CANADA",)),), "fixture")
+        support = derive_unique_verified_denomination_support(result, sides, extract_denomination_marks(sides), validation_context_id="capture-1")
+        self.assertIsNotNone(support)
+        assert support is not None
+        self.assertEqual(support.candidate_id, "one")
+        self.assertEqual(support.validation_context_id, "capture-1")
+
+    def test_unique_candidate_support_rejects_zero_multiple_and_mismatch(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+        extraction = extract_denomination_marks(sides)
+        make = lambda *rows: CatalogueRetrievalResult(rows, "fixture")
+        matching = CatalogueCandidate("one", "Canada", "25 cents", "1955", legends=("CANADA",))
+        mismatch = CatalogueCandidate("bad", "Canada", "10 cents", "1955", legends=("CANADA",))
+        self.assertIsNone(derive_unique_verified_denomination_support(make(), sides, extraction, validation_context_id="capture-1"))
+        other_matching = CatalogueCandidate("two", "Canada", "25 cents", "1955", legends=("CANADA",))
+        self.assertIsNone(derive_unique_verified_denomination_support(make(matching, other_matching), sides, extraction, validation_context_id="capture-1"))
+        self.assertIsNone(derive_unique_verified_denomination_support(make(mismatch), sides, extraction, validation_context_id="capture-1"))
+
+    def test_candidate_support_cannot_be_reused_for_another_projection_context(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import (
+            derive_unique_verified_denomination_support,
+        )
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+        extraction = extract_denomination_marks(sides)
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("one", "Canada", "25 cents", "1955", legends=("CANADA",)),), "fixture"), sides, extraction, validation_context_id="capture-1")
+        result = project_coin_field_proposals(source_coin_id="capture-2", date=extract_date_numerals(sides), denomination=extraction, candidate_support=support)
+        self.assertEqual(result.field("denomination").status.value, "CONFLICTING")
 
 
 if __name__ == "__main__":

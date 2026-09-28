@@ -1,9 +1,13 @@
 import pytest
 
 from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+from capture_import.denomination_mark_extraction import extract_denomination_marks
 from capture_import.evidence_candidate_resolver import CatalogueCandidate
 from capture_import.grounded_visual_observation import GroundedVisualObservation
-from capture_import.two_side_candidate_verification import verify_retrieved_candidates
+from capture_import.two_side_candidate_verification import (
+    derive_unique_verified_denomination_support,
+    verify_retrieved_candidates,
+)
 
 
 def _candidate(candidate_id="coin", *, denomination="25 cents", year="1955", legends=("CANADA", "ELIZABETH II")):
@@ -283,3 +287,49 @@ def test_casefolding_does_not_promote_nonmatching_country_text():
     row = report.rows[0]
     assert not row.verified
     assert row.supporting_text == ()
+
+
+def test_unique_denomination_support_requires_one_matching_verified_candidate():
+    sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+    support = derive_unique_verified_denomination_support(_result(_candidate(legends=("CANADA",))), sides, extract_denomination_marks(sides), validation_context_id="capture-1")
+    assert support is not None
+    assert support.candidate_id == "coin"
+    assert support.validation_context_id == "capture-1"
+
+
+def test_unique_denomination_support_rejects_zero_multiple_or_mismatched_candidates():
+    sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+    extraction = extract_denomination_marks(sides)
+    assert derive_unique_verified_denomination_support(_result(), sides, extraction, validation_context_id="capture-1") is None
+    assert derive_unique_verified_denomination_support(_result(_candidate("a", legends=("CANADA",)), _candidate("b", legends=("CANADA",))), sides, extraction, validation_context_id="capture-1") is None
+    assert derive_unique_verified_denomination_support(_result(_candidate(denomination="10 cents", legends=("CANADA",))), sides, extraction, validation_context_id="capture-1") is None
+
+
+def test_unique_denomination_support_rejects_extraction_from_different_sides():
+    current_sides = (
+        GroundedVisualObservation(role="obverse", date_like="1955", visible_text=("CANADA",)),
+    )
+    foreign_sides = (
+        GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS",)),
+    )
+    support = derive_unique_verified_denomination_support(
+        _result(_candidate(legends=("CANADA",))),
+        current_sides,
+        extract_denomination_marks(foreign_sides),
+        validation_context_id="capture-1",
+    )
+    assert support is None
+
+
+def test_unique_denomination_support_rejects_conflicting_observed_evidence():
+    sides = (
+        GroundedVisualObservation(role="obverse", date_like="1955", visible_text=("CANADA",)),
+        GroundedVisualObservation(role="reverse", date_like="1956", denomination_mark="25 CENTS", visible_text=("25 CENTS",)),
+    )
+    support = derive_unique_verified_denomination_support(
+        _result(_candidate(legends=("CANADA",))),
+        sides,
+        extract_denomination_marks(sides),
+        validation_context_id="capture-1",
+    )
+    assert support is None

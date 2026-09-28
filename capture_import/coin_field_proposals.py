@@ -185,10 +185,12 @@ def project_coin_field_proposals(
         raise TypeError("date and denomination must be existing conservative extraction artifacts.")
     direct = _direct_by_field(direct_evidence)
     metadata = _metadata_by_field(candidate_metadata)
+    if metadata["country"]:
+        raise ValueError("candidate country metadata is not accepted by this packet's direct-issuer contract.")
     country = _direct_field("country", direct["country"])
     fields = (
         country,
-        _denomination_field(denomination, country, candidate_support),
+        _denomination_field(denomination, country, candidate_support, source_coin_id),
         _year_field(date, metadata["year"]),
         _semantic_field("monarch", direct["monarch"], metadata["monarch"]),
         _semantic_field("reverse_design", direct["reverse_design"], metadata["reverse_design"]),
@@ -197,7 +199,7 @@ def project_coin_field_proposals(
     return CoinFieldProposalSet(1, source_coin_id, fields, producer_ids)
 
 
-def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None) -> FieldProposal:
+def _denomination_field(extraction: DenominationMarkExtraction, country: FieldProposal, support: UniqueVerifiedCandidateDenominationSupport | None, source_coin_id: str) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DENOMINATION_MARK", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
     if extraction.conflict:
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_denomination_conflict",))
@@ -208,6 +210,9 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
         return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
     if not isinstance(support, UniqueVerifiedCandidateDenominationSupport):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",))
+    current_roles = {item.image_role.lower() for item in evidence if item.image_role is not None}
+    if support.validation_context_id != source_coin_id or not current_roles.intersection(support.supporting_roles):
+        return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("candidate_support_context_mismatch",), candidate_ids=(support.candidate_id,))
     if _normalize(support.denomination) != _normalize(extraction.resolved_value):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_denomination_conflict",), candidate_ids=(support.candidate_id,))
     return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence + (EvidenceReference("CANDIDATE_VERIFICATION", None, support.candidate_id, support.denomination),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_unique_verified_candidate",), candidate_ids=(support.candidate_id,))
