@@ -7,10 +7,11 @@ import tempfile
 import unittest
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from PIL import Image
 
+import phone_entry_host
 from coin_collection import CoinCollection
 from phone_entry_host import LocalPhoneEntryHost
 from phone_entry_service import PhoneEntryAuditStore, PhoneEntryService
@@ -150,13 +151,13 @@ class LocalPhoneEntryHostTests(unittest.TestCase):
             "/drafts",
             data={
                 "csrf_token": csrf,
-                "front": (BytesIO(b"not-a-jpeg"), "../../private.heic"),
+                "front": (BytesIO(b"not-a-jpeg"), "../../private.jpg", "image/jpeg"),
                 "reverse": (BytesIO(_image_bytes("PNG", "blue")), "reverse.png"),
             },
             headers={"Origin": "http://localhost"},
         )
         self.assertEqual(unsupported.status_code, 400)
-        self.assertNotIn("private.heic", unsupported.get_data(as_text=True))
+        self.assertNotIn("private.jpg", unsupported.get_data(as_text=True))
 
         response = self.client.post(
             "/drafts",
@@ -202,6 +203,181 @@ class LocalPhoneEntryHostTests(unittest.TestCase):
             self.assertEqual(response.status_code, 400)
         self.assertFalse((self.root / "staging").exists())
 
+    def test_modern_phone_sized_jpeg_pair_creates_a_draft_within_named_limits(self) -> None:
+        """A 24 MP JPEG pair larger than the legacy 10 MiB file limit is normal phone input."""
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        front = _modern_phone_jpeg_bytes("red")
+        reverse = _modern_phone_jpeg_bytes("blue")
+        self.assertGreater(len(front), 10 * 1024 * 1024)
+        self.assertLessEqual(len(front), phone_entry_host.DEFAULT_UPLOAD_LIMITS.max_file_bytes)
+        self.assertLessEqual(len(front) + len(reverse), phone_entry_host.DEFAULT_UPLOAD_LIMITS.max_total_bytes)
+
+        response = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(front), "obverse.jpg", "image/jpeg"),
+                "reverse": (BytesIO(reverse), "reverse.jpg", "image/jpeg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_upload_byte_limits_accept_exact_boundary_and_reject_file_or_pair_overflow(self) -> None:
+        """Each byte ceiling is enforced before expensive image decoding."""
+        limits = phone_entry_host.UploadLimits(
+            max_file_bytes=1_000, max_total_bytes=2_000, max_session_bytes=2_000
+        )
+        with patch.object(self.host, "upload_limits", limits):
+            csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+            just_below = self.client.post(
+                "/drafts",
+                data={
+                    "csrf_token": csrf,
+                    "front": (BytesIO(_padded_jpeg_bytes("red", 999)), "front.jpg"),
+                    "reverse": (BytesIO(_padded_jpeg_bytes("blue", 999)), "reverse.jpg"),
+                },
+                headers={"Origin": "http://localhost"},
+            )
+        self.assertEqual(just_below.status_code, 201)
+
+        self.host.start_loopback()
+        with patch.object(self.host, "upload_limits", limits):
+            csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+            exact = self.client.post(
+                "/drafts",
+                data={
+                    "csrf_token": csrf,
+                    "front": (BytesIO(_padded_jpeg_bytes("green", 1_000)), "front.jpg"),
+                    "reverse": (BytesIO(_padded_jpeg_bytes("yellow", 1_000)), "reverse.jpg"),
+                },
+                headers={"Origin": "http://localhost"},
+            )
+        self.assertEqual(exact.status_code, 201)
+
+        self.host.start_loopback()
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        with (
+            patch.object(self.host, "upload_limits", limits),
+            patch("phone_entry_host._normalize_image", wraps=phone_entry_host._normalize_image) as normalized,
+        ):
+            oversized_file = self.client.post(
+                "/drafts",
+                data={
+                    "csrf_token": csrf,
+                    "front": (BytesIO(_padded_jpeg_bytes("red", 1_001)), "front.jpg"),
+                    "reverse": (BytesIO(_padded_jpeg_bytes("blue", 999)), "reverse.jpg"),
+                },
+                headers={"Origin": "http://localhost"},
+            )
+        self.assertEqual(oversized_file.status_code, 413)
+        normalized.assert_not_called()
+
+        self.host.start_loopback()
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        pair_limited = phone_entry_host.UploadLimits(
+            max_file_bytes=1_000, max_total_bytes=1_999, max_session_bytes=1_999
+        )
+        with patch.object(self.host, "upload_limits", pair_limited):
+            oversized_pair = self.client.post(
+                "/drafts",
+                data={
+                    "csrf_token": csrf,
+                    "front": (BytesIO(_padded_jpeg_bytes("red", 1_000)), "front.jpg"),
+                    "reverse": (BytesIO(_padded_jpeg_bytes("blue", 1_000)), "reverse.jpg"),
+                },
+                headers={"Origin": "http://localhost"},
+            )
+        self.assertEqual(oversized_pair.status_code, 413)
+
+    def test_decoded_pixel_boundary_accepts_thirty_megapixels_and_rejects_more(self) -> None:
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        just_below = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(_image_bytes("JPEG", "red", (6_000, 4_999))), "front.jpg"),
+                "reverse": (BytesIO(_image_bytes("JPEG", "blue", (6_000, 4_999))), "reverse.jpg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+        self.assertEqual(just_below.status_code, 201)
+
+        exact = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(_image_bytes("JPEG", "red", (6_000, 5_000))), "front.jpg"),
+                "reverse": (BytesIO(_image_bytes("JPEG", "blue", (6_000, 5_000))), "reverse.jpg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+        self.assertEqual(exact.status_code, 201)
+
+        self.host.start_loopback()
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        rejected = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(_image_bytes("JPEG", "green", (6_001, 5_000))), "front.jpg"),
+                "reverse": (BytesIO(_image_bytes("JPEG", "blue")), "reverse.jpg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+        self.assertEqual(rejected.status_code, 400)
+
+    def test_dimension_and_decompression_bomb_limits_reject_before_staging(self) -> None:
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        exact_edge = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(_image_bytes("JPEG", "red", (8_000, 1))), "front.jpg"),
+                "reverse": (BytesIO(_image_bytes("JPEG", "blue", (8_000, 1))), "reverse.jpg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+        self.assertEqual(exact_edge.status_code, 201)
+
+        self.host.start_loopback()
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        over_edge = self.client.post(
+            "/drafts",
+            data={
+                "csrf_token": csrf,
+                "front": (BytesIO(_image_bytes("JPEG", "green", (8_001, 1))), "front.jpg"),
+                "reverse": (BytesIO(_image_bytes("JPEG", "blue")), "reverse.jpg"),
+            },
+            headers={"Origin": "http://localhost"},
+        )
+        self.assertEqual(over_edge.status_code, 400)
+
+        self.host.start_loopback()
+        csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
+        files_before_bomb = list((self.root / "staging").rglob("*"))
+        with patch.object(Image, "MAX_IMAGE_PIXELS", 1_000):
+            bomb = self.client.post(
+                "/drafts",
+                data={
+                    "csrf_token": csrf,
+                    "front": (BytesIO(_image_bytes("JPEG", "green", (64, 64))), "front.jpg"),
+                    "reverse": (BytesIO(_image_bytes("JPEG", "blue")), "reverse.jpg"),
+                },
+                headers={"Origin": "http://localhost"},
+            )
+        self.assertEqual(bomb.status_code, 400)
+        self.assertEqual(files_before_bomb, list((self.root / "staging").rglob("*")))
+
+    def test_heic_is_rejected_from_detected_format_not_filename_or_mime(self) -> None:
+        detected = MagicMock(format="HEIF", n_frames=1)
+        with patch("phone_entry_host.Image.open") as opened:
+            opened.return_value.__enter__.return_value = detected
+            with self.assertRaises(phone_entry_host._RequestError) as raised:
+                phone_entry_host._normalize_image(b"heic-payload", phone_entry_host.DEFAULT_UPLOAD_LIMITS)
+        self.assertEqual(raised.exception.category, "unsupported_image")
+
     def test_staged_media_tampering_forces_recovery_and_never_saves(self) -> None:
         csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
         entry_id = self.client.post(
@@ -241,7 +417,14 @@ class LocalPhoneEntryHostTests(unittest.TestCase):
 
     def test_session_aggregate_upload_budget_is_enforced_before_second_staging(self) -> None:
         csrf = self._pair(self.host.pairing_secret).get_json()["csrf_token"]
-        with patch("phone_entry_host._MAX_SESSION_BYTES", 1_000):
+        limited = phone_entry_host.UploadLimits(
+            max_file_bytes=self.host.upload_limits.max_file_bytes,
+            max_total_bytes=self.host.upload_limits.max_total_bytes,
+            max_session_bytes=1_000,
+            max_pixels=self.host.upload_limits.max_pixels,
+            max_dimension=self.host.upload_limits.max_dimension,
+        )
+        with patch.object(self.host, "upload_limits", limited):
             first = self.client.post(
                 "/drafts", data=self._uploads(csrf), headers={"Origin": "http://localhost"}
             )
@@ -308,6 +491,22 @@ class _UnusedApprovalVerifier:
 def _image_bytes(image_format: str, color: str, size: tuple[int, int] = (32, 32)) -> bytes:
     data = BytesIO()
     Image.new("RGB", size, color).save(data, format=image_format)
+    return data.getvalue()
+
+
+def _padded_jpeg_bytes(color: str, target_size: int) -> bytes:
+    payload = _image_bytes("JPEG", color)
+    if len(payload) > target_size:
+        raise AssertionError("target must fit the generated JPEG")
+    return payload + b"\0" * (target_size - len(payload))
+
+
+def _modern_phone_jpeg_bytes(color: str) -> bytes:
+    """Generate a deterministic 24.5 MP, high-detail JPEG representative of camera content."""
+    image = Image.effect_noise((5_712, 4_284), 45).convert("RGB")
+    image.putpixel((0, 0), (255, 0, 0) if color == "red" else (0, 0, 255))
+    data = BytesIO()
+    image.save(data, format="JPEG", quality=70)
     return data.getvalue()
 
 

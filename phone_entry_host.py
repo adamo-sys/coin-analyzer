@@ -26,11 +26,26 @@ from phone_entry_service import PhoneEntryError, PhoneEntrySaveResult, PhoneEntr
 
 _COOKIE_NAME = "phone_entry_session"
 _PAIRING_LIFETIME_SECONDS = 120
-_MAX_FILE_BYTES = 10 * 1024 * 1024
-_MAX_TOTAL_BYTES = 20 * 1024 * 1024
-_MAX_SESSION_BYTES = 20 * 1024 * 1024
-_MAX_PIXELS = 20_000_000
-_MAX_DIMENSION = 8_000
+_UPLOAD_BODY_OVERHEAD_BYTES = 64 * 1024
+# Werkzeug feeds multipart parsing in 64 KiB chunks. Keep enough bounded parser
+# buffer for a chunk plus an unfinished multipart boundary; file bytes remain
+# constrained separately by ``UploadLimits`` before image decoding.
+_MAX_FORM_MEMORY_BYTES = 128 * 1024
+_MAX_FORM_PARTS = 4
+
+
+@dataclass(frozen=True, slots=True)
+class UploadLimits:
+    """Bounded mobile-photo intake limits for one explicit obverse/reverse pair."""
+
+    max_file_bytes: int = 16 * 1024 * 1024
+    max_total_bytes: int = 32 * 1024 * 1024
+    max_session_bytes: int = 32 * 1024 * 1024
+    max_pixels: int = 30_000_000
+    max_dimension: int = 8_000
+
+
+DEFAULT_UPLOAD_LIMITS = UploadLimits()
 
 
 class PhoneEntryHostError(ValueError):
@@ -67,6 +82,7 @@ class LocalPhoneEntryHost:
         service: PhoneEntryService,
         staging_root: str | Path,
         now: Callable[[], float] | None = None,
+        upload_limits: UploadLimits = DEFAULT_UPLOAD_LIMITS,
     ) -> None:
         self.service = service
         # Packet 1 accepts only a trusted host-issued, action-bound approval.
@@ -74,6 +90,7 @@ class LocalPhoneEntryHost:
         self.service.approval_verifier = self
         self.staging_root = Path(staging_root).absolute()
         self._clock = now or __import__("time").time
+        self.upload_limits = upload_limits
         self._test_offset = 0.0
         self._binding: HostBinding | None = None
         self._pairing_hash = ""
@@ -150,9 +167,9 @@ class LocalPhoneEntryHost:
     def _create_app(self) -> Flask:
         app = Flask(__name__)
         app.config.update(
-            MAX_CONTENT_LENGTH=_MAX_TOTAL_BYTES + 64 * 1024,
-            MAX_FORM_MEMORY_SIZE=4 * 1024,
-            MAX_FORM_PARTS=4,
+            MAX_CONTENT_LENGTH=self.upload_limits.max_total_bytes + _UPLOAD_BODY_OVERHEAD_BYTES,
+            MAX_FORM_MEMORY_SIZE=_MAX_FORM_MEMORY_BYTES,
+            MAX_FORM_PARTS=_MAX_FORM_PARTS,
         )
 
         @app.before_request
@@ -428,15 +445,18 @@ class LocalPhoneEntryHost:
         return approval
 
     def _stage_pair(self, *, session: _Session, session_id: str) -> tuple[dict[str, Path], int]:
-        payloads = {role: request.files[role].read(_MAX_FILE_BYTES + 1) for role in ("front", "reverse")}
+        payloads = {
+            role: request.files[role].read(self.upload_limits.max_file_bytes + 1)
+            for role in ("front", "reverse")
+        }
         total_bytes = sum(map(len, payloads.values()))
         if (
-            any(len(payload) > _MAX_FILE_BYTES for payload in payloads.values())
-            or total_bytes > _MAX_TOTAL_BYTES
-            or session.staged_bytes + total_bytes > _MAX_SESSION_BYTES
+            any(len(payload) > self.upload_limits.max_file_bytes for payload in payloads.values())
+            or total_bytes > self.upload_limits.max_total_bytes
+            or session.staged_bytes + total_bytes > self.upload_limits.max_session_bytes
         ):
             raise _RequestError("upload_too_large", 413)
-        normalized = {role: _normalize_image(payload) for role, payload in payloads.items()}
+        normalized = {role: _normalize_image(payload, self.upload_limits) for role, payload in payloads.items()}
         if _digest(normalized["front"][0]) == _digest(normalized["reverse"][0]):
             raise _RequestError("duplicate_media", 400)
         root = self.staging_root / _digest(session_id) / uuid4().hex
@@ -467,7 +487,7 @@ class _RequestError(Exception):
         self.status = status
 
 
-def _normalize_image(payload: bytes) -> tuple[bytes, str]:
+def _normalize_image(payload: bytes, limits: UploadLimits) -> tuple[bytes, str]:
     """Decode a supported still image and re-encode it without input metadata."""
     try:
         with Image.open(BytesIO(payload)) as probe:
@@ -477,7 +497,11 @@ def _normalize_image(payload: bytes) -> tuple[bytes, str]:
         if image_format not in {"JPEG", "PNG"} or frames != 1:
             raise ValueError("unsupported image")
         with Image.open(BytesIO(payload)) as source:
-            if source.width > _MAX_DIMENSION or source.height > _MAX_DIMENSION or source.width * source.height > _MAX_PIXELS:
+            if (
+                source.width > limits.max_dimension
+                or source.height > limits.max_dimension
+                or source.width * source.height > limits.max_pixels
+            ):
                 raise ValueError("image dimensions exceed limit")
             mode = "RGBA" if image_format == "PNG" and "A" in source.getbands() else "RGB"
             normalized = source.convert(mode)

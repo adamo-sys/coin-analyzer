@@ -55,10 +55,16 @@ autodiscovery, remote administration, or credentialed CORS is permitted.
 `POST /drafts` requires exactly `front` and `reverse` multipart files plus the
 CSRF field. Client filenames, MIME claims, and EXIF never control a path or
 leave the boundary. Each image is bounded before persistence, decoded by Pillow,
-must be a single-frame JPEG or PNG, and is subject to file/request/session byte,
-request-count, dimension, and pixel ceilings. It is then re-encoded to a fixed
-server-generated name beneath the fixed private staging root, removing inbound
-metadata. Duplicate media is rejected before `PhoneIntake.confirm_pair`.
+must be a single-frame JPEG or PNG, and is subject to a 16 MiB file ceiling, a
+32 MiB request/session ceiling, a 30 MP decoded-area ceiling, and an 8,000-pixel
+edge ceiling. The byte ceilings are checked before decoding; decoded limits and
+Pillow decompression-bomb handling remain a separate defense. These limits admit
+ordinary 12/24 MP modern-phone JPEG pairs without requiring client-side
+compression, while excluding 48 MP and pathological inputs. HEIC/HEIF remains
+unsupported rather than being inferred from a filename or MIME claim. It is then
+re-encoded to a fixed server-generated name beneath the fixed private staging
+root, removing inbound metadata. Duplicate media is rejected before
+`PhoneIntake.confirm_pair`.
 
 The request adapter calls only this existing sequence:
 
