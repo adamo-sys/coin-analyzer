@@ -209,6 +209,47 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         result = project_coin_field_proposals(source_coin_id="bare", date=extract_date_numerals((observation,)), denomination=extract_denomination_marks((observation,)))
         self.assertEqual(result.field("denomination").status.value, "ABSTAIN")
 
+    def test_mapped_jurisdiction_rejects_unmapped_denomination(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+
+        observations = (GroundedVisualObservation(role="reverse", denomination_mark="10 piso"),)
+        result = project_coin_field_proposals(
+            source_coin_id="us-piso",
+            date=extract_date_numerals(observations),
+            denomination=extract_denomination_marks(observations),
+            direct_evidence=(("country", "United States", "united states", "obverse", "legend", "us"),),
+        )
+
+        self.assertEqual(result.field("country").status.value, "SUPPORTED")
+        self.assertEqual(result.field("denomination").status.value, "ABSTAIN")
+
+    def test_mapped_jurisdiction_supports_valid_mapped_denomination(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+
+        observations = (GroundedVisualObservation(role="reverse", denomination_mark="10 cents"),)
+        result = project_coin_field_proposals(
+            source_coin_id="us-cents",
+            date=extract_date_numerals(observations),
+            denomination=extract_denomination_marks(observations),
+            direct_evidence=(("country", "United States", "united states", "obverse", "legend", "us"),),
+        )
+
+        self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
+        self.assertEqual(result.field("denomination").proposed_value, "10 cents")
+
+    def test_mapped_jurisdiction_rejects_unmapped_denomination_spelling_variants(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+
+        for mark in ("TEN PISO", "10 PISO"):
+            with self.subTest(mark=mark):
+                observations = (GroundedVisualObservation(role="reverse", denomination_mark=mark),)
+                result = project_coin_field_proposals(
+                    source_coin_id="us-piso-variant",
+                    date=extract_date_numerals(observations),
+                    denomination=extract_denomination_marks(observations),
+                    direct_evidence=(("country", "U.S.A.", "united states", "obverse", "legend", "us"),),
+                )
+                self.assertNotEqual(result.field("denomination").status.value, "SUPPORTED")
     def test_monarch_and_reverse_require_correct_side_and_matching_candidate(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals
         observation = GroundedVisualObservation(role="obverse")

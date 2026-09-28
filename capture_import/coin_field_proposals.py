@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from enum import Enum
 
-from .canonical_identity import canonicalize_jurisdiction
+from .canonical_identity import canonicalize_denomination, canonicalize_jurisdiction
 from .date_numeral_extraction import DateNumeralExtraction, extract_date_numerals
 from .denomination_mark_extraction import (
     DenominationMarkExtraction,
@@ -213,6 +213,17 @@ def _denomination_field(extraction: DenominationMarkExtraction, country: FieldPr
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("no_defensible_denomination_evidence",))
     canonical = canonicalize_jurisdiction(country.proposed_value)
     if country.status is FieldProposalStatus.SUPPORTED and canonical.is_mapped:
+        canonical_denomination = canonicalize_denomination(
+            extraction.resolved_value,
+            jurisdiction_id=canonical.canonical_value.canonical_id,
+        )
+        if not canonical_denomination.is_mapped:
+            return FieldProposal.unresolved(
+                "denomination",
+                FieldProposalStatus.ABSTAIN,
+                evidence,
+                reasons=("explicit_denomination_not_mapped_to_canonical_issuer",),
+            )
         return _supported("denomination", extraction.resolved_value, _normalize(extraction.resolved_value), evidence, scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("explicit_denomination_with_canonical_issuer",))
     if not isinstance(support, UniqueVerifiedCandidateDenominationSupport):
         return FieldProposal.unresolved("denomination", FieldProposalStatus.ABSTAIN, evidence, reasons=("unique_verified_candidate_required",))
