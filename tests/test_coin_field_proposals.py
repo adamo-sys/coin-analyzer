@@ -440,5 +440,61 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         self.assertLessEqual(len(country.evidence), _MAX_EVIDENCE)
         self.assertEqual(tuple(item.image_role for item in country.evidence if item.source == "CANDIDATE_VERIFICATION"), ("OBVERSE", "REVERSE"))
         self.assertEqual(results[0].to_dict(), results[1].to_dict())
+    def test_projection_materializes_one_shot_observations_for_candidate_support(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import derive_unique_verified_denomination_support
+
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="25 CENTS", visible_text=("25 CENTS", "CANADA")),)
+        support = derive_unique_verified_denomination_support(
+            CatalogueRetrievalResult((CatalogueCandidate("ca-25", "Canada", "25 cents", "1955", legends=("CANADA",)),), "fixture"),
+            sides,
+            extract_denomination_marks(sides),
+            validation_context_id="iterable",
+        )
+        assert support is not None
+        expected = project_coin_field_proposals(source_coin_id="iterable", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), candidate_support=support, observations=sides)
+        for observations in (list(sides), (side for side in sides)):
+            with self.subTest(observation_type=type(observations).__name__):
+                actual = project_coin_field_proposals(source_coin_id="iterable", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), candidate_support=support, observations=observations)
+                self.assertEqual(actual.to_dict(), expected.to_dict())
+                self.assertEqual(actual.field("country").status.value, "SUPPORTED")
+                self.assertEqual(actual.field("denomination").status.value, "SUPPORTED")
+
+    def test_controlled_country_aliases_reconcile_by_jurisdiction_identity(self) -> None:
+        from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+        from capture_import.evidence_candidate_resolver import CatalogueCandidate
+        from capture_import.two_side_candidate_verification import derive_unique_verified_denomination_support
+
+        sides = (GroundedVisualObservation(role="reverse", denomination_mark="10 cents", visible_text=("UNITED STATES", "10 CENTS")),)
+        support = derive_unique_verified_denomination_support(CatalogueRetrievalResult((CatalogueCandidate("us-10", "United States", "10 cents", "1955", legends=("UNITED STATES",)),), "fixture"), sides, extract_denomination_marks(sides), validation_context_id="aliases")
+        assert support is not None
+        for alias in ("U.S.A.", "USA"):
+            with self.subTest(alias=alias):
+                result = project_coin_field_proposals(source_coin_id="aliases", date=extract_date_numerals(sides), denomination=extract_denomination_marks(sides), direct_evidence=(("country", alias, alias, "obverse", "legend", alias),), candidate_support=support, observations=sides)
+                self.assertEqual(result.field("country").status.value, "SUPPORTED")
+                self.assertEqual(result.field("denomination").status.value, "SUPPORTED")
+
+    def test_semantic_metadata_evidence_is_bounded_deterministically(self) -> None:
+        from capture_import.coin_field_proposals import _MAX_EVIDENCE, project_coin_field_proposals
+
+        side = GroundedVisualObservation(role="obverse")
+        for count in (_MAX_EVIDENCE - 1, _MAX_EVIDENCE):
+            with self.subTest(direct_count=count):
+                direct = tuple(("monarch", "Elizabeth II", "elizabeth ii", "obverse", "portrait", f"direct-{index}") for index in range(count))
+                results = tuple(project_coin_field_proposals(source_coin_id=f"semantic-bound-{count}", date=extract_date_numerals((side,)), denomination=extract_denomination_marks((side,)), direct_evidence=direct, candidate_metadata=(("candidate", "monarch", "Elizabeth II"),)) for _ in range(2))
+                proposal = results[0].field("monarch")
+                self.assertEqual(proposal.status.value, "SUPPORTED")
+                self.assertLessEqual(len(proposal.evidence), _MAX_EVIDENCE)
+                self.assertEqual(results[0].to_dict(), results[1].to_dict())
+        metadata_only = project_coin_field_proposals(
+            source_coin_id="semantic-metadata-only",
+            date=extract_date_numerals((side,)),
+            denomination=extract_denomination_marks((side,)),
+            candidate_metadata=(("candidate", "monarch", "Elizabeth II"),),
+        )
+        self.assertEqual(metadata_only.field("monarch").status.value, "ABSTAIN")
 if __name__ == "__main__":
     unittest.main()

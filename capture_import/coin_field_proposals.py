@@ -192,6 +192,7 @@ def project_coin_field_proposals(
     """
     if not isinstance(date, DateNumeralExtraction) or not isinstance(denomination, DenominationMarkExtraction):
         raise TypeError("date and denomination must be existing conservative extraction artifacts.")
+    observations = None if observations is None else tuple(observations)
     direct = _direct_by_field(direct_evidence)
     metadata = _metadata_by_field(candidate_metadata)
     direct_country = _direct_field("country", direct["country"])
@@ -218,9 +219,17 @@ def _candidate_verification_evidence(support, value):
     roles = tuple(dict.fromkeys(role.upper() for role in support.supporting_roles))
     return tuple(EvidenceReference("CANDIDATE_VERIFICATION", role, support.candidate_id, value) for role in roles)
 
+def _countries_agree(direct_value: str | None, candidate_value: str | None) -> bool:
+    direct = canonicalize_jurisdiction(direct_value)
+    candidate = canonicalize_jurisdiction(candidate_value)
+    if direct.is_mapped and candidate.is_mapped:
+        return direct.canonical_value.canonical_id == candidate.canonical_value.canonical_id
+    return _normalize(direct_value or "") == _normalize(candidate_value or "")
+
+
 def _reconcile_country(direct, candidate):
     if direct.status is FieldProposalStatus.SUPPORTED and candidate.status is FieldProposalStatus.SUPPORTED:
-        if direct.normalized_value != candidate.normalized_value:
+        if not _countries_agree(direct.proposed_value, candidate.proposed_value):
             evidence = direct.evidence[: _MAX_EVIDENCE - len(candidate.evidence)] + candidate.evidence
             return FieldProposal.unresolved("country", FieldProposalStatus.CONFLICTING, evidence, reasons=("direct_candidate_country_conflict",), candidate_ids=candidate.candidate_ids)
         return direct
@@ -273,18 +282,32 @@ def _semantic_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReferen
     valid = tuple(row for row in rows if row[2].image_role == required_role)
     if not valid:
         return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, tuple(row[2] for row in rows), reasons=("missing_role_correct_direct_evidence",))
-    direct = _direct_field(field_name, valid)
-    if direct.status is not FieldProposalStatus.SUPPORTED:
-        return direct
-    matches = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) == direct.normalized_value)
-    conflicting = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) != direct.normalized_value)
+    values = {normalized for _, normalized, _ in valid}
+    direct_evidence = tuple(item[2] for item in valid)
+    if len(values) > 1:
+        return FieldProposal.unresolved(field_name, FieldProposalStatus.AMBIGUOUS, direct_evidence, reasons=("multiple_compatible_direct_values",))
+    direct_value = valid[0][0]
+    direct_normalized = _normalize(direct_value)
+    matches = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) == direct_normalized)
+    conflicting = tuple(candidate_id for candidate_id, value in metadata if _normalize(value) != direct_normalized)
     if conflicting:
-        trails = direct.evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, item, "conflicting_metadata") for item in conflicting)
+        metadata_evidence = tuple(EvidenceReference("CANDIDATE_METADATA", None, item, "conflicting_metadata") for item in conflicting)
+        trails = _bounded_semantic_evidence(direct_evidence, metadata_evidence)
         return FieldProposal.unresolved(field_name, FieldProposalStatus.CONFLICTING, trails, reasons=("direct_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=matches + conflicting)
     if len(matches) != 1:
-        return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, direct.evidence, reasons=("unique_candidate_metadata_required",), candidate_ids=matches)
-    return _supported(field_name, direct.proposed_value or "", direct.normalized_value or "", direct.evidence + (EvidenceReference("CANDIDATE_METADATA", None, matches[0], direct.proposed_value or ""),), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("role_correct_direct_and_candidate_metadata",), candidate_ids=matches)
+        return FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, direct_evidence, reasons=("unique_candidate_metadata_required",), candidate_ids=matches)
+    metadata_evidence = (EvidenceReference("CANDIDATE_METADATA", None, matches[0], direct_value),)
+    return _supported(field_name, direct_value, direct_normalized, _bounded_semantic_evidence(direct_evidence, metadata_evidence), scope=ProposalScope.CROSS_SIDE_AGREEMENT, reasons=("role_correct_direct_and_candidate_metadata",), candidate_ids=matches)
 
+
+def _bounded_semantic_evidence(
+    direct_evidence: Sequence[EvidenceReference], metadata_evidence: Sequence[EvidenceReference]
+) -> tuple[EvidenceReference, ...]:
+    """Retain role-correct direct proof plus bounded candidate corroboration."""
+    if not metadata_evidence:
+        return tuple(direct_evidence[:_MAX_EVIDENCE])
+    retained_metadata = tuple(metadata_evidence[: _MAX_EVIDENCE - 1])
+    return tuple(direct_evidence[: _MAX_EVIDENCE - len(retained_metadata)]) + retained_metadata
 
 def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, str], ...]) -> FieldProposal:
     evidence = tuple(EvidenceReference("DIRECT_DATE_NUMERAL", item.role.upper(), item.source_field, item.value) for item in extraction.candidates)
