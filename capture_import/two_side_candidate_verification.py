@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from .catalogue_retrieval import CatalogueRetrievalResult
+from .denomination_mark_extraction import (
+    DenominationMarkExtraction,
+    extract_denomination_marks,
+)
 from .evidence_candidate_resolver import (
     CatalogueCandidate,
     NormalizedEvidence,
@@ -17,8 +21,8 @@ from .evidence_candidate_resolver import (
 from .grounded_visual_observation import GroundedVisualObservation
 from .numeral_evidence_envelope import build_numeral_evidence_envelope
 
-
 _TOKEN = re.compile(r"[a-z0-9]+")
+_TRUSTED_SUPPORT_WITNESS = object()
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +45,59 @@ class CandidateVerificationReport:
     observation_roles: tuple[str, ...]
     has_evidence_conflict: bool
 
+
+@dataclass(frozen=True, slots=True, init=False)
+class UniqueVerifiedCandidateDenominationSupport:
+    """Verification-owned support, not a parsed or caller-constructed DTO."""
+
+    candidate_id: str
+    denomination: str
+    country: str
+    supporting_roles: tuple[str, ...]
+    _trusted_witness: object
+    observation_roles: tuple[str, ...]
+    observations: tuple[GroundedVisualObservation, ...]
+    validation_context_id: str
+
+
+def derive_unique_verified_denomination_support(
+    result: CatalogueRetrievalResult,
+    observations: Iterable[GroundedVisualObservation],
+    denomination: DenominationMarkExtraction,
+    *,
+    validation_context_id: str,
+) -> UniqueVerifiedCandidateDenominationSupport | None:
+    """Validate one candidate against this exact observation operation."""
+    sides = tuple(observations)
+    if not isinstance(denomination, DenominationMarkExtraction):
+        raise TypeError("denomination must be DenominationMarkExtraction.")
+    if not isinstance(validation_context_id, str) or not validation_context_id.strip() or len(validation_context_id) > 255:
+        raise ValueError("validation_context_id must be bounded non-empty text.")
+    if denomination != extract_denomination_marks(sides):
+        return None
+    if denomination.conflict or denomination.resolved_value is None:
+        return None
+    report = verify_retrieved_candidates(result, sides)
+    rows = tuple(row for row in report.rows if row.verified)
+    if report.has_evidence_conflict or len(rows) != 1:
+        return None
+    row = rows[0]
+    if normalize_denomination(row.candidate.denomination) != normalize_denomination(denomination.resolved_value):
+        return None
+    support = object.__new__(UniqueVerifiedCandidateDenominationSupport)
+    object.__setattr__(support, "candidate_id", row.candidate.candidate_id)
+    object.__setattr__(support, "denomination", row.candidate.denomination)
+    object.__setattr__(support, "country", row.candidate.country)
+    object.__setattr__(support, "_trusted_witness", _TRUSTED_SUPPORT_WITNESS)
+    object.__setattr__(support, "supporting_roles", row.supporting_roles)
+    object.__setattr__(support, "observation_roles", tuple(side.role for side in sides))
+    object.__setattr__(support, "observations", sides)
+    object.__setattr__(support, "validation_context_id", validation_context_id)
+    return support
+
+
+def is_trusted_unique_verified_denomination_support(value: object) -> bool:
+    return isinstance(value, UniqueVerifiedCandidateDenominationSupport) and getattr(value, "_trusted_witness", None) is _TRUSTED_SUPPORT_WITNESS
 
 def verify_retrieved_candidates(
     result: CatalogueRetrievalResult,
