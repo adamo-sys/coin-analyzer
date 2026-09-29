@@ -33,6 +33,16 @@ from phone_intake import PhoneIntake, PhoneIntakeError
 _OPAQUE_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
 _STATES = frozenset({"DRAFT", "VERIFIED", "SAVING", "SAVED", "RECOVERY_REQUIRED"})
 _IDENTITY_FIELDS = ("country", "denomination", "year", "type_design")
+_PROPOSAL_FIELDS = ("country", "denomination", "year", "monarch", "reverse_design", "variety")
+_TREATMENT_FIELDS = {
+    "country": "country",
+    "denomination": "denomination",
+    "year": "year",
+    "monarch": "type_design",
+    "reverse_design": "type_design",
+    "variety": "type_design",
+}
+_DISPOSITIONS = frozenset({"used", "edited", "ignored", "manual_after_abstention"})
 
 
 class PhoneEntryError(ValueError):
@@ -74,6 +84,7 @@ class PhoneEntryDraft:
     state: str
     media: tuple[tuple[str, str], ...]
     proposal: dict[str, Any] | None = None
+    field_treatments: dict[str, list[dict[str, Any]]] | None = None
     human_final: tuple[tuple[str, str], ...] = ()
     item_id: str = ""
 
@@ -84,6 +95,7 @@ class PhoneEntryDraft:
             "state": self.state,
             "media": [{"role": role, "sha256": digest} for role, digest in self.media],
             "proposal": self.proposal,
+            "field_treatments": self.field_treatments or {},
             "human_final": dict(self.human_final),
             "item_id": self.item_id,
         }
@@ -122,6 +134,7 @@ class PhoneEntryAuditStore:
         """Normalize historical v1 records without a broader schema redesign."""
         entry.setdefault("proposal", None)
         entry.setdefault("field_changes", {})
+        entry.setdefault("field_treatments", {})
 
     @contextmanager
     def _edit(self) -> Iterator[dict[str, dict[str, Any]]]:
@@ -153,6 +166,7 @@ class PhoneEntryAuditStore:
             "proposal": None,
             "human_final": {},
             "field_changes": {},
+            "field_treatments": {},
             "human_verified_at": None,
             "save_confirmed_at": None,
             "item_id": None,
@@ -188,8 +202,37 @@ class PhoneEntryAuditStore:
                 field: {"proposal": proposal_fields.get(field), "human_final": value}
                 for field, value in normalized.items()
             }
+            for proposal_field, treatments in entry["field_treatments"].items():
+                human_field = _TREATMENT_FIELDS[proposal_field]
+                for treatment in treatments:
+                    treatment["human_final"] = normalized[human_field]
             entry["human_verified_at"] = _now()
             entry["state"] = "VERIFIED"
+            entry["updated_at"] = _now()
+            return dict(entry)
+
+    def record_treatment(self, entry_id: str, *, proposal_field: str, disposition: str) -> dict[str, Any]:
+        """Record an explicit advisory-review action without granting approval."""
+        if proposal_field not in _PROPOSAL_FIELDS or disposition not in _DISPOSITIONS:
+            raise PhoneEntryStateError("Phone-entry treatment is not available.")
+        with self._edit() as entries:
+            entry = self._entry(entries, entry_id, "DRAFT")
+            proposal_snapshot = entry["proposal"] or all_abstain_coin_field_proposal_set(entry_id).to_dict()
+            proposal_fields = {item["field_name"]: item for item in proposal_snapshot["fields"]}
+            field_snapshot = proposal_fields.get(proposal_field)
+            if field_snapshot is None:
+                raise PhoneEntryAuditError("Proposal snapshot is missing a field treatment target.")
+            status = field_snapshot.get("status")
+            if disposition == "used" and status != "SUPPORTED":
+                raise PhoneEntryStateError("Only a supported proposal may be used.")
+            if disposition == "manual_after_abstention" and status != "ABSTAIN":
+                raise PhoneEntryStateError("Manual-after-abstention requires an abstaining proposal.")
+            entry["field_treatments"].setdefault(proposal_field, []).append({
+                "proposal": dict(field_snapshot),
+                "human_field": _TREATMENT_FIELDS[proposal_field],
+                "disposition": disposition,
+                "human_final": None,
+            })
             entry["updated_at"] = _now()
             return dict(entry)
 
@@ -271,6 +314,24 @@ class PhoneEntryAuditStore:
             _normalize_identity(human_final)
         if entry.get("item_id") is not None:
             cls._validate_id(entry["item_id"], "item_id")
+        cls._validate_treatments(entry.get("field_treatments"))
+
+    @classmethod
+    def _validate_treatments(cls, treatments: Any) -> None:
+        if not isinstance(treatments, dict):
+            raise PhoneEntryAuditError("Phone-entry field treatments are invalid.")
+        for proposal_field, rows in treatments.items():
+            if proposal_field not in _PROPOSAL_FIELDS or not isinstance(rows, list):
+                raise PhoneEntryAuditError("Phone-entry field treatments are invalid.")
+            for row in rows:
+                if not isinstance(row, dict) or set(row) != {"proposal", "human_field", "disposition", "human_final"}:
+                    raise PhoneEntryAuditError("Phone-entry field treatment is invalid.")
+                if row["human_field"] != _TREATMENT_FIELDS[proposal_field] or row["disposition"] not in _DISPOSITIONS:
+                    raise PhoneEntryAuditError("Phone-entry field treatment is invalid.")
+                if not isinstance(row["proposal"], dict) or row["proposal"].get("field_name") != proposal_field:
+                    raise PhoneEntryAuditError("Phone-entry field treatment snapshot is invalid.")
+                if row["human_final"] is not None and (not isinstance(row["human_final"], str) or len(row["human_final"]) > 255):
+                    raise PhoneEntryAuditError("Phone-entry field treatment final value is invalid.")
 
 
 class PhoneEntryService:
@@ -397,6 +458,12 @@ class PhoneEntryService:
     def reopen(self, entry_id: str) -> dict[str, Any]:
         return _draft_from_entry(self.audit_store.get(entry_id)).to_dict()
 
+    def record_treatment(self, entry_id: str, *, proposal_field: str, disposition: str) -> PhoneEntryDraft:
+        """Persist only an explicit advisory-review disposition; it never verifies or saves."""
+        return _draft_from_entry(self.audit_store.record_treatment(
+            entry_id, proposal_field=proposal_field, disposition=disposition
+        ))
+
     def _restore_saving_for_reconciliation(self, entry_id: str) -> None:
         with self.audit_store._edit() as entries:
             entry = self.audit_store._entry(entries, entry_id, "RECOVERY_REQUIRED")
@@ -444,6 +511,7 @@ def _draft_from_entry(entry: Mapping[str, Any]) -> PhoneEntryDraft:
         state=str(entry["state"]),
         media=tuple(sorted((str(role), str(digest)) for role, digest in entry["media"].items())),
         proposal=all_abstain_coin_field_proposal_set(str(entry["entry_id"])).to_dict() if entry.get("proposal") is None else dict(entry["proposal"]),
+        field_treatments={field: [dict(row) for row in rows] for field, rows in entry.get("field_treatments", {}).items()},
         human_final=tuple(sorted((str(field), str(value)) for field, value in entry["human_final"].items())),
         item_id="" if entry.get("item_id") is None else str(entry["item_id"]),
     )

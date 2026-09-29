@@ -327,6 +327,29 @@ class LocalPhoneEntryHost:
                 return self._page("REVIEW", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Verification was not accepted."), 400
             return jsonify(draft.to_dict()) if request.is_json else redirect(url_for("review_page", entry_id=entry_id))
 
+        @app.post("/draft/<entry_id>/treatment")
+        def record_treatment(entry_id: str):
+            """Record an explicit advisory-review action; never issue an approval."""
+            session = self._authenticated_session()
+            self._require_csrf(session)
+            self._require_entry(session, entry_id)
+            body = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+            if not isinstance(body, dict) or set(body) != {"csrf_token", "proposal_field", "disposition"}:
+                if request.is_json:
+                    raise _RequestError("invalid_treatment", 400)
+                return self._page("REVIEW", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Review action was not accepted."), 400
+            try:
+                draft = self.service.record_treatment(
+                    entry_id,
+                    proposal_field=str(body["proposal_field"]),
+                    disposition=str(body["disposition"]),
+                )
+            except PhoneEntryError as error:
+                if request.is_json:
+                    raise _RequestError("treatment_rejected", 400) from error
+                return self._page("REVIEW", csrf=session.csrf_token, draft=self.service.reopen(entry_id), error="Review action was not accepted."), 400
+            return jsonify(draft.to_dict()) if request.is_json else redirect(url_for("review_page", entry_id=entry_id))
+
         @app.post("/draft/<entry_id>/save")
         def save_draft(entry_id: str):
             session = self._authenticated_session()
