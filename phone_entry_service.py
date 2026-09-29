@@ -18,6 +18,7 @@ from typing import Any, Iterator, Mapping, Protocol
 from uuid import uuid4
 
 from atomic_json import write_json_atomically
+from capture_import.coin_field_proposals import CoinFieldProposalSet, all_abstain_coin_field_proposal_set
 from capture_import.lock import PackageImportLock
 from capture_import.reviewed_coin_collection_entry import (
     ReviewedCoinDraft,
@@ -57,6 +58,13 @@ class PhoneEntryApprovalVerifier(Protocol):
         """Return true only for a host-issued, action-bound approval."""
 
 
+class PhoneEntryProposalProducer(Protocol):
+    """Optional bounded advisory producer; never a save authority."""
+
+    def propose(self, *, entry_id: str, pair_id: str, media: tuple[tuple[str, str], ...]) -> CoinFieldProposalSet:
+        """Return an immutable proposal snapshot bound to this entry."""
+
+
 @dataclass(frozen=True, slots=True)
 class PhoneEntryDraft:
     """Safe representation for a future mobile client; it exposes no paths."""
@@ -65,6 +73,7 @@ class PhoneEntryDraft:
     pair_id: str
     state: str
     media: tuple[tuple[str, str], ...]
+    proposal: dict[str, Any] | None = None
     human_final: tuple[tuple[str, str], ...] = ()
     item_id: str = ""
 
@@ -74,6 +83,7 @@ class PhoneEntryDraft:
             "pair_id": self.pair_id,
             "state": self.state,
             "media": [{"role": role, "sha256": digest} for role, digest in self.media],
+            "proposal": self.proposal,
             "human_final": dict(self.human_final),
             "item_id": self.item_id,
         }
@@ -101,10 +111,17 @@ class PhoneEntryAuditStore:
                 raise ValueError("unsupported audit schema")
             entries = raw["entries"]
             for entry_id, entry in entries.items():
+                self._normalize_v1_entry(entry_id, entry)
                 self._validate_entry(entry_id, entry)
             return entries
         except (OSError, ValueError, TypeError, KeyError) as error:
             raise PhoneEntryAuditError("Phone-entry audit state is unreadable; recovery is required.") from error
+
+    @staticmethod
+    def _normalize_v1_entry(entry_id: str, entry: dict[str, Any]) -> None:
+        """Normalize historical v1 records without a broader schema redesign."""
+        entry.setdefault("proposal", None)
+        entry.setdefault("field_changes", {})
 
     @contextmanager
     def _edit(self) -> Iterator[dict[str, dict[str, Any]]]:
@@ -145,6 +162,15 @@ class PhoneEntryAuditStore:
             entries[entry_id] = entry
         return dict(entry)
 
+    def record_proposal(self, entry_id: str, proposal: CoinFieldProposalSet) -> dict[str, Any]:
+        if not isinstance(proposal, CoinFieldProposalSet) or proposal.source_coin_id != entry_id:
+            raise PhoneEntryAuditError("Proposal snapshot is not bound to this phone-entry draft.")
+        with self._edit() as entries:
+            entry = self._entry(entries, entry_id, "DRAFT")
+            entry["proposal"] = proposal.to_dict()
+            entry["updated_at"] = _now()
+            return dict(entry)
+
     def get(self, entry_id: str) -> dict[str, Any]:
         try:
             return dict(self.records()[entry_id])
@@ -156,8 +182,10 @@ class PhoneEntryAuditStore:
         with self._edit() as entries:
             entry = self._entry(entries, entry_id, "DRAFT")
             entry["human_final"] = normalized
+            proposal_snapshot = entry["proposal"] or all_abstain_coin_field_proposal_set(entry_id).to_dict()
+            proposal_fields = {item["field_name"]: item for item in proposal_snapshot["fields"]}
             entry["field_changes"] = {
-                field: {"proposal": None, "human_final": value}
+                field: {"proposal": proposal_fields.get(field), "human_final": value}
                 for field, value in normalized.items()
             }
             entry["human_verified_at"] = _now()
@@ -255,6 +283,7 @@ class PhoneEntryService:
         intake: PhoneIntake,
         audit_store: PhoneEntryAuditStore,
         approval_verifier: PhoneEntryApprovalVerifier,
+        proposal_producer: PhoneEntryProposalProducer | None = None,
     ) -> None:
         if not isinstance(collection, CoinCollection) or not isinstance(intake, PhoneIntake):
             raise TypeError("collection and intake must be their production service types.")
@@ -262,16 +291,25 @@ class PhoneEntryService:
         self.intake = intake
         self.audit_store = audit_store
         self.approval_verifier = approval_verifier
+        self.proposal_producer = proposal_producer
 
     def create_draft(self, *, front_path: str, reverse_path: str, session_id: str) -> PhoneEntryDraft:
         pair_id = self.intake.confirm_pair(front_path, reverse_path)
         images = self.intake.records()[pair_id]["images"]
-        entry = self.audit_store.create(
-            pair_id=pair_id,
-            session_reference=sha256(session_id.encode("utf-8")).hexdigest(),
-            media={"front": images["front"]["sha256"], "reverse": images["reverse"]["sha256"]},
-        )
-        return _draft_from_entry(entry)
+        media = {"front": images["front"]["sha256"], "reverse": images["reverse"]["sha256"]}
+        entry = self.audit_store.create(pair_id=pair_id, session_reference=sha256(session_id.encode("utf-8")).hexdigest(), media=media)
+        proposal = self._proposal_for_entry(entry["entry_id"], pair_id, media)
+        return _draft_from_entry(self.audit_store.record_proposal(entry["entry_id"], proposal))
+
+    def _proposal_for_entry(self, entry_id: str, pair_id: str, media: Mapping[str, str]) -> CoinFieldProposalSet:
+        fallback = all_abstain_coin_field_proposal_set(entry_id)
+        if self.proposal_producer is None:
+            return fallback
+        try:
+            proposal = self.proposal_producer.propose(entry_id=entry_id, pair_id=pair_id, media=tuple(sorted(media.items())))
+        except Exception:
+            return fallback
+        return proposal if isinstance(proposal, CoinFieldProposalSet) and proposal.source_coin_id == entry_id else fallback
 
     def verify(
         self,
@@ -405,6 +443,7 @@ def _draft_from_entry(entry: Mapping[str, Any]) -> PhoneEntryDraft:
         pair_id=str(entry["pair_id"]),
         state=str(entry["state"]),
         media=tuple(sorted((str(role), str(digest)) for role, digest in entry["media"].items())),
+        proposal=all_abstain_coin_field_proposal_set(str(entry["entry_id"])).to_dict() if entry.get("proposal") is None else dict(entry["proposal"]),
         human_final=tuple(sorted((str(field), str(value)) for field, value in entry["human_final"].items())),
         item_id="" if entry.get("item_id") is None else str(entry["item_id"]),
     )

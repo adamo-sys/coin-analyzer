@@ -164,6 +164,64 @@ class PhoneEntryServiceTests(unittest.TestCase):
         self.assertNotIn("session-private-sentinel", raw_audit)
         self.assertIn("session_reference", json.loads(raw_audit)["entries"][draft.entry_id])
 
+    def test_absent_producer_records_and_reopens_all_abstentions(self) -> None:
+        draft = self.service.create_draft(
+            front_path=str(self.front), reverse_path=str(self.reverse), session_id="session-opaque-absent"
+        )
+
+        proposal = self.service.reopen(draft.entry_id)["proposal"]
+        self.assertEqual(proposal["source_coin_id"], draft.entry_id)
+        self.assertTrue(all(field["status"] == "ABSTAIN" for field in proposal["fields"]))
+        self.assertEqual(self.service.reopen(draft.entry_id)["human_final"], {})
+
+    def test_valid_injected_proposal_is_snapshot_only_and_records_field_comparison(self) -> None:
+        service = PhoneEntryService(
+            collection=self.collection,
+            intake=self.intake,
+            audit_store=self.audit,
+            approval_verifier=_TestApprovalVerifier(),
+            proposal_producer=_ValidProposalProducer(),
+        )
+        draft = service.create_draft(front_path=str(self.front), reverse_path=str(self.reverse), session_id="private-session")
+        self.assertEqual(service.reopen(draft.entry_id)["proposal"]["producer_ids"], ["fixture-producer"])
+        service.verify(draft.entry_id, country="Canada", denomination="25 cents", year="1967", verification_approval="trusted-verify")
+        record = self.audit.get(draft.entry_id)
+        comparison = record["field_changes"]["country"]
+        self.assertEqual(comparison["proposal"]["status"], "ABSTAIN")
+        self.assertEqual(comparison["human_final"], "Canada")
+        self.assertNotIn("disposition", comparison)
+        serialized = self.audit.path.read_text(encoding="utf-8")
+        reopened = service.reopen(draft.entry_id)
+        self.assertNotIn("private-session", serialized)
+        self.assertNotIn(str(self.root), serialized)
+        self.assertNotIn(str(self.root), str(reopened))
+
+    def test_exception_malformed_and_mismatched_producers_fail_closed(self) -> None:
+        for producer in (_RaisingProposalProducer(), _MalformedProposalProducer(), _MismatchedProposalProducer()):
+            with self.subTest(producer=type(producer).__name__):
+                self.setUp()
+                service = PhoneEntryService(
+                    collection=self.collection,
+                    intake=self.intake,
+                    audit_store=self.audit,
+                    approval_verifier=_TestApprovalVerifier(),
+                    proposal_producer=producer,
+                )
+                draft = service.create_draft(front_path=str(self.front), reverse_path=str(self.reverse), session_id="opaque")
+                proposal = service.reopen(draft.entry_id)["proposal"]
+                self.assertEqual(proposal["source_coin_id"], draft.entry_id)
+                self.assertEqual(proposal["producer_ids"], [])
+                self.assertTrue(all(field["status"] == "ABSTAIN" for field in proposal["fields"]))
+
+    def test_legacy_audit_record_without_proposal_fields_reopens_safely(self) -> None:
+        draft = self.service.create_draft(front_path=str(self.front), reverse_path=str(self.reverse), session_id="opaque")
+        raw = json.loads(self.audit.path.read_text(encoding="utf-8"))
+        raw["entries"][draft.entry_id].pop("proposal")
+        raw["entries"][draft.entry_id].pop("field_changes")
+        self.audit.path.write_text(json.dumps(raw), encoding="utf-8")
+        reopened = self.service.reopen(draft.entry_id)
+        self.assertTrue(all(field["status"] == "ABSTAIN" for field in reopened["proposal"]["fields"]))
+        self.assertEqual(reopened["human_final"], {})
     def _verified_draft(self):
         draft = self.service.create_draft(
             front_path=str(self.front),
@@ -188,6 +246,26 @@ class _TestApprovalVerifier:
             ("SAVE", "trusted-save"),
         }
 
+class _ValidProposalProducer:
+    def propose(self, *, entry_id, pair_id, media):
+        from capture_import.coin_field_proposals import all_abstain_coin_field_proposal_set
+        return all_abstain_coin_field_proposal_set(entry_id, producer_ids=("fixture-producer",))
+
+
+class _RaisingProposalProducer:
+    def propose(self, **kwargs):
+        raise RuntimeError("private producer error")
+
+
+class _MalformedProposalProducer:
+    def propose(self, **kwargs):
+        return object()
+
+
+class _MismatchedProposalProducer:
+    def propose(self, **kwargs):
+        from capture_import.coin_field_proposals import all_abstain_coin_field_proposal_set
+        return all_abstain_coin_field_proposal_set("other-entry")
 
 if __name__ == "__main__":
     unittest.main()

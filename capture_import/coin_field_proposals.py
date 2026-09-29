@@ -393,3 +393,12 @@ def _bounded_id(value: object) -> bool:
 
 def _stable_reason(value: object) -> bool:
     return isinstance(value, str) and bool(re.fullmatch(r"[a-z0-9_]{1,64}", value))
+def all_abstain_coin_field_proposal_set(
+    source_coin_id: str, *, producer_ids: tuple[str, ...] = (),
+) -> CoinFieldProposalSet:
+    """Return the complete deterministic advisory fallback for one bounded source."""
+    return CoinFieldProposalSet(
+        1, source_coin_id,
+        tuple(FieldProposal.unresolved(field_name, FieldProposalStatus.ABSTAIN, reasons=("no_advisory_evidence",)) for field_name in _FIELD_NAMES),
+        producer_ids,
+    )

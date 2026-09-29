@@ -8,6 +8,19 @@ from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
 class CoinFieldProposalContractTests(unittest.TestCase):
+    def test_all_abstain_constructor_is_complete_and_deterministic(self) -> None:
+        from capture_import.coin_field_proposals import all_abstain_coin_field_proposal_set
+
+        first = all_abstain_coin_field_proposal_set("phone-entry-1")
+        second = all_abstain_coin_field_proposal_set("phone-entry-1")
+
+        self.assertEqual(first, second)
+        self.assertEqual(first.source_coin_id, "phone-entry-1")
+        self.assertEqual(tuple(field.field_name for field in first.fields), ("country", "denomination", "year", "monarch", "reverse_design", "variety"))
+        self.assertTrue(all(field.status.value == "ABSTAIN" for field in first.fields))
+        self.assertTrue(all(field.proposed_value is None for field in first.fields))
+        self.assertTrue(all(not field.evidence for field in first.fields))
+
     def test_public_field_proposal_cannot_represent_supported(self) -> None:
         from capture_import.coin_field_proposals import (
             EvidenceReference,
