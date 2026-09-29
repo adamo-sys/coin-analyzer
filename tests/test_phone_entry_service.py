@@ -196,6 +196,71 @@ class PhoneEntryServiceTests(unittest.TestCase):
         self.assertNotIn(str(self.root), serialized)
         self.assertNotIn(str(self.root), str(reopened))
 
+    def test_explicit_treatment_retains_the_snapshot_and_final_human_value(self) -> None:
+        """Removing the explicit action must not create a treatment audit row."""
+        draft = self.service.create_draft(
+            front_path=str(self.front), reverse_path=str(self.reverse), session_id="opaque-treatment"
+        )
+        proposal = _proposal_with_supported_country(draft.entry_id)
+        with self.audit._edit() as entries:
+            entries[draft.entry_id]["proposal"] = proposal
+
+        self.service.record_treatment(draft.entry_id, proposal_field="country", disposition="used")
+
+        before_verify = self.audit.get(draft.entry_id)
+        self.assertEqual(before_verify["state"], "DRAFT")
+        self.assertEqual(self.collection.items, [])
+        self.assertEqual(before_verify["field_treatments"]["country"][0]["proposal"], proposal["fields"][0])
+        self.assertIsNone(before_verify["field_treatments"]["country"][0]["human_final"])
+        self.service.verify(
+            draft.entry_id,
+            country="Canada",
+            denomination="25 cents",
+            year="1967",
+            verification_approval="trusted-verify",
+        )
+
+        treatment = self.audit.get(draft.entry_id)["field_treatments"]["country"][0]
+        self.assertEqual(treatment["disposition"], "used")
+        self.assertEqual(treatment["human_final"], "Canada")
+        self.assertEqual(treatment["proposal"], proposal["fields"][0])
+        serialized = self.audit.path.read_text(encoding="utf-8")
+        reopened = self.service.reopen(draft.entry_id)
+        self.assertNotIn("opaque-treatment", serialized)
+        self.assertNotIn(str(self.root), serialized)
+        self.assertNotIn(str(self.root), str(reopened))
+
+    def test_manual_after_abstention_requires_an_explicit_treatment_action(self) -> None:
+        """Deleting the manual action must leave the audit without an inferred disposition."""
+        draft = self.service.create_draft(
+            front_path=str(self.front), reverse_path=str(self.reverse), session_id="opaque-abstention"
+        )
+
+        self.assertEqual(self.audit.get(draft.entry_id).get("field_treatments", {}), {})
+        self.service.record_treatment(
+            draft.entry_id, proposal_field="year", disposition="manual_after_abstention"
+        )
+
+        treatment = self.audit.get(draft.entry_id)["field_treatments"]["year"][0]
+        self.assertEqual(treatment["disposition"], "manual_after_abstention")
+        self.assertEqual(treatment["proposal"]["status"], "ABSTAIN")
+
+    def test_explicit_edit_and_ignore_are_recorded_without_authorization(self) -> None:
+        """Changing review treatment to an approval must fail this state/authority check."""
+        draft = self.service.create_draft(
+            front_path=str(self.front), reverse_path=str(self.reverse), session_id="opaque-edit-ignore"
+        )
+
+        self.service.record_treatment(draft.entry_id, proposal_field="country", disposition="edited")
+        self.service.record_treatment(draft.entry_id, proposal_field="denomination", disposition="ignored")
+
+        record = self.audit.get(draft.entry_id)
+        self.assertEqual(record["state"], "DRAFT")
+        self.assertEqual(record["field_treatments"]["country"][0]["disposition"], "edited")
+        self.assertEqual(record["field_treatments"]["denomination"][0]["disposition"], "ignored")
+        with self.assertRaises(PhoneEntryStateError):
+            self.service.save(draft.entry_id, save_approval="trusted-save")
+
     def test_exception_malformed_and_mismatched_producers_fail_closed(self) -> None:
         for producer in (_RaisingProposalProducer(), _MalformedProposalProducer(), _MismatchedProposalProducer()):
             with self.subTest(producer=type(producer).__name__):
@@ -266,6 +331,23 @@ class _MismatchedProposalProducer:
     def propose(self, **kwargs):
         from capture_import.coin_field_proposals import all_abstain_coin_field_proposal_set
         return all_abstain_coin_field_proposal_set("other-entry")
+
+
+def _proposal_with_supported_country(entry_id: str) -> dict[str, object]:
+    fields = []
+    for field_name in ("country", "denomination", "year", "monarch", "reverse_design", "variety"):
+        supported = field_name == "country"
+        fields.append({
+            "field_name": field_name,
+            "status": "SUPPORTED" if supported else "ABSTAIN",
+            "proposed_value": "Canada" if supported else None,
+            "normalized_value": "canada" if supported else None,
+            "evidence": ([{"source": "DIRECT_OBSERVATION", "image_role": "OBVERSE", "artifact_id": "safe-artifact", "observed_value": "Canada", "producer_id": "fixture"}] if supported else []),
+            "reasons": ["direct_field_evidence"] if supported else ["no_advisory_evidence"],
+            "scope": "DIRECT_OBSERVATION",
+            "candidate_ids": [],
+        })
+    return {"schema_version": 1, "source_coin_id": entry_id, "producer_ids": ["fixture"], "fields": fields}
 
 if __name__ == "__main__":
     unittest.main()
