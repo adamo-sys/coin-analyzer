@@ -135,6 +135,7 @@ _DISPLAY_UNITS: dict[str, tuple[str, str]] = {
     "pence": ("pence", "pence"),
     "franc": ("franc", "francs"),
     "centime": ("centime", "centimes"),
+    "sentimo": ("sentimo", "sentimos"),
     "peso": ("peso", "pesos"),
 }
 
@@ -195,6 +196,14 @@ def canonicalize_denomination(
                 return _unmapped(raw_value)
             unit_id = "peso"
             rules.append("denomination.unit-alias.ph-piso-peso")
+        elif unit_text in {"sentimo", "sentimos", "centimo", "centimos"}:
+            if jurisdiction_id != "PH":
+                return _unmapped(raw_value)
+            unit_id = "sentimo"
+            if unit_text in {"sentimo", "sentimos"}:
+                rules.append("denomination.unit-alias.ph-sentimo")
+            else:
+                rules.append("denomination.unit-alias.ph-centimo-sentimo")
         else:
             unit = _UNIT_ALIASES.get(unit_text)
             if unit is None:
