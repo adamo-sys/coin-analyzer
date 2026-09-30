@@ -33,11 +33,11 @@ def test_candidate_with_structured_match_and_text_support_verifies():
 
     row = report.rows[0]
     assert row.verified
-    assert row.matched_fields == ("year", "denomination", "visible_text")
+    assert row.matched_fields == ("denomination", "visible_text")
     assert row.supporting_roles == ("obverse", "reverse")
 
 
-def test_single_side_can_verify_but_role_provenance_is_explicit():
+def test_singleton_year_with_text_cannot_verify_candidate():
     report = verify_retrieved_candidates(
         _result(_candidate()),
         (
@@ -49,12 +49,15 @@ def test_single_side_can_verify_but_role_provenance_is_explicit():
         ),
     )
 
-    assert report.rows[0].verified
-    assert report.rows[0].supporting_roles == ("obverse",)
+    row = report.rows[0]
+    assert not row.verified
+    assert row.matched_fields == ("visible_text",)
+    assert row.conflicting_fields == ()
+    assert row.supporting_roles == ("obverse",)
     assert report.observation_roles == ("obverse",)
 
 
-def test_structured_conflict_prevents_verification():
+def test_singleton_year_mismatch_is_not_verification_conflict():
     report = verify_retrieved_candidates(
         _result(_candidate(year="1956")),
         (
@@ -66,7 +69,8 @@ def test_structured_conflict_prevents_verification():
 
     row = report.rows[0]
     assert not row.verified
-    assert row.conflicting_fields == ("year",)
+    assert row.matched_fields == ("visible_text",)
+    assert row.conflicting_fields == ()
 
 
 def test_text_without_strong_structured_match_is_not_verified():
@@ -87,7 +91,7 @@ def test_strong_match_without_text_support_is_not_verified():
     )
 
     row = report.rows[0]
-    assert row.matched_fields == ("year",)
+    assert row.matched_fields == ()
     assert not row.verified
 
 
@@ -99,14 +103,16 @@ def test_multiple_candidates_are_verified_independently_in_retrieval_order():
         ),
         (
             GroundedVisualObservation(
-                role="obverse", date_like="1955", visible_text=("CANADA",)
+                role="obverse", denomination_mark="25 CENTS", visible_text=("CANADA",)
             ),
         ),
     )
 
     assert [row.candidate.candidate_id for row in report.rows] == ["match", "wrong-year"]
     assert report.rows[0].verified
-    assert not report.rows[1].verified
+    assert report.rows[1].verified
+    assert report.rows[0].matched_fields == ("denomination", "visible_text")
+    assert report.rows[1].matched_fields == ("denomination", "visible_text")
 
 
 def test_conflicting_observed_dates_fail_closed_before_candidate_verification():
@@ -164,7 +170,7 @@ def test_verification_has_no_acceptance_identity_or_confidence_fields():
     assert not hasattr(report.rows[0], "confidence")
 
 
-def test_structured_year_and_country_alias_on_opposite_side_preserve_two_side_support():
+def test_singleton_year_and_country_alias_do_not_create_verification_authority():
     report = verify_retrieved_candidates(
         _result(
             CatalogueCandidate(
@@ -188,9 +194,10 @@ def test_structured_year_and_country_alias_on_opposite_side_preserve_two_side_su
     )
 
     row = report.rows[0]
-    assert row.verified
-    assert row.matched_fields == ("year", "visible_text")
-    assert row.supporting_roles == ("obverse", "reverse")
+    assert not row.verified
+    assert row.matched_fields == ("visible_text",)
+    assert row.conflicting_fields == ()
+    assert row.supporting_roles == ("reverse",)
     assert row.supporting_text == ("HELVETIA",)
 
 
@@ -207,8 +214,9 @@ def test_year_text_does_not_double_count_structured_year_as_text_support():
     )
 
     row = report.rows[0]
-    assert row.matched_fields == ("year",)
-    assert row.supporting_roles == ("obverse",)
+    assert row.matched_fields == ()
+    assert row.supporting_roles == ()
+    assert row.supporting_text == ()
     assert not row.verified
 
 
@@ -243,7 +251,7 @@ def test_country_alias_can_supply_independent_text_support_without_legends():
         (
             GroundedVisualObservation(
                 role="obverse",
-                date_like="1968",
+                denomination_mark="2 FRANCS",
                 visible_text=("HELVETIA",),
             ),
         ),
@@ -264,7 +272,7 @@ def test_country_text_support_is_case_insensitive(country, visible_text):
         _result(CatalogueCandidate("country", country, "25 cents", "1955")),
         (
             GroundedVisualObservation(
-                role="obverse", date_like="1955", visible_text=(visible_text,)
+                role="obverse", denomination_mark="25 CENTS", visible_text=(visible_text,)
             ),
         ),
     )

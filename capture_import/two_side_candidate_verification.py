@@ -138,12 +138,9 @@ def _verify(
     candidate_denomination = normalize_denomination(candidate.denomination)
     candidate_country = normalize_country(candidate.country)
 
-    if evidence.year is not None:
-        if candidate_year == evidence.year:
-            matched.append("year")
-        else:
-            conflicts.append("year")
-
+    # Literal year evidence remains available upstream for retrieval, but an
+    # observed year is not trusted candidate-verification authority. It neither
+    # verifies nor vetoes a retrieved candidate.
     if evidence.denomination is not None:
         if candidate_denomination == evidence.denomination:
             matched.append("denomination")
@@ -170,8 +167,6 @@ def _verify(
 
         # Structured evidence retains its side provenance. A matching date or
         # denomination therefore counts as support from the side that supplied it.
-        if side.date_like is not None and normalize_year(side.date_like) == candidate_year:
-            side_supported = True
         if (
             side.denomination_mark is not None
             and normalize_denomination(side.denomination_mark) == candidate_denomination
@@ -206,7 +201,7 @@ def _verify(
     # Verification requires conflict-free structured agreement plus independent
     # textual catalogue support. supporting_roles records all sides that supplied
     # candidate-consistent evidence, not merely the sides with matching text.
-    strong_match = "year" in matched or "denomination" in matched
+    strong_match = "denomination" in matched
     verified = not conflicts and strong_match and text_supported
 
     return CandidateVerification(
