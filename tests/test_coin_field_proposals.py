@@ -65,10 +65,67 @@ class CoinFieldProposalContractTests(unittest.TestCase):
         )
 
         year = result.field("year")
-        self.assertEqual(year.status.value, "SUPPORTED")
-        self.assertEqual(year.proposed_value, "1974")
+        self.assertEqual(year.status.value, "ABSTAIN")
+        self.assertIsNone(year.proposed_value)
+        self.assertIsNone(year.normalized_value)
         self.assertEqual(year.scope.value, "DIRECT_OBSERVATION")
+        self.assertEqual(year.reasons, ("exact_direct_year_untrusted",))
+        self.assertTrue(
+            any(
+                item.source == "DIRECT_DATE_NUMERAL"
+                and item.image_role == "OBVERSE"
+                and item.observed_value == "1974"
+                for item in year.evidence
+            )
+        )
         self.assertTrue(all(item.observed_value == "1974" for item in year.evidence))
+
+    def test_empirical_singleton_exact_years_remain_evidence_without_supported_authority(self) -> None:
+        from capture_import.coin_field_proposals import project_coin_field_proposals
+
+        cases = (
+            ("historical-wrong-1973", "1973"),
+            ("historical-wrong-1993", "1993"),
+            ("historical-wrong-1957", "1957"),
+            ("experiment5-wrong-1953", "1953"),
+            ("experiment5-wrong-1924", "1924"),
+            ("experiment5-wrong-1991", "1991"),
+            ("experiment5-wrong-1996", "1996"),
+            ("experiment5-wrong-1967", "1967"),
+            ("historical-correct-1918", "1918"),
+            ("historical-correct-1969", "1969"),
+        )
+
+        for source_coin_id, observed_year in cases:
+            with self.subTest(source_coin_id=source_coin_id, observed_year=observed_year):
+                sides = (
+                    GroundedVisualObservation(
+                        role="obverse",
+                        date_like=observed_year,
+                        visible_text=(observed_year,),
+                    ),
+                )
+                result = project_coin_field_proposals(
+                    source_coin_id=source_coin_id,
+                    date=extract_date_numerals(sides),
+                    denomination=extract_denomination_marks(sides),
+                    observations=sides,
+                )
+
+                year = result.field("year")
+                self.assertEqual(year.status.value, "ABSTAIN")
+                self.assertIsNone(year.proposed_value)
+                self.assertIsNone(year.normalized_value)
+                self.assertEqual(year.scope.value, "DIRECT_OBSERVATION")
+                self.assertEqual(year.reasons, ("exact_direct_year_untrusted",))
+                self.assertTrue(
+                    any(
+                        item.source == "DIRECT_DATE_NUMERAL"
+                        and item.image_role == "OBVERSE"
+                        and item.observed_value == observed_year
+                        for item in year.evidence
+                    )
+                )
 
     def test_year_metadata_without_direct_literal_abstains(self) -> None:
         from capture_import.coin_field_proposals import project_coin_field_proposals
