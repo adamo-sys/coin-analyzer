@@ -15,7 +15,7 @@ _ALLOWED = re.compile(r"^[0-9A-Za-zÖö./½¼¾$¢€£¥₹₱₽₩₫₦₵�
 _NUMBER = re.compile(r"\d+(?:[./]\d+)?|[½¼¾]")
 _CURRENCY_SYMBOLS = frozenset("$¢€£¥₹₱₽₩₫₦₵₡₲₴₸₺₼₾₿")
 _UNIT_TOKEN = re.compile(
-    r"(?<![A-Za-z])(?:cent(?:s)?|dollar(?:s)?|fr\.?|franc(?:s)?|"
+    r"(?<![A-Za-z])(?:cent(?:s)?|centimo(?:s)?|sentimo(?:s)?|dollar(?:s)?|fr\.?|franc(?:s)?|"
     r"ore|öre|piso|peso(?:s)?|rp|rupiah|rupee(?:s)?)(?![A-Za-zÖö])",
     flags=re.IGNORECASE,
 )

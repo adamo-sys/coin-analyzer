@@ -243,3 +243,55 @@ def test_controlled_country_aliases_normalize_exact_literals(literal, expected):
 @pytest.mark.parametrize("literal", ["SVERIG", "EPUBLICA DOMINICANA", "HELVETICA"])
 def test_country_alias_near_matches_are_not_promoted(literal):
     assert normalize_country(literal) == literal
+
+
+@pytest.mark.parametrize(
+    "mark",
+    ["25 CENTIMO", "25 CENTIMOS", "25 SENTIMO", "25 SENTIMOS"],
+)
+def test_philippines_centimos_literal_resolves(mark):
+    result = extract_denomination_marks(
+        (_observation(denomination_mark=mark, visible_text=(mark,)),)
+    )
+
+    assert result.resolved_value == mark
+    assert not result.conflict
+    assert not result.unresolved
+
+
+@pytest.mark.parametrize(
+    "mark",
+    ["25 CENTIMO", "25 CENTIMOS", "25 SENTIMO", "25 SENTIMOS"],
+)
+def test_philippines_sentimo_aliases_require_ph_jurisdiction(mark):
+    from capture_import.canonical_identity import canonicalize_denomination
+
+    assert canonicalize_denomination(mark).canonical_value is None
+
+    unrelated = canonicalize_denomination(
+        mark,
+        jurisdiction_id="ES",
+    )
+    assert unrelated.canonical_value is None
+
+    philippines = canonicalize_denomination(
+        mark,
+        jurisdiction_id="PH",
+    )
+
+    assert philippines.canonical_value is not None
+    assert philippines.canonical_value.numeric_value == 25
+    assert philippines.canonical_value.unit_id == "sentimo"
+    assert philippines.canonical_value.display_name == "25 sentimos"
+
+
+def test_centimos_does_not_become_global_cent_alias():
+    from capture_import.canonical_identity import canonicalize_denomination
+
+    assert canonicalize_denomination(
+        "25 CENTIMOS"
+    ).canonical_value is None
+
+    cents = canonicalize_denomination("25 CENTS")
+    assert cents.canonical_value is not None
+    assert cents.canonical_value.unit_id == "cent"
