@@ -320,7 +320,13 @@ def _year_field(extraction: DateNumeralExtraction, metadata: tuple[tuple[str, st
     if any(not _year_constraint_matches(value, extraction.resolved_value) for _, value in constrained_metadata):
         trails = evidence + tuple(EvidenceReference("CANDIDATE_METADATA", None, candidate_id, value) for candidate_id, value in constrained_metadata)
         return FieldProposal.unresolved("year", FieldProposalStatus.CONFLICTING, trails, reasons=("direct_year_metadata_conflict",), scope=ProposalScope.CANDIDATE_METADATA, candidate_ids=ids)
-    return _supported("year", extraction.resolved_value, extraction.resolved_value, evidence, scope=ProposalScope.DIRECT_OBSERVATION, reasons=("exact_direct_year",), candidate_ids=ids)
+    return FieldProposal.unresolved(
+        "year",
+        FieldProposalStatus.ABSTAIN,
+        evidence,
+        reasons=("exact_direct_year_untrusted",),
+        candidate_ids=ids,
+    )
 
 
 def _direct_field(field_name: str, rows: tuple[tuple[str, str, EvidenceReference], ...]) -> FieldProposal:
