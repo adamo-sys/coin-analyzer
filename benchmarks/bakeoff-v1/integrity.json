@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "artifacts": [
+    {
+      "path": "benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json",
+      "sha256": "da14741ffd98b07a03fb67b2624beb7367ab5b3ec0ddd56d84c56a19b30e32eb"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/tasks/BO1-TAMPER-BATCH.json",
+      "sha256": "cb5b72cbbee8e573bb2e3657e149b7a243110c7647250e8e551c51da4ab638d4"
+    }
+  ]
+}
