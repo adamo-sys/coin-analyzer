@@ -17,6 +17,7 @@ class RunLedgerValidationError(ValueError):
 
 _TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _AVAILABILITY = frozenset({"measured", "derived", "unavailable", "not_applicable", "not_yet_graded"})
 _TERMINAL_STATUS = frozenset({"completed", "failed", "timed_out", "interrupted", "invalid_run"})
 _OPTIONAL_LAYERS = ("model", "harness", "memory_layer", "skills_or_instructions_layer", "control_orchestration_layer")
@@ -94,6 +95,36 @@ def _interventions(value: object, started: datetime, ended: datetime) -> None:
             raise RunLedgerValidationError("human intervention execution_changed must be bool")
 
 
+def _v11_candidate_state(record: Mapping[str, object]) -> None:
+    if record["execution_protocol_version"] != "1.1":
+        raise RunLedgerValidationError("execution_protocol_version is invalid")
+    for field in ("candidate_state_sha256", "candidate_state_manifest_sha256", "materialization_policy_sha256"):
+        if not isinstance(record[field], str) or not _SHA256.fullmatch(record[field]):
+            raise RunLedgerValidationError(f"{field} must be a lowercase SHA-256")
+    if record["candidate_state_manifest_sha256"] != record["candidate_state_sha256"]:
+        raise RunLedgerValidationError("candidate_state_manifest_sha256 must identify the frozen candidate state")
+    if record["candidate_head"] != record["starting_sha"]:
+        raise RunLedgerValidationError("candidate_head must match the uncommitted task start")
+    if record["candidate_worktree_status"] not in {"clean", "dirty"}:
+        raise RunLedgerValidationError("candidate_worktree_status is invalid")
+    changes = record["candidate_changes"]
+    if not isinstance(changes, dict) or set(changes) != {"added", "modified", "deleted"}:
+        raise RunLedgerValidationError("candidate_changes has an invalid field set")
+    for name, paths in changes.items():
+        values = _string_list(paths, f"candidate_changes.{name}") if paths else []
+        if len(values) != len(set(values)):
+            raise RunLedgerValidationError("candidate_changes contains duplicate paths")
+    freezer = record["freezer"]
+    if not isinstance(freezer, dict) or set(freezer) != {"status", "failure_reason"}:
+        raise RunLedgerValidationError("freezer has an invalid field set")
+    if freezer["status"] not in {"frozen", "failed"}:
+        raise RunLedgerValidationError("freezer status is invalid")
+    if freezer["status"] == "frozen" and freezer["failure_reason"] is not None:
+        raise RunLedgerValidationError("frozen freezer state must not carry a failure reason")
+    if freezer["status"] == "failed" and (not isinstance(freezer["failure_reason"], str) or not freezer["failure_reason"]):
+        raise RunLedgerValidationError("failed freezer state requires a reason")
+
+
 def validate_run_record(
     record: Mapping[str, object],
     manifest_path: Path,
@@ -105,18 +136,29 @@ def validate_run_record(
     """Validate one offline run record against an externally anchored V1 corpus."""
     if not isinstance(record, dict):
         raise RunLedgerValidationError("run record must be an object")
-    expected_fields = {
+    v10_fields = {
         "schema_version", "benchmark_version", "corpus_manifest_sha256", "task_id", "contestant", "run_id",
         "starting_sha", "ending_sha", "started_at_utc", "ended_at_utc", "terminal_status", "measurements",
         "human_interventions", "artifacts",
     }
+    v11_fields = v10_fields | {
+        "execution_protocol_version", "candidate_state_sha256", "candidate_state_manifest_sha256", "candidate_head",
+        "materialization_policy_sha256", "candidate_worktree_status", "candidate_changes", "freezer",
+    }
+    schema_version = record.get("schema_version")
+    if schema_version == "1":
+        expected_fields = v10_fields
+    elif schema_version == "1.1":
+        expected_fields = v11_fields
+    else:
+        raise RunLedgerValidationError("run record schema or benchmark version is invalid")
     if set(record) != expected_fields:
         raise RunLedgerValidationError("run record has an invalid field set")
     try:
         corpus = validate_frozen_corpus(manifest_path, sidecar_path, expected_seal=expected_corpus_seal)
     except CorpusValidationError as exc:
         raise RunLedgerValidationError(str(exc)) from exc
-    if record["schema_version"] != "1" or record["benchmark_version"] != corpus["benchmark_version"]:
+    if record["benchmark_version"] != corpus["benchmark_version"]:
         raise RunLedgerValidationError("run record schema or benchmark version is invalid")
     sidecar_digest = sidecar_path.read_text(encoding="ascii").strip()
     if record["corpus_manifest_sha256"] != sidecar_digest:
@@ -127,6 +169,8 @@ def validate_run_record(
         raise RunLedgerValidationError("run record task_id is not in the frozen corpus")
     if record["starting_sha"] != task["starting_sha"]:
         raise RunLedgerValidationError("run record starting_sha does not match frozen task")
+    if schema_version == "1.1":
+        _v11_candidate_state(record)
     _contestant(record["contestant"])
     run_id = _string(record["run_id"], "run_id")
     if known_run_ids is not None and run_id in known_run_ids:

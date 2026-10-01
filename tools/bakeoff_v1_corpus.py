@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-from hashlib import sha256
+import argparse
 import json
-from pathlib import Path
 import re
 import subprocess
-from typing import Any, Mapping
-
-import argparse
+from collections.abc import Mapping
+from copy import deepcopy
+from hashlib import sha256
+from pathlib import Path
+from typing import Any
 
 
 class CorpusValidationError(ValueError):
@@ -170,14 +170,14 @@ def _validate_task_packet(task: dict[str, Any], artifact_root: Path, repository:
         _require_strings(packet[field], f"task packet {field}")
     expected_implementations = packet["expected_implementation_paths"]
     if not isinstance(expected_implementations, dict) or set(expected_implementations) != {
-        path for path in packet["reference_changed_paths"] if path.startswith("tests/") or path.startswith("test_")
+        path for path in packet["reference_changed_paths"] if path.startswith(("tests/", "test_"))
     }:
         raise CorpusValidationError("task packet expected implementation paths are invalid")
     for test_path, implementation_paths in expected_implementations.items():
         if not isinstance(test_path, str) or not test_path:
             raise CorpusValidationError("task packet expected implementation test path is invalid")
         _require_strings(implementation_paths, "task packet expected implementation paths")
-        if any(path not in packet["allowed_scope"] or path.startswith("tests/") or path.startswith("test_") for path in implementation_paths):
+        if any(path not in packet["allowed_scope"] or path.startswith(("tests/", "test_")) for path in implementation_paths):
             raise CorpusValidationError("task packet expected implementation path is outside implementation scope")
 
 
@@ -237,12 +237,19 @@ def validate_corpus(
     if freeze["static_control_integrity"] != "manifest-sidecar-plus-integrity-root-v1":
         raise CorpusValidationError("unexpected static control integrity method")
     artifacts = _validate_integrity_root(manifest_path, _require_string(payload["integrity_root_sha256"], "integrity_root_sha256"))
+    artifact_root = manifest_path.parents[2]
+    for artifact_path, expected_artifact_digest in artifacts.items():
+        relative = Path(artifact_path)
+        resolved = (artifact_root / relative).resolve()
+        if relative.is_absolute() or artifact_root.resolve() not in resolved.parents or not resolved.is_file():
+            raise CorpusValidationError("integrity artifact path is unavailable or unsafe")
+        if sha256(resolved.read_bytes()).hexdigest() != expected_artifact_digest:
+            raise CorpusValidationError("integrity artifact SHA-256 does not match integrity root")
     tasks = payload.get("tasks")
     if not isinstance(tasks, list) or len(tasks) != len(_TASK_IDS):
         raise CorpusValidationError("manifest must contain exactly the selected V1 tasks")
     if tuple(task.get("task_id") if isinstance(task, dict) else None for task in tasks) != _TASK_IDS:
         raise CorpusValidationError("manifest task IDs must be unique and in frozen V1 order")
-    artifact_root = manifest_path.parents[2]
     repository = repository or artifact_root
     for task in tasks:
         if not isinstance(task, dict) or set(task) != _TASK_FIELDS:
@@ -287,7 +294,7 @@ def calculate_corpus_seal(
         reference_end_sha = str(packet["reference_end_sha"])
         test_blobs = []
         for path in packet["reference_changed_paths"]:
-            if path.startswith("tests/") or path.startswith("test_"):
+            if path.startswith(("tests/", "test_")):
                 blob_sha = _git_output(repository, ["rev-parse", f"{reference_end_sha}:{path}"]).decode("ascii").strip()
                 test_blobs.append({"path": path, "blob_sha": blob_sha})
         tasks.append(

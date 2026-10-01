@@ -11,7 +11,7 @@ from tools.bakeoff_v1_run_ledger import RunLedgerValidationError, validate_run_r
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
+EXPECTED_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
 
 
 def valid_record() -> dict[str, object]:
@@ -55,6 +55,24 @@ def valid_record() -> dict[str, object]:
         ],
         "artifacts": ["outcome-packet.json"],
     }
+
+
+def valid_v11_record() -> dict[str, object]:
+    record = valid_record()
+    record.update(
+        {
+            "schema_version": "1.1",
+            "execution_protocol_version": "1.1",
+            "candidate_state_sha256": "a" * 64,
+            "candidate_state_manifest_sha256": "a" * 64,
+            "materialization_policy_sha256": "b" * 64,
+            "candidate_head": "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612",
+            "candidate_worktree_status": "dirty",
+            "candidate_changes": {"added": ["new.py"], "modified": ["tools/task-packet.py"], "deleted": []},
+            "freezer": {"status": "frozen", "failure_reason": None},
+        }
+    )
+    return record
 
 
 class BakeoffV1RunLedgerTests(unittest.TestCase):
@@ -102,6 +120,21 @@ class BakeoffV1RunLedgerTests(unittest.TestCase):
             validate_run_record(record, MANIFEST, SIDECAR, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
         with self.assertRaisesRegex(RunLedgerValidationError, "duplicate"):
             validate_run_record(valid_record(), MANIFEST, SIDECAR, expected_corpus_seal=EXPECTED_CORPUS_SEAL, known_run_ids={"bo1-task-packets-native-001"})
+
+    def test_v11_records_bind_uncommitted_candidate_state(self) -> None:
+        validated = validate_run_record(valid_v11_record(), MANIFEST, SIDECAR, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
+        self.assertEqual(validated["execution_protocol_version"], "1.1")
+        self.assertEqual(validated["candidate_state_sha256"], "a" * 64)
+
+    def test_v11_rejects_missing_or_inconsistent_freezer_identity(self) -> None:
+        missing = valid_v11_record()
+        del missing["candidate_state_sha256"]
+        with self.assertRaisesRegex(RunLedgerValidationError, "field set"):
+            validate_run_record(missing, MANIFEST, SIDECAR, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
+        invalid = valid_v11_record()
+        invalid["candidate_head"] = "0" * 40
+        with self.assertRaisesRegex(RunLedgerValidationError, "candidate_head"):
+            validate_run_record(invalid, MANIFEST, SIDECAR, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -8,11 +9,15 @@ from hashlib import sha256
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.test_bakeoff_v1_run_ledger import valid_record
+from tests.test_bakeoff_v1_run_ledger import valid_record, valid_v11_record
+from tools.bakeoff_v1_candidate_state import (
+    create_materialization_manifest,
+    freeze_candidate_state,
+)
 from tools.bakeoff_v1_grader import (
-    _grade_collected_evidence,
     _canonical_digest,
     _execute_checks,
+    _grade_collected_evidence,
     _independent_acceptance,
     collect_grading_evidence,
     grade_run,
@@ -21,7 +26,7 @@ from tools.bakeoff_v1_grader import (
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
+EXPECTED_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
 START = "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612"
 END = "2f18d5fd7b1227f13aaee24467950353a77e8fee"
 TAMPER_START = "ad1401aa63177ce754212241db6a7c6ee0788a8d"
@@ -169,6 +174,28 @@ def _historical_candidate(directory: Path, ending_sha: str) -> Path:
     return candidate
 
 
+def _uncommitted_task_packet_candidate(directory: Path) -> Path:
+    """Create a trusted test-only candidate whose HEAD remains at the task start."""
+    candidate = _historical_candidate(directory, END)
+    reference = "refs/heads/bakeoff-contestant"
+    subprocess.run(["git", "-C", str(candidate), "update-ref", reference, START], check=True)
+    subprocess.run(["git", "-C", str(candidate), "symbolic-ref", "HEAD", reference], check=True)
+    for child in candidate.iterdir():
+        if child.name == ".git":
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    start_paths = tuple(
+        path
+        for path in _HISTORICAL_CANDIDATES[END]["paths"]
+        if subprocess.run(["git", "-C", str(candidate), "cat-file", "-e", f"{START}:{path}"], capture_output=True, check=False).returncode == 0
+    )
+    _materialize_bounded_worktree(candidate, START, start_paths)
+    return candidate
+
+
 class GraderTests(unittest.TestCase):
     def test_grade_run_rejects_missing_external_corpus_seal(self) -> None:
         result = grade_run(self._record(), MANIFEST, SIDECAR, candidate_repository=self.candidate, check_inputs=self._inputs(), expected_corpus_seal=None)
@@ -243,6 +270,22 @@ class GraderTests(unittest.TestCase):
             "python -B tools/task-packet.py validate --kind outcome --path <outcome-packet>": {"<outcome-packet>": ".ops/outcome-packet.template.json"},
         }
 
+    def _v11_identity(self) -> dict[str, str]:
+        return {
+            "benchmark_id": "coin-analyzer-bakeoff-v1",
+            "task_id": "BO1-TASK-PACKETS",
+            "run_id": "bo1-task-packets-native-001",
+            "execution_protocol_version": "1.1",
+            "starting_sha": START,
+        }
+
+    def _write_reference_task_packet_solution(self, candidate: Path) -> None:
+        for path in _HISTORICAL_CANDIDATES[END]["paths"]:
+            source = _git_bytes(ROOT, ["show", f"{END}:{path}"])
+            target = candidate / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(source)
+
     @contextmanager
     def _candidate_variant(self):
         """Yield one cheap, clean, committed candidate variant for a real grade."""
@@ -278,6 +321,46 @@ class GraderTests(unittest.TestCase):
         self.assertEqual(result["status"], "VALID_WITH_FINDINGS")
         self.assertIn("changed_paths_mismatch", result["evidence"]["claims"])
 
+    def test_v11_grade_run_accepts_frozen_dirty_candidate_without_an_ending_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = _uncommitted_task_packet_candidate(Path(directory))
+            baseline = create_materialization_manifest(candidate, self._v11_identity(), protected_paths=["test_coins/IMG_3460.jpeg"])
+            self._write_reference_task_packet_solution(candidate)
+            frozen = freeze_candidate_state(candidate, self._v11_identity(), baseline)
+            record = valid_v11_record()
+            record.update(
+                {
+                    "candidate_state_sha256": frozen["candidate_state_sha256"],
+                    "candidate_state_manifest_sha256": frozen["candidate_state_sha256"],
+                    "materialization_policy_sha256": baseline["materialization_policy_sha256"],
+                    "candidate_head": START,
+                    "candidate_worktree_status": "dirty",
+                    "candidate_changes": {"added": frozen["added_paths"], "modified": frozen["modified_paths"], "deleted": frozen["deleted_paths"]},
+                }
+            )
+            result = grade_run(
+                record,
+                MANIFEST,
+                SIDECAR,
+                candidate_repository=candidate,
+                expected_corpus_seal=EXPECTED_CORPUS_SEAL,
+                check_inputs=self._inputs(),
+                materialization_manifest=baseline,
+            )
+            after_grading = freeze_candidate_state(candidate, self._v11_identity(), baseline)
+        self.assertEqual(result["status"], "VALID_WITH_FINDINGS")
+        self.assertEqual(result["candidate_state_sha256"], frozen["candidate_state_sha256"])
+        self.assertEqual(after_grading["candidate_state_sha256"], frozen["candidate_state_sha256"])
+
+    def test_v11_grade_run_rejects_forged_recorded_candidate_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = _uncommitted_task_packet_candidate(Path(directory))
+            baseline = create_materialization_manifest(candidate, self._v11_identity(), protected_paths=[])
+            record = valid_v11_record()
+            record["materialization_policy_sha256"] = baseline["materialization_policy_sha256"]
+            result = grade_run(record, MANIFEST, SIDECAR, candidate_repository=candidate, expected_corpus_seal=EXPECTED_CORPUS_SEAL, materialization_manifest=baseline)
+        self.assertEqual(result["status"], "INVALID")
+
     def test_claimed_pass_cannot_override_unavailable_frozen_check(self) -> None:
         result = grade_run(self._record(), MANIFEST, SIDECAR, candidate_repository=self.candidate, expected_corpus_seal=EXPECTED_CORPUS_SEAL, claimed_required_checks={"python -B -m unittest tests.test_task_packet": "passed"})
         self.assertEqual(result["status"], "FAILED_TASK")
@@ -308,7 +391,7 @@ class GraderTests(unittest.TestCase):
         fabricated["evidence_sha256"] = _canonical_digest(fabricated)
         self.assertFalse(hasattr(grader, "grade_evidence"))
         with self.assertRaises(AttributeError):
-            getattr(grader, "grade_evidence")(self._record(), MANIFEST, SIDECAR, fabricated, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
+            grader.grade_evidence(self._record(), MANIFEST, SIDECAR, fabricated, expected_corpus_seal=EXPECTED_CORPUS_SEAL)
         with self.assertRaises(TypeError):
             grade_run(self._record(), MANIFEST, SIDECAR, candidate_repository=self.candidate, expected_corpus_seal=EXPECTED_CORPUS_SEAL, check_inputs=self._inputs(), evidence={})  # type: ignore[call-arg]
 

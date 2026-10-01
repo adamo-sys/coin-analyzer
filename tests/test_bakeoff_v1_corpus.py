@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import unittest
-from hashlib import sha256
 import json
-from pathlib import Path
 import shutil
 import tempfile
+import unittest
+from hashlib import sha256
+from pathlib import Path
 
 from tools.bakeoff_v1_corpus import (
     CorpusValidationError,
@@ -15,11 +15,11 @@ from tools.bakeoff_v1_corpus import (
     validate_frozen_corpus,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
+EXPECTED_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
+PRE_V11_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
 
 
 class BakeoffV1CorpusTests(unittest.TestCase):
@@ -64,7 +64,7 @@ class BakeoffV1CorpusTests(unittest.TestCase):
         with temporary:
             packet = manifest.parent / "tasks" / "BO1-TASK-PACKETS.json"
             packet.write_text(packet.read_text(encoding="utf-8") + " ", encoding="utf-8")
-            with self.assertRaisesRegex(CorpusValidationError, "task packet SHA-256"):
+            with self.assertRaisesRegex(CorpusValidationError, "integrity artifact SHA-256"):
                 validate_corpus(manifest, sidecar, repository=ROOT)
 
     def test_rejects_mutated_reference_evidence_integrity_root(self) -> None:
@@ -73,6 +73,14 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             integrity = manifest.parent / "integrity.json"
             integrity.write_text(integrity.read_text(encoding="utf-8") + " ", encoding="utf-8")
             with self.assertRaisesRegex(CorpusValidationError, "integrity root SHA-256"):
+                validate_corpus(manifest, sidecar, repository=ROOT)
+
+    def test_rejects_mutated_v11_protocol_control_artifact(self) -> None:
+        temporary, manifest, sidecar = self._copied_corpus_paths()
+        with temporary:
+            protocol = manifest.parent / "EXECUTION-PROTOCOL-v1.1.md"
+            protocol.write_text(protocol.read_text(encoding="utf-8") + " ", encoding="utf-8")
+            with self.assertRaisesRegex(CorpusValidationError, "integrity artifact SHA-256"):
                 validate_corpus(manifest, sidecar, repository=ROOT)
 
     def test_rejects_manifest_task_packet_mismatch(self) -> None:
@@ -92,6 +100,8 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="not-a-digest")
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="f" * 64)
+        with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
+            validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_V11_CORPUS_SEAL)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="7a3710611872fa6a6abf093e1deffd3cc405e321d4342cc3e1b80afb027e1ed3")
 

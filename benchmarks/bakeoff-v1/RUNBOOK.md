@@ -47,7 +47,9 @@ Do not start if HEAD differs from the manifest SHA or tracked state is already d
 
 ## Execution and evidence capture
 
-At start retain: run ID, task ID, corpus sidecar digest, start SHA, UTC timestamp, contestant record, and environment metadata. At end retain: UTC end timestamp, a full committed ending SHA, `git status`, changed paths/diff evidence, each required validation command and result, intervention records, observable trajectory/audit references when available, contestant-produced artifacts, failures/timeouts/retries, and available network/provider-use evidence. Grade only a clean candidate worktree whose `HEAD` equals that recorded ending SHA.
+At start retain: run ID, task ID, corpus sidecar digest, start SHA, UTC timestamp, contestant record, and environment metadata. At end retain: UTC end timestamp, `git status`, changed paths/diff evidence, each required validation command and result, intervention records, observable trajectory/audit references when available, contestant-produced artifacts, failures/timeouts/retries, and available network/provider-use evidence.
+
+Execution Protocol v1.0 requires a full committed ending SHA and a clean candidate worktree. Execution Protocol v1.1 is defined in [`EXECUTION-PROTOCOL-v1.1.md`](EXECUTION-PROTOCOL-v1.1.md): it preserves the genuine task-start `HEAD`, permits uncommitted final worktree/index state, and requires a trusted post-termination candidate-state freeze. Do not mix the two protocols in one run record.
 
 The operator collects this evidence. The grader validates supplied deterministic evidence; it does not discover unretained activity or trust a contestant success narrative. Record telemetry as `measured` or `derived` only with non-empty provenance. Use `unavailable`, `not_applicable`, or `not_yet_graded` with `null` value—never zero.
 
@@ -62,6 +64,8 @@ Create one JSON object per run, following `tools.bakeoff_v1_run_ledger.validate_
 ## Independent grading
 
 Run authoritative grading separately from the contestant through `tools.bakeoff_v1_grader.grade_run()` with the validated record, manifest path, sidecar path, candidate worktree path, the externally retained expected corpus seal, and only frozen-command placeholder inputs needed to locate candidate-relative artifacts. It validates the frozen corpus, derives Git changes, executes frozen local checks, executes immutable acceptance, and grades that live collection in one authoritative flow. `collect_grading_evidence()` may be used to retain descriptive audit material, but its self-computed `evidence_sha256` is an identity checksum, not authentication and cannot be submitted for standalone authoritative grading. These APIs fail closed when the external seal is absent or invalid.
+
+For Protocol v1.1, retain the trusted pre-run materialization manifest and the post-termination candidate-state freeze. The public grader independently recomputes the state and grades a separate trusted worktree copy; it never needs a contestant completion commit or a protected historical image blob.
 
 Do not supply changed-path or check-result claims as success evidence. If retained claims are supplied for comparison, they are marked unverified and cannot override Git or independently executed check evidence. Retain the evidence object, its output digests, and the grader result outside the candidate worktree.
 

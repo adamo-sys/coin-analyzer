@@ -6,7 +6,7 @@
     "static_control_integrity": "manifest-sidecar-plus-integrity-root-v1",
     "authoritative_artifact": "benchmarks/bakeoff-v1/manifest.json"
   },
-  "integrity_root_sha256": "442890a0304abb8dc095d52f79f80e39fb864060d3d23d5730952de31769d32b",
+  "integrity_root_sha256": "83ad0b07c0b3ecdbb7848ea26a878f6d72107f3e89a89e75a11b80f2b4f3522a",
   "tasks": [
     {
       "task_id": "BO1-TASK-PACKETS",

@@ -1,0 +1,8 @@
+You are an isolated baseline contestant. Work only in the supplied repository.
+Read and follow the repository AGENTS.md.
+Implement the task described in the canonical task packet below.
+Do not use network, web search, external providers, plugins, MCP servers, skills, or information outside the repository and this packet.
+Run relevant local validation. Leave your completed work in the candidate worktree. A local completion commit is not required. Report the commands you ran and whether you completed the task.
+<canonical-task-packet>
+{"allowed_scope":["identification_adversarial_tamper_harness.py","identification_verification_evaluation_batch.py","test_identification_adversarial_tamper_harness.py","test_identification_verification_evaluation_batch.py"],"benchmark_class":"replay_known_history","benchmark_version":"1.0","forbidden_benchmark_mutations":["benchmarks/bakeoff-v1/manifest.json","benchmarks/bakeoff-v1/manifest.sha256","benchmarks/bakeoff-v1/integrity.json","benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json","benchmarks/bakeoff-v1/tasks/BO1-TAMPER-BATCH.json"],"network_provider_policy":"network_and_provider_access_forbidden","objective":"Add identification verification/evaluation batch comparison and deterministic adversarial tamper-harness coverage.","required_validation":["python -B -m unittest test_identification_verification_evaluation_batch","python -B -m unittest test_identification_adversarial_tamper_harness"],"schema_version":"1","task_id":"BO1-TAMPER-BATCH"}
+</canonical-task-packet>
