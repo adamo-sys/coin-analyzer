@@ -57,6 +57,33 @@ _TASK_PACKET_FIELDS = frozenset(
         "historical_provenance",
     }
 )
+_PROMPT_PACKET_FIELDS = (
+    "allowed_scope",
+    "benchmark_class",
+    "benchmark_version",
+    "forbidden_benchmark_mutations",
+    "network_provider_policy",
+    "objective",
+    "required_validation",
+    "schema_version",
+    "task_id",
+)
+_PROMPT_COHORT_FIELDS = frozenset(
+    {"task_id", "execution_protocol_version", "prompt_path", "prompt_sha256", "authorized_runs", "cohort_kind"}
+)
+_HISTORICAL_PROMPT_FIELDS = frozenset(
+    {"run_id", "task_id", "execution_protocol_version", "prompt_sha256", "prompt_bytes_availability"}
+)
+_PROMPT_COHORT_PATH = "benchmarks/bakeoff-v1/prompt-cohorts-v1.1.json"
+_PROMPT_TEMPLATE_PREFIX = (
+    "You are an isolated baseline contestant. Work only in the supplied repository.\n"
+    "Read and follow the repository AGENTS.md.\n"
+    "Implement the task described in the canonical task packet below.\n"
+    "Do not use network, web search, external providers, plugins, MCP servers, skills, or information outside the repository and this packet.\n"
+    "Run relevant local validation. Leave your completed work in the candidate worktree. A local completion commit is not required. Report the commands you ran and whether you completed the task.\n"
+    "<canonical-task-packet>\n"
+)
+_PROMPT_TEMPLATE_SUFFIX = "\n</canonical-task-packet>\n"
 
 
 def _require_string(value: object, name: str) -> str:
@@ -200,6 +227,88 @@ def _apply_overrides(payload: dict[str, Any], overrides: Mapping[str, object] | 
             raise CorpusValidationError(f"invalid override path: {dotted_path}")
 
 
+def _canonical_prompt_bytes(packet: Mapping[str, object]) -> bytes:
+    prompt_packet = {field: packet[field] for field in _PROMPT_PACKET_FIELDS}
+    serialized = json.dumps(prompt_packet, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return (_PROMPT_TEMPLATE_PREFIX + serialized + _PROMPT_TEMPLATE_SUFFIX).encode("utf-8")
+
+
+def _validate_prompt_cohorts(
+    manifest_path: Path,
+    tasks: list[dict[str, Any]],
+    artifacts: Mapping[str, str],
+) -> dict[str, Any]:
+    if _PROMPT_COHORT_PATH not in artifacts:
+        raise CorpusValidationError("prompt cohort metadata is not covered by the integrity root")
+    artifact_root = manifest_path.parents[2]
+    cohort_path = artifact_root / _PROMPT_COHORT_PATH
+    raw = cohort_path.read_bytes()
+    if sha256(raw).hexdigest() != artifacts[_PROMPT_COHORT_PATH]:
+        raise CorpusValidationError("prompt cohort metadata SHA-256 does not match integrity root")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CorpusValidationError("prompt cohort metadata is not valid JSON") from exc
+    if not isinstance(payload, dict) or set(payload) != {"schema_version", "cohorts", "historical_runs"}:
+        raise CorpusValidationError("prompt cohort metadata has an invalid field set")
+    if payload["schema_version"] != "1" or not isinstance(payload["cohorts"], list) or not isinstance(payload["historical_runs"], list):
+        raise CorpusValidationError("prompt cohort metadata declaration is invalid")
+    if [cohort.get("task_id") if isinstance(cohort, dict) else None for cohort in payload["cohorts"]] != list(_TASK_IDS):
+        raise CorpusValidationError("prompt cohorts must cover the frozen V1 tasks in order")
+    packets = {
+        task["task_id"]: json.loads((artifact_root / task["task_packet"]).read_text(encoding="utf-8"))
+        for task in tasks
+    }
+    expected_runs = {
+        "BO1-TASK-PACKETS": ["RUN-004", "RUN-005"],
+        "BO1-TAMPER-BATCH": ["RUN-002", "RUN-003", "RUN-006"],
+    }
+    for cohort in payload["cohorts"]:
+        if not isinstance(cohort, dict) or set(cohort) != _PROMPT_COHORT_FIELDS:
+            raise CorpusValidationError("prompt cohort has an invalid field set")
+        task_id = cohort["task_id"]
+        if task_id not in packets or cohort["execution_protocol_version"] != "1.1":
+            raise CorpusValidationError("prompt cohort task or protocol binding is invalid")
+        if cohort["authorized_runs"] != expected_runs[task_id]:
+            raise CorpusValidationError("prompt cohort run binding is invalid")
+        if cohort["cohort_kind"] not in {"prospective_v1_1", "existing_sealed_v1_1"}:
+            raise CorpusValidationError("prompt cohort kind is invalid")
+        prompt_path_value = _require_string(cohort["prompt_path"], "prompt cohort path")
+        expected_prompt_path = f"benchmarks/bakeoff-v1/prompts/{task_id}-v1.1.txt"
+        if prompt_path_value != expected_prompt_path or prompt_path_value not in artifacts:
+            raise CorpusValidationError("prompt cohort path is invalid or unsealed")
+        expected_digest = _require_string(cohort["prompt_sha256"], "prompt cohort SHA-256")
+        if not _SHA256.fullmatch(expected_digest) or artifacts[prompt_path_value] != expected_digest:
+            raise CorpusValidationError("prompt cohort SHA-256 binding is invalid")
+        prompt_bytes = (artifact_root / prompt_path_value).read_bytes()
+        if sha256(prompt_bytes).hexdigest() != expected_digest:
+            raise CorpusValidationError("prompt cohort prompt SHA-256 does not match exact bytes")
+        if prompt_bytes != _canonical_prompt_bytes(packets[task_id]):
+            raise CorpusValidationError("prompt cohort does not match the approved contestant prompt schema")
+    expected_historical = [{
+        "run_id": "RUN-001",
+        "task_id": "BO1-TASK-PACKETS",
+        "execution_protocol_version": "1.0",
+        "prompt_sha256": "ee59f6c5815beed3601df17f3e2228c100ca12d30d13ca507836eac638c502f1",
+        "prompt_bytes_availability": "unrecoverable",
+    }]
+    if payload["historical_runs"] != expected_historical:
+        raise CorpusValidationError("historical prompt comparability metadata is invalid")
+    return payload
+
+
+def validate_prompt_cohorts(manifest_path: Path) -> dict[str, Any]:
+    """Validate sealed v1.1 contestant prompt cohorts and their frozen task bindings."""
+    try:
+        manifest = json.loads(manifest_path.read_bytes())
+    except json.JSONDecodeError as exc:
+        raise CorpusValidationError("manifest is not valid JSON") from exc
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("tasks"), list):
+        raise CorpusValidationError("manifest task declaration is invalid")
+    artifacts = _validate_integrity_root(manifest_path, _require_string(manifest.get("integrity_root_sha256"), "integrity_root_sha256"))
+    return _validate_prompt_cohorts(manifest_path, manifest["tasks"], artifacts)
+
+
 def validate_corpus(
     manifest_path: Path,
     sidecar_path: Path,
@@ -274,6 +383,7 @@ def validate_corpus(
         ):
             _require_strings(task[field], field)
         _validate_task_packet(task, artifact_root, repository, artifacts)
+    _validate_prompt_cohorts(manifest_path, tasks, artifacts)
     return payload
 
 

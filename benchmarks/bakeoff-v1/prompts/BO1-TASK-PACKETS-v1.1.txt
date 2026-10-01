@@ -1,0 +1,8 @@
+You are an isolated baseline contestant. Work only in the supplied repository.
+Read and follow the repository AGENTS.md.
+Implement the task described in the canonical task packet below.
+Do not use network, web search, external providers, plugins, MCP servers, skills, or information outside the repository and this packet.
+Run relevant local validation. Leave your completed work in the candidate worktree. A local completion commit is not required. Report the commands you ran and whether you completed the task.
+<canonical-task-packet>
+{"allowed_scope":[".ops/outcome-packet.schema.json",".ops/outcome-packet.template.json",".ops/task-packet.schema.json",".ops/task-packet.template.json","docs/CODEX_WORKFLOW.md","tests/test_task_packet.py","tools/task-packet.py"],"benchmark_class":"replay_known_history","benchmark_version":"1.0","forbidden_benchmark_mutations":["benchmarks/bakeoff-v1/manifest.json","benchmarks/bakeoff-v1/manifest.sha256","benchmarks/bakeoff-v1/integrity.json","benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json","benchmarks/bakeoff-v1/tasks/BO1-TAMPER-BATCH.json"],"network_provider_policy":"network_and_provider_access_forbidden","objective":"Add local Task Packet and Outcome Packet schemas, templates, validator, workflow documentation, and focused tests.","required_validation":["python -B -m unittest tests.test_task_packet","python -B tools/task-packet.py validate --kind task --path <task-packet>","python -B tools/task-packet.py validate --kind outcome --path <outcome-packet>"],"schema_version":"1","task_id":"BO1-TASK-PACKETS"}
+</canonical-task-packet>

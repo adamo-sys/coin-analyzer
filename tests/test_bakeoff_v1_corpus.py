@@ -11,14 +11,18 @@ from pathlib import Path
 
 from tools.bakeoff_v1_corpus import (
     CorpusValidationError,
+    _canonical_prompt_bytes,
     validate_corpus,
     validate_frozen_corpus,
+    validate_prompt_cohorts,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
+PROMPT_COHORTS = ROOT / "benchmarks" / "bakeoff-v1" / "prompt-cohorts-v1.1.json"
+EXPECTED_CORPUS_SEAL = "daccc7fef89286e59ea1df9c6e7b8bed9396a985088df925650791d95fbbfe40"
+PRE_PROSPECTIVE_PROMPT_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
 PRE_V11_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
 
 
@@ -83,6 +87,48 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             with self.assertRaisesRegex(CorpusValidationError, "integrity artifact SHA-256"):
                 validate_corpus(manifest, sidecar, repository=ROOT)
 
+    def test_sealed_v11_prompt_cohorts_bind_exact_prompts_and_runs(self) -> None:
+        cohorts = validate_prompt_cohorts(MANIFEST)
+
+        self.assertEqual(
+            [(cohort["task_id"], cohort["authorized_runs"]) for cohort in cohorts["cohorts"]],
+            [
+                ("BO1-TASK-PACKETS", ["RUN-004", "RUN-005"]),
+                ("BO1-TAMPER-BATCH", ["RUN-002", "RUN-003", "RUN-006"]),
+            ],
+        )
+        self.assertEqual(
+            cohorts["historical_runs"],
+            [
+                {
+                    "run_id": "RUN-001",
+                    "task_id": "BO1-TASK-PACKETS",
+                    "execution_protocol_version": "1.0",
+                    "prompt_sha256": "ee59f6c5815beed3601df17f3e2228c100ca12d30d13ca507836eac638c502f1",
+                    "prompt_bytes_availability": "unrecoverable",
+                }
+            ],
+        )
+        for cohort in cohorts["cohorts"]:
+            prompt = ROOT / cohort["prompt_path"]
+            self.assertEqual(sha256(prompt.read_bytes()).hexdigest(), cohort["prompt_sha256"])
+
+        integrity = json.loads((ROOT / "benchmarks/bakeoff-v1/integrity.json").read_text(encoding="utf-8"))
+        artifact_hashes = {artifact["path"]: artifact["sha256"] for artifact in integrity["artifacts"]}
+        self.assertEqual(
+            artifact_hashes["benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json"],
+            "da14741ffd98b07a03fb67b2624beb7367ab5b3ec0ddd56d84c56a19b30e32eb",
+        )
+        self.assertEqual(
+            artifact_hashes["benchmarks/bakeoff-v1/tasks/BO1-TAMPER-BATCH.json"],
+            "cb5b72cbbee8e573bb2e3657e149b7a243110c7647250e8e551c51da4ab638d4",
+        )
+
+        self.assertEqual(
+            sha256((ROOT / "benchmarks/bakeoff-v1/prompts/BO1-TAMPER-BATCH-v1.1.txt").read_bytes()).hexdigest(),
+            "2de9e4fc28455d242694abda08601578bbeb5537b367bc48de99beb940bd8b80",
+        )
+
     def test_rejects_manifest_task_packet_mismatch(self) -> None:
         with self.assertRaisesRegex(CorpusValidationError, "task packet path"):
             validate_corpus(
@@ -101,6 +147,8 @@ class BakeoffV1CorpusTests(unittest.TestCase):
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="f" * 64)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
+            validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_PROSPECTIVE_PROMPT_CORPUS_SEAL)
+        with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_V11_CORPUS_SEAL)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="7a3710611872fa6a6abf093e1deffd3cc405e321d4342cc3e1b80afb027e1ed3")
@@ -112,9 +160,22 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             packet_payload = json.loads(packet.read_text(encoding="utf-8"))
             packet_payload["objective"] = "coherently rewritten task intent"
             packet.write_text(json.dumps(packet_payload, separators=(",", ":")) + "\n", encoding="utf-8")
+            prompt_path = manifest.parent / "prompts" / "BO1-TASK-PACKETS-v1.1.txt"
+            prompt_path.write_bytes(_canonical_prompt_bytes(packet_payload))
+            cohorts_path = manifest.parent / "prompt-cohorts-v1.1.json"
+            cohorts_payload = json.loads(cohorts_path.read_text(encoding="utf-8"))
+            cohorts_payload["cohorts"][0]["prompt_sha256"] = sha256(prompt_path.read_bytes()).hexdigest()
+            cohorts_path.write_text(json.dumps(cohorts_payload, separators=(",", ":")) + "\n", encoding="utf-8")
             integrity = manifest.parent / "integrity.json"
             integrity_payload = json.loads(integrity.read_text(encoding="utf-8"))
-            integrity_payload["artifacts"][0]["sha256"] = sha256(packet.read_bytes()).hexdigest()
+            artifact_hashes = {
+                "benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json": sha256(packet.read_bytes()).hexdigest(),
+                "benchmarks/bakeoff-v1/prompts/BO1-TASK-PACKETS-v1.1.txt": sha256(prompt_path.read_bytes()).hexdigest(),
+                "benchmarks/bakeoff-v1/prompt-cohorts-v1.1.json": sha256(cohorts_path.read_bytes()).hexdigest(),
+            }
+            for artifact in integrity_payload["artifacts"]:
+                if artifact["path"] in artifact_hashes:
+                    artifact["sha256"] = artifact_hashes[artifact["path"]]
             integrity.write_text(json.dumps(integrity_payload, separators=(",", ":")) + "\n", encoding="utf-8")
             manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
             manifest_payload["integrity_root_sha256"] = sha256(integrity.read_bytes()).hexdigest()
