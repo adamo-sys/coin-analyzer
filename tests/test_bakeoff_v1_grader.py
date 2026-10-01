@@ -24,6 +24,23 @@ SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
 EXPECTED_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
 START = "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612"
 END = "2f18d5fd7b1227f13aaee24467950353a77e8fee"
+_PRIVATE_IMAGE_SPARSE_PATTERNS = ("/*", "!/test_coins/*", "/test_coins/README.md")
+
+
+def _configure_private_image_sparse_checkout(repository: Path) -> None:
+    subprocess.run(
+        ["git", "-C", str(repository), "sparse-checkout", "set", "--no-cone", *_PRIVATE_IMAGE_SPARSE_PATTERNS],
+        check=True,
+    )
+
+
+def _historical_candidate(directory: Path, ending_sha: str) -> Path:
+    """Create a sparse Git candidate that shares only already-local source objects."""
+    candidate = directory / "candidate"
+    subprocess.run(["git", "clone", "--quiet", "--shared", "--no-checkout", str(ROOT), str(candidate)], check=True)
+    _configure_private_image_sparse_checkout(candidate)
+    subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", ending_sha], check=True)
+    return candidate
 
 
 class GraderTests(unittest.TestCase):
@@ -35,13 +52,45 @@ class GraderTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls._candidate_directory = tempfile.TemporaryDirectory()
-        cls.candidate = Path(cls._candidate_directory.name) / "candidate"
-        subprocess.run(["git", "clone", "--quiet", "--no-local", str(ROOT), str(cls.candidate)], check=True)
-        subprocess.run(["git", "-C", str(cls.candidate), "checkout", "--quiet", "--detach", END], check=True)
+        cls.candidate = _historical_candidate(Path(cls._candidate_directory.name), END)
 
     @classmethod
     def tearDownClass(cls) -> None:
         cls._candidate_directory.cleanup()
+
+    def test_historical_candidate_uses_alternates_and_excludes_local_only_images(self) -> None:
+        alternates = self.candidate / ".git" / "objects" / "info" / "alternates"
+        self.assertTrue(alternates.is_file())
+        self.assertTrue(alternates.read_text(encoding="utf-8").strip())
+        self.assertFalse((self.candidate / "test_coins" / "IMG_3460.jpeg").exists())
+        self.assertEqual(
+            subprocess.run(
+                ["git", "-C", str(self.candidate), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip(),
+            END,
+        )
+        for start, end in (
+            (START, END),
+            ("ad1401aa63177ce754212241db6a7c6ee0788a8d", "d068be2f7f152c49c779b66e595ebadf50661bdb"),
+        ):
+            with self.subTest(start=start, end=end):
+                subprocess.run(
+                    ["git", "-C", str(self.candidate), "rev-parse", f"{start}^{{commit}}", f"{end}^{{commit}}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                self.assertTrue(
+                    subprocess.run(
+                        ["git", "-C", str(self.candidate), "diff", "--name-only", start, end],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    ).stdout.strip()
+                )
 
     def _record(self, ending_sha: str = END) -> dict[str, object]:
         record = valid_record()
@@ -59,7 +108,9 @@ class GraderTests(unittest.TestCase):
         """Yield one cheap, clean, committed candidate variant for a real grade."""
         with tempfile.TemporaryDirectory() as directory:
             candidate = Path(directory) / "candidate"
-            subprocess.run(["git", "-C", str(self.candidate), "worktree", "add", "--quiet", "--detach", str(candidate), END], check=True)
+            subprocess.run(["git", "-C", str(self.candidate), "worktree", "add", "--quiet", "--detach", "--no-checkout", str(candidate), END], check=True)
+            _configure_private_image_sparse_checkout(candidate)
+            subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", END], check=True)
             try:
                 yield candidate
             finally:
@@ -165,9 +216,7 @@ class GraderTests(unittest.TestCase):
         ]
         for task_id, end in packets:
             with self.subTest(task_id=task_id), tempfile.TemporaryDirectory() as directory:
-                candidate = Path(directory) / "candidate"
-                subprocess.run(["git", "clone", "--quiet", "--no-local", str(ROOT), str(candidate)], check=True)
-                subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", end], check=True)
+                candidate = _historical_candidate(Path(directory), end)
                 packet = json.loads((ROOT / "benchmarks" / "bakeoff-v1" / "tasks" / f"{task_id}.json").read_text())
                 results = _independent_acceptance(packet, candidate, {"ending_sha": end})
                 self.assertTrue(all(item["status"] == "passed" for item in results))
@@ -205,9 +254,7 @@ class GraderTests(unittest.TestCase):
     def test_immutable_oracle_rejects_an_expected_module_resolved_only_from_outside_candidate(self) -> None:
         packet = json.loads((ROOT / "benchmarks" / "bakeoff-v1" / "tasks" / "BO1-TAMPER-BATCH.json").read_text())
         with tempfile.TemporaryDirectory() as directory:
-            candidate = Path(directory) / "candidate"
-            subprocess.run(["git", "clone", "--quiet", "--no-local", str(ROOT), str(candidate)], check=True)
-            subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", "d068be2f7f152c49c779b66e595ebadf50661bdb"], check=True)
+            candidate = _historical_candidate(Path(directory), "d068be2f7f152c49c779b66e595ebadf50661bdb")
             (candidate / "identification_verification_evaluation_batch.py").unlink()
             with patch.dict(os.environ, {"PYTHONPATH": str(ROOT)}):
                 results = _independent_acceptance(packet, candidate, {"ending_sha": "d068be2f7f152c49c779b66e595ebadf50661bdb"})
