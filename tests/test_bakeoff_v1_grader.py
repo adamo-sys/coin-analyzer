@@ -24,22 +24,148 @@ SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
 EXPECTED_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
 START = "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612"
 END = "2f18d5fd7b1227f13aaee24467950353a77e8fee"
-_PRIVATE_IMAGE_SPARSE_PATTERNS = ("/*", "!/test_coins/*", "/test_coins/README.md")
+TAMPER_START = "ad1401aa63177ce754212241db6a7c6ee0788a8d"
+TAMPER_END = "d068be2f7f152c49c779b66e595ebadf50661bdb"
+_EXCLUDED_IMAGE_BLOB = "82baba277de116060acdde417884f763181f24dc"
+_HISTORICAL_CANDIDATES = {
+    END: {
+        "start": START,
+        "paths": (
+            ".gitignore",
+            ".ops/outcome-packet.schema.json",
+            ".ops/outcome-packet.template.json",
+            ".ops/task-packet.schema.json",
+            ".ops/task-packet.template.json",
+            "docs/CODEX_WORKFLOW.md",
+            "tests/test_task_packet.py",
+            "tools/task-packet.py",
+        ),
+    },
+    TAMPER_END: {
+        "start": TAMPER_START,
+        "paths": (
+            ".gitignore",
+            "ai_evaluation_contracts.py",
+            "ai_evaluation_evaluator.py",
+            "identification_adversarial_tamper_harness.py",
+            "identification_specialist.py",
+            "identification_specialist_evaluation_adapter.py",
+            "identification_specialist_verifier.py",
+            "identification_verification_evaluation_batch.py",
+            "identification_verification_evaluation_report.py",
+            "test_identification_adversarial_tamper_harness.py",
+            "test_identification_verification_evaluation_batch.py",
+        ),
+    },
+}
 
 
-def _configure_private_image_sparse_checkout(repository: Path) -> None:
+def _git_bytes(repository: Path, arguments: list[str]) -> bytes:
+    return subprocess.run(["git", "-C", str(repository), *arguments], capture_output=True, check=True).stdout
+
+
+def _copy_source_object(candidate: Path, object_sha: str) -> bytes:
+    """Copy one explicitly selected non-private object without Git transport."""
+    if object_sha == _EXCLUDED_IMAGE_BLOB:
+        raise AssertionError("the local-only image blob is never candidate material")
+    object_type = _git_bytes(ROOT, ["cat-file", "-t", object_sha]).decode("ascii").strip()
+    contents = _git_bytes(ROOT, ["cat-file", object_type, object_sha])
+    written = subprocess.run(
+        ["git", "-C", str(candidate), "hash-object", "-w", "-t", object_type, "--stdin"],
+        input=contents,
+        capture_output=True,
+        check=True,
+    ).stdout.decode("ascii").strip()
+    if written != object_sha:
+        raise AssertionError("candidate object identity changed during bounded materialization")
+    return contents
+
+
+def _copy_history_commits(candidate: Path, start: str, end: str) -> None:
+    pending = [end]
+    copied: set[str] = set()
+    while pending:
+        commit = pending.pop()
+        if commit in copied:
+            continue
+        contents = _copy_source_object(candidate, commit).decode("utf-8")
+        copied.add(commit)
+        if commit == start:
+            continue
+        parents = [line.split()[1] for line in contents.splitlines() if line.startswith("parent ")]
+        if not parents or len(copied) > 16:
+            raise AssertionError("frozen history closure is not bounded by its declared starting commit")
+        pending.extend(parents)
+    if start not in copied:
+        raise AssertionError("frozen starting commit is absent from candidate history")
+
+
+def _copy_endpoint_trees(candidate: Path, endpoint: str) -> None:
+    root_tree = _git_bytes(ROOT, ["rev-parse", f"{endpoint}^{{tree}}"]).decode("ascii").strip()
+    tree_objects = {root_tree}
+    for line in _git_bytes(ROOT, ["ls-tree", "-r", "-t", endpoint]).decode("utf-8").splitlines():
+        metadata, _ = line.split("\t", 1)
+        _, object_type, object_sha = metadata.split()
+        if object_type == "tree":
+            tree_objects.add(object_sha)
+    for object_sha in tree_objects:
+        _copy_source_object(candidate, object_sha)
+
+
+def _copy_path_blob(candidate: Path, endpoint: str, path: str) -> None:
+    if path.startswith("test_coins/"):
+        raise AssertionError("local-only image paths are never candidate material")
+    result = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", f"{endpoint}:{path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        _copy_source_object(candidate, result.stdout.strip())
+
+
+def _materialize_bounded_worktree(repository: Path, ending_sha: str, paths: tuple[str, ...]) -> None:
+    """Populate only selected paths while marking every other tracked path skipped."""
+    tracked_paths = _git_bytes(repository, ["ls-tree", "-r", "--name-only", ending_sha]).decode("utf-8").splitlines()
+    selected = set(paths)
+    subprocess.run(["git", "-C", str(repository), "config", "core.sparseCheckout", "true"], check=True)
     subprocess.run(
-        ["git", "-C", str(repository), "sparse-checkout", "set", "--no-cone", *_PRIVATE_IMAGE_SPARSE_PATTERNS],
+        ["git", "-C", str(repository), "read-tree", ending_sha],
+        check=True,
+    )
+    skipped = [path for path in tracked_paths if path not in selected]
+    subprocess.run(
+        ["git", "-C", str(repository), "update-index", "--skip-worktree", "--stdin"],
+        input=("\n".join(skipped) + "\n").encode("utf-8"),
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "checkout-index", "--force", "--stdin"],
+        input=("\n".join(paths) + "\n").encode("utf-8"),
         check=True,
     )
 
 
 def _historical_candidate(directory: Path, ending_sha: str) -> Path:
-    """Create a sparse Git candidate that shares only already-local source objects."""
+    """Create a real, sparse candidate from the frozen task's safe object closure."""
+    specification = _HISTORICAL_CANDIDATES[ending_sha]
+    start = str(specification["start"])
+    paths = tuple(specification["paths"])
     candidate = directory / "candidate"
-    subprocess.run(["git", "clone", "--quiet", "--shared", "--no-checkout", str(ROOT), str(candidate)], check=True)
-    _configure_private_image_sparse_checkout(candidate)
-    subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", ending_sha], check=True)
+    subprocess.run(["git", "init", "--quiet", str(candidate)], check=True)
+    _copy_history_commits(candidate, start, ending_sha)
+    for endpoint in (start, ending_sha):
+        _copy_endpoint_trees(candidate, endpoint)
+    changed_paths = _git_bytes(ROOT, ["diff", "--name-only", start, ending_sha]).decode("utf-8").splitlines()
+    for endpoint in (start, ending_sha):
+        for path in {*paths, *changed_paths}:
+            _copy_path_blob(candidate, endpoint, path)
+    reference = f"refs/bakeoff/reference/{ending_sha}"
+    subprocess.run(["git", "-C", str(candidate), "update-ref", reference, ending_sha], check=True)
+    subprocess.run(["git", "-C", str(candidate), "symbolic-ref", "HEAD", reference], check=True)
+    (candidate / ".git" / "shallow").write_text(f"{start}\n", encoding="ascii")
+    _materialize_bounded_worktree(candidate, ending_sha, paths)
     return candidate
 
 
@@ -58,11 +184,25 @@ class GraderTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls._candidate_directory.cleanup()
 
-    def test_historical_candidate_uses_alternates_and_excludes_local_only_images(self) -> None:
+    def test_historical_candidate_is_object_bounded_and_excludes_local_only_images(self) -> None:
         alternates = self.candidate / ".git" / "objects" / "info" / "alternates"
-        self.assertTrue(alternates.is_file())
-        self.assertTrue(alternates.read_text(encoding="utf-8").strip())
+        self.assertFalse(alternates.exists())
+        self.assertFalse(
+            subprocess.run(
+                ["git", "-C", str(self.candidate), "remote"],
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+        )
         self.assertFalse((self.candidate / "test_coins" / "IMG_3460.jpeg").exists())
+        self.assertNotEqual(
+            subprocess.run(
+                ["git", "-C", str(self.candidate), "cat-file", "-e", "82baba277de116060acdde417884f763181f24dc"],
+                capture_output=True,
+                check=False,
+            ).returncode,
+            0,
+        )
         self.assertEqual(
             subprocess.run(
                 ["git", "-C", str(self.candidate), "rev-parse", "HEAD"],
@@ -72,25 +212,25 @@ class GraderTests(unittest.TestCase):
             ).stdout.strip(),
             END,
         )
-        for start, end in (
-            (START, END),
-            ("ad1401aa63177ce754212241db6a7c6ee0788a8d", "d068be2f7f152c49c779b66e595ebadf50661bdb"),
-        ):
-            with self.subTest(start=start, end=end):
-                subprocess.run(
-                    ["git", "-C", str(self.candidate), "rev-parse", f"{start}^{{commit}}", f"{end}^{{commit}}"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                self.assertTrue(
-                    subprocess.run(
-                        ["git", "-C", str(self.candidate), "diff", "--name-only", start, end],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    ).stdout.strip()
-                )
+        self._assert_historical_refs(self.candidate, START, END)
+        with tempfile.TemporaryDirectory() as directory:
+            self._assert_historical_refs(_historical_candidate(Path(directory), TAMPER_END), TAMPER_START, TAMPER_END)
+
+    def _assert_historical_refs(self, candidate: Path, start: str, end: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(candidate), "rev-parse", f"{start}^{{commit}}", f"{end}^{{commit}}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertTrue(
+            subprocess.run(
+                ["git", "-C", str(candidate), "diff", "--name-only", start, end],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+        )
 
     def _record(self, ending_sha: str = END) -> dict[str, object]:
         record = valid_record()
@@ -107,19 +247,22 @@ class GraderTests(unittest.TestCase):
     def _candidate_variant(self):
         """Yield one cheap, clean, committed candidate variant for a real grade."""
         with tempfile.TemporaryDirectory() as directory:
-            candidate = Path(directory) / "candidate"
-            subprocess.run(["git", "-C", str(self.candidate), "worktree", "add", "--quiet", "--detach", "--no-checkout", str(candidate), END], check=True)
-            _configure_private_image_sparse_checkout(candidate)
-            subprocess.run(["git", "-C", str(candidate), "checkout", "--quiet", "--detach", END], check=True)
-            try:
-                yield candidate
-            finally:
-                subprocess.run(["git", "-C", str(self.candidate), "worktree", "remove", "--force", str(candidate)], check=True)
+            yield _historical_candidate(Path(directory), END)
 
     def _commit_variant(self, candidate: Path) -> str:
         subprocess.run(["git", "-C", str(candidate), "add", "--all"], check=True)
-        subprocess.run(["git", "-C", str(candidate), "-c", "user.name=Bake-Off Test", "-c", "user.email=bakeoff-test@example.invalid", "commit", "--quiet", "-m", "test candidate variant"], check=True)
-        return subprocess.run(["git", "-C", str(candidate), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        tree = _git_bytes(candidate, ["write-tree", "--missing-ok"]).decode("ascii").strip()
+        commit = subprocess.run(
+            ["git", "-C", str(candidate), "-c", "user.name=Bake-Off Test", "-c", "user.email=bakeoff-test@example.invalid", "commit-tree", tree, "-p", END, "-m", "test candidate variant"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(["git", "-C", str(candidate), "update-ref", "HEAD", commit], check=True)
+        status = _git_bytes(candidate, ["status", "--porcelain=v1"])
+        if status:
+            raise AssertionError(f"candidate variant is unexpectedly dirty: {status.decode('utf-8')}")
+        return commit
 
     def _break_implementation(self, candidate: Path) -> None:
         implementation = candidate / "tools" / "task-packet.py"
