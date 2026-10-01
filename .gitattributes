@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Bake-Off V1 validates these frozen artifacts as raw bytes.
+benchmarks/bakeoff-v1/** text eol=lf
