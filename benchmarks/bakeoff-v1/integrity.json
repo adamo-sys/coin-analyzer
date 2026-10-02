@@ -15,7 +15,7 @@
     },
     {
       "path": "benchmarks/bakeoff-v1/orchestrator/reconstructed-runner-v1.json",
-      "sha256": "4cb1b8131f297e9f4bca39dd3f4134e1baad2451aece269eaea3b60b5cb8f38d"
+      "sha256": "dc4c7ee3d0dc0f81554683aaa9ee8e89d1d8661dd97d4eb456908ab377c68593"
     },
     {
       "path": "benchmarks/bakeoff-v1/prompts/BO1-TASK-PACKETS-v1.1.txt",

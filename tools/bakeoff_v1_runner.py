@@ -270,7 +270,7 @@ def prepare_sandbox_execution_paths(
 
 def materializer_sha256() -> str:
     """Return the exact bytes digest of this trusted materializer implementation."""
-    return sha256(Path(__file__).read_bytes()).hexdigest()
+    return sha256(Path(__file__).read_text(encoding="utf-8").encode("utf-8")).hexdigest()
 
 
 def launcher_configuration_sha256(specification: Mapping[str, object]) -> str:

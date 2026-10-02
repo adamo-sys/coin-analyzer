@@ -211,7 +211,7 @@ class ReconstructedRunnerTests(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             for call in run.call_args_list:
                 self.assertEqual(call.args[0][0], "icacls")
-                self.assertIn(str(candidate) if call is run.call_args_list[0] else str(evidence), call.args[0])
+                self.assertIn(str(candidate.resolve()) if call is run.call_args_list[0] else str(evidence.resolve()), call.args[0])
 
 
 if __name__ == "__main__":

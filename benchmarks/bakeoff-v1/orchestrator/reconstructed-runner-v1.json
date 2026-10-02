@@ -14,7 +14,7 @@
   ],
   "materializer": {
     "path": "tools/bakeoff_v1_runner.py",
-    "sha256": "bac2c3fd3ddfcfa7c0cc894212d58f0dbea4388379ada29b7c3b299113736bfa"
+    "sha256": "21785e7dc78a9b827ea0af1af2a8b5164b0c82285add52fc5631bc28820cd70a"
   },
   "launcher": {
     "cli_version": "0.154.0",
@@ -47,5 +47,5 @@
       "-"
     ]
   },
-  "launcher_configuration_sha256": "bc2cfbe3e51690ff02c1bcdc9d40f2c1c81fc0b196d3b677dc4582b45a901828"
+  "launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27"
 }
