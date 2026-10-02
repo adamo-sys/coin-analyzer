@@ -6,7 +6,7 @@
     "manifest_integrity": "sha256-sidecar-raw-bytes-v1",
     "static_control_integrity": "manifest-sidecar-plus-integrity-root-v1"
   },
-  "integrity_root_sha256": "7f5981b99702026d6ae365ef02060de2497649ebc266fcf25bfdeab4f6cbcb47",
+  "integrity_root_sha256": "5669f78a2a9caeca01b457d4f43ffe5188dfb671b50b7fe873fe9f56f74c411e",
   "tasks": [
     {
       "acceptance_evidence": [
