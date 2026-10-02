@@ -26,7 +26,7 @@ from tools.bakeoff_v1_grader import (
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "51c0abe19e97e6032226968fd2f2cd3fae4514dfaf0bba113ae20be2162a0a74"
+EXPECTED_CORPUS_SEAL = "f7603470bd72c874de49eb0d06e8753a525014186da83b420e0b85bfcb193cef"
 START = "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612"
 END = "2f18d5fd7b1227f13aaee24467950353a77e8fee"
 TAMPER_START = "ad1401aa63177ce754212241db6a7c6ee0788a8d"
