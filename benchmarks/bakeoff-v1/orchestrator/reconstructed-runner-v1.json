@@ -1,0 +1,51 @@
+{
+  "schema_version": "1",
+  "implementation_generation": "reconstructed-materializer-v1",
+  "infrastructure_discontinuity": {
+    "historical_runs": ["RUN-002", "RUN-003"],
+    "historical_materializer": "implementation-A-unrecoverable",
+    "future_runs": "RUN-004-onward"
+  },
+  "historical_evidence_sha256": [
+    "22e84e6e4b42cd917d0e2b43a4997bb4b7bd3d52dab051c2278113aedb3de748",
+    "e32bed187e3df2175ef79dc3c8167a9e77129cbe97fc301fb17d7327ed926f9d",
+    "3e311ba042ecc38f4e13a242d42ba5e76ae6f57405cfa1c89da808b3d39a5d42",
+    "1a809d2ddf633b58d9e0b01e314da5981b338b44c0368d004b4102e9119f3fbc"
+  ],
+  "materializer": {
+    "path": "tools/bakeoff_v1_runner.py",
+    "sha256": "21785e7dc78a9b827ea0af1af2a8b5164b0c82285add52fc5631bc28820cd70a"
+  },
+  "launcher": {
+    "cli_version": "0.154.0",
+    "node_executable": "C:/Program Files/nodejs/node.exe",
+    "codex_js": "C:/Users/adamo/AppData/Roaming/npm/node_modules/@openai/codex/bin/codex.js",
+    "global_arguments": [
+      "-c",
+      "web_search=\"disabled\"",
+      "-c",
+      "features.skip_host_skill_discovery=true",
+      "--disable",
+      "browser_use_external",
+      "--disable",
+      "browser_use_full_cdp_access",
+      "-s",
+      "workspace-write",
+      "-a",
+      "never",
+      "-C",
+      "{candidate}",
+      "exec"
+    ],
+    "exec_arguments": [
+      "--ephemeral",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--json",
+      "-o",
+      "{final_output}",
+      "-"
+    ]
+  },
+  "launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27"
+}

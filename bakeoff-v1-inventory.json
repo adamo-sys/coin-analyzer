@@ -1,0 +1,300 @@
+{
+  "inventory_version": "1.0",
+  "generated_from": {
+    "branch": "main",
+    "head_sha": "d199223122e0d49ca98c909f3c9f4114ff3bb564",
+    "task_authorized_base": "current local main (no separate base/ref supplied in the task packet)",
+    "worktrees_inspected": {
+      "count": 24,
+      "method": "local-only tools/task-state.py inventory --repo . --base main --format json",
+      "summary": "11 registered worktree heads are not contained by current main; three worktrees report tracked dirtiness. This inventory makes no preservation, cleanup, freshness, or completion judgment."
+    },
+    "tracked_state_before_inventory_artifact": [
+      "capture_import/desktop_import_pipeline_selection.py"
+    ],
+    "protected_material_not_inspected": [
+      "data/imports/",
+      "coin_photos/collection/imports/",
+      "test_coins/",
+      "private phone-photo manifests, images, raw responses, journals, and ignored debug outputs"
+    ]
+  },
+  "classification_counts": {
+    "READY": 3,
+    "ADAPTABLE": 5,
+    "PARTIAL": 4,
+    "RESEARCH_ONLY": 3,
+    "HISTORICAL": 5,
+    "NOT_FOUND": 12,
+    "counting_note": "Counts cover the classified substantive entries in this artifact; evidence-index rows are not counted separately."
+  },
+  "executive_summary": {
+    "ready_components": [
+      "Task Packet and Outcome Packet schemas/templates plus offline local validator",
+      "Local-only worktree/task-state inventory for start-state and tracked-dirty observations",
+      "Existing developer-tool scorecard categories in docs/AI_TOOL_EVALUATION.md"
+    ],
+    "adaptable_components": [
+      "AI execution audit record/store for execution provenance",
+      "Identification adversarial tamper harness for deterministic anti-tamper checks",
+      "Recognition30 E6 offline retrieval replay",
+      "Versioned benchmark manifests and deterministic report patterns",
+      "Historical PR snapshots with focused tests"
+    ],
+    "major_gaps": [
+      "No discovered executable agent-harness bake-off runner that dispatches candidates against frozen historical tasks",
+      "No discovered common trajectory/turn/token/wall-time capture schema across candidate families",
+      "No discovered frozen public Bake-Off V1 task corpus, gold outcomes, contamination policy, or independent agent-harness grader",
+      "No discovered results for the named external candidate families beyond repository-local Codex/Superpowers/tooling research"
+    ],
+    "recommended_freeze_inputs": [
+      "Reuse Task/Outcome Packets and task-state inventory as workflow evidence boundaries",
+      "Reuse the AI tool scorecard dimensions, but define a normalized collection method before scoring candidates",
+      "Select only historical tasks whose parent snapshot, expected diff/tests, and privacy classification can be frozen",
+      "Keep recognition benchmarks as examples of provenance, leakage, and fail-closed reporting rather than treating them as agent-task cases"
+    ]
+  },
+  "benchmark_infrastructure": [
+    {
+      "name": "Evaluation Harness / Benchmark v1",
+      "classification": "ADAPTABLE",
+      "evidence_paths": ["docs/architecture/EVALUATION_HARNESS.md", "benchmarks/v1/manifest.json", "artifacts/benchmark-v1-report.json"],
+      "what_exists": "Immutable manifest-oriented OCR benchmark contract with per-case outputs, latency, provenance, infrastructure-failure separation, and deterministic reports.",
+      "bakeoff_reuse": "Strong model for frozen cases, raw-vs-reference separation, and report evidence; not an agent-harness runner."
+    },
+    {
+      "name": "Benchmark v2 and adversarial reference benchmark",
+      "classification": "ADAPTABLE",
+      "evidence_paths": ["benchmarks/v2/manifest.json", "benchmarks/adversarial_reference/manifest_v1.json", "benchmarks/adversarial_reference/audit_source_asset_independence.py", "benchmarks/adversarial_reference/audit_selected_asset_similarity.py"],
+      "what_exists": "Versioned visual benchmark material plus provenance, source-independence, duplicate/similarity, and freeze tooling.",
+      "bakeoff_reuse": "Reusable anti-leakage and corpus-freeze patterns; the cases evaluate recognition rather than coding agents."
+    },
+    {
+      "name": "Phone-photo recognition benchmark",
+      "classification": "PARTIAL",
+      "evidence_paths": ["benchmarks/phone-photo-v1/README.md", "benchmarks/phone-photo-v1/RESULTS.md", "capture_import/phone_photo_benchmark.py", "tests/test_phone_photo_benchmark.py"],
+      "what_exists": "Implemented private-local-only paired-photo harness with manifest hashing, journals, execution accounting, deterministic scoring, and sanitized aggregate results.",
+      "blocker": "The real corpus and run evidence are explicitly private/ignored and were not inspected; it is not a reusable public Bake-Off task corpus."
+    },
+    {
+      "name": "Real-world desktop acceptance set",
+      "classification": "PARTIAL",
+      "evidence_paths": ["benchmarks/real-world-desktop-v1/README.md", "benchmarks/real-world-desktop-v1/manifest.schema.json", "benchmarks/real-world-desktop-v1/authoring-plan.json", "docs/architecture/EVALUATION_HARNESS.md"],
+      "what_exists": "Strict authoring, canonicalization, privacy, review, digest, and leakage-control protocol.",
+      "blocker": "Architecture states the repository contains no real acceptance manifest or images; corpus assembly/execution remain separate work."
+    },
+    {
+      "name": "Recognition30 grounded evaluation and E6 offline replay",
+      "classification": "ADAPTABLE",
+      "evidence_paths": ["capture_import/recognition30_grounded_evaluation.py", "capture_import/recognition30_e6_retrieval_replay.py", "tests/test_recognition30_e6_retrieval_replay.py"],
+      "what_exists": "Deterministic correctness/coverage/unsafe-identification metrics and a no-provider-call replay that compares retrieval representations.",
+      "bakeoff_reuse": "Useful replay and metric-separation pattern, but scoped to recognition evidence and catalogue retrieval."
+    },
+    {
+      "name": "Promptfoo policy evaluation",
+      "classification": "PARTIAL",
+      "evidence_paths": ["evals/promptfoo/promptfooconfig.yaml", "evals/promptfoo/policy_provider.py"],
+      "what_exists": "A repository-local prompt-policy evaluation configuration/provider adapter.",
+      "blocker": "No discovered run report, candidate comparison, or historical coding-task integration."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate": "Codex / developer-tool workflow",
+      "category": "agent workflow and developer tooling",
+      "classification": "READY",
+      "evidence_paths": ["docs/AI_TOOL_EVALUATION.md", "docs/CODEX_WORKFLOW.md", ".ops/tasks.yml", "tools/task-state.py"],
+      "implementation_status": "Documented operating contract and local inspection tooling; scorecard dimensions are defined.",
+      "existing_measurements": ["completion rate", "defects/scope violations", "test outcomes", "files/churn", "human interventions", "approximate completion time", "tool/model cost"],
+      "result_status": "Tool records are historical/adoption evidence, not a normalized multi-candidate bake-off result.",
+      "blockers": ["no common candidate-run ledger", "no frozen historical task set", "no automatic turn/token collector"]
+    },
+    {
+      "candidate": "Serena / Superpowers pilot",
+      "category": "agent harness comparison research",
+      "classification": "RESEARCH_ONLY",
+      "evidence_paths": ["docs/agent-ops/SERENA_SUPERPOWERS_PILOT.md", "docs/superpowers/plans/2026-09-21-post-rc1-consolidation-inventory.md"],
+      "implementation_status": "Pilot and planning evidence exists.",
+      "existing_task_used": "Repository workflow tasks described by the pilot record.",
+      "result_status": "No discovered executable head-to-head Bake-Off runner or normalized result artifact."
+    },
+    {
+      "candidate": "AgentDiff",
+      "category": "developer-tool evaluation",
+      "classification": "RESEARCH_ONLY",
+      "evidence_paths": ["docs/AI_TOOL_EVALUATION.md", "commit:4b906b1e8d70fa1ec4bf6aff678fb0a58abe8035"],
+      "implementation_status": "Historical evaluation log entry only.",
+      "result_status": "No discovered current executable candidate adapter."
+    },
+    {
+      "candidate": "AI Execution Audit Trail",
+      "category": "provenance and telemetry",
+      "classification": "ADAPTABLE",
+      "evidence_paths": ["docs/architecture/AI_EXECUTION_AUDIT.md", "ai_execution_audit.py", "ai_execution_audit_store.py", "identification_audit_finalization.py"],
+      "implementation_status": "Implemented bounded deterministic record and append-only JSONL storage for an identification workflow.",
+      "existing_measurements": ["execution/workflow/executor identifiers", "case/evidence/candidate IDs", "verifier/evaluation outcomes", "human/persistence disposition"],
+      "blockers": ["not generalized to coding-agent trajectories", "no token/turn/time schema"]
+    },
+    {
+      "candidate": "Identification adversarial tamper harness",
+      "category": "anti-gaming / independent verification",
+      "classification": "ADAPTABLE",
+      "evidence_paths": ["identification_adversarial_tamper_harness.py", "test_identification_adversarial_tamper_harness.py", "commit:d068be2f7f152c49c779b66e595ebadf50661bdb"],
+      "implementation_status": "Implemented deterministic tampering cases that check verification/evaluation outcomes and rejected comparisons.",
+      "blockers": ["targets identification contracts rather than test weakening, scope gaming, or agent trajectories"]
+    }
+  ],
+  "historical_task_candidates": [
+    {
+      "task_identifier": "PR #351 field proposal contract",
+      "classification": "HISTORICAL",
+      "suitability": "ADAPTABLE",
+      "commit_or_pr": "PR #351 merge 164a9891d16541bdfee8de5e7728c2c96f55055b",
+      "starting_snapshot_sha": "d199223122e0d49ca98c909f3c9f4114ff3bb564",
+      "original_objective": "Require field-specific proposal provenance.",
+      "expected_end_state": "New field-proposal contract, verification changes, and focused tests.",
+      "evidence": ["capture_import/coin_field_proposals.py", "capture_import/two_side_candidate_verification.py", "tests/test_coin_field_proposals.py", "tests/test_two_side_candidate_verification.py"],
+      "replay_isolation": "Likely: focused code/test surface is explicit in merge stat.",
+      "external_dependencies": "No external provider execution established by this archaeology.",
+      "ground_truth": "Git diff and focused tests available; original task packet/outcome packet not located.",
+      "contamination_risk": "High: merged current-main task; contestants may retrieve its solution/history unless isolated.",
+      "rationale": "Explicitly inspected as required; concrete bounded PR but needs an earlier frozen parent snapshot and leakage controls."
+    },
+    {
+      "task_identifier": "PR #306 task-packet foundation",
+      "classification": "HISTORICAL",
+      "suitability": "READY",
+      "commit_or_pr": "PR #306 merge 2f18d5fd7b1227f13aaee24467950353a77e8fee",
+      "starting_snapshot_sha": "9369b3f6d830d2f0ee7fe41cdabc8c57d7b77612",
+      "original_objective": "Add local Task Packet and Outcome Packet foundation.",
+      "expected_end_state": "Schemas/templates, validator, workflow documentation, and tests.",
+      "evidence": [".ops/task-packet.schema.json", ".ops/outcome-packet.schema.json", "tools/task-packet.py", "tests/test_task_packet.py"],
+      "replay_isolation": "High for an offline coding task.",
+      "external_dependencies": "None discovered.",
+      "ground_truth": "Committed implementation and focused test suite exist.",
+      "contamination_risk": "High on current repository; requires a snapshot and exclusion of solved history.",
+      "rationale": "The resulting infrastructure is itself reusable, but a contest replay must guard against direct solution retrieval."
+    },
+    {
+      "task_identifier": "PR #229 phone-photo benchmark harness",
+      "classification": "HISTORICAL",
+      "suitability": "UNSUITABLE",
+      "commit_or_pr": "PR #229 merge; implementation commit b8250b37903d9ec54825a1c020957da2067a806b",
+      "starting_snapshot_sha": "90119bb4b3833b3e7bb3d54db9cd4f438b2f2503",
+      "original_objective": "Add phone-photo benchmark harness and sanitized baseline results.",
+      "tests_evidence": ["tests/test_phone_photo_benchmark.py", "benchmarks/phone-photo-v1/README.md", "benchmarks/phone-photo-v1/RESULTS.md"],
+      "replay_isolation": "Technically plausible but not appropriate without a synthetic-only task definition.",
+      "external_dependencies": "Provider path exists but must not be run for bake-off replay.",
+      "ground_truth": "Real corpus is private-local-only.",
+      "contamination_risk": "Privacy and provider-cost risk.",
+      "rationale": "Do not use private benchmark material as a contestant case."
+    },
+    {
+      "task_identifier": "PR #177 desktop acceptance AI evaluation runner",
+      "classification": "HISTORICAL",
+      "suitability": "ADAPTABLE",
+      "commit_or_pr": "PR #177 merge 704e4aff5b17f49dbfc3c49de5457a41109415c9",
+      "starting_snapshot_sha": "b1cd8c6fefe12367288ebe3e9b31c290195c871f",
+      "original_objective": "Add desktop acceptance AI evaluation runner.",
+      "tests_evidence": ["capture_import/desktop_acceptance_ai_evaluation_runner.py", "test_desktop_acceptance_ai_evaluation_runner.py"],
+      "replay_isolation": "Likely with synthetic fixtures only.",
+      "external_dependencies": "No provider call evidence needed for focused contract tests; acceptance corpus itself is separately constrained.",
+      "ground_truth": "Tests and contract artifacts are available.",
+      "contamination_risk": "Merged solution is visible in history."
+    },
+    {
+      "task_identifier": "Identification verification evaluation batch and tamper harness",
+      "classification": "HISTORICAL",
+      "suitability": "ADAPTABLE",
+      "commit_or_pr": "f704a47b05360dc40f756558690148880cd5b3c5 and d068be2f7f152c49c779b66e595ebadf50661bdb",
+      "starting_snapshot_sha": "not established in this read-only pass",
+      "original_objective": "Add verification/evaluation batch comparison and adversarial tamper coverage.",
+      "tests_evidence": ["test_identification_verification_evaluation_batch.py", "test_identification_adversarial_tamper_harness.py"],
+      "replay_isolation": "Likely deterministic and offline.",
+      "external_dependencies": "None discovered.",
+      "ground_truth": "Focused tests define contract behavior.",
+      "contamination_risk": "Merged solution history requires isolation."
+    }
+  ],
+  "measurement_inventory": {
+    "automatic": [
+      {"metric": "recognition correctness/coverage/abstention/unsafe wrong identification", "evidence": "capture_import/recognition30_grounded_evaluation.py"},
+      {"metric": "per-case benchmark timing, infrastructure failures, persistence success", "evidence": "docs/architecture/EVALUATION_HARNESS.md; artifacts/benchmark-v1-report.json"},
+      {"metric": "AI execution/case/evidence/verdict/disposition provenance", "evidence": "ai_execution_audit.py; ai_execution_audit_store.py"},
+      {"metric": "worktree HEAD, tracked-dirty flag, and local base relationship", "evidence": "tools/task-state.py inventory"}
+    ],
+    "derivable": [
+      {"metric": "files and LOC changed", "evidence": "Git commits/diffs, e.g. PR #351 merge stat"},
+      {"metric": "test success/completeness", "evidence": "focused tests and retained historical reports where present"},
+      {"metric": "historical task final state", "evidence": "commit parent/merge and test diff"},
+      {"metric": "candidate task contamination risk", "evidence": "whether solution is already in current repository/history"}
+    ],
+    "proposed_only": [
+      {"metric": "task completion rate across candidate harnesses", "evidence": "docs/AI_TOOL_EVALUATION.md scorecard"},
+      {"metric": "defects/scope violations, false-positive review comments, unnecessary churn, human intervention, approximate completion time and cost", "evidence": "docs/AI_TOOL_EVALUATION.md scorecard"},
+      {"metric": "Better Harness workflow comparison", "evidence": "docs/CODEX_WORKFLOW.md"}
+    ],
+    "unsupported": [
+      "normalized turns across candidate systems",
+      "normalized token/context usage across candidate systems",
+      "common wall-clock start/stop capture for candidate runs",
+      "generic coding-agent trajectory capture and interruption/recovery measure",
+      "automated scope-drift/replanning grader",
+      "cross-candidate independent final grader"
+    ]
+  },
+  "anti_gaming_and_audit": [
+    {"name": "Task-state preflight/inventory", "classification": "READY", "evidence_paths": ["tools/task-state.py", "docs/CODEX_WORKFLOW.md"], "proves": "Read-only branch/HEAD/dirty/base observations and explicit unavailable rather than guessed results."},
+    {"name": "Task/Outcome packets", "classification": "READY", "evidence_paths": [".ops/task-packet.schema.json", ".ops/outcome-packet.schema.json", "tools/task-packet.py"], "proves": "Machine-validatable workflow/evidence envelopes; not execution authorization."},
+    {"name": "Benchmark provenance and leakage controls", "classification": "ADAPTABLE", "evidence_paths": ["docs/architecture/EVALUATION_HARNESS.md", "benchmarks/adversarial_reference/audit_source_asset_independence.py", "benchmarks/adversarial_reference/audit_selected_asset_similarity.py"], "proves": "Manifest freezing, provenance separation, source/duplicate/similarity checks, and fail-closed corpus patterns."},
+    {"name": "Independent execution audit", "classification": "ADAPTABLE", "evidence_paths": ["docs/architecture/AI_EXECUTION_AUDIT.md", "ai_execution_audit_store.py"], "proves": "Append-only observational record boundary separate from persistence authority."},
+    {"name": "Tamper harness", "classification": "ADAPTABLE", "evidence_paths": ["identification_adversarial_tamper_harness.py"], "proves": "Deterministic adversarial checks of an identification verification/evaluation path."},
+    {"name": "Coding-agent reward-hacking detector", "classification": "NOT_FOUND", "search_basis": "reward hack/specification gaming/test weakening/metric gaming searches and reviewed audit/harness files", "proves": "No repository implementation found that detects a contestant weakening tests or gaming a coding-task score."}
+  ],
+  "research_and_design_artifacts": [
+    {"name": "AI tool evaluation log", "classification": "RESEARCH_ONLY", "evidence_paths": ["docs/AI_TOOL_EVALUATION.md"], "note": "Defines candidate-evaluation dimensions and documents pilots/adoption decisions; it is not a bake-off ledger."},
+    {"name": "Serena/Superpowers pilot", "classification": "RESEARCH_ONLY", "evidence_paths": ["docs/agent-ops/SERENA_SUPERPOWERS_PILOT.md"], "note": "Repository pilot evidence exists, but no executable comparison harness was found."},
+    {"name": "Browser research sandbox", "classification": "RESEARCH_ONLY", "evidence_paths": ["docs/T7_BROWSER_RESEARCH_SANDBOX.md"], "note": "Trust-boundary design only; it explicitly remains advisory and outside self-improvement authority."},
+    {"name": "Agent Measurement & Control Layer / Agent Orchestration Bake-Off", "classification": "NOT_FOUND", "search_basis": "exact and conceptual repository/history searches"}
+  ],
+  "not_found": [
+    "LongHorizon or long-running-agent evaluation implementation",
+    "Everything Claude Code / ECC repository evidence",
+    "OpenBrain repository evidence",
+    "Anthropic skill-creator or project-local skill evaluation implementation",
+    "AgentLens repository evidence",
+    "Sandbox Agent repository evidence",
+    "persistent-memory evaluation implementation",
+    "codex-mem, codex-agent-mem, or AgentMemory repository evidence",
+    "Jev decision-layer evaluation",
+    "discovery-to-PRD-to-execution gate implementation under that name",
+    "generic provider-validation replay taxonomy for coding agents",
+    "executable multi-candidate agent-harness bake-off with normalized telemetry and independent grading"
+  ],
+  "gaps_before_freeze": [
+    "Freeze a sanitized, leakage-controlled set of historical coding tasks with explicit parent SHA, allowed files, expected outcome, test command, and known external-dependency policy.",
+    "Define an agent-run evidence schema that binds Task Packet, starting snapshot, candidate identity/configuration, trajectory references, wall time, observed usage (or unavailable), changed files, validation evidence, and Outcome Packet.",
+    "Define an independent scorer/auditor for task success, test weakening, scope drift, unnecessary churn, and report integrity; existing tamper tooling is domain-specific.",
+    "Define a contamination protocol because the strongest historical candidates and their solutions are already present in Git history/current main.",
+    "Decide which measurements are mandatory and which may be unavailable; existing scorecard explicitly forbids inventing Codex telemetry.",
+    "Select only privacy-safe, offline-replayable cases; do not incorporate the private phone-photo corpus."
+  ],
+  "evidence_index": [
+    {"path": "docs/architecture/EVALUATION_HARNESS.md", "claim": "Approved benchmark measurement contract and frozen-dataset/report principles."},
+    {"path": "docs/architecture/AI_EXECUTION_AUDIT.md", "claim": "Execution audit is observational and separate from collection authority."},
+    {"path": "docs/AI_TOOL_EVALUATION.md", "claim": "Existing developer-tool scorecard dimensions and historical tool evaluations."},
+    {"path": "docs/CODEX_WORKFLOW.md", "claim": "Task/Outcome packets and Better Harness comparison are described as workflow evidence, not autonomous authority."},
+    {"path": "tools/task-state.py", "claim": "Local-only preflight/worktree inventory capability."},
+    {"path": "commit:164a9891d16541bdfee8de5e7728c2c96f55055b", "claim": "PR #351 merged field-proposal contract and focused tests."},
+    {"path": "commit:2f18d5fd7b1227f13aaee24467950353a77e8fee", "claim": "PR #306 merged task-packet foundation."},
+    {"path": "commit:b8250b37903d9ec54825a1c020957da2067a806b", "claim": "Phone-photo benchmark harness and sanitized baseline artifacts."},
+    {"path": "commit:704e4aff5b17f49dbfc3c49de5457a41109415c9", "claim": "PR #177 desktop acceptance evaluation runner."}
+  ],
+  "limitations": [
+    "This was an artifact/source/history archaeology pass; no providers, contestants, tests, or bake-off runs were executed.",
+    "The local worktree inventory was factual only. Worktree content was not broadly read, and untracked/ignored namespaces were not enumerated.",
+    "Protected/private coin inputs and ignored phone-photo evidence were intentionally excluded, so their detailed suitability is unverified.",
+    "No network fetch was performed; local refs and retained Git history are the only historical source used.",
+    "Exact session-wide context accounting is unavailable in this environment; this pass remained below the repository's 50K warning threshold by operational estimate."
+  ]
+}

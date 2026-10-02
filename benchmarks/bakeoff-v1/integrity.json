@@ -1,0 +1,33 @@
+{
+  "schema_version": "1",
+  "artifacts": [
+    {
+      "path": "benchmarks/bakeoff-v1/tasks/BO1-TASK-PACKETS.json",
+      "sha256": "da14741ffd98b07a03fb67b2624beb7367ab5b3ec0ddd56d84c56a19b30e32eb"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/tasks/BO1-TAMPER-BATCH.json",
+      "sha256": "cb5b72cbbee8e573bb2e3657e149b7a243110c7647250e8e551c51da4ab638d4"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/EXECUTION-PROTOCOL-v1.1.md",
+      "sha256": "a0fc455b07058b519fd58d8e574707000ff2382d607357976a2e5c6b23bb2468"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/orchestrator/reconstructed-runner-v1.json",
+      "sha256": "dc4c7ee3d0dc0f81554683aaa9ee8e89d1d8661dd97d4eb456908ab377c68593"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/prompts/BO1-TASK-PACKETS-v1.1.txt",
+      "sha256": "e225e05b5318d8a9b4c00874f900776e42aaf6c18e328aa4b6926abda97c9958"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/prompts/BO1-TAMPER-BATCH-v1.1.txt",
+      "sha256": "2de9e4fc28455d242694abda08601578bbeb5537b367bc48de99beb940bd8b80"
+    },
+    {
+      "path": "benchmarks/bakeoff-v1/prompt-cohorts-v1.1.json",
+      "sha256": "77bfcbe04aa3b705d24adb93be2a8496fca7c42ddcfe623bd973089d9b0b5480"
+    }
+  ]
+}
