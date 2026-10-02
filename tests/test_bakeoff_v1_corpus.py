@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
 PROMPT_COHORTS = ROOT / "benchmarks" / "bakeoff-v1" / "prompt-cohorts-v1.1.json"
-EXPECTED_CORPUS_SEAL = "daccc7fef89286e59ea1df9c6e7b8bed9396a985088df925650791d95fbbfe40"
+EXPECTED_CORPUS_SEAL = "51c0abe19e97e6032226968fd2f2cd3fae4514dfaf0bba113ae20be2162a0a74"
+PRE_RECONSTRUCTED_RUNNER_CORPUS_SEAL = "daccc7fef89286e59ea1df9c6e7b8bed9396a985088df925650791d95fbbfe40"
 PRE_PROSPECTIVE_PROMPT_CORPUS_SEAL = "89afe86ac0608c121f14ea7cfd8d1dc8fd61cd9f3eb656045348baa8ae7dccc1"
 PRE_V11_CORPUS_SEAL = "1caa322927e4147f2f5e02d0cdb7a0069917da16277c2424700e9dd6d694ded1"
 
@@ -128,6 +129,11 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             sha256((ROOT / "benchmarks/bakeoff-v1/prompts/BO1-TAMPER-BATCH-v1.1.txt").read_bytes()).hexdigest(),
             "2de9e4fc28455d242694abda08601578bbeb5537b367bc48de99beb940bd8b80",
         )
+        runner_specification = ROOT / "benchmarks/bakeoff-v1/orchestrator/reconstructed-runner-v1.json"
+        self.assertEqual(
+            artifact_hashes["benchmarks/bakeoff-v1/orchestrator/reconstructed-runner-v1.json"],
+            sha256(runner_specification.read_bytes()).hexdigest(),
+        )
 
     def test_rejects_manifest_task_packet_mismatch(self) -> None:
         with self.assertRaisesRegex(CorpusValidationError, "task packet path"):
@@ -148,6 +154,8 @@ class BakeoffV1CorpusTests(unittest.TestCase):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal="f" * 64)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_PROSPECTIVE_PROMPT_CORPUS_SEAL)
+        with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
+            validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_RECONSTRUCTED_RUNNER_CORPUS_SEAL)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
             validate_frozen_corpus(MANIFEST, SIDECAR, expected_seal=PRE_V11_CORPUS_SEAL)
         with self.assertRaisesRegex(CorpusValidationError, "external corpus seal"):
