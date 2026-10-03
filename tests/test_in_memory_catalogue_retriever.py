@@ -84,6 +84,80 @@ def test_visible_text_matches_country_and_legend_tokens():
     assert [item.candidate_id for item in result.candidates] == ["canada"]
 
 
+def test_observed_espana_matches_spain_country_token():
+    retriever = InMemoryCatalogueRetriever(
+        (_candidate("spain", country="Spain", denomination="1 peseta", year="1980"),)
+    )
+
+    result = retriever.retrieve(_request(visible_text=("ESPAÑA",)))
+
+    assert [item.candidate_id for item in result.candidates] == ["spain"]
+
+
+def test_observed_republica_and_dominicana_match_dominican_republic_tokens():
+    retriever = InMemoryCatalogueRetriever(
+        (_candidate("dominican", country="Dominican Republic", denomination="1/2 peso", year="1973"),)
+    )
+
+    result = retriever.retrieve(
+        _request(visible_text=("REPUBLICA", "DOMINICANA"))
+    )
+
+    assert [item.candidate_id for item in result.candidates] == ["dominican"]
+
+
+@pytest.mark.parametrize(
+    ("observed", "catalogue_denomination"),
+    (("SHILLING", "2 shillings"), ("SHILLINGS", "1 shilling")),
+)
+def test_observed_shilling_number_is_equivalent_to_plural_form(
+    observed, catalogue_denomination
+):
+    retriever = InMemoryCatalogueRetriever(
+        (_candidate("sterling", denomination=catalogue_denomination),)
+    )
+
+    result = retriever.retrieve(_request(visible_text=(observed,)))
+
+    assert [item.candidate_id for item in result.candidates] == ["sterling"]
+
+
+@pytest.mark.parametrize(
+    "visible_text",
+    (
+        ("ESPANOL",),
+        ("REPUBLICA",),
+        ("DOMINICANA",),
+        ("SHILLINGWORTH",),
+    ),
+)
+def test_query_normalization_does_not_expand_unrelated_or_incomplete_terms(visible_text):
+    retriever = InMemoryCatalogueRetriever(
+        (
+            _candidate("spain", country="Spain"),
+            _candidate("dominican", country="Dominican Republic"),
+            _candidate("sterling", denomination="2 shillings"),
+        )
+    )
+
+    result = retriever.retrieve(_request(visible_text=visible_text))
+
+    assert result.candidates == ()
+
+
+def test_existing_ascii_country_matching_is_unchanged_outside_bounded_mappings():
+    retriever = InMemoryCatalogueRetriever(
+        (
+            _candidate("canada", country="Canada"),
+            _candidate("spain", country="Spain"),
+        )
+    )
+
+    result = retriever.retrieve(_request(visible_text=("CANADA",)))
+
+    assert [item.candidate_id for item in result.candidates] == ["canada"]
+
+
 def test_zero_overlap_rows_are_not_returned():
     retriever = InMemoryCatalogueRetriever(
         (_candidate("a", country="Canada", year="1955"),)
