@@ -23,6 +23,33 @@ from .evidence_candidate_resolver import (
 _TOKEN = re.compile(r"[a-z0-9]+")
 
 
+def _observed_tokens(visible_text: tuple[str, ...]) -> set[str]:
+    """Return ASCII retrieval tokens plus the bounded observed-query aliases."""
+
+    tokens = {
+        token
+        for text in visible_text
+        for token in _tokens(text)
+        if len(token) >= 2
+    }
+    folded_text = tuple(text.casefold() for text in visible_text)
+
+    if any(_contains_word(text, "espa\u00f1a") for text in folded_text):
+        tokens.add("spain")
+    if {"republica", "dominicana"} <= tokens:
+        tokens.update(("dominican", "republic"))
+    if "shilling" in tokens:
+        tokens.add("shillings")
+    if "shillings" in tokens:
+        tokens.add("shilling")
+
+    return tokens
+
+
+def _contains_word(text: str, word: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(word)}(?!\w)", text) is not None
+
+
 @dataclass(frozen=True, slots=True)
 class _RetrievalScore:
     candidate: CatalogueCandidate
@@ -99,12 +126,7 @@ def _score(
         if normalize_denomination(candidate.denomination) == evidence.denomination:
             score += 3
 
-    observed_tokens = {
-        token
-        for text in evidence.visible_text
-        for token in _tokens(text)
-        if len(token) >= 2
-    }
+    observed_tokens = _observed_tokens(evidence.visible_text)
     if observed_tokens:
         catalogue_tokens = set()
         for value in (
