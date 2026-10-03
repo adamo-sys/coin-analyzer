@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import stat
 import subprocess
 import unicodedata
@@ -25,6 +26,7 @@ _HISTORICAL_EVIDENCE_SHA256 = (
     "3e311ba042ecc38f4e13a242d42ba5e76ae6f57405cfa1c89da808b3d39a5d42",
     "1a809d2ddf633b58d9e0b01e314da5981b338b44c0368d004b4102e9119f3fbc",
 )
+_QUALIFICATION_PROTECTED_PREFIXES = ("benchmarks/bakeoff-v1/runs/",)
 
 
 class ReconstructedRunnerError(ValueError):
@@ -220,6 +222,44 @@ def materialize_candidate(
     return result
 
 
+def _qualification_protected_paths(source_repository: Path, starting_sha: str) -> list[str]:
+    """Return scored-run paths from tree metadata without reading their blobs."""
+    source = source_repository.resolve()
+    raw = _git(source, ["ls-tree", "-r", "-z", starting_sha])
+    protected: list[str] = []
+    for entry in (record for record in raw.split(b"\0") if record):
+        try:
+            metadata, raw_path = entry.split(b"\t", 1)
+            _mode, object_type, _object_id = metadata.decode("ascii").split()
+            path = _safe_relative_path(raw_path.decode("utf-8", "strict"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise ReconstructedRunnerError("qualification tree metadata is malformed") from exc
+        if object_type == "blob" and path.startswith(_QUALIFICATION_PROTECTED_PREFIXES):
+            protected.append(path)
+    return sorted(protected, key=lambda item: item.encode("utf-8"))
+
+
+def materialize_qualification_candidate(
+    *,
+    source_repository: Path,
+    candidate_repository: Path,
+    starting_sha: str,
+    identity: Mapping[str, str],
+    source_release: str,
+    protected_paths: Iterable[str],
+) -> dict[str, object]:
+    """Materialize a disposable qualification candidate without scored-run evidence."""
+    qualification_protected = _qualification_protected_paths(source_repository, starting_sha)
+    return materialize_candidate(
+        source_repository=source_repository,
+        candidate_repository=candidate_repository,
+        starting_sha=starting_sha,
+        identity=identity,
+        source_release=source_release,
+        protected_paths=[*protected_paths, *qualification_protected],
+    )
+
+
 def candidate_scoped_git_environment(candidate_repository: Path) -> dict[str, str]:
     """Return process-only Git trust for the one disposable candidate."""
     return {
@@ -227,6 +267,24 @@ def candidate_scoped_git_environment(candidate_repository: Path) -> dict[str, st
         "GIT_CONFIG_KEY_0": "safe.directory",
         "GIT_CONFIG_VALUE_0": candidate_repository.resolve().as_posix(),
     }
+
+
+def prepare_isolated_launcher_environment(
+    *,
+    source_codex_home: Path,
+    isolated_codex_home: Path,
+) -> dict[str, str]:
+    """Create a fresh Codex home containing only the authentication artifact."""
+    source = source_codex_home.resolve()
+    isolated = isolated_codex_home.resolve()
+    authentication = source / "auth.json"
+    if not source.is_dir() or not authentication.is_file():
+        raise ReconstructedRunnerError("Codex authentication artifact is unavailable")
+    if isolated.exists() or not isolated.parent.is_dir() or _is_link_or_reparse(isolated.parent):
+        raise ReconstructedRunnerError("isolated Codex home must be a fresh real path")
+    isolated.mkdir()
+    shutil.copyfile(authentication, isolated / "auth.json")
+    return {"CODEX_HOME": str(isolated)}
 
 
 def _grant_sandbox_modify(path: Path, sandbox_identity: str) -> None:
@@ -303,6 +361,13 @@ def load_runner_specification(path: Path) -> dict[str, object]:
         "historical_runs": ["RUN-002", "RUN-003"],
         "historical_materializer": "implementation-A-unrecoverable",
         "future_runs": "RUN-004-onward",
+        "launcher_discontinuity": {
+            "historical_run": "RUN-004",
+            "historical_launcher_generation": "launcher-b",
+            "historical_launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27",
+            "future_runs": "RUN-005-onward",
+            "prospective_launcher_generation": "launcher-c",
+        },
     }:
         raise ReconstructedRunnerError("runner specification infrastructure discontinuity is invalid")
     if payload["historical_evidence_sha256"] != list(_HISTORICAL_EVIDENCE_SHA256):
@@ -317,6 +382,11 @@ def load_runner_specification(path: Path) -> dict[str, object]:
         raise ReconstructedRunnerError("runner specification launcher paths are invalid")
     if not all(isinstance(launcher[field], list) and all(isinstance(item, str) for item in launcher[field]) for field in ("global_arguments", "exec_arguments")):
         raise ReconstructedRunnerError("runner specification launcher arguments are invalid")
+    arguments = [*launcher["global_arguments"], *launcher["exec_arguments"]]
+    if "--approve-for-me" not in arguments:
+        raise ReconstructedRunnerError("runner specification launcher must use automatic approval")
+    if any(argument in {"-s", "workspace-write", "-a", "never"} for argument in arguments):
+        raise ReconstructedRunnerError("runner specification launcher approval/sandbox arguments are invalid")
     if payload["launcher_configuration_sha256"] != launcher_configuration_sha256(payload):
         raise ReconstructedRunnerError("runner specification launcher digest is invalid")
     return payload

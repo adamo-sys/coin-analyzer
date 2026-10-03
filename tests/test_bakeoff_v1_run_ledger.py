@@ -11,7 +11,7 @@ from tools.bakeoff_v1_run_ledger import RunLedgerValidationError, validate_run_r
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.json"
 SIDECAR = ROOT / "benchmarks" / "bakeoff-v1" / "manifest.sha256"
-EXPECTED_CORPUS_SEAL = "f7603470bd72c874de49eb0d06e8753a525014186da83b420e0b85bfcb193cef"
+EXPECTED_CORPUS_SEAL = "b5627a727fb283e0eefa8156c51a93124b044f764b6dab48041b08f30df9a776"
 
 
 def valid_record() -> dict[str, object]:

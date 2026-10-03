@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tempfile
@@ -20,7 +21,9 @@ from tools.bakeoff_v1_runner import (
     launcher_configuration_sha256,
     load_runner_specification,
     materialize_candidate,
+    materialize_qualification_candidate,
     materializer_sha256,
+    prepare_isolated_launcher_environment,
     prepare_sandbox_execution_paths,
     verify_candidate_isolation,
 )
@@ -40,6 +43,10 @@ class ReconstructedRunnerTests(unittest.TestCase):
         (source / "test_coins" / "README.md").write_text("allowed metadata\n", encoding="utf-8")
         (source / "test_coins" / "private.jpeg").write_bytes(b"private fixture bytes")
         (source / "test_coins" / "unlisted.jpeg").write_bytes(b"also private fixture bytes")
+        (source / "benchmarks" / "bakeoff-v1" / "runs" / "RUN-004").mkdir(parents=True)
+        (source / "benchmarks" / "bakeoff-v1" / "runs" / "RUN-004" / "retained-evidence.txt").write_text(
+            "historical run evidence\n", encoding="utf-8"
+        )
         subprocess.run(["git", "-C", str(source), "add", "--all"], check=True)
         subprocess.run(["git", "-C", str(source), "commit", "--quiet", "-m", "start"], check=True)
         start = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
@@ -160,6 +167,13 @@ class ReconstructedRunnerTests(unittest.TestCase):
                 "historical_runs": ["RUN-002", "RUN-003"],
                 "historical_materializer": "implementation-A-unrecoverable",
                 "future_runs": "RUN-004-onward",
+                "launcher_discontinuity": {
+                    "historical_run": "RUN-004",
+                    "historical_launcher_generation": "launcher-b",
+                    "historical_launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27",
+                    "future_runs": "RUN-005-onward",
+                    "prospective_launcher_generation": "launcher-c",
+                },
             },
         )
         self.assertEqual(specification["materializer"]["sha256"], materializer_sha256())
@@ -183,8 +197,12 @@ class ReconstructedRunnerTests(unittest.TestCase):
             "--disable",
             "browser_use_full_cdp_access",
         ])
-        self.assertEqual(command[10:16], ["-s", "workspace-write", "-a", "never", "-C", "C:/tmp/disposable-candidate"])
-        self.assertEqual(command[16:], [
+        self.assertEqual(command[10:13], ["--approve-for-me", "-C", "C:/tmp/disposable-candidate"])
+        self.assertNotIn("-s", command)
+        self.assertNotIn("workspace-write", command)
+        self.assertNotIn("-a", command)
+        self.assertNotIn("never", command)
+        self.assertEqual(command[13:], [
             "exec",
             "--ephemeral",
             "--ignore-user-config",
@@ -194,6 +212,56 @@ class ReconstructedRunnerTests(unittest.TestCase):
             "C:/tmp/disposable-evidence/final.txt",
             "-",
         ])
+
+    def test_rejects_a_launcher_that_combines_auto_approval_with_legacy_approval_or_sandbox_arguments(self) -> None:
+        specification_path = self.ROOT / "benchmarks" / "bakeoff-v1" / "orchestrator" / "reconstructed-runner-v1.json"
+        payload = json.loads(specification_path.read_text(encoding="utf-8"))
+        payload["launcher"]["global_arguments"] = [
+            "--approve-for-me",
+            "-s",
+            "workspace-write",
+            "-a",
+            "never",
+            "-C",
+            "{candidate}",
+            "exec",
+        ]
+        payload["launcher_configuration_sha256"] = launcher_configuration_sha256(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            conflicting_specification = Path(directory) / "runner.json"
+            conflicting_specification.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ReconstructedRunnerError, "approval/sandbox"):
+                load_runner_specification(conflicting_specification)
+
+    def test_qualification_materialization_excludes_the_entire_scored_runs_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, start, _ = self._source(root)
+            candidate = root / "candidate"
+            materialize_qualification_candidate(
+                source_repository=source,
+                candidate_repository=candidate,
+                starting_sha=start,
+                identity=self._identity(start),
+                source_release="synthetic-source-release",
+                protected_paths=[],
+            )
+            self.assertFalse((candidate / "benchmarks" / "bakeoff-v1" / "runs").exists())
+
+    def test_isolated_launcher_environment_copies_only_authentication_into_a_fresh_codex_home(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_home = root / "source-codex-home"
+            source_home.mkdir()
+            (source_home / "auth.json").write_text('{"token":"synthetic"}', encoding="utf-8")
+            isolated_home = root / "isolated-codex-home"
+            environment = prepare_isolated_launcher_environment(
+                source_codex_home=source_home,
+                isolated_codex_home=isolated_home,
+            )
+            self.assertEqual(environment, {"CODEX_HOME": str(isolated_home.resolve())})
+            self.assertEqual((isolated_home / "auth.json").read_text(encoding="utf-8"), '{"token":"synthetic"}')
+            self.assertEqual([path.name for path in isolated_home.iterdir()], ["auth.json"])
 
     def test_prepares_only_the_disposable_candidate_and_evidence_paths_for_the_sandbox(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

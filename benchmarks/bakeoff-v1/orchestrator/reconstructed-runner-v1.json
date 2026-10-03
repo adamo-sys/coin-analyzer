@@ -4,7 +4,14 @@
   "infrastructure_discontinuity": {
     "historical_runs": ["RUN-002", "RUN-003"],
     "historical_materializer": "implementation-A-unrecoverable",
-    "future_runs": "RUN-004-onward"
+    "future_runs": "RUN-004-onward",
+    "launcher_discontinuity": {
+      "historical_run": "RUN-004",
+      "historical_launcher_generation": "launcher-b",
+      "historical_launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27",
+      "future_runs": "RUN-005-onward",
+      "prospective_launcher_generation": "launcher-c"
+    }
   },
   "historical_evidence_sha256": [
     "22e84e6e4b42cd917d0e2b43a4997bb4b7bd3d52dab051c2278113aedb3de748",
@@ -14,7 +21,7 @@
   ],
   "materializer": {
     "path": "tools/bakeoff_v1_runner.py",
-    "sha256": "21785e7dc78a9b827ea0af1af2a8b5164b0c82285add52fc5631bc28820cd70a"
+    "sha256": "7942c111a9e53cb1963ec08c345504e7b88c29ad3337e2ce95f0b2af915ac678"
   },
   "launcher": {
     "cli_version": "0.154.0",
@@ -29,10 +36,7 @@
       "browser_use_external",
       "--disable",
       "browser_use_full_cdp_access",
-      "-s",
-      "workspace-write",
-      "-a",
-      "never",
+      "--approve-for-me",
       "-C",
       "{candidate}",
       "exec"
@@ -47,5 +51,5 @@
       "-"
     ]
   },
-  "launcher_configuration_sha256": "01022c6092e312ea7f6eac01c69886abac5a1ad82dc9b3c42a69efb44f93cb27"
+  "launcher_configuration_sha256": "5fa93497639bd9adc3fa2fc2f65367ed8b91838a2013ea32cf35c0ca3a54ea5a"
 }
