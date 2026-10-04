@@ -93,12 +93,68 @@ class ConfirmedVisualIdentity:
         evidence = " | ".join(candidate.evidence_observations)
         canonical_country = proposal.canonical_country.canonical_value
         canonical_denomination = proposal.canonical_denomination.canonical_value
+        reviewed_country = canonicalize_jurisdiction(values["country"]).canonical_value
+        if canonical_country is None and reviewed_country is not None:
+            canonical_denomination = canonicalize_denomination(
+                candidate.denomination,
+                jurisdiction_id=reviewed_country.canonical_id,
+            ).canonical_value
+        country_matches = values["country"] == proposal.initial_country or (
+            canonical_country is not None
+            and reviewed_country is not None
+            and canonical_country.canonical_id == reviewed_country.canonical_id
+        )
+        denomination_country = (
+            reviewed_country
+            if reviewed_country is not None
+            else canonical_country if country_matches else None
+        )
+        reviewed_denomination = canonicalize_denomination(
+            values["denomination"],
+            jurisdiction_id=(
+                denomination_country.canonical_id
+                if denomination_country is not None
+                else None
+            ),
+        ).canonical_value
+        denomination_matches = values["denomination"] == proposal.initial_denomination or (
+            canonical_denomination is not None
+            and reviewed_denomination is not None
+            and canonical_denomination == reviewed_denomination
+        )
+        summary_lines = [
+            "Identification review at initial save:",
+            "AI-assisted visual proposal; collector confirmed final values.",
+            _review_decision_line(
+                "Country", candidate.country, proposal.initial_country,
+                values["country"], country_matches,
+            ),
+            _review_decision_line(
+                "Denomination", candidate.denomination, proposal.initial_denomination,
+                values["denomination"], denomination_matches,
+            ),
+            _review_decision_line(
+                "Year", candidate.year, candidate.year or "",
+                values["year"], values["year"] == candidate.year,
+            ),
+        ]
+        reviewed_type_design = self.type_design.strip()
+        if candidate.type_design or reviewed_type_design:
+            summary_lines.append(
+                _review_decision_line(
+                    "Type/design", candidate.type_design, candidate.type_design or "",
+                    reviewed_type_design,
+                    reviewed_type_design == candidate.type_design,
+                )
+            )
+        summary_lines.append("Independent corroboration: no reference recorded.")
         draft = ReviewedCoinDraft(
             source_coin_id="coin-1",
             country=values["country"],
             denomination=values["denomination"],
             year=values["year"],
             type_design=self.type_design.strip(),
+            review_summary="\n".join(summary_lines),
             unmapped_fields=tuple(
                 (name, value)
                 for name, value in (
@@ -138,6 +194,17 @@ class ConfirmedVisualIdentity:
         )
         draft.validate()
         return draft
+
+
+def _review_decision_line(
+    label: str, proposed: str | None, displayed: str, final: str, equivalent: bool,
+) -> str:
+    saved_value = f'"{final}"' if final else "not recorded"
+    if not proposed:
+        return f"{label}: supplied by collector {saved_value} (no provider proposal)."
+    if equivalent:
+        return f"{label}: accepted proposal {saved_value}."
+    return f'{label}: collector changed proposal "{displayed}" → {saved_value}.'
 
 
 def create_visual_identity_proposal(

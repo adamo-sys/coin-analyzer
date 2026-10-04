@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -26,8 +27,9 @@ from capture_import.visual_identity_provider import (
     VisualIdentityContractError,
     VisualIdentityReport,
 )
-from coin_collection import CoinCollection
+from coin_collection import CoinCollection, CoinCollectionApp
 from coin_collection_gui import CoinCollectionGUI, _visual_identity_failure_diagnostic
+from collection_item_reference import CollectionItemReference
 
 
 def _report(*, outcome: str = "CANDIDATES") -> VisualIdentityReport:
@@ -165,6 +167,170 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
         self.assertEqual(provenance["visual_model"], "gpt-5.6-terra")
         self.assertIn("KENNEDY portrait", provenance["visual_evidence"])
         self.assertNotIn("response-must-not-be-persisted", repr(draft))
+
+    def test_review_summary_records_accepted_proposal_without_false_verification(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+
+        self.assertEqual(
+            draft.review_summary,
+            "Identification review at initial save:\n"
+            "AI-assisted visual proposal; collector confirmed final values.\n"
+            'Country: accepted proposal "United States".\n'
+            'Denomination: accepted proposal "1/2 dollar".\n'
+            'Year: accepted proposal "1964".\n'
+            'Type/design: accepted proposal "Kennedy half dollar".\n'
+            "Independent corroboration: no reference recorded.",
+        )
+        self.assertNotIn("confidence", draft.review_summary.casefold())
+        self.assertNotIn("0.91", draft.review_summary)
+        self.assertNotIn("response-must-not-be-persisted", draft.review_summary)
+        self.assertNotIn("independently verified", draft.review_summary.casefold())
+
+    def test_review_summary_records_one_collector_correction(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1965", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+
+        self.assertIn('Year: collector changed proposal "1964" → "1965".', draft.review_summary)
+        self.assertIn('Country: accepted proposal "United States".', draft.review_summary)
+
+    def test_review_summary_records_multiple_collector_corrections(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "Canada", "25 cents", "1967", "Collector design"
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+
+        self.assertIn('Country: collector changed proposal "United States" → "Canada".', draft.review_summary)
+        self.assertIn('Denomination: collector changed proposal "1/2 dollar" → "25 cents".', draft.review_summary)
+        self.assertIn('Year: collector changed proposal "1964" → "1967".', draft.review_summary)
+        self.assertIn(
+            'Type/design: collector changed proposal "Kennedy half dollar" → "Collector design".',
+            draft.review_summary,
+        )
+
+    def test_review_summary_marks_fields_supplied_without_provider_proposal(self) -> None:
+        report = _report()
+        candidate = replace(report.candidates[0], country=None, year=None)
+        proposal = create_visual_identity_proposal(replace(report, candidates=(candidate,)))
+        draft = ConfirmedVisualIdentity(
+            "Canada", "1/2 dollar", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(proposal)
+
+        self.assertIn('Country: supplied by collector "Canada" (no provider proposal).', draft.review_summary)
+        self.assertIn('Year: supplied by collector "1964" (no provider proposal).', draft.review_summary)
+        self.assertIn('Denomination: accepted proposal "1/2 dollar".', draft.review_summary)
+
+    def test_review_summary_marks_type_design_supplied_without_proposal(self) -> None:
+        report = _report()
+        candidate = replace(report.candidates[0], type_design=None)
+        proposal = create_visual_identity_proposal(replace(report, candidates=(candidate,)))
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1964", "Collector design"
+        ).to_reviewed_coin_draft(proposal)
+
+        self.assertIn('Type/design: supplied by collector "Collector design" (no provider proposal).', draft.review_summary)
+
+    def test_review_summary_records_when_collector_leaves_proposed_type_unrecorded(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1964", ""
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+
+        self.assertIn(
+            'Type/design: collector changed proposal "Kennedy half dollar" → not recorded.',
+            draft.review_summary,
+        )
+
+    def test_review_summary_does_not_reuse_provider_country_after_country_edit(self) -> None:
+        report = _report()
+        candidate = replace(
+            report.candidates[0], country="Philippines", denomination="1 piso"
+        )
+        proposal = create_visual_identity_proposal(replace(report, candidates=(candidate,)))
+        self.assertEqual(proposal.initial_denomination, "1 peso")
+        draft = ConfirmedVisualIdentity(
+            "Canada", "1 piso", "1964", "Collector design"
+        ).to_reviewed_coin_draft(proposal)
+
+        self.assertIn("Country: collector changed proposal", draft.review_summary)
+        self.assertIn('Denomination: collector changed proposal "1 peso" → "1 piso".', draft.review_summary)
+
+    def test_review_summary_treats_canonical_equivalents_as_accepted(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "USA", "0.5 dollar", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+
+        self.assertIn('Country: accepted proposal "USA".', draft.review_summary)
+        self.assertIn('Denomination: accepted proposal "0.5 dollar".', draft.review_summary)
+        self.assertNotIn("collector changed proposal", draft.review_summary)
+
+    def test_review_summary_keeps_initial_values_after_later_identity_edit(self) -> None:
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(create_visual_identity_proposal(_report()))
+        with tempfile.TemporaryDirectory() as temp:
+            storage = Path(temp) / "collection.json"
+            collection = CoinCollection(str(storage))
+            item = persist_reviewed_coin(collection=collection, draft=draft)
+            original_notes = item.notes
+            app = CoinCollectionApp(collection=collection)
+            result = app.update_collection_item(
+                item.id,
+                {"year": "1965"},
+                expected_reference=CollectionItemReference.capture(collection, item),
+            )
+            self.assertTrue(result.success, result.error)
+            reopened = CoinCollection(str(storage)).get_item(item.id)
+
+        self.assertIsNotNone(reopened)
+        self.assertEqual(reopened.year, "1965")
+        self.assertEqual(reopened.notes, original_notes)
+        self.assertIn("Identification review at initial save:", reopened.notes)
+        self.assertIn('Year: accepted proposal "1964".', reopened.notes)
+        details = CoinCollectionGUI.item_details_text(reopened)
+        self.assertIn("Year: 1965", details)
+        self.assertIn('Year: accepted proposal "1964".', details)
+
+    def test_review_summary_uses_supplied_country_for_denomination_equivalence(self) -> None:
+        report = _report()
+        candidate = replace(report.candidates[0], country=None, denomination="1 piso")
+        proposal = create_visual_identity_proposal(replace(report, candidates=(candidate,)))
+
+        equivalent = ConfirmedVisualIdentity(
+            "Philippines", "1 peso", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(proposal)
+        different = ConfirmedVisualIdentity(
+            "Philippines", "2 pesos", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(proposal)
+
+        self.assertIn('Denomination: accepted proposal "1 peso".', equivalent.review_summary)
+        self.assertIn(
+            'Denomination: collector changed proposal "1 piso" → "2 pesos".',
+            different.review_summary,
+        )
+
+    def test_review_summary_excludes_provider_claim_of_external_verification(self) -> None:
+        report = _report()
+        candidate = replace(
+            report.candidates[0],
+            evidence_observations=("Independently verified by Numista",),
+        )
+        draft = ConfirmedVisualIdentity(
+            "United States", "1/2 dollar", "1964", "Kennedy half dollar"
+        ).to_reviewed_coin_draft(
+            create_visual_identity_proposal(replace(report, candidates=(candidate,)))
+        )
+
+        self.assertNotIn("Independently verified by Numista", draft.review_summary)
+        self.assertNotIn("Provider-reported visual cue", draft.review_summary)
+        self.assertIn("Independent corroboration: no reference recorded.", draft.review_summary)
+        with tempfile.TemporaryDirectory() as temp:
+            storage = Path(temp) / "collection.json"
+            collection = CoinCollection(str(storage))
+            item = persist_reviewed_coin(collection=collection, draft=draft)
+            saved = CoinCollection(str(storage)).get_item(item.id)
+        self.assertIsNotNone(saved)
+        self.assertNotIn("Independently verified by Numista", saved.notes)
 
     def test_required_fields_cannot_be_confirmed_empty(self) -> None:
         with self.assertRaises(VisualReviewError):
@@ -423,7 +589,7 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
 
             with (
                 patch("coin_collection_gui.filedialog.askopenfilename", side_effect=[str(front), str(reverse)]),
-                patch("coin_collection_gui.messagebox.askyesno", side_effect=[True, True]),
+                patch("coin_collection_gui.messagebox.askyesno", side_effect=[True, True]) as confirmations,
                 patch("capture_import.desktop_visual_identity_review.create_visual_identity_review_dialog", side_effect=dialog),
                 patch("capture_import.reviewed_coin_collection_entry.persist_reviewed_coin", side_effect=bounded_persist),
                 patch("coin_collection_gui.messagebox.showinfo"),
@@ -436,6 +602,11 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
             self.assertEqual(len(reopened.items), 1)
             self.assertEqual(reopened.items[0].country, "United States")
             self.assertEqual(reopened.items[0].denomination, "50 cents")
+            self.assertIn("Denomination: collector changed proposal", reopened.items[0].notes)
+            self.assertIn("Identification review at initial save:", CoinCollectionGUI.item_details_text(reopened.items[0]))
+            self.assertIn("Identification review at initial save:", confirmations.call_args_list[1].args[1])
+            self.assertIn("Provider source score (uncalibrated)", confirmations.call_args_list[1].args[1])
+            self.assertNotIn("Provider confidence", confirmations.call_args_list[1].args[1])
             self.assertEqual(len(reopened.items[0].photos), 2)
             retained = [
                 path

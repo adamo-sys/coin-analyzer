@@ -39,7 +39,8 @@ class TypeDesignPersistenceTests(unittest.TestCase):
         saved = CoinCollection(str(self.path)).items[0]
         self.assertEqual(saved.type_design, "Collector design")
         self.assertEqual(proposal.candidate.type_design, original)
-        self.assertEqual((saved.notes, saved.title, saved.reference, saved.numista_n), ("", "", "", ""))
+        self.assertIn("Identification review at initial save:\nAI-assisted visual proposal", saved.notes)
+        self.assertEqual((saved.title, saved.reference, saved.numista_n), ("", "", ""))
 
     def test_json_legacy_and_catalog_semantics(self):
         item = self.item()

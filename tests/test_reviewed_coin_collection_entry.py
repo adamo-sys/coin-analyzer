@@ -72,6 +72,30 @@ class ReviewedCoinCollectionEntryTests(unittest.TestCase):
         self.assertEqual(draft.year, "1968")
         self.assertEqual(draft.unmapped_fields, ())
 
+    def test_review_summary_appends_to_existing_notes_and_survives_reload(self) -> None:
+        draft = ReviewedCoinDraft(
+            "coin-1", "Canada", "25 cents", "1967",
+            notes="  Collector acquisition note.  ",
+            review_summary="Identification review: synthetic decision summary.",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            storage = Path(temp) / "collection.json"
+            collection = CoinCollection(str(storage))
+            item = persist_reviewed_coin(
+                collection=collection,
+                draft=draft,
+                item_id="reviewed-coin-1",
+                date_added="2026-10-04T12:00:00",
+            )
+            reopened = CoinCollection(str(storage)).get_item(item.id)
+
+        self.assertEqual(
+            item.notes,
+            "  Collector acquisition note.  \n\nIdentification review: synthetic decision summary.",
+        )
+        self.assertIsNotNone(reopened)
+        self.assertEqual(reopened.notes, item.notes)
+
     def test_rejected_required_field_fails_before_collection_mutation(self) -> None:
         _provider, _composition, _outcome, handoff = _execute_opt_in_handoff()
         model = OCRCandidateReviewModel(
@@ -134,6 +158,7 @@ class ReviewedCoinCollectionEntryTests(unittest.TestCase):
         self.assertEqual(persisted.grade, "")
         self.assertEqual(persisted.image_path, "")
         self.assertFalse(persisted.auto_detected)
+        self.assertEqual(persisted.notes, "")
 
     def test_save_failure_rolls_back_collection(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
