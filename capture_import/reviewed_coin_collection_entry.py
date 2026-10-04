@@ -88,6 +88,8 @@ class ReviewedCoinDraft:
     year: str
     unmapped_fields: tuple[tuple[str, str], ...] = ()
     type_design: str = ""
+    notes: str = ""
+    review_summary: str = ""
 
     def validate(self) -> None:
         if not isinstance(self.source_coin_id, str) or not self.source_coin_id.strip():
@@ -106,6 +108,8 @@ class ReviewedCoinDraft:
             )
         if not isinstance(self.type_design, str):
             raise ReviewedCoinCollectionEntryError("Type/design must be text.")
+        if not isinstance(self.notes, str) or not isinstance(self.review_summary, str):
+            raise ReviewedCoinCollectionEntryError("Notes and review summary must be text.")
 
 
 def create_reviewed_coin_draft(
@@ -258,7 +262,11 @@ def _build_coin_item(
         year=draft.year,
         type_design=draft.type_design.strip(),
         grade="",
-        notes="",
+        notes=(
+            draft.notes
+            + ("\n\n" if draft.notes and draft.review_summary else "")
+            + draft.review_summary
+        ),
         date_added=date_added or datetime.now().isoformat(),
         auto_detected=False,
         photos=photo_list,

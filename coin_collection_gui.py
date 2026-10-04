@@ -906,9 +906,11 @@ Total Unique Dates: {total_unique_dates}
             "Images: obverse and reverse will be retained",
             "",
             f"Provider/model: {proposal.provider_id} / {proposal.model_id}",
-            f"Provider confidence: {candidate.confidence:.0%}",
+            f"Provider source score (uncalibrated): {candidate.source_score:.0%}",
             "Evidence: " + " | ".join(candidate.evidence_observations),
         ]
+        if draft.review_summary:
+            details.extend(("", draft.review_summary))
         if duplicates:
             details.extend(
                 ("", f"Possible matching collection record(s): {len(duplicates)}")
