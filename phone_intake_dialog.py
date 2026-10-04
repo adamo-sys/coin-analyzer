@@ -1,11 +1,86 @@
 """Small manual two-image pairing surface within Photo Inbox."""
+from dataclasses import dataclass
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 from PIL import Image, ImageOps, ImageTk
 
+from coin_collection import ItemPhoto, PhotoRole
+from image_assessment import (
+    DownstreamPermission,
+    DownstreamUse,
+    ImageAssessmentEngine,
+    ImageReadinessDecision,
+)
 from phone_intake import PhoneIntake
 from photo_inbox import DEFAULT_INBOX_FOLDER
+
+
+class ReviewPairPreflightError(ValueError):
+    """The local readiness check could not safely assess a confirmed pair."""
+
+
+@dataclass(frozen=True)
+class ReviewPairPreflight:
+    """Local evidence-readiness result for one confirmed Front/Reverse pair."""
+
+    decision: ImageReadinessDecision
+    broad_identification_permission: DownstreamPermission
+    guidance: str
+
+    @property
+    def blocked(self) -> bool:
+        return (
+            self.decision == ImageReadinessDecision.NOT_READY
+            or self.broad_identification_permission == DownstreamPermission.NO
+        )
+
+    @property
+    def requires_confirmation(self) -> bool:
+        return not self.blocked and self.decision == ImageReadinessDecision.MAYBE
+
+
+def _preflight_guidance(report) -> str:
+    """Present existing readiness evidence without creating new quality rules."""
+    lines = []
+    for assessment in report.photo_assessments:
+        role = "Front" if assessment.role == PhotoRole.FRONT.value else "Reverse"
+        reasons = assessment.blocking_issues or assessment.issues
+        actions = assessment.recommended_actions
+        if reasons or actions:
+            lines.append(f"{role}:")
+            lines.extend(f"- {reason}" for reason in reasons)
+            lines.extend(f"- {action}" for action in actions)
+    if report.blocking_issues:
+        lines.extend(f"- {issue}" for issue in report.blocking_issues)
+    if report.recommended_actions:
+        lines.extend(f"- {action}" for action in report.recommended_actions)
+    return "\n".join(dict.fromkeys(lines)) or "No additional readiness guidance was reported."
+
+
+def assess_review_pair(front_path: str, reverse_path: str) -> ReviewPairPreflight:
+    """Assess the confirmed pair locally before starting visual review work."""
+    photos = (
+        ItemPhoto(path=front_path, role=PhotoRole.FRONT),
+        ItemPhoto(path=reverse_path, role=PhotoRole.BACK),
+    )
+    try:
+        report = ImageAssessmentEngine().assess_photos(photos)
+    except Exception as error:
+        raise ReviewPairPreflightError(
+            f"Image readiness could not assess the confirmed pair: {error}"
+        ) from error
+    permission = report.downstream_permissions.get(
+        DownstreamUse.BROAD_IDENTIFICATION.value,
+        DownstreamPermission.NO,
+    )
+    if not isinstance(permission, DownstreamPermission):
+        permission = DownstreamPermission(permission)
+    return ReviewPairPreflight(
+        decision=report.decision,
+        broad_identification_permission=permission,
+        guidance=_preflight_guidance(report),
+    )
 
 
 def open_phone_intake(gui):
@@ -109,6 +184,22 @@ def open_phone_intake(gui):
     def review():
         pair_id = selected_pair()
         front, reverse = store.review_paths(pair_id)
+        preflight = assess_review_pair(front, reverse)
+        if preflight.blocked:
+            messagebox.showwarning(
+                "Review Pair Needs Better Evidence",
+                "Visual review was not started. The confirmed pair remains unchanged.\n\n"
+                + preflight.guidance,
+                parent=window,
+            )
+            return
+        if preflight.requires_confirmation and not messagebox.askyesno(
+            "Review Pair Needs Better Evidence",
+            preflight.guidance
+            + "\n\nChoose Yes to review anyway, or No to return to Phone Intake.",
+            parent=window,
+        ):
+            return
         gui.import_coin_images_with_visual_ai(front_path=front, reverse_path=reverse,
             intake_context=(store, pair_id, str(Path(gui.app.collection.storage_path).absolute()), (front, reverse)))
 

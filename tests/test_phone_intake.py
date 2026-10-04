@@ -11,8 +11,14 @@ from unittest.mock import Mock, patch
 
 from PIL import Image
 
+from image_assessment import DownstreamPermission, ImageReadinessDecision
 from phone_drop_import import PhoneDropImporter
 from phone_intake import PhoneIntake, PhoneIntakeError
+from phone_intake_dialog import (
+    ReviewPairPreflight,
+    ReviewPairPreflightError,
+    assess_review_pair,
+)
 from coin_collection import CoinCollection
 from coin_collection_gui import CoinCollectionGUI
 from capture_import.desktop_visual_identity_review import ConfirmedVisualIdentity, create_visual_identity_proposal
@@ -40,6 +46,55 @@ class PhoneIntakeTests(unittest.TestCase):
 
     def pair(self, indices=(0, 1)):
         return self.store.confirm_pair(*(self.photos[i] for i in indices))
+
+    def checkerboard(self, name, size):
+        image = Image.new("RGB", (size, size), "white")
+        pixels = image.load()
+        for y in range(size):
+            for x in range(size):
+                if (x // 20 + y // 20) % 2:
+                    pixels[x, y] = (0, 0, 0)
+        path = self.root / name
+        image.save(path)
+        return str(path)
+
+    def test_review_pair_preflight_uses_existing_front_reverse_assessment(self):
+        front = self.checkerboard("front-ready.png", 900)
+        reverse = self.checkerboard("reverse-ready.png", 900)
+
+        preflight = assess_review_pair(front, reverse)
+
+        self.assertEqual(preflight.decision, ImageReadinessDecision.READY)
+        self.assertEqual(preflight.broad_identification_permission, DownstreamPermission.YES)
+        self.assertFalse(preflight.blocked)
+        self.assertFalse(preflight.requires_confirmation)
+
+    def test_review_pair_preflight_reports_side_specific_existing_guidance(self):
+        front = self.root / "front-dark.png"
+        Image.new("RGB", (24, 24), "black").save(front)
+        reverse = self.checkerboard("reverse-ready.png", 900)
+
+        preflight = assess_review_pair(str(front), reverse)
+
+        self.assertTrue(preflight.blocked)
+        self.assertIn("Front", preflight.guidance)
+        self.assertIn("Image resolution is extremely small.", preflight.guidance)
+        self.assertIn("Retake or export a higher-resolution photo.", preflight.guidance)
+
+    def test_review_pair_preflight_labels_reverse_guidance(self):
+        front = self.checkerboard("front-ready.png", 900)
+        reverse = self.root / "reverse-dark.png"
+        Image.new("RGB", (24, 24), "black").save(reverse)
+
+        preflight = assess_review_pair(front, str(reverse))
+
+        self.assertIn("Reverse", preflight.guidance)
+        self.assertIn("Image resolution is extremely small.", preflight.guidance)
+
+    def test_review_pair_preflight_fails_closed_when_assessment_errors(self):
+        with patch("phone_intake_dialog.ImageAssessmentEngine.assess_photos", side_effect=RuntimeError("decode failed")):
+            with self.assertRaisesRegex(ReviewPairPreflightError, "could not assess"):
+                assess_review_pair(self.photos[0], self.photos[1])
 
     def save(self, pair_id):
         paths = self.store.review_paths(pair_id)
@@ -308,7 +363,12 @@ class PhoneIntakeTests(unittest.TestCase):
         self.addCleanup(root.destroy)
         imported = PhoneDropImporter().import_files(self.photos)
         gui = SimpleNamespace(root=root, app=SimpleNamespace(collection=self.collection), import_coin_images_with_visual_ai=Mock())
-        with patch('socket.socket', side_effect=AssertionError('No network')), patch('phone_intake_dialog.messagebox.askyesno', return_value=True), patch('phone_intake_dialog.messagebox.showerror') as errors:
+        ready = ReviewPairPreflight(
+            decision=ImageReadinessDecision.READY,
+            broad_identification_permission=DownstreamPermission.YES,
+            guidance="",
+        )
+        with patch('socket.socket', side_effect=AssertionError('No network')), patch('phone_intake_dialog.assess_review_pair', return_value=ready), patch('phone_intake_dialog.messagebox.askyesno', return_value=True), patch('phone_intake_dialog.messagebox.showerror') as errors:
             window = open_phone_intake(gui)
             root.update()
             def descendants(widget):
@@ -343,6 +403,80 @@ class PhoneIntakeTests(unittest.TestCase):
             self.assertEqual(gui.import_coin_images_with_visual_ai.call_args.kwargs['front_path'], before[1])
             self.assertEqual(len(imported.imported_paths), 6)
             errors.assert_not_called()
+
+    def test_native_review_pair_preflight_requires_confirmation_or_blocks_handoff(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from phone_intake_dialog import open_phone_intake
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(str(error))
+        root.withdraw()
+        self.addCleanup(root.destroy)
+        imported = PhoneDropImporter().import_files(self.photos[:2])
+        pair_id = PhoneIntake().confirm_pair(*imported.imported_paths)
+        gui = SimpleNamespace(root=root, app=SimpleNamespace(collection=self.collection), import_coin_images_with_visual_ai=Mock())
+
+        def review_button(window):
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+            buttons = {widget.cget('text'): widget for widget in descendants(window) if isinstance(widget, ttk.Button)}
+            pairs = next(widget for widget in descendants(window) if isinstance(widget, ttk.Treeview))
+            pairs.selection_set(pair_id)
+            return buttons['Review Pair']
+
+        maybe = ReviewPairPreflight(
+            decision=ImageReadinessDecision.MAYBE,
+            broad_identification_permission=DownstreamPermission.MAYBE,
+            guidance="Front: Image resolution is limited.\nRetake or export a higher-resolution photo.",
+        )
+        with patch('phone_intake_dialog.assess_review_pair', return_value=maybe), patch('phone_intake_dialog.messagebox.askyesno', return_value=False) as choice:
+            window = open_phone_intake(gui)
+            root.update()
+            review_button(window).invoke()
+            choice.assert_called_once()
+            gui.import_coin_images_with_visual_ai.assert_not_called()
+            self.assertEqual(PhoneIntake().records()[pair_id]['state'], 'READY')
+            self.assertFalse(Path(self.collection.storage_path).exists())
+            window.destroy()
+
+        with patch('phone_intake_dialog.assess_review_pair', return_value=maybe), patch('phone_intake_dialog.messagebox.askyesno', return_value=True) as choice:
+            window = open_phone_intake(gui)
+            root.update()
+            review_button(window).invoke()
+            choice.assert_called_once()
+            gui.import_coin_images_with_visual_ai.assert_called_once()
+            window.destroy()
+
+        gui.import_coin_images_with_visual_ai.reset_mock()
+        for preflight in (
+            ReviewPairPreflight(ImageReadinessDecision.NOT_READY, DownstreamPermission.MAYBE, "Front: Retake the photo with steadier focus."),
+            ReviewPairPreflight(ImageReadinessDecision.MAYBE, DownstreamPermission.NO, "Reverse: Image file could not be decoded."),
+        ):
+            with self.subTest(preflight=preflight), patch('phone_intake_dialog.assess_review_pair', return_value=preflight), patch('phone_intake_dialog.messagebox.showwarning') as warning:
+                window = open_phone_intake(gui)
+                root.update()
+                review_button(window).invoke()
+                warning.assert_called_once()
+                self.assertIn(preflight.guidance, warning.call_args.args[1])
+                gui.import_coin_images_with_visual_ai.assert_not_called()
+                self.assertEqual(PhoneIntake().records()[pair_id]['state'], 'READY')
+                self.assertFalse(Path(self.collection.storage_path).exists())
+                window.destroy()
+
+        with patch('phone_intake_dialog.assess_review_pair', side_effect=ReviewPairPreflightError('could not assess local image file')), patch('phone_intake_dialog.messagebox.showerror') as error:
+            window = open_phone_intake(gui)
+            root.update()
+            review_button(window).invoke()
+            error.assert_called_once()
+            self.assertIn('could not assess', error.call_args.args[1])
+            gui.import_coin_images_with_visual_ai.assert_not_called()
+            self.assertEqual(PhoneIntake().records()[pair_id]['state'], 'READY')
+            self.assertFalse(Path(self.collection.storage_path).exists())
+            window.destroy()
 
     def test_worker_handoff_preserves_pair_context_and_cancel_clears_it(self):
         pair_id = self.pair()
