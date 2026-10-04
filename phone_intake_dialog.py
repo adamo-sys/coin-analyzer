@@ -1,6 +1,7 @@
 """Small manual two-image pairing surface within Photo Inbox."""
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 import tkinter as tk
 from tkinter import messagebox, ttk
 from PIL import Image, ImageOps, ImageTk
@@ -13,6 +14,10 @@ from image_assessment import (
     ImageReadinessDecision,
 )
 from phone_intake import PhoneIntake
+from capture_import.unidentified_pair_collection_entry import (
+    UnidentifiedPairReconciliationRequiredError,
+    save_unidentified_phone_pair,
+)
 from photo_inbox import DEFAULT_INBOX_FOLDER
 
 
@@ -103,6 +108,41 @@ def local_visual_review_active(gui, pair_id: str) -> bool:
     )
 
 
+def confirm_and_save_unidentified_pair(
+    *, store, collection, pair_id: str, acquisition: dict, notes: str,
+    confirm: Callable[[str], bool],
+):
+    """Bind the displayed roles and bytes to a later authoritative reservation."""
+    pair = store.records().get(pair_id)
+    if pair is None or pair.get("state") != "READY" or pair.get("save") is not None:
+        raise ValueError("The pair changed while acquisition information was entered.")
+    images = {role: dict(pair["images"][role]) for role in ("front", "reverse")}
+    store.review_paths(pair_id)
+    lines = [
+        "Record this confirmed pair in the collection?", "",
+        f"Front: {images['front']['path']}",
+        f"Reverse: {images['reverse']['path']}",
+        "Identity: unidentified",
+    ]
+    labels = {
+        "acquisition_date": "Acquisition date", "purchase_price": "Purchase price",
+        "purchase_currency": "Currency", "purchase_source": "Source",
+        "shipping_cost": "Shipping", "buyers_premium": "Buyer's premium", "tax": "Tax",
+    }
+    lines.extend(
+        f"{labels[name]}: {value}"
+        for name, value in acquisition.items() if value is not None
+    )
+    if notes:
+        lines.append(f"Notes: {notes}")
+    if not confirm("\n".join(lines)):
+        return None
+    return save_unidentified_phone_pair(
+        store=store, collection=collection, pair_id=pair_id,
+        expected_images=images, acquisition=acquisition, notes=notes,
+    )
+
+
 def open_phone_intake(gui):
     store = PhoneIntake()
     window = tk.Toplevel(gui.root)
@@ -128,6 +168,7 @@ def open_phone_intake(gui):
     paths = []
     thumbnails = {}
     correct_button = None
+    record_button = None
     status = tk.StringVar(value="Import files first using Import Phone Photos. Unpaired retakes/orphans can remain here.")
     ttk.Label(window, textvariable=status, wraplength=900).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=10)
 
@@ -148,7 +189,7 @@ def open_phone_intake(gui):
             messagebox.showerror("Phone Intake", str(error), parent=window)
 
     def update_correct_pair_state(records=None):
-        if correct_button is None:
+        if correct_button is None and record_button is None:
             return
         selected = pairs.selection()
         pair = (
@@ -161,7 +202,9 @@ def open_phone_intake(gui):
             and "save" in pair
             and pair["save"] is None
         )
-        correct_button.config(state=tk.NORMAL if eligible else tk.DISABLED)
+        for button in (correct_button, record_button):
+            if button is not None:
+                button.config(state=tk.NORMAL if eligible else tk.DISABLED)
 
     def refresh():
         records = store.records()
@@ -272,6 +315,73 @@ def open_phone_intake(gui):
         gui.import_coin_images_with_visual_ai(front_path=front, reverse_path=reverse,
             intake_context=(store, pair_id, str(Path(gui.app.collection.storage_path).absolute()), (front, reverse)))
 
+    def record_unidentified():
+        pair_id = selected_pair()
+        if local_visual_review_active(gui, pair_id):
+            messagebox.showinfo(
+                "Finish Visual Review First",
+                "Finish or cancel the active visual review for this pair before recording it as unidentified.",
+                parent=window,
+            )
+            return
+        pair = store.records().get(pair_id)
+        if pair is None or pair.get("state") != "READY" or pair.get("save") is not None:
+            raise ValueError("Only an unsaved READY pair can be recorded as unidentified.")
+
+        dialog = tk.Toplevel(window)
+        dialog.title("Record as unidentified")
+        dialog.transient(window)
+        dialog.grab_set()
+        form = ttk.Frame(dialog, padding=12)
+        form.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(form, text="Acquisition information is optional. Identity will remain unidentified.").grid(
+            row=0, column=0, columnspan=4, sticky="w", pady=(0, 10)
+        )
+        acquisition_form = ttk.Frame(form)
+        acquisition_form.grid(row=1, column=0, columnspan=4, sticky="w")
+        fields = gui.create_acquisition_fields(acquisition_form)
+        ttk.Label(form, text="Notes (optional):").grid(row=2, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        notes_entry = tk.Text(form, height=3, width=72)
+        notes_entry.grid(row=3, column=0, columnspan=4, sticky="ew")
+        entered = {}
+
+        def continue_to_confirmation():
+            try:
+                entered["acquisition"] = gui.acquisition_values_from_text(fields["values"]())
+            except ValueError as error:
+                messagebox.showerror("Invalid acquisition information", str(error), parent=dialog)
+                return
+            entered["notes"] = notes_entry.get("1.0", "end-1c").strip()
+            dialog.destroy()
+
+        ttk.Button(form, text="Continue", command=continue_to_confirmation).grid(row=4, column=2, pady=10)
+        ttk.Button(form, text="Cancel", command=dialog.destroy).grid(row=4, column=3, pady=10)
+        window.wait_window(dialog)
+        if not entered:
+            return
+
+        try:
+            item = confirm_and_save_unidentified_pair(
+                store=store, collection=gui.app.collection, pair_id=pair_id,
+                acquisition=entered["acquisition"], notes=entered["notes"],
+                confirm=lambda summary: messagebox.askyesno(
+                    "Confirm unidentified coin", summary, parent=window
+                ),
+            )
+        except UnidentifiedPairReconciliationRequiredError as error:
+            refresh()
+            gui.refresh_collection_list()
+            messagebox.showwarning("Phone Intake reconciliation required", str(error), parent=window)
+            return
+        except Exception:
+            refresh()
+            raise
+        if item is None:
+            return
+        refresh()
+        gui.refresh_collection_list()
+        messagebox.showinfo("Unidentified coin recorded", f"Saved coin {item.id}. Confirm its identity later from Work Queue.", parent=window)
+
     def reconcile():
         item_id = store.complete(selected_pair(), gui.app.collection.storage_path)
         status.set(f"Saved record {item_id} verified. No coin was created by recovery.")
@@ -289,13 +399,16 @@ def open_phone_intake(gui):
 
     buttons = ttk.Frame(window)
     buttons.grid(row=3, column=0, columnspan=2, sticky="w", padx=10)
-    for title, action in (("Use as Front", lambda: assign("front")), ("Use as Reverse", lambda: assign("reverse")),
+    for index, (title, action) in enumerate((("Use as Front", lambda: assign("front")), ("Use as Reverse", lambda: assign("reverse")),
                           ("Swap", swap), ("Confirm Pair", confirm), ("Correct Pair", correct), ("Review Pair", review),
-                          ("Reconcile Save", reconcile), ("Next Pending", next_pending), ("Refresh", refresh)):
+                          ("Record as unidentified", record_unidentified),
+                          ("Reconcile Save", reconcile), ("Next Pending", next_pending), ("Refresh", refresh))):
         button = ttk.Button(buttons, text=title, command=lambda action=action: safe(action))
-        button.pack(side=tk.LEFT, padx=2)
+        button.grid(row=index // 5, column=index % 5, padx=2, pady=2, sticky="ew")
         if title == "Correct Pair":
             correct_button = button
+        if title == "Record as unidentified":
+            record_button = button
     files.bind("<<ListboxSelect>>", lambda event: safe(lambda: show(labels[0], paths[files.curselection()[0]], "Selected image")) if files.curselection() else None)
     pairs.bind("<<TreeviewSelect>>", lambda event: safe(display_pair) if pairs.selection() else update_correct_pair_state())
     safe(refresh)

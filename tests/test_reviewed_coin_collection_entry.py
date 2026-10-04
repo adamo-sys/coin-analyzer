@@ -15,6 +15,7 @@ from capture_import.reviewed_coin_collection_entry import (
     ReviewedCoinDraft,
     ReviewedCoinIdentityCollisionError,
     ReviewedCoinPersistenceError,
+    ReviewedCoinRecoveryRequiredError,
     create_reviewed_coin_draft,
     persist_reviewed_coin,
 )
@@ -22,6 +23,7 @@ from capture_import.workflow_ocr_review_models import OCRReportReview
 from capture_import.image_store import ManagedCollectionImageStore
 from capture_import.snapshot import CapturePackageSnapshotService
 from capture_import.standalone_image_intake import (
+    canonical_standalone_image_payload,
     create_temporary_capture_package,
 )
 from coin_collection import CoinCollection
@@ -266,6 +268,67 @@ class ReviewedCoinCollectionEntryTests(unittest.TestCase):
 
         self.assertEqual(collection.items, [])
         self.assertEqual(managed_files, [])
+
+    def test_postpublication_failure_preserves_reviewed_item_media(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            self.addCleanup(source.release)
+            storage = root / 'collection.json'
+            collection = CoinCollection(str(storage))
+            images = ManagedCollectionImageStore(root / 'managed', collection_path_prefix='managed')
+            item_id = str(uuid4())
+            with patch.object(collection, '_baseline_from_receipt', side_effect=OSError('after publication')):
+                with self.assertRaises(ReviewedCoinRecoveryRequiredError):
+                    persist_reviewed_coin(
+                        collection=collection,
+                        draft=ReviewedCoinDraft('coin-1', 'Canada', '25 cents', '1968'),
+                        item_id=item_id,
+                        source_package_path=source.path,
+                        managed_image_store=images,
+                        snapshot_service=CapturePackageSnapshotService(root / 'snapshots'),
+                        import_lock_path=root / 'import.lock',
+                    )
+            saved = CoinCollection(str(storage)).get_item(item_id)
+            self.assertIsNotNone(saved)
+            self.assertEqual(
+                [(root / photo.path).read_bytes() for photo in saved.photos],
+                [canonical_standalone_image_payload(root / 'front.jpg'),
+                 canonical_standalone_image_payload(root / 'reverse.png')],
+            )
+
+    def test_unknown_collection_outcome_preserves_attempt_media(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = self.image_package(root)
+            self.addCleanup(source.release)
+            storage = root / 'collection.json'
+            collection = CoinCollection(str(storage))
+            images = ManagedCollectionImageStore(root / 'managed')
+
+            def unreadable_outcome(*, import_lock):
+                storage.write_text('{unreadable', encoding='utf-8')
+                return False
+
+            with patch.object(collection, 'save_collection', side_effect=unreadable_outcome):
+                with self.assertRaises(ReviewedCoinRecoveryRequiredError):
+                    persist_reviewed_coin(
+                        collection=collection,
+                        draft=ReviewedCoinDraft('coin-1', 'Canada', '25 cents', '1968'),
+                        item_id=str(uuid4()),
+                        source_package_path=source.path,
+                        managed_image_store=images,
+                        snapshot_service=CapturePackageSnapshotService(root / 'snapshots'),
+                        import_lock_path=root / 'import.lock',
+                    )
+            retained = [
+                path.read_bytes() for path in images.root.rglob('*')
+                if path.is_file() and path.suffix.lower() in {'.jpg', '.png'}
+            ]
+            self.assertCountEqual(retained, [
+                canonical_standalone_image_payload(root / 'front.jpg'),
+                canonical_standalone_image_payload(root / 'reverse.png'),
+            ])
 
     def test_second_image_copy_failure_rolls_back_first_image(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
