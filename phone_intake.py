@@ -78,8 +78,20 @@ class PhoneIntake:
                 raise PhoneIntakeError("A saving or saved pair cannot change roles.")
             pair["images"]["front"], pair["images"]["reverse"] = pair["images"]["reverse"], pair["images"]["front"]
 
+    def release_pair(self, pair_id: str) -> None:
+        """Release only an unsaved ready pair; leave its staged files untouched."""
+        with self._edit() as pairs:
+            pair = pairs.get(pair_id)
+            if pair is None:
+                raise PhoneIntakeError("This pair is no longer available for correction.")
+            if pair["state"] != "READY" or "save" not in pair or pair["save"] is not None:
+                raise PhoneIntakeError("Only a ready pair with no save intent can be corrected.")
+            del pairs[pair_id]
+
     def review_paths(self, pair_id: str) -> tuple[str, str]:
-        pair = self.records()[pair_id]
+        pair = self.records().get(pair_id)
+        if pair is None:
+            raise PhoneIntakeError("This pair is no longer available for review.")
         if pair["state"] != "READY":
             raise PhoneIntakeError("This pair is saved or requires recovery; it cannot be saved again.")
         for image in pair["images"].values():
@@ -90,7 +102,9 @@ class PhoneIntake:
     def reserve(self, pair_id: str, collection_path: str, draft: Any) -> dict[str, Any]:
         self.review_paths(pair_id)
         with self._edit() as pairs:
-            pair = pairs[pair_id]
+            pair = pairs.get(pair_id)
+            if pair is None:
+                raise PhoneIntakeError("This pair is no longer available for save.")
             if pair["state"] != "READY":
                 raise PhoneIntakeError("The pair is no longer available.")
             intent = {

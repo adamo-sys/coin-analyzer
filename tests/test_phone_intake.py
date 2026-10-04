@@ -1,12 +1,13 @@
 """Offline Phone Intake contracts using synthetic images and real persistence."""
-from contextlib import contextmanager
 import json
 import os
-from pathlib import Path
 import tempfile
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-import unittest
 from unittest.mock import Mock, patch
 
 from PIL import Image
@@ -177,6 +178,129 @@ class PhoneIntakeTests(unittest.TestCase):
         self.pair()
         with self.assertRaises(PhoneIntakeError):
             self.pair((0, 3))
+
+    def test_release_ready_pair_preserves_images_and_reconfirms_with_fresh_id(self):
+        pair_id = self.pair()
+        original = {path: Path(path).read_bytes() for path in self.photos[:3]}
+
+        self.store.release_pair(pair_id)
+
+        reopened = PhoneIntake(str(self.store.path))
+        self.assertNotIn(pair_id, reopened.records())
+        self.assertEqual({path: Path(path).read_bytes() for path in self.photos[:3]}, original)
+        corrected = reopened.confirm_pair(self.photos[0], self.photos[2])
+        self.assertNotEqual(corrected, pair_id)
+        self.assertEqual(reopened.review_paths(corrected), (self.photos[0], self.photos[2]))
+        self.assertEqual(PhoneIntake(str(self.store.path)).records()[corrected]['state'], 'READY')
+
+    def test_release_refuses_saving_saved_and_inconsistent_ready_state(self):
+        saving = self.pair((0, 1))
+        saved = self.pair((2, 3))
+        inconsistent = self.pair((4, 5))
+        self.store.reserve(saving, self.collection.storage_path, self.draft)
+        self.save(saved)
+        self.store.complete(saved, self.collection.storage_path)
+
+        for pair_id in (saving, saved):
+            with self.subTest(pair_id=pair_id), self.assertRaises(PhoneIntakeError):
+                self.store.release_pair(pair_id)
+        for malformed in ({'unexpected': 'intent'}, 'missing'):
+            with self.store._edit() as pairs:
+                if malformed == 'missing':
+                    pairs[inconsistent].pop('save', None)
+                else:
+                    pairs[inconsistent]['save'] = malformed
+            with self.subTest(malformed=malformed), self.assertRaises(PhoneIntakeError):
+                self.store.release_pair(inconsistent)
+            self.assertIn(inconsistent, self.store.records())
+        self.assertIn(saving, self.store.records())
+        self.assertIn(saved, self.store.records())
+
+    def test_release_write_failure_preserves_pair_and_staged_images(self):
+        pair_id = self.pair()
+        before = Path(self.store.path).read_bytes()
+        photos_before = tuple(Path(path).read_bytes() for path in self.photos[:2])
+        with patch('phone_intake.write_json_atomically', side_effect=OSError('disk full')), self.assertRaises(OSError):
+            self.store.release_pair(pair_id)
+        self.assertEqual(Path(self.store.path).read_bytes(), before)
+        self.assertEqual(tuple(Path(path).read_bytes() for path in self.photos[:2]), photos_before)
+        self.assertEqual(PhoneIntake(str(self.store.path)).records()[pair_id]['state'], 'READY')
+
+    def test_release_keeps_other_pairs_exclusive_and_rejects_stale_attempts(self):
+        first = self.pair((0, 1))
+        other = self.pair((2, 3))
+        self.store.release_pair(first)
+        with self.assertRaises(PhoneIntakeError):
+            PhoneIntake(str(self.store.path)).release_pair(first)
+        with self.assertRaises(PhoneIntakeError):
+            self.store.confirm_pair(self.photos[0], self.photos[2])
+        corrected = self.store.confirm_pair(self.photos[0], self.photos[4])
+        self.assertNotEqual(corrected, first)
+        self.assertEqual(self.store.review_paths(other), (self.photos[2], self.photos[3]))
+
+    def test_concurrent_release_has_one_winner_and_no_owned_images(self):
+        from capture_import.errors import ImportLocked
+
+        pair_id = self.pair()
+        def attempt():
+            try:
+                PhoneIntake(str(self.store.path)).release_pair(pair_id)
+                return 'released'
+            except (PhoneIntakeError, ImportLocked):
+                return 'refused'
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(lambda _: attempt(), range(2)))
+        self.assertEqual(sorted(outcomes), ['refused', 'released'])
+        self.assertNotIn(pair_id, PhoneIntake(str(self.store.path)).records())
+        self.assertTrue(all(Path(path).exists() for path in self.photos[:2]))
+
+    def test_retired_pair_cannot_reserve_after_reconfirmation(self):
+        pair_id = self.pair()
+        old_paths = self.store.review_paths(pair_id)
+        self.store.release_pair(pair_id)
+        with self.assertRaises(PhoneIntakeError):
+            self.store.reserve(pair_id, self.collection.storage_path, self.draft)
+        corrected = self.store.confirm_pair(*old_paths)
+        self.assertNotEqual(corrected, pair_id)
+        with self.assertRaises(PhoneIntakeError):
+            self.store.reserve(pair_id, self.collection.storage_path, self.draft)
+        self.assertEqual(self.store.records()[corrected]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_stale_visual_review_cannot_persist_after_pair_correction(self):
+        for indices, reconfirm in (((0, 1), False), ((2, 3), True)):
+            with self.subTest(reconfirm=reconfirm):
+                pair_id = self.pair(indices)
+                with self.gui_review(pair_id) as (gui, _ask, _info, _warning, error), patch(
+                        'capture_import.reviewed_coin_collection_entry.persist_reviewed_coin') as persist:
+                    old_paths = self.store.review_paths(pair_id)
+                    self.store.release_pair(pair_id)
+                    if reconfirm:
+                        corrected = self.store.confirm_pair(*old_paths)
+                        self.assertNotEqual(corrected, pair_id)
+                    gui._confirm_and_save_visual_review(ConfirmedVisualIdentity('Canada', '25 cents', '1967', 'Correction'))
+                    persist.assert_not_called()
+                    error.assert_called_once()
+                    self.assertIsNone(gui._phone_intake_context)
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_correct_pair_detects_only_active_local_review_for_selected_pair(self):
+        from phone_intake_dialog import local_visual_review_active
+
+        pair_id = self.pair()
+        gui = SimpleNamespace(
+            _phone_intake_context=(self.store, pair_id, self.collection.storage_path, self.store.review_paths(pair_id)),
+            _visual_identification_task=object(),
+            _visual_review_source=None,
+        )
+        self.assertTrue(local_visual_review_active(gui, pair_id))
+        self.assertFalse(local_visual_review_active(gui, 'another-pair'))
+        gui._visual_identification_task = None
+        gui._visual_review_source = object()
+        self.assertTrue(local_visual_review_active(gui, pair_id))
+        gui._visual_review_source = None
+        self.assertFalse(local_visual_review_active(gui, pair_id))
 
     def test_changed_image_blocks_review(self):
         pair_id = self.pair()
@@ -452,6 +576,84 @@ class PhoneIntakeTests(unittest.TestCase):
             gui.import_coin_images_with_visual_ai.assert_called_once()
             self.assertEqual(gui.import_coin_images_with_visual_ai.call_args.kwargs['front_path'], before[1])
             self.assertEqual(len(imported.imported_paths), 6)
+            errors.assert_not_called()
+
+    def test_native_correct_pair_reuses_manual_pairing_and_readiness(self):
+        import tkinter as tk
+        from tkinter import ttk
+
+        from phone_intake_dialog import open_phone_intake
+
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(str(error))
+        root.withdraw()
+        self.addCleanup(root.destroy)
+        imported = PhoneDropImporter().import_files(self.photos[:2])
+        old_id = PhoneIntake().confirm_pair(*imported.imported_paths)
+        gui = SimpleNamespace(
+            root=root,
+            app=SimpleNamespace(collection=self.collection),
+            import_coin_images_with_visual_ai=Mock(),
+            _phone_intake_context=None,
+            _visual_review_source=None,
+        )
+        ready = ReviewPairPreflight(ImageReadinessDecision.READY, DownstreamPermission.YES, '')
+        with patch('phone_intake_dialog.assess_review_pair', return_value=ready) as assess, patch(
+                'phone_intake_dialog.messagebox.askyesno', return_value=True), patch(
+                'phone_intake_dialog.messagebox.showinfo') as info, patch(
+                'phone_intake_dialog.messagebox.showerror') as errors:
+            window = open_phone_intake(gui)
+            root.update()
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            widgets = list(descendants(window))
+            buttons = {w.cget('text'): w for w in widgets if isinstance(w, ttk.Button)}
+            files = next(w for w in widgets if isinstance(w, tk.Listbox))
+            pairs = next(w for w in widgets if isinstance(w, ttk.Treeview))
+            pairs.selection_set(old_id)
+            root.update()
+            self.assertEqual(str(buttons['Correct Pair'].cget('state')), 'normal')
+
+            gui._phone_intake_context = (PhoneIntake(), old_id, self.collection.storage_path, imported.imported_paths)
+            gui._visual_review_source = object()
+            buttons['Correct Pair'].invoke()
+            info.assert_called_once()
+            self.assertIn(old_id, PhoneIntake().records())
+
+            gui._visual_review_source = None
+            buttons['Correct Pair'].invoke()
+            root.update()
+            self.assertIsNone(gui._phone_intake_context)
+            self.assertNotIn(old_id, PhoneIntake().records())
+            self.assertEqual(files.size(), 2)
+            self.assertFalse(files.curselection())
+            self.assertTrue(all(
+                any(isinstance(w, ttk.Label) and w.cget('text') == title for w in widgets)
+                for title in ('Selected image', 'Front', 'Reverse')
+            ))
+            retake = PhoneDropImporter().import_files((self.photos[2],)).imported_paths[0]
+            buttons['Refresh'].invoke()
+            self.assertEqual(files.size(), 3)
+
+            for role, path in (('Front', imported.imported_paths[0]), ('Reverse', retake)):
+                index = list(files.get(0, tk.END)).index(Path(path).name)
+                files.selection_clear(0, tk.END)
+                files.selection_set(index)
+                buttons[f'Use as {role}'].invoke()
+            buttons['Confirm Pair'].invoke()
+            root.update()
+            new_id = pairs.selection()[0]
+            self.assertNotEqual(new_id, old_id)
+            self.assertEqual(PhoneIntake().review_paths(new_id), (imported.imported_paths[0], retake))
+            buttons['Review Pair'].invoke()
+            assess.assert_called_once_with(imported.imported_paths[0], retake)
+            gui.import_coin_images_with_visual_ai.assert_called_once()
             errors.assert_not_called()
 
     def test_native_review_pair_preflight_requires_confirmation_or_blocks_handoff(self):

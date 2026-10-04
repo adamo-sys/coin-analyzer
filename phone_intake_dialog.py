@@ -90,6 +90,19 @@ def assess_review_pair(front_path: str, reverse_path: str) -> ReviewPairPrefligh
     )
 
 
+def local_visual_review_active(gui, pair_id: str) -> bool:
+    """Keep correction out of an active local review for this pair."""
+    context = getattr(gui, "_phone_intake_context", None)
+    return bool(
+        context is not None
+        and context[1] == pair_id
+        and (
+            getattr(gui, "_visual_identification_task", None) is not None
+            or getattr(gui, "_visual_review_source", None) is not None
+        )
+    )
+
+
 def open_phone_intake(gui):
     store = PhoneIntake()
     window = tk.Toplevel(gui.root)
@@ -114,6 +127,7 @@ def open_phone_intake(gui):
     selection = {"front": "", "reverse": ""}
     paths = []
     thumbnails = {}
+    correct_button = None
     status = tk.StringVar(value="Import files first using Import Phone Photos. Unpaired retakes/orphans can remain here.")
     ttk.Label(window, textvariable=status, wraplength=900).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=10)
 
@@ -133,6 +147,22 @@ def open_phone_intake(gui):
         except Exception as error:
             messagebox.showerror("Phone Intake", str(error), parent=window)
 
+    def update_correct_pair_state(records=None):
+        if correct_button is None:
+            return
+        selected = pairs.selection()
+        pair = (
+            (records if records is not None else store.records()).get(selected[0])
+            if selected else None
+        )
+        eligible = (
+            pair is not None
+            and pair.get("state") == "READY"
+            and "save" in pair
+            and pair["save"] is None
+        )
+        correct_button.config(state=tk.NORMAL if eligible else tk.DISABLED)
+
     def refresh():
         records = store.records()
         claimed = {image["path"] for pair in records.values() for image in pair["images"].values()}
@@ -144,10 +174,13 @@ def open_phone_intake(gui):
         old = pairs.selection()
         pairs.delete(*pairs.get_children())
         for pair_id, pair in records.items():
+            save = pair.get("save")
+            record_id = save.get("item_id", "") if isinstance(save, dict) else ""
             pairs.insert("", tk.END, iid=pair_id, values=(pair["state"], Path(pair["images"]["front"]["path"]).name,
-                         Path(pair["images"]["reverse"]["path"]).name, (pair["save"] or {}).get("item_id", "")))
+                         Path(pair["images"]["reverse"]["path"]).name, record_id))
         if old and old[0] in records:
             pairs.selection_set(old[0])
+        update_correct_pair_state(records)
         status.set(f"Unpaired images: {len(paths)} | Ready pairs: {sum(p['state'] == 'READY' for p in records.values())}. SAVING means reconcile before any resave.")
 
     def assign(role):
@@ -177,6 +210,7 @@ def open_phone_intake(gui):
         pair = store.records()[selected_pair()]
         for label, role in zip(labels[1:], ("front", "reverse")):
             show(label, pair["images"][role]["path"], role.title())
+        update_correct_pair_state()
 
     def swap():
         if selection["front"] or selection["reverse"]:
@@ -187,6 +221,34 @@ def open_phone_intake(gui):
             store.swap(selected_pair())
             refresh()
             display_pair()
+
+    def correct():
+        pair_id = selected_pair()
+        if local_visual_review_active(gui, pair_id):
+            messagebox.showinfo(
+                "Finish Visual Review First",
+                "Finish or cancel the active visual review for this pair before correcting it.",
+                parent=window,
+            )
+            return
+        if not messagebox.askyesno(
+            "Correct Pair",
+            "Release this unsaved pair for correction? Both staged photos will remain available. "
+            "Assign Front and Reverse again, then confirm the new pair.",
+            parent=window,
+        ):
+            return
+        store.release_pair(pair_id)
+        context = getattr(gui, "_phone_intake_context", None)
+        if context is not None and context[1] == pair_id:
+            gui._phone_intake_context = None
+        selection.update(front="", reverse="")
+        files.selection_clear(0, tk.END)
+        show(labels[0], "", "Selected image")
+        show(labels[1], "", "Front")
+        show(labels[2], "", "Reverse")
+        refresh()
+        status.set("Pair released. Select the good photo and its correct counterpart, then Confirm Pair.")
 
     def review():
         pair_id = selected_pair()
@@ -228,10 +290,13 @@ def open_phone_intake(gui):
     buttons = ttk.Frame(window)
     buttons.grid(row=3, column=0, columnspan=2, sticky="w", padx=10)
     for title, action in (("Use as Front", lambda: assign("front")), ("Use as Reverse", lambda: assign("reverse")),
-                          ("Swap", swap), ("Confirm Pair", confirm), ("Review Pair", review),
+                          ("Swap", swap), ("Confirm Pair", confirm), ("Correct Pair", correct), ("Review Pair", review),
                           ("Reconcile Save", reconcile), ("Next Pending", next_pending), ("Refresh", refresh)):
-        ttk.Button(buttons, text=title, command=lambda action=action: safe(action)).pack(side=tk.LEFT, padx=2)
+        button = ttk.Button(buttons, text=title, command=lambda action=action: safe(action))
+        button.pack(side=tk.LEFT, padx=2)
+        if title == "Correct Pair":
+            correct_button = button
     files.bind("<<ListboxSelect>>", lambda event: safe(lambda: show(labels[0], paths[files.curselection()[0]], "Selected image")) if files.curselection() else None)
-    pairs.bind("<<TreeviewSelect>>", lambda event: safe(display_pair) if pairs.selection() else None)
+    pairs.bind("<<TreeviewSelect>>", lambda event: safe(display_pair) if pairs.selection() else update_correct_pair_state())
     safe(refresh)
     return window

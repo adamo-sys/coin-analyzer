@@ -20,6 +20,15 @@ existing atomic JSON writer and exclusive filesystem lock. Invalid state is not
 reset. Legacy group handoff refuses paired images; fully paired legacy groups
 are omitted from its pending list.
 
+Correct Pair explicitly releases a confirmed READY pair only when it has no save
+intent. Release removes that pair's ownership claim under the intake lock but
+does not delete or alter either staged image. The collector reselects Front and
+Reverse using the existing pairing controls and confirms one physical coin
+again. Reconfirmation creates a fresh pair ID; a released ID is never reused.
+SAVING and SAVED pairs cannot be released. A review holding the old ID cannot
+reserve a save after release, even if the same images are paired again. Review
+Pair on the fresh pair runs the existing readiness preflight.
+
 ## Review and save authority
 
 Review Pair reuses the two-image capture adapter, existing provider disclosure,
@@ -53,8 +62,8 @@ save refusal and managed-media rollback are preserved.
 ## Boundaries and acceptance
 
 Refresh/Next Pending updates the pair list; neither dispatches a provider request.
-Staging copies are not automatically removed. Pair regrouping/unpairing is not
-provided in this MVP; inspect the previews before confirmation.
+Staging copies are not automatically removed. Correct Pair provides explicit
+release and reconfirmation for unsaved READY pairs; it does not infer pairings.
 
 No mobile code, sync, watcher, conversion, auto-pairing, perceptual deduplication,
 batch AI, type/design search, new Work Queue rule or evaluation export is added.
