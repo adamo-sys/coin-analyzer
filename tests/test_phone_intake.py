@@ -91,6 +91,56 @@ class PhoneIntakeTests(unittest.TestCase):
         self.assertIn("Reverse", preflight.guidance)
         self.assertIn("Image resolution is extremely small.", preflight.guidance)
 
+    def test_review_pair_preflight_blocks_reported_decode_failure_despite_maybe_yes(self):
+        front = self.checkerboard("front-ready.png", 900)
+        reverse = self.checkerboard("reverse-ready.png", 900)
+        from image_assessment import ImageAssessmentEngine
+
+        read_image = ImageAssessmentEngine._read_image
+
+        def fail_front_decode(path):
+            if path == front:
+                return None, "local decode failed"
+            return read_image(path)
+
+        with patch.object(ImageAssessmentEngine, "_read_image", side_effect=fail_front_decode):
+            preflight = assess_review_pair(front, reverse)
+
+        self.assertEqual(preflight.decision, ImageReadinessDecision.MAYBE)
+        self.assertEqual(preflight.broad_identification_permission, DownstreamPermission.YES)
+        self.assertTrue(preflight.blocked)
+        self.assertFalse(preflight.requires_confirmation)
+        self.assertIn("Front", preflight.guidance)
+        self.assertIn("Image file could not be decoded.", preflight.guidance)
+        self.assertIn("Replace or re-export the image file.", preflight.guidance)
+
+    def test_review_pair_preflight_blocks_missing_side_despite_maybe_yes(self):
+        reverse = self.checkerboard("reverse-ready.png", 900)
+
+        preflight = assess_review_pair(str(self.root / "missing-front.png"), reverse)
+
+        self.assertEqual(preflight.decision, ImageReadinessDecision.MAYBE)
+        self.assertEqual(preflight.broad_identification_permission, DownstreamPermission.YES)
+        self.assertTrue(preflight.blocked)
+        self.assertFalse(preflight.requires_confirmation)
+        self.assertIn("Front:\n- Image file is missing.", preflight.guidance)
+        self.assertIn("Check the path or wait for cloud sync.", preflight.guidance)
+
+    def test_review_pair_preflight_keeps_identical_guidance_under_each_side(self):
+        front = self.root / "front-dark.png"
+        reverse = self.root / "reverse-dark.png"
+        Image.new("RGB", (24, 24), "black").save(front)
+        Image.new("RGB", (24, 24), "black").save(reverse)
+
+        preflight = assess_review_pair(str(front), str(reverse))
+
+        self.assertIn("Reverse:\n", preflight.guidance)
+        front_guidance, reverse_guidance = preflight.guidance.split("Reverse:\n", 1)
+        self.assertIn("Front:\n", front_guidance)
+        for side_guidance in (front_guidance, reverse_guidance):
+            self.assertIn("Image resolution is extremely small.", side_guidance)
+            self.assertIn("Retake or export a higher-resolution photo.", side_guidance)
+
     def test_review_pair_preflight_fails_closed_when_assessment_errors(self):
         with patch("phone_intake_dialog.ImageAssessmentEngine.assess_photos", side_effect=RuntimeError("decode failed")):
             with self.assertRaisesRegex(ReviewPairPreflightError, "could not assess"):
@@ -477,6 +527,68 @@ class PhoneIntakeTests(unittest.TestCase):
             self.assertEqual(PhoneIntake().records()[pair_id]['state'], 'READY')
             self.assertFalse(Path(self.collection.storage_path).exists())
             window.destroy()
+
+    def test_native_review_pair_decode_failure_never_offers_review_anyway(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from image_assessment import ImageAssessmentEngine
+        from phone_intake_dialog import open_phone_intake
+
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(str(error))
+        root.withdraw()
+        self.addCleanup(root.destroy)
+
+        front = self.checkerboard("front-ready.png", 900)
+        reverse = self.checkerboard("reverse-ready.png", 900)
+        with Image.open(reverse) as source:
+            reverse_image = source.copy()
+        reverse_image.putpixel((0, 0), (128, 128, 128))
+        reverse_image.save(reverse)
+        imported = PhoneDropImporter().import_files((front, reverse))
+        pair_id = PhoneIntake().confirm_pair(*imported.imported_paths)
+        paired_front = imported.imported_paths[0]
+        gui = SimpleNamespace(
+            root=root,
+            app=SimpleNamespace(collection=self.collection),
+            import_coin_images_with_visual_ai=Mock(),
+        )
+        read_image = ImageAssessmentEngine._read_image
+
+        def fail_front_decode(path):
+            if path == paired_front:
+                return None, "local decode failed"
+            return read_image(path)
+
+        with (
+            patch.object(ImageAssessmentEngine, "_read_image", side_effect=fail_front_decode),
+            patch("phone_intake_dialog.messagebox.askyesno", return_value=True) as ask,
+            patch("phone_intake_dialog.messagebox.showwarning") as warning,
+        ):
+            window = open_phone_intake(gui)
+            self.addCleanup(window.destroy)
+            root.update()
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            widgets = list(descendants(window))
+            pairs = next(widget for widget in widgets if isinstance(widget, ttk.Treeview))
+            review = next(widget for widget in widgets if isinstance(widget, ttk.Button) and widget.cget("text") == "Review Pair")
+            pairs.selection_set(pair_id)
+            review.invoke()
+
+        ask.assert_not_called()
+        warning.assert_called_once()
+        self.assertIn("Front", warning.call_args.args[1])
+        self.assertIn("Image file could not be decoded.", warning.call_args.args[1])
+        gui.import_coin_images_with_visual_ai.assert_not_called()
+        self.assertEqual(PhoneIntake().records()[pair_id]["state"], "READY")
+        self.assertFalse(Path(self.collection.storage_path).exists())
 
     def test_worker_handoff_preserves_pair_context_and_cancel_clears_it(self):
         pair_id = self.pair()

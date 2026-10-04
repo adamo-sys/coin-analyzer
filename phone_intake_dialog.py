@@ -27,11 +27,13 @@ class ReviewPairPreflight:
     decision: ImageReadinessDecision
     broad_identification_permission: DownstreamPermission
     guidance: str
+    required_side_blocked: bool = False
 
     @property
     def blocked(self) -> bool:
         return (
-            self.decision == ImageReadinessDecision.NOT_READY
+            self.required_side_blocked
+            or self.decision == ImageReadinessDecision.NOT_READY
             or self.broad_identification_permission == DownstreamPermission.NO
         )
 
@@ -43,19 +45,21 @@ class ReviewPairPreflight:
 def _preflight_guidance(report) -> str:
     """Present existing readiness evidence without creating new quality rules."""
     lines = []
+    side_details = set()
     for assessment in report.photo_assessments:
         role = "Front" if assessment.role == PhotoRole.FRONT.value else "Reverse"
         reasons = assessment.blocking_issues or assessment.issues
         actions = assessment.recommended_actions
-        if reasons or actions:
+        details = dict.fromkeys((*reasons, *actions))
+        if details:
             lines.append(f"{role}:")
-            lines.extend(f"- {reason}" for reason in reasons)
-            lines.extend(f"- {action}" for action in actions)
-    if report.blocking_issues:
-        lines.extend(f"- {issue}" for issue in report.blocking_issues)
-    if report.recommended_actions:
-        lines.extend(f"- {action}" for action in report.recommended_actions)
-    return "\n".join(dict.fromkeys(lines)) or "No additional readiness guidance was reported."
+            lines.extend(f"- {detail}" for detail in details)
+            side_details.update(details)
+    aggregate_details = dict.fromkeys(
+        (*report.blocking_issues, *report.recommended_actions)
+    )
+    lines.extend(f"- {detail}" for detail in aggregate_details if detail not in side_details)
+    return "\n".join(lines) or "No additional readiness guidance was reported."
 
 
 def assess_review_pair(front_path: str, reverse_path: str) -> ReviewPairPreflight:
@@ -80,6 +84,9 @@ def assess_review_pair(front_path: str, reverse_path: str) -> ReviewPairPrefligh
         decision=report.decision,
         broad_identification_permission=permission,
         guidance=_preflight_guidance(report),
+        required_side_blocked=any(
+            assessment.blocking_issues for assessment in report.photo_assessments
+        ),
     )
 
 
