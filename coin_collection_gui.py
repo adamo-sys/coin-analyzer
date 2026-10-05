@@ -10,6 +10,8 @@ if __name__ == "__main__":
 import tkinter as tk
 from typing import Any
 from collector_work_queue_gui import WorkQueueWindow
+from collection_resume import collection_resume_rows
+from collector_work_queue import derive_work_queue, WorkQueueProjectionError
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
 from PIL import Image, ImageTk
@@ -1628,11 +1630,18 @@ Total Unique Dates: {total_unique_dates}
         collection_frame = ttk.LabelFrame(right_panel, text="Collection", padding="10")
         collection_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         collection_frame.columnconfigure(0, weight=1)
-        collection_frame.rowconfigure(2, weight=1)
+        collection_frame.rowconfigure(3, weight=1)
+
+        resume_frame = ttk.Frame(collection_frame)
+        resume_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 8))
+        resume_frame.columnconfigure(0, weight=1)
+        self.collection_resume_state_var = tk.StringVar(value="")
+        ttk.Label(resume_frame, textvariable=self.collection_resume_state_var).grid(row=0, column=0, sticky=tk.W)
+        ttk.Button(resume_frame, text="Open Work Queue", command=self.open_work_queue).grid(row=0, column=1, sticky=tk.E)
         
         # Search box
         search_frame = ttk.Frame(collection_frame)
-        search_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        search_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
         self.search_var = tk.StringVar()
@@ -1643,7 +1652,7 @@ Total Unique Dates: {total_unique_dates}
 
         # Collection buttons
         collection_buttons = ttk.Frame(collection_frame)
-        collection_buttons.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        collection_buttons.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
 
         ttk.Button(collection_buttons, text="View Details", command=self.view_item_details).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(collection_buttons, text="Edit Item", command=self.edit_item).pack(side=tk.LEFT, padx=(0, 5))
@@ -1656,31 +1665,33 @@ Total Unique Dates: {total_unique_dates}
 
         # Collection list with scrollbar
         list_frame = ttk.Frame(collection_frame)
-        list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        list_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
         
         scrollbar = ttk.Scrollbar(list_frame)
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
-        self.collection_tree = ttk.Treeview(list_frame, columns=("ID", "Country", "Denom", "Year", "Grade"), 
+        self.collection_tree = ttk.Treeview(list_frame, columns=("ID", "Object", "Status", "Date"),
                                           show="headings", yscrollcommand=scrollbar.set)
-        self.collection_tree.heading("ID", text="ID")
-        self.collection_tree.heading("Country", text="Country")
-        self.collection_tree.heading("Denom", text="Denomination")
-        self.collection_tree.heading("Year", text="Year")
-        self.collection_tree.heading("Grade", text="Grade")
-        
-        self.collection_tree.column("ID", width=80)
-        self.collection_tree.column("Country", width=100)
-        self.collection_tree.column("Denom", width=100)
-        self.collection_tree.column("Year", width=60)
-        self.collection_tree.column("Grade", width=60)
-        
+        for column, heading, width in (("ID", "ID", 100), ("Object", "Object", 260),
+                                       ("Status", "Identification status", 130),
+                                       ("Date", "Date added (recorded)", 145)):
+            self.collection_tree.heading(column, text=heading)
+            self.collection_tree.column(column, width=width, minwidth=60, stretch=column == "Object")
+
         self.collection_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.config(command=self.collection_tree.yview)
         
         self.collection_tree.bind("<<TreeviewSelect>>", self.on_collection_select)
+
+        task_frame = ttk.Frame(collection_frame)
+        task_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(8, 0))
+        task_frame.columnconfigure(0, weight=1)
+        self.collection_task_var = tk.StringVar(value="Select a collection record.")
+        ttk.Label(task_frame, textvariable=self.collection_task_var, wraplength=440).grid(row=0, column=0, sticky=tk.W)
+        self.show_collection_task_button = ttk.Button(task_frame, text="Show task", command=self.show_collection_task, state=tk.DISABLED)
+        self.show_collection_task_button.grid(row=0, column=1, sticky=tk.E)
 
         status_frame = ttk.Frame(main_frame)
         status_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
@@ -3019,28 +3030,34 @@ Total Unique Dates: {total_unique_dates}
         self.refresh_entry_suggestions()
     
     def refresh_collection_list(self):
-        """Refresh collection list view."""
-        # Clear existing items
-        for item in self.collection_tree.get_children():
-            self.collection_tree.delete(item)
-        
-        # Get items based on search
+        """Render recorded orientation without mutating collection order or metadata."""
+        for row_id in self.collection_tree.get_children():
+            self.collection_tree.delete(row_id)
+        self._collection_resume_rows = {}
+        self._selected_collection_task = None
+        self.collection_task_var.set("Select a collection record.")
+        self.show_collection_task_button.configure(state=tk.DISABLED)
+        collection = self.app.collection
+        try:
+            rows = collection_resume_rows(collection)
+        except ValueError:
+            self.collection_resume_state_var.set("Collection unavailable. Records cannot be shown safely.")
+            return
+        if collection.load_state is CollectionLoadState.MISSING:
+            self.collection_resume_state_var.set("No collection is available yet.")
+            return
+        count = len(rows)
+        self.collection_resume_state_var.set(f"{count} collection record{'s' if count != 1 else ''}")
         search_query = self.search_var.get().strip()
-        if search_query:
-            items = self.app.collection.search_items(search_query)
-        else:
-            items = self.app.collection.get_all_items()
-        
-        # Add items to tree
-        for item in items:
-            self.collection_tree.insert("", tk.END, values=(
-                item.id,
-                item.country,
-                item.denomination,
-                item.year,
-                item.grade
-            ))
-    
+        matching = {id(item) for item in collection.search_items(search_query)} if search_query else None
+        for index, row in enumerate(rows):
+            if matching is not None and id(row.reference.item) not in matching:
+                continue
+            row_id = f"collection-record-{index}"
+            self.collection_tree.insert("", tk.END, iid=row_id,
+                                        values=(row.reference.item_id, row.label, row.status, row.recorded_date))
+            self._collection_resume_rows[row_id] = row
+
     def on_search(self, event):
         """Handle search input."""
         self.refresh_collection_list()
@@ -4742,14 +4759,50 @@ Total Unique Dates: {total_unique_dates}
         
         form_frame.columnconfigure(1, weight=1)
     
-    def on_collection_select(self, event):
-        """Handle collection item selection."""
+    def on_collection_select(self, event=None):
+        """Resolve the display-time reference before associating a current queue task."""
+        self._selected_collection_task = None
+        self.show_collection_task_button.configure(state=tk.DISABLED)
         selection = self.collection_tree.selection()
-        if selection:
-            item_id = self.collection_tree.item(selection[0])['values'][0]
-            # Could load item details here
-            pass
-    
+        row = getattr(self, "_collection_resume_rows", {}).get(selection[0]) if selection else None
+        if row is None:
+            self.collection_task_var.set("Select a collection record.")
+            return
+        try:
+            row.reference.resolve(self.app.collection)
+            projection = derive_work_queue(self.app.collection)
+        except (ValueError, WorkQueueProjectionError):
+            self.refresh_collection_list()
+            self.collection_task_var.set("This record changed. Select a current record after refresh.")
+            return
+        task = next((task for task in projection.tasks if task.item_id == row.reference.item_id), None)
+        if task is None:
+            self.collection_task_var.set("No current Work Queue tasks for this record.")
+            return
+        self._selected_collection_task = (row.reference, task.task_id)
+        self.collection_task_var.set(f"Maintenance task: {task.title}")
+        self.show_collection_task_button.configure(state=tk.NORMAL)
+
+    def show_collection_task(self):
+        """Navigate to the retained task; Work Queue owns subsequent activation."""
+        selected = getattr(self, "_selected_collection_task", None)
+        if selected is None:
+            return
+        reference, task_id = selected
+        try:
+            reference.resolve(self.app.collection)
+            projection = derive_work_queue(self.app.collection)
+            if not any(task.task_id == task_id and task.item_id == reference.item_id for task in projection.tasks):
+                raise ValueError("Task resolved.")
+        except (ValueError, WorkQueueProjectionError):
+            self.refresh_collection_list()
+            self.collection_task_var.set("This task changed. Select a current record after refresh.")
+            return
+        queue_window = self.open_work_queue()
+        if not queue_window.reveal_task(reference, task_id):
+            self.refresh_collection_list()
+            self.collection_task_var.set("This task changed. Select a current record after refresh.")
+
     def view_item_details(self):
         """View selected item details."""
         selection = self.collection_tree.selection()

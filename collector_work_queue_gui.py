@@ -384,6 +384,41 @@ class WorkQueueWindow:
         self.action_button.configure(state=tk.NORMAL, text=task.action_label)
         self.status_var.set(f"Selected: {task.title}.")
 
+    def reveal_task(self, reference: CollectionItemReference, task_id: str) -> bool:
+        """Reveal a current task using the caller's original display-time authority."""
+        collection = self._collection_provider()
+        try:
+            reference.resolve(collection)
+            projection = derive_work_queue(collection)
+            task = next((task for task in projection.tasks
+                         if task.task_id == task_id and task.item_id == reference.item_id), None)
+            if task is None:
+                raise ValueError("The task is no longer eligible.")
+        except (ValueError, WorkQueueProjectionError):
+            self.refresh(status_message="This task changed. Select a current task after refresh.")
+            return False
+        self.refresh()
+        # Refresh captures queue references for other rows; retain caller authority for this action.
+        try:
+            reference.resolve(self._collection_provider())
+        except ValueError:
+            self.refresh(status_message="This task changed. Select a current task after refresh.")
+            return False
+        self._task_references[task_id] = reference
+        selected_filter = next(key for key, value in _FILTER_TASK_TYPES.items() if value is task.task_type)
+        self.select_filter(selected_filter)
+        row_id = next((row for row, value in self._row_task_ids.items() if value == task_id), None)
+        if row_id is None:
+            self.refresh(status_message="This task changed. Select a current task after refresh.")
+            return False
+        self.tree.selection_set(row_id)
+        self.tree.focus(row_id)
+        self.tree.see(row_id)
+        self.on_selection_changed()
+        self.focus()
+        self.tree.focus_set()
+        return True
+
     def activate_selected_task(self, event=None) -> None:
         selected_task = self._selected_task()
         if selected_task is None:
