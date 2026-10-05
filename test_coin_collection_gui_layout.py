@@ -38,14 +38,14 @@ class CollectionLayoutTests(unittest.TestCase):
         toolbar_grid = self._calls("collection_buttons", "grid")[0]
         list_grid = self._calls("list_frame", "grid")[0]
 
-        self.assertEqual(0, self._keyword(search_grid, "row"))
-        self.assertEqual(1, self._keyword(toolbar_grid, "row"))
-        self.assertEqual(2, self._keyword(list_grid, "row"))
+        self.assertEqual(1, self._keyword(search_grid, "row"))
+        self.assertEqual(2, self._keyword(toolbar_grid, "row"))
+        self.assertEqual(3, self._keyword(list_grid, "row"))
         self.assertEqual((0, 10), self._keyword(toolbar_grid, "pady"))
 
         row_configure = self._calls("collection_frame", "rowconfigure")
         self.assertTrue(
-            any(ast.literal_eval(call.args[0]) == 2 and self._keyword(call, "weight") == 1
+            any(ast.literal_eval(call.args[0]) == 3 and self._keyword(call, "weight") == 1
                 for call in row_configure)
         )
 
