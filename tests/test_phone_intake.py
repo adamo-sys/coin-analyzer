@@ -19,11 +19,19 @@ from phone_intake_dialog import (
     ReviewPairPreflight,
     ReviewPairPreflightError,
     assess_review_pair,
+    confirm_and_save_unidentified_pair,
 )
 from coin_collection import CoinCollection
 from coin_collection_gui import CoinCollectionGUI
 from capture_import.desktop_visual_identity_review import ConfirmedVisualIdentity, create_visual_identity_proposal
 from capture_import.reviewed_coin_collection_entry import ReviewedCoinDraft, persist_reviewed_coin, ReviewedCoinPersistenceError, ReviewedCoinRecoveryRequiredError
+from capture_import.unidentified_pair_collection_entry import persist_unidentified_pair
+from capture_import.unidentified_pair_collection_entry import (
+    UnidentifiedPairReconciliationRequiredError, save_unidentified_phone_pair,
+)
+from capture_import.standalone_image_intake import canonical_standalone_image_payload
+from collector_work_queue import WorkQueueTaskType, derive_work_queue
+from coin_collection import IdentificationStatus
 from capture_import.standalone_image_intake import create_temporary_capture_package
 from capture_import.visual_identity_provider import VisualIdentityCandidate, VisualIdentityReport
 
@@ -192,6 +200,296 @@ class PhoneIntakeTests(unittest.TestCase):
         self.assertNotEqual(corrected, pair_id)
         self.assertEqual(reopened.review_paths(corrected), (self.photos[0], self.photos[2]))
         self.assertEqual(PhoneIntake(str(self.store.path)).records()[corrected]['state'], 'READY')
+
+    def test_unidentified_reservation_binds_confirmed_snapshot(self):
+        pair_id = self.pair()
+        snapshot = self.store.records()[pair_id]['images']
+        self.store.swap(pair_id)
+        with self.assertRaises(PhoneIntakeError):
+            self.store.reserve_unidentified(pair_id, self.collection.storage_path, snapshot)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        current = self.store.records()[pair_id]['images']
+        intent = self.store.reserve_unidentified(pair_id, self.collection.storage_path, current)
+        self.assertEqual(intent['identity'], dict.fromkeys(('country', 'denomination', 'year', 'type_design'), ''))
+        self.assertEqual(self.store.records()[pair_id]['state'], 'SAVING')
+
+    def test_unidentified_pair_commit_reloads_and_reconciles(self):
+        pair_id = self.pair()
+        images = self.store.records()[pair_id]['images']
+        source = create_temporary_capture_package(
+            front_path=images['front']['path'], reverse_path=images['reverse']['path']
+        )
+        self.addCleanup(source.release)
+        intent = self.store.reserve_unidentified(pair_id, self.collection.storage_path, images)
+        item = persist_unidentified_pair(
+            collection=self.collection, source_package_path=source.path,
+            item_id=intent['item_id'], date_added=intent['date_added'],
+            acquisition={'purchase_source': 'Coin show', 'purchase_price': '12.50', 'purchase_currency': 'CAD'},
+            notes='Uncatalogued acquisition',
+        )
+        self.assertEqual(self.store.complete(pair_id, self.collection.storage_path), item.id)
+        reloaded = CoinCollection(self.collection.storage_path).get_item(item.id)
+        self.assertEqual(reloaded.identification_status.value, 'UNIDENTIFIED')
+        self.assertEqual((reloaded.country, reloaded.denomination, reloaded.year, reloaded.type_design), ('', '', '', ''))
+        self.assertEqual((reloaded.issuer, reloaded.reference, reloaded.grade), ('', '', ''))
+        self.assertEqual(reloaded.notes, 'Uncatalogued acquisition')
+        self.assertEqual(reloaded.purchase_source, 'Coin show')
+        self.assertEqual(str(reloaded.purchase_price), '12.50')
+        self.assertEqual([photo.role.value for photo in reloaded.photos], ['FRONT', 'BACK'])
+        self.assertTrue(reloaded.photos[0].is_primary)
+        self.assertFalse(reloaded.photos[1].is_primary)
+        self.assertEqual(Path(reloaded.photos[0].path).read_bytes(), canonical_standalone_image_payload(self.photos[0]))
+        self.assertEqual(Path(reloaded.photos[1].path).read_bytes(), canonical_standalone_image_payload(self.photos[1]))
+        self.assertTrue(all(Path(path).exists() for path in self.photos[:2]))
+        self.assertEqual(PhoneIntake(str(self.store.path)).records()[pair_id]['state'], 'SAVED')
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                pair_id=pair_id, expected_images=images)
+        self.assertEqual(len(CoinCollection(self.collection.storage_path).items), 1)
+
+    def test_unidentified_save_allows_blank_acquisition_and_uses_existing_work_queue(self):
+        pair_id = self.pair()
+        item = save_unidentified_phone_pair(
+            store=self.store, collection=self.collection, pair_id=pair_id,
+            expected_images=self.store.records()[pair_id]['images'],
+        )
+        reloaded = CoinCollection(self.collection.storage_path)
+        saved = reloaded.get_item(item.id)
+        self.assertEqual(saved.identification_status, IdentificationStatus.UNIDENTIFIED)
+        self.assertFalse(saved.has_acquisition_details())
+        self.assertEqual(saved.notes, '')
+        self.assertFalse(saved.auto_detected)
+        self.assertFalse(any('Identification review' in row.notes for row in reloaded.items))
+        tasks = derive_work_queue(reloaded).tasks
+        self.assertTrue(any(task.task_type is WorkQueueTaskType.UNRESOLVED_IDENTITY and task.title == 'Confirm identity' for task in tasks))
+        self.assertTrue(reloaded.update_item(item.id, {
+            'country': 'Canada', 'denomination': '25 cents', 'year': '1967',
+            'identification_status': IdentificationStatus.IDENTIFIED,
+        }))
+        identified = CoinCollection(self.collection.storage_path)
+        self.assertFalse(any(task.task_type is WorkQueueTaskType.UNRESOLVED_IDENTITY for task in derive_work_queue(identified).tasks))
+
+    def test_unidentified_save_preserves_all_supplied_acquisition_fields(self):
+        pair_id = self.pair()
+        item = save_unidentified_phone_pair(
+            store=self.store, collection=self.collection, pair_id=pair_id,
+            expected_images=self.store.records()[pair_id]['images'],
+            acquisition={
+                'acquisition_date': '2026-10-04', 'purchase_price': '12.50',
+                'purchase_currency': 'cad', 'purchase_source': 'Local show',
+                'shipping_cost': '1.25', 'buyers_premium': '0.75', 'tax': '1.00',
+            },
+        )
+        saved = CoinCollection(self.collection.storage_path).get_item(item.id)
+        self.assertEqual(saved.acquisition_date, '2026-10-04')
+        self.assertEqual(saved.purchase_currency, 'CAD')
+        self.assertEqual(saved.purchase_source, 'Local show')
+        self.assertEqual(
+            tuple(str(getattr(saved, name)) for name in ('purchase_price', 'shipping_cost', 'buyers_premium', 'tax')),
+            ('12.50', '1.25', '0.75', '1.00'),
+        )
+        self.assertEqual(saved.identification_status, IdentificationStatus.UNIDENTIFIED)
+
+    def test_unidentified_save_rejects_stale_role_hash_and_released_pair(self):
+        pair_id = self.pair()
+        snapshot = self.store.records()[pair_id]['images']
+        self.store.swap(pair_id)
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                pair_id=pair_id, expected_images=snapshot)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+        current = self.store.records()[pair_id]['images']
+        wrong_hash = {role: dict(image) for role, image in current.items()}
+        wrong_hash['front']['sha256'] = '0' * 64
+        with self.assertRaises(PhoneIntakeError):
+            self.store.reserve_unidentified(pair_id, self.collection.storage_path, wrong_hash)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.store.release_pair(pair_id)
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                pair_id=pair_id, expected_images=current)
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_unidentified_save_invalid_acquisition_and_changed_media_leave_ready(self):
+        pair_id = self.pair()
+        snapshot = self.store.records()[pair_id]['images']
+        with self.assertRaises(ValueError):
+            save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                pair_id=pair_id, expected_images=snapshot,
+                acquisition={'purchase_price': '-2'})
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        Path(self.photos[0]).write_bytes(Path(self.photos[2]).read_bytes())
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                pair_id=pair_id, expected_images=snapshot)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_unidentified_final_confirmation_declined_or_pair_changed(self):
+        pair_id = self.pair()
+        summaries = []
+        result = confirm_and_save_unidentified_pair(
+            store=self.store, collection=self.collection, pair_id=pair_id,
+            acquisition={'purchase_source': 'Coin show'}, notes='Own this coin',
+            confirm=lambda summary: summaries.append(summary) or False,
+        )
+        self.assertIsNone(result)
+        self.assertIn('Identity: unidentified', summaries[0])
+        self.assertIn('Source: Coin show', summaries[0])
+        self.assertIn('Notes: Own this coin', summaries[0])
+        self.assertNotIn('Purchase price:', summaries[0])
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+        def swap_after_confirmation(_summary):
+            self.store.swap(pair_id)
+            return True
+
+        with self.assertRaises(PhoneIntakeError):
+            confirm_and_save_unidentified_pair(
+                store=self.store, collection=self.collection, pair_id=pair_id,
+                acquisition={}, notes='', confirm=swap_after_confirmation,
+            )
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_unidentified_confirmation_does_not_require_ai_readiness(self):
+        pair_id = self.pair()
+        with patch('phone_intake_dialog.assess_review_pair', side_effect=AssertionError('readiness must not run')):
+            item = confirm_and_save_unidentified_pair(
+                store=self.store, collection=self.collection, pair_id=pair_id,
+                acquisition={}, notes='', confirm=lambda _summary: True,
+            )
+        self.assertEqual(item.identification_status, IdentificationStatus.UNIDENTIFIED)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'SAVED')
+
+    def test_unidentified_reconciliation_rejects_missing_identity_field(self):
+        pair_id = self.pair()
+        item = save_unidentified_phone_pair(
+            store=self.store, collection=self.collection, pair_id=pair_id,
+            expected_images=self.store.records()[pair_id]['images'],
+        )
+        records = json.loads(Path(self.collection.storage_path).read_text(encoding='utf-8'))
+        self.assertEqual(records[0]['id'], item.id)
+        del records[0]['country']
+        Path(self.collection.storage_path).write_text(json.dumps(records), encoding='utf-8')
+        with self.assertRaises(PhoneIntakeError):
+            PhoneIntake(str(self.store.path)).complete(pair_id, self.collection.storage_path)
+
+    def test_unidentified_precommit_collection_failure_cleans_owned_media(self):
+        pair_id = self.pair()
+        with patch.object(self.collection, 'save_collection', return_value=False):
+            self.collection.last_save_error = 'disk unavailable'
+            with self.assertRaises(ReviewedCoinPersistenceError):
+                save_unidentified_phone_pair(
+                    store=self.store, collection=self.collection, pair_id=pair_id,
+                    expected_images=self.store.records()[pair_id]['images'],
+                )
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertEqual(self.collection.items, [])
+        self.assertFalse(Path(self.collection.storage_path).exists())
+        managed = Path('coin_photos/collection')
+        self.assertFalse(any(path.is_file() for path in managed.rglob('*')))
+
+    def test_unidentified_postpublication_failure_retains_media_and_reconciles(self):
+        pair_id = self.pair()
+        images = self.store.records()[pair_id]['images']
+        with patch.object(self.collection, '_baseline_from_receipt', side_effect=OSError('after publication')):
+            with self.assertRaises(UnidentifiedPairReconciliationRequiredError):
+                save_unidentified_phone_pair(
+                    store=self.store, collection=self.collection, pair_id=pair_id,
+                    expected_images=images,
+                )
+        rows = json.loads(Path(self.collection.storage_path).read_text(encoding='utf-8'))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(self.store.records()[pair_id]['state'], 'SAVING')
+        self.assertEqual(
+            [Path(photo['path']).read_bytes() for photo in rows[0]['photos']],
+            [canonical_standalone_image_payload(self.photos[0]),
+             canonical_standalone_image_payload(self.photos[1])],
+        )
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(
+                store=self.store, collection=self.collection, pair_id=pair_id,
+                expected_images=images,
+            )
+        self.assertEqual(PhoneIntake(str(self.store.path)).complete(pair_id, self.collection.storage_path), rows[0]['id'])
+        self.assertEqual(len(CoinCollection(self.collection.storage_path).items), 1)
+
+    def test_unidentified_reservation_competes_with_release_swap_and_reviewed_save(self):
+        from capture_import.errors import ImportLocked
+
+        for competing in ('release', 'swap', 'reviewed'):
+            with self.subTest(competing=competing):
+                pair_id = self.pair((0, 1)) if competing == 'release' else self.pair((2, 3)) if competing == 'swap' else self.pair((4, 5))
+                snapshot = self.store.records()[pair_id]['images']
+
+                def unidentified():
+                    try:
+                        self.store.reserve_unidentified(pair_id, self.collection.storage_path, snapshot)
+                        return 'unidentified'
+                    except (PhoneIntakeError, ImportLocked):
+                        return 'refused'
+
+                def other():
+                    try:
+                        if competing == 'release':
+                            self.store.release_pair(pair_id)
+                        elif competing == 'swap':
+                            self.store.swap(pair_id)
+                        else:
+                            self.store.reserve(pair_id, self.collection.storage_path, self.draft)
+                        return competing
+                    except (PhoneIntakeError, ImportLocked):
+                        return 'refused'
+
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    outcomes = list(pool.map(lambda fn: fn(), (unidentified, other)))
+                self.assertEqual(outcomes.count('refused'), 1)
+                self.assertEqual(len([outcome for outcome in outcomes if outcome != 'refused']), 1)
+                if outcomes[0] == 'unidentified':
+                    self.assertEqual(self.store.records()[pair_id]['state'], 'SAVING')
+                    with self.assertRaises(PhoneIntakeError):
+                        self.store.release_pair(pair_id)
+
+    def test_unidentified_save_clean_failure_releases_intent(self):
+        pair_id = self.pair()
+        with patch('capture_import.unidentified_pair_collection_entry.persist_unidentified_pair',
+                   side_effect=ReviewedCoinPersistenceError('not saved')):
+            with self.assertRaises(ReviewedCoinPersistenceError):
+                save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                    pair_id=pair_id, expected_images=self.store.records()[pair_id]['images'])
+        self.assertEqual(self.store.records()[pair_id]['state'], 'READY')
+        self.assertFalse(Path(self.collection.storage_path).exists())
+
+    def test_unidentified_save_uncertain_failure_and_postcommit_reconcile(self):
+        uncertain = self.pair()
+        with patch('capture_import.unidentified_pair_collection_entry.persist_unidentified_pair',
+                   side_effect=ReviewedCoinRecoveryRequiredError()):
+            with self.assertRaises(UnidentifiedPairReconciliationRequiredError):
+                save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                    pair_id=uncertain, expected_images=self.store.records()[uncertain]['images'])
+        self.assertEqual(self.store.records()[uncertain]['state'], 'SAVING')
+        with self.assertRaises(PhoneIntakeError):
+            self.store.reserve_unidentified(uncertain, self.collection.storage_path,
+                self.store.records()[uncertain]['images'])
+        pair_id = self.pair((2, 3))
+        with patch.object(self.store, 'complete', side_effect=OSError('state write failed')):
+            with self.assertRaises(UnidentifiedPairReconciliationRequiredError) as failure:
+                save_unidentified_phone_pair(store=self.store, collection=self.collection,
+                    pair_id=pair_id, expected_images=self.store.records()[pair_id]['images'])
+        self.assertIsNotNone(failure.exception.item_id)
+        self.assertEqual(PhoneIntake(str(self.store.path)).records()[pair_id]['state'], 'SAVING')
+        before = Path(self.collection.storage_path).read_bytes()
+        with self.assertRaises(PhoneIntakeError):
+            save_unidentified_phone_pair(
+                store=PhoneIntake(str(self.store.path)), collection=self.collection,
+                pair_id=pair_id, expected_images=self.store.records()[pair_id]['images'],
+            )
+        self.assertEqual(PhoneIntake(str(self.store.path)).complete(pair_id, self.collection.storage_path), failure.exception.item_id)
+        self.assertEqual(Path(self.collection.storage_path).read_bytes(), before)
+        self.assertEqual(len(CoinCollection(self.collection.storage_path).items), 1)
 
     def test_release_refuses_saving_saved_and_inconsistent_ready_state(self):
         saving = self.pair((0, 1))

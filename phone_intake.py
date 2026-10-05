@@ -116,6 +116,35 @@ class PhoneIntake:
             pair["state"] = "SAVING"
         return intent
 
+    def reserve_unidentified(
+        self, pair_id: str, collection_path: str, expected_images: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Reserve only the exact confirmed roles and bytes shown at final confirmation."""
+        with self._edit() as pairs:
+            pair = pairs.get(pair_id)
+            if pair is None or pair["state"] != "READY" or pair.get("save") is not None:
+                raise PhoneIntakeError("This pair is no longer available for save.")
+            images = pair["images"]
+            if (
+                not isinstance(expected_images, dict)
+                or set(expected_images) != {"front", "reverse"}
+                or images != expected_images
+            ):
+                raise PhoneIntakeError("The confirmed Front/Reverse pair changed; review it again.")
+            for image in images.values():
+                if PhoneIntake.image(image["path"]) != image:
+                    raise PhoneIntakeError("A confirmed pair image changed; save is blocked.")
+            intent = {
+                "collection": str(Path(collection_path).absolute()),
+                "media_base": str(Path.cwd()),
+                "item_id": str(uuid4()),
+                "date_added": datetime.now().isoformat(),
+                "identity": dict.fromkeys(("country", "denomination", "year", "type_design"), ""),
+            }
+            pair["save"] = intent
+            pair["state"] = "SAVING"
+        return intent
+
     @staticmethod
     def _saved_record(pair: dict[str, Any], collection_path: str) -> dict[str, Any] | None:
         intent = pair["save"]
@@ -132,7 +161,7 @@ class PhoneIntake:
         if len(matches) != 1:
             raise PhoneIntakeError("Ambiguous saved collection record.")
         record = matches[0]
-        if record.get("date_added") != intent["date_added"] or any(record.get(k, "") != v for k, v in intent["identity"].items()):
+        if record.get("date_added") != intent["date_added"] or any(record.get(k) != v for k, v in intent["identity"].items()):
             raise PhoneIntakeError("Saved record differs from the reserved review; recovery is blocked.")
         photos = record.get("photos", [])
         for image in pair["images"].values():

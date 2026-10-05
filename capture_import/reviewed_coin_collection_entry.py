@@ -11,7 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
+import json
 from pathlib import Path
+import stat
+from typing import Callable
 from uuid import uuid4
 
 from coin_collection import CoinCollection, CoinItem
@@ -284,6 +287,56 @@ def _persist_reviewed_coin_with_managed_photos(
     item_id: str | None,
     date_added: str | None,
 ) -> CoinItem:
+    return _persist_coin_with_managed_photos(
+        collection=collection,
+        source_package_path=source_package_path,
+        source_coin_id=draft.source_coin_id,
+        build_item=lambda target_id, photos: _build_coin_item(
+            draft=draft, item_id=target_id, date_added=date_added, photos=photos
+        ),
+        managed_image_store=managed_image_store,
+        snapshot_service=snapshot_service,
+        import_lock_path=import_lock_path,
+        item_id=item_id,
+    )
+
+
+def _reserved_item_publication_state(
+    collection_path: str, item_id: str, lock: PackageImportLock
+) -> str:
+    """Read the authoritative collection while the commit lock is still held."""
+    try:
+        lock.verify_ownership()
+        path = Path(collection_path)
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            return "ABSENT"
+        if not stat.S_ISREG(metadata.st_mode):
+            return "UNKNOWN"
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(rows, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get("id"), str)
+            for row in rows
+        ):
+            return "UNKNOWN"
+        return "PRESENT" if any(row["id"] == item_id for row in rows) else "ABSENT"
+    except Exception:
+        return "UNKNOWN"
+
+
+def _persist_coin_with_managed_photos(
+    *,
+    collection: CoinCollection,
+    source_package_path: Path,
+    source_coin_id: str,
+    build_item: Callable[[str, tuple], CoinItem],
+    managed_image_store: ManagedCollectionImageStore,
+    snapshot_service: CapturePackageSnapshotService,
+    import_lock_path: Path,
+    item_id: str | None,
+) -> CoinItem:
+    """Shared guarded media and collection commit for one confirmed two-photo item."""
     import_id = str(uuid4())
     ownership_token = str(uuid4())
     target_id = item_id or str(uuid4())
@@ -314,7 +367,7 @@ def _persist_reviewed_coin_with_managed_photos(
             package,
             import_id=import_id,
             ownership_token=ownership_token,
-            source_to_desktop={draft.source_coin_id: target_id},
+            source_to_desktop={source_coin_id: target_id},
         )
         photos_by_source = managed_image_store.copy(
             snapshot,
@@ -323,19 +376,14 @@ def _persist_reviewed_coin_with_managed_photos(
             created.append,
             import_lock=lock,
         )
-        photos = photos_by_source.get(draft.source_coin_id, ())
+        photos = photos_by_source.get(source_coin_id, ())
         if len(photos) != 2:
             raise ReviewedCoinPersistenceError(
                 "Both reviewed coin images must be retained."
             )
         snapshot.cleanup()
         snapshot = None
-        item = _build_coin_item(
-            draft=draft,
-            item_id=target_id,
-            date_added=date_added,
-            photos=photos,
-        )
+        item = build_item(target_id, photos)
         if not collection.add_item(item, import_lock=lock):
             detail = collection.last_save_error or "collection save failed"
             raise ReviewedCoinPersistenceError(
@@ -345,6 +393,8 @@ def _persist_reviewed_coin_with_managed_photos(
     except Exception as error:
         cleanup_error = None
         if plan is not None:
+            if _reserved_item_publication_state(collection.storage_path, target_id, lock) != "ABSENT":
+                raise ReviewedCoinRecoveryRequiredError() from error
             marker = f"{plan.import_root_relative_path}/{OWNER_FILENAME}"
             try:
                 managed_image_store.cleanup(
