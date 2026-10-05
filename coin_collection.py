@@ -1139,7 +1139,11 @@ class CoinCollection:
         
         for item in self.items:
             # Search in multiple fields
-            searchable_text = f"{item.id} {item.numista_n} {item.reference} {item.title} {item.country} {item.denomination} {item.year} {item.issuer}".lower()
+            searchable_text = (
+                f"{item.id} {item.numista_n} {item.reference} {item.title} "
+                f"{item.country} {item.denomination} {item.year} {item.issuer} "
+                f"{item.type_design or ''} {item.notes or ''} {item.purchase_source or ''}"
+            ).lower()
             
             if query in searchable_text:
                 results.append(item)
