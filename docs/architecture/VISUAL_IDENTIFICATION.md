@@ -165,9 +165,16 @@ designation, distinct from catalog title/reference and general notes. Visual
 review persists the collector's final value only after review and separate save
 confirmation. Missing legacy values load as empty; explicit clearing is supported.
 Original AI proposal values and coverage remain unchanged by corrections.
-Type/design does not change identification-status, Work Queue, provider authority
-or persistence safeguards. The existing item detail/editor exposes the stored
-value; ordinary collection CSV import/export supports the optional column.
+Type/design does not directly count toward identification status or change
+provider authority, Work Queue rules or persistence safeguards. A material
+manual correction of saved country, denomination, year or type/design invalidates
+superseded catalogue/detection metadata at the collection mutation boundary and
+relinquishes Numista replacement ownership. Final status follows existing rules
+after invalidation. Labelled historical notes preserve recorded superseded values
+and existing initial-save review summaries without corroborating them. Case or
+whitespace presentation edits do not trigger this policy; untouched legacy records
+are not repaired. The existing item detail/editor exposes the stored value;
+ordinary collection CSV import/export supports the optional column.
 
 The production desktop may expose a separate, explicit **AI-Assisted Coin
 Images** action. It sends only the operator-selected obverse and reverse image

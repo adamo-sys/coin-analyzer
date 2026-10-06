@@ -65,22 +65,30 @@ class TypeDesignPersistenceTests(unittest.TestCase):
         self.assertEqual(imported.items[-1].type_design, "")
         self.assertEqual(imported.items[-1].notes, "legacy note")
 
-    def test_unrelated_edit_and_clear_preserve_status_queue_and_catalog(self):
+    def test_grade_preserves_catalog_and_material_design_clear_invalidates_it(self):
         item = self.item()
         self.assertTrue(self.collection.add_item(item))
         app = CoinCollectionApp(collection=self.collection)
         tasks = derive_work_queue(self.collection).tasks
-        for updates, expected in (({"grade": "VF"}, "Collector design"), ({"type_design": ""}, "")):
-            current = self.collection.items[0]
-            result = app.update_collection_item(current.id, updates,
-                expected_reference=CollectionItemReference.capture(self.collection, current))
-            self.assertTrue(result.success, result.error)
-            saved = CoinCollection(str(self.path)).items[0]
-            self.assertEqual(saved.type_design, expected)
-            self.assertEqual(saved.identification_status, item.identification_status)
-            self.assertEqual((saved.notes, saved.title, saved.reference, saved.numista_n, saved.comments),
-                             ("notes", "catalog title", "KM1", "123", "comments"))
-            self.assertEqual(derive_work_queue(self.collection).tasks, tasks)
+        result = app.update_collection_item(item.id, {"grade": "VF"},
+            expected_reference=CollectionItemReference.capture(self.collection, item))
+        self.assertTrue(result.success, result.error)
+        self.assertEqual((item.notes, item.title, item.reference, item.numista_n),
+                         ("notes", "catalog title", "KM1", "123"))
+        self.assertEqual(derive_work_queue(self.collection).tasks, tasks)
+        result = app.update_collection_item(item.id, {"type_design": ""},
+            expected_reference=CollectionItemReference.capture(self.collection, item))
+        self.assertTrue(result.success, result.error)
+        saved = CoinCollection(str(self.path)).items[0]
+        self.assertEqual(saved.type_design, "")
+        self.assertEqual(saved.identification_status, item.identification_status)
+        self.assertEqual((saved.title, saved.reference, saved.numista_n, saved.comments),
+                         ("", "", "", "comments"))
+        self.assertIn('"type_design": "Collector design"', saved.notes)
+        self.assertTrue(saved.notes.startswith("notes\n\nSaved identity correction history v1:"))
+        self.assertEqual([t.task_type for t in derive_work_queue(self.collection).tasks],
+                         [t.task_type for t in tasks])
+        self.assertEqual(derive_work_queue(self.collection).tasks[0].display_identity, "Canada · 25 cents · 1967")
 
     def test_native_editor_modifies_and_clears_persisted_value(self):
         try:

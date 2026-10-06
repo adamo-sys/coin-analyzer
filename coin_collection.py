@@ -155,6 +155,54 @@ def truthful_manual_identification_status(values: Mapping[str, Any]) -> Identifi
     return IdentificationStatus.UNIDENTIFIED
 
 
+_MANUAL_IDENTITY_FIELDS = ("country", "denomination", "year", "type_design")
+_SAVED_IDENTITY_HISTORY_FIELDS = (
+    *_MANUAL_IDENTITY_FIELDS, "title", "issuer", "reference", "numista_n",
+    "currency", "face_value", "auto_detected", "detection_confidence",
+    "from_numista", "identification_status",
+)
+
+
+def _saved_identity_correction_updates(
+    before: Mapping[str, Any], after: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return bounded derived changes for one material manual transition.
+
+    History uses recorded values only; raw callers must not supply loader defaults.
+    Presentation comparison has no authority to rewrite stored collector text.
+    """
+    def semantic(value: Any) -> str:
+        return " ".join(str(value or "").split()).casefold()
+
+    if not any(semantic(before.get(name)) != semantic(after.get(name))
+               for name in _MANUAL_IDENTITY_FIELDS):
+        return {}
+    snapshot = {
+        name: value.value if isinstance(value, IdentificationStatus) else value
+        for name in _SAVED_IDENTITY_HISTORY_FIELDS
+        if name in before
+        for value in (before[name],)
+    }
+    history = (
+        "Saved identity correction history v1:\n"
+        "Superseded values; historical, not current identity.\n"
+        "Saving these values did not independently corroborate them.\n"
+        + json.dumps(snapshot, ensure_ascii=False) + "\n"
+        "End saved identity correction history v1."
+    )
+    derived: dict[str, Any] = {
+        "title": "", "issuer": "", "reference": "", "numista_n": "",
+        "currency": "", "face_value": "", "auto_detected": False,
+        "detection_confidence": 0.0, "from_numista": False,
+    }
+    notes = after.get("notes", "") or ""
+    derived["notes"] = notes + ("\n\n" if notes else "") + history
+    derived["identification_status"] = truthful_manual_identification_status(
+        {**after, **derived}
+    )
+    return derived
+
+
 
 class PhotoRole(str, Enum):
     """Structured role for photos attached to a collection item."""
@@ -888,6 +936,7 @@ class CoinCollection:
                     )
 
                 if applied:
+                    before = dict(target)
                     for change in changes:
                         if change.field_name not in applied:
                             continue
@@ -896,6 +945,10 @@ class CoinCollection:
                         else:
                             target[change.field_name] = change.desired_value
 
+                    derived = _saved_identity_correction_updates(before, target)
+                    if "identification_status" in derived:
+                        derived["identification_status"] = derived["identification_status"].value
+                    target.update(derived)
                     prospective_items = [
                         CoinItem.from_dict(row) for row in payload
                     ]
@@ -920,6 +973,12 @@ class CoinCollection:
                                 raise ConditionalCollectionVerificationError(
                                     "Committed collection did not preserve the "
                                     f"desired {change.field_name!r} value."
+                                )
+                        for name, expected in derived.items():
+                            if name not in verified_target or verified_target[name] != expected:
+                                raise ConditionalCollectionVerificationError(
+                                    "Committed collection did not preserve the "
+                                    f"derived {name!r} value."
                                 )
                     except ConditionalCollectionVerificationError:
                         raise
@@ -1029,6 +1088,9 @@ class CoinCollection:
                     for field_name in ACQUISITION_FIELDS:
                         if field_name in updates:
                             normalized_updates[field_name] = normalized_acquisition[field_name]
+                normalized_updates.update(_saved_identity_correction_updates(
+                    vars(item), {**vars(item), **normalized_updates}
+                ))
                 original_values = {
                     key: getattr(item, key)
                     for key in normalized_updates
@@ -1704,13 +1766,6 @@ class CoinCollectionApp:
             for index, photo in enumerate(final_photos):
                 photo.is_primary = index == primary_index
 
-            identity = {
-                name: requested_updates.get(name, getattr(current, name))
-                for name in ("country", "issuer", "denomination", "year", "reference")
-            }
-            requested_updates["identification_status"] = (
-                truthful_manual_identification_status(identity)
-            )
             requested_updates["photos"] = final_photos
             requested_updates["image_path"] = (
                 final_photos[primary_index].path if primary_index is not None else ""

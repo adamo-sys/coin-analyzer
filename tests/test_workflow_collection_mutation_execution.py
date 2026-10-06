@@ -543,6 +543,77 @@ class ConcreteRepositoryCapabilityTests(unittest.TestCase):
     def _repository(self) -> CoinCollection:
         return CoinCollection(str(self.path))
 
+    def test_identity_history_uses_raw_present_values_and_retry_is_write_free(self):
+        self._write([{"id": "record-1", "country": "Oldland", "year": "2020",
+                     "title": 'old "title"\nline', "from_numista": True,
+                     "notes": "unchanged #370", "future_field": {"keep": 1}},
+                    {"id": "record-2", "country": "Other"}])
+        repository = self._repository()
+        changes = (ConditionalCollectionFieldChange("country", "Oldland", "Newland"),
+                   ConditionalCollectionFieldChange("year", "1900", "2020"))
+        with patch("coin_collection.write_json_atomically", wraps=atomic_json.write_json_atomically) as writer:
+            result = repository.mutate_fields_conditionally("record-1", changes)
+        self.assertEqual(writer.call_count, 1)
+        self.assertEqual(result.applied_fields, ("country",))
+        self.assertEqual(result.already_applied_fields, ("year",))
+        row = self._read()[0]
+        self.assertEqual(row["title"], "")
+        self.assertFalse(row["from_numista"])
+        self.assertEqual(row["identification_status"], "PARTIAL")
+        self.assertTrue(row["notes"].startswith("unchanged #370\n\nSaved identity correction history v1:"))
+        history = json.loads(row["notes"].splitlines()[-2])
+        self.assertEqual(list(history), ["country", "year", "title", "from_numista"])
+        self.assertEqual(history, {"country": "Oldland", "year": "2020", "title": 'old "title"\nline', "from_numista": True})
+        self.assertEqual(row["future_field"], {"keep": 1})
+        self.assertEqual(self._read()[1], {"id": "record-2", "country": "Other"})
+        before = self.path.read_bytes()
+        repository = self._repository()
+        with patch("coin_collection.write_json_atomically", side_effect=AssertionError("retry wrote")):
+            repository.mutate_fields_conditionally("record-1", changes)
+        self.assertEqual(self.path.read_bytes(), before)
+
+    def test_structural_and_case_only_requested_writes_do_not_repair_legacy(self):
+        for old, desired in (("", None), (" OLDLAND ", "oldland")):
+            with self.subTest(old=old):
+                self._write([{"id": "record-1", "country": old, "title": "legacy",
+                             "identification_status": "UNIDENTIFIED", "notes": "legacy notes"}])
+                self._repository().mutate_fields_conditionally("record-1", (
+                    ConditionalCollectionFieldChange("country", old, desired),))
+                row = self._read()[0]
+                self.assertEqual(row.get("country"), desired)
+                self.assertEqual(row["title"], "legacy")
+                self.assertEqual(row["notes"], "legacy notes")
+                self.assertEqual(row["identification_status"], "UNIDENTIFIED")
+
+    def test_material_structural_clear_invalidates_and_verifies_every_generated_value(self):
+        for field in ("notes", "title", "issuer", "reference", "numista_n", "currency", "face_value",
+                      "auto_detected", "detection_confidence", "from_numista", "identification_status"):
+            with self.subTest(field=field):
+                self._write([{"id": "record-1", "country": "Oldland", "reference": "old-ref"}])
+                repository = self._repository()
+                original = repository._load_raw_record_for_conditional_mutation
+                calls = 0
+                def tamper(record_id):
+                    nonlocal calls
+                    payload, row = original(record_id)
+                    calls += 1
+                    if calls == 2:
+                        row[field] = "tampered"
+                    return payload, row
+                with patch.object(repository, "_load_raw_record_for_conditional_mutation", side_effect=tamper):
+                    with self.assertRaises(ConditionalCollectionVerificationError):
+                        repository.mutate_fields_conditionally("record-1", (
+                            ConditionalCollectionFieldChange("country", "Oldland", None),))
+                row = self._read()[0]
+                self.assertNotIn("country", row)
+                self.assertEqual(row["identification_status"], "UNIDENTIFIED")
+                self.assertEqual(row["reference"], "")
+                self.assertEqual(row["notes"].count("Saved identity correction history v1:"), 1)
+                before = self.path.read_bytes()
+                self._repository().mutate_fields_conditionally("record-1", (
+                    ConditionalCollectionFieldChange("country", "Oldland", None),))
+                self.assertEqual(self.path.read_bytes(), before)
+
     def test_atomic_multi_field_apply_preserves_unrelated_raw_data(self) -> None:
         self._write(
             [

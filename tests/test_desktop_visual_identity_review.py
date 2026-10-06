@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from dataclasses import replace
 from pathlib import Path
 import tempfile
@@ -284,7 +285,34 @@ class DesktopVisualIdentityReviewTests(unittest.TestCase):
 
         self.assertIsNotNone(reopened)
         self.assertEqual(reopened.year, "1965")
-        self.assertEqual(reopened.notes, original_notes)
+        marker = "\n\nSaved identity correction history v1:\n"
+        original_summary, separator, history = reopened.notes.partition(marker)
+        self.assertEqual(original_summary, original_notes)
+        self.assertEqual(separator, marker)
+        self.assertEqual(reopened.notes.count("Saved identity correction history v1:"), 1)
+        framing = (
+            "Superseded values; historical, not current identity.\n"
+            "Saving these values did not independently corroborate them.\n"
+        )
+        ending = "\nEnd saved identity correction history v1."
+        self.assertTrue(history.startswith(framing))
+        self.assertTrue(history.endswith(ending))
+        self.assertEqual(json.loads(history[len(framing):-len(ending)]), {
+            "country": "United States",
+            "denomination": "1/2 dollar",
+            "year": "1964",
+            "type_design": "Kennedy half dollar",
+            "title": "",
+            "issuer": "",
+            "reference": "",
+            "numista_n": "",
+            "currency": "",
+            "face_value": "",
+            "auto_detected": False,
+            "detection_confidence": 0.0,
+            "from_numista": False,
+            "identification_status": "IDENTIFIED",
+        })
         self.assertIn("Identification review at initial save:", reopened.notes)
         self.assertIn('Year: accepted proposal "1964".', reopened.notes)
         details = CoinCollectionGUI.item_details_text(reopened)
