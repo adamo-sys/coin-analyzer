@@ -227,6 +227,22 @@ It is not a durable authorization token and does not access a repository.
 
 ## Unit 1G - Controlled repository mutation
 
+Saved manual identity correction has bounded internal consequences in
+`CoinCollection`: after exact raw expected/desired classification and whole-command
+conflict rejection, a newly published semantic change to current identity clears
+superseded catalogue/detection metadata, sets `from_numista=False`, appends one
+labelled literal-value historical snapshot to effective notes, and derives status
+from final current identity. Type/design is also an ordinary-edit invalidation
+trigger but does not directly count toward status. The external conditional
+allowlist remains country, denomination and year; generated notes, catalogue and
+status changes are not caller-addressable. Raw history includes present keys only,
+preserves initial-save review summaries, and does not fabricate provenance.
+Requested and derived values publish in one replacement and both are verified.
+Nonmaterial writes and wholly already-applied retries generate no history; the
+latter remain write-free. Verification failure after replacement retains explicit
+uncertainty and performs no compensating rewrite. This policy adds neither a
+migration nor a durable command/approval audit schema.
+
 ### Authoritative store
 
 `CoinCollection` remains the authoritative collection store. JSON remains the

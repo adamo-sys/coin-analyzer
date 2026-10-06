@@ -48,3 +48,30 @@ newer collection. No migration/backfill or transaction-authority change is made.
 No new storage format, recovery/journal redesign, backup behavior, image
 transaction authority, cloud behavior, or visual cancellation changes are
 introduced. Tests use synthetic files and deterministic intervening writes only.
+
+## Material saved identity correction
+
+Ordinary `update_item` and raw `mutate_fields_conditionally` share one private
+transition policy. A difference in country, denomination, year or type/design,
+compared with collapsed whitespace and case folding only, is material. Stored
+collector text is retained verbatim; presentation-only and unrelated edits do
+not invalidate metadata or reconcile untouched legacy records.
+
+One material transition appends a deterministic, labelled superseded-value JSON
+snapshot to effective notes, preserving existing notes and initial-save review
+summaries. It clears title, issuer, reference, Numista number, currency and face
+value, resets detection metadata, and sets `from_numista=False`. Thus a corrected
+specimen joins the existing manual-entry set preserved by Numista replacement.
+The final identification status is derived from current identity after clearing
+these dependencies. Type/design triggers invalidation but does not itself count
+as factual identity in the existing status rules.
+
+Requested and generated fields publish together. Ordinary save failure restores
+all affected in-memory values, including notes and status, and retains existing
+stale-baseline and media rollback safeguards. Conditional commands retain their
+exact three-field external authority and raw comparisons; history includes only
+actually present pre-transition keys. Verification covers the generated fields
+as well as requested values. Already-applied commands generate no history and
+write nothing. Post-publication verification failure reports uncertainty without
+a compensating rewrite; explicit reload precedes retry. No load-time repair,
+new persistence field or reconstructed provenance is introduced.
