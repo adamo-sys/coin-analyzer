@@ -11,6 +11,7 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
+from numbers import Real
 from typing import Any, Dict, List, Mapping, Optional, Set
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
@@ -1615,9 +1616,19 @@ class CoinCollectionApp:
         item_id = self.collection.generate_item_id()
         
         if use_detection and self.current_detection_result:
-            country = self.current_detection_result.get('country', country)
-            denomination = self.current_detection_result.get('denomination', denomination)
-            confidence = self.current_detection_result.get('confidence', 0.0)
+            detected_country = self.current_detection_result.get('country')
+            if isinstance(detected_country, str):
+                country = detected_country
+            detected_denomination = self.current_detection_result.get('denomination')
+            if isinstance(detected_denomination, str):
+                denomination = detected_denomination
+            detected_confidence = self.current_detection_result.get('confidence')
+            confidence = 0.0
+            if isinstance(detected_confidence, Real) and not isinstance(detected_confidence, bool):
+                try:
+                    confidence = float(detected_confidence)
+                except (TypeError, ValueError, OverflowError):
+                    confidence = 0.0
             auto_detected = True
         else:
             confidence = 0.0
@@ -1794,7 +1805,7 @@ class CoinCollectionApp:
         items = self.collection.get_all_items()
         return [item.to_dict() for item in items]
     
-    def export_collection(self, output_path: str = None) -> bool:
+    def export_collection(self, output_path: Optional[str] = None) -> bool:
         """Export collection to CSV."""
         if output_path is None:
             output_path = "data/collection_export.csv"
