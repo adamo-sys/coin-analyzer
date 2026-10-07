@@ -216,8 +216,17 @@ class TestListingConnectors(unittest.TestCase):
         ranking = registry.rank_reports([import_report], engine)
 
         self.assertEqual(ranking.candidate_count, 2)
-        self.assertTrue(ranking.ranked_deals)
-        self.assertTrue(any("Newfoundland" in deal.listing.title for deal in ranking.ranked_deals))
+        # Imported titles preserve source facts, not issue-equivalence authority.
+        self.assertEqual(ranking.ranked_deals, [])
+        self.assertEqual(len(ranking.unranked_deals), 2)
+        self.assertTrue(any("Newfoundland" in deal.listing.title for deal in ranking.unranked_deals))
+        self.assertEqual({deal.listing.source for deal in ranking.unranked_deals},
+                         {listing.source for listing in import_report.listings})
+        for deal in ranking.unranked_deals:
+            self.assertEqual(deal.recommendation, "REVIEW")
+            self.assertIsNone(deal.rank)
+            self.assertIsNone(deal.ranking_score.score)
+        self.assertEqual(sorted(deal.listing.total_cost for deal in ranking.unranked_deals), [70, 85])
 
     def test_report_exports(self):
         self.setUpTemp()

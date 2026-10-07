@@ -1,6 +1,9 @@
+import csv
 import os
 import tempfile
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
 from deal_hunter import DealListing
 from mobile_collection_entry import MobileCollectionEntryEngine
@@ -55,6 +58,47 @@ class TestMobileCollectorCompanion(unittest.TestCase):
         self.assertGreaterEqual(decision.confidence, 0)
         self.assertTrue(decision.top_reasons)
         self.assertIn("Newfoundland", decision.candidate_title)
+
+    def test_quick_decision_presents_unavailable_fair_value(self):
+        # Ordinary title-only input cannot establish a valuation. This catches
+        # numeric formatting or a fabricated zero at the public Mobile path.
+        decision = MobileCollectorCompanion().quick_decision(self.make_listing())
+
+        self.assertEqual(decision.recommendation, "REVIEW")
+        self.assertIn("fair value guidance unavailable", decision.market_intelligence_summary)
+        self.assertNotIn("$0.00", decision.market_intelligence_summary)
+
+    def test_mobile_fair_value_presentation_and_exports_preserve_supported_numbers(self):
+        companion = MobileCollectorCompanion()
+        listing = self.make_listing()
+        enrichment = companion.market_automation.enrich_candidates([listing], "Synthetic presentation fixture")
+        for value, rendered in ((None, "unavailable"), (0, "$0.00"),
+                                (12.5, "$12.50"), (-12.5, "$-12.50")):
+            with self.subTest(value=value):
+                # Supply only the numeric presentation input at the enrichment
+                # boundary. Identity/recommendation remain unresolved.
+                enriched = enrichment.enriched_candidates[0]
+                market_report = replace(enriched.market_report, fair_value=replace(
+                    enriched.market_report.fair_value, expected_value=value
+                ))
+                boundary = replace(enrichment, enriched_candidates=[
+                    replace(enriched, market_report=market_report)
+                ])
+                with patch.object(companion.market_automation, "enrich_candidates", return_value=boundary):
+                    report = companion.generate_report([listing])
+                summary = report.quick_decisions[0].market_intelligence_summary
+                self.assertIn("fair value guidance " + rendered, summary)
+                self.assertEqual(report.quick_decisions[0].recommendation, "REVIEW")
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    csv_path = os.path.join(temp_dir, "mobile.csv")
+                    md_path = os.path.join(temp_dir, "mobile.md")
+                    report.export_csv(csv_path)
+                    report.export_markdown(md_path)
+                    with open(csv_path, newline="", encoding="utf-8") as handle:
+                        rows = list(csv.DictReader(handle))
+                    self.assertTrue(any(summary == row["market_intelligence_summary"] for row in rows))
+                    with open(md_path, encoding="utf-8") as handle:
+                        self.assertIn(report.quick_decisions[0].format_brief(), handle.read())
 
     def test_mobile_collection_context_contains_watchlists_and_priorities(self):
         watchlist = Watchlist("Field Watches", [

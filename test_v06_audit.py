@@ -4,6 +4,9 @@ import unittest
 import tempfile
 import os
 import time
+from unittest.mock import patch
+from acquisition_workflow import AcquisitionDecision
+from focused_collection_intelligence import CollectionIntelligenceResult, ExistingMatch, MatchStatus
 from melt_value_engine import (
     MeltValueEngine,
     ASWReferenceLoader,
@@ -207,31 +210,53 @@ class TestV06MeltValueAudit(unittest.TestCase):
             tax_fees=0.20,
         )
         
-        # Should still work and identify as duplicate
-        self.assertTrue(rec.already_owned)
-        self.assertEqual(rec.recommendation, "Duplicate")
-        self.assertEqual(rec.purchase_verdict, "PASS")
+        # Triplet-only input cannot identify a duplicate; ordinary advice still
+        # returns safely and retains independent acquisition costs.
+        self.assertIsNone(rec.already_owned)
+        self.assertEqual(rec.recommendation, "REVIEW")
+        self.assertEqual(rec.purchase_verdict, "REVIEW")
+        self.assertEqual(rec.landed_cost, 3.2)
     
     def test_buy_advisor_displays_melt_value_as_supporting_factor(self):
         """Test Buy Advisor displays melt value as supporting factor only."""
-        rec = self.buy_advisor.advise(
-            country="Canada",
-            denomination="dime",
-            year="1935",
-            asking_price=5.00,
-            shipping=1.00,
-            tax_fees=0.20,
+        # Explicit supported comparison at the advisor boundary, not authority
+        # inferred from the fixture's triplet. Keep melt calculation and display
+        # real; this does not test or activate positive identity resolution.
+        holding = self.collection.items[0]
+        intelligence = CollectionIntelligenceResult(
+            MatchStatus.ALREADY_OWNED,
+            ExistingMatch(holding.id, "Canada", "dime", "1935", "VF-20"),
+            "SAME_GRADE", "Synthetic supported comparison", "PASS", 80,
         )
+        acquisition = AcquisitionDecision(
+            "ALREADY_OWNED", "Synthetic supported holding", "NOT_ON_WANT_LIST",
+            "NO_UPGRADE", 5.0, 0.0, "PASS", 80, intelligence_result=intelligence,
+        )
+        with patch.object(self.buy_advisor, "_analyze_candidate_with_intelligence", return_value=intelligence), patch.object(
+            self.buy_advisor, "_evaluate_acquisition_workflow", return_value=acquisition
+        ), patch.object(self.buy_advisor, "find_owned_items", return_value=[holding]), patch.object(
+            self.buy_advisor, "find_matching_items", return_value=[]
+        ):
+            rec = self.buy_advisor.advise(
+                country="Canada",
+                denomination="dime",
+                year="1935",
+                asking_price=5.00,
+                shipping=1.00,
+                tax_fees=0.20,
+            )
         
         # Melt value should be available for silver coins
         self.assertTrue(rec.melt_value_available)
         self.assertIsNotNone(rec.melt_value_cad)
         # Melt value should be mentioned in explanation
         self.assertIn("Melt value", rec.explanation)
+        self.assertGreater(rec.melt_value_cad, 0)
+        self.assertEqual(rec.purchase_verdict, "PASS")
     
     def test_buy_advisor_not_driven_by_melt_value(self):
         """Test Buy Advisor recommendations are not driven by melt value alone."""
-        # Test a duplicate scenario - should still be PASS regardless of melt value
+        # A non-silver descriptive candidate cannot establish a duplicate.
         rec = self.buy_advisor.advise(
             country="Argentina",
             denomination="1.0",
@@ -241,8 +266,10 @@ class TestV06MeltValueAudit(unittest.TestCase):
             tax_fees=0.20,
         )
         
-        # Should still be PASS even though it's non-silver (no melt value)
-        self.assertEqual(rec.purchase_verdict, "PASS")
+        self.assertEqual(rec.purchase_verdict, "REVIEW")
+        self.assertIsNone(rec.already_owned)
+        self.assertIsNone(rec.max_rational_bid)
+        self.assertIsNone(rec.melt_value_cad)
     
     def test_upgrade_advisor_still_works(self):
         """Test Upgrade Advisor still works with melt value integration."""
@@ -254,29 +281,46 @@ class TestV06MeltValueAudit(unittest.TestCase):
             candidate_estimate=15.0
         )
         
-        # Should still work and provide a verdict
-        self.assertIsNotNone(rec.verdict)
-        self.assertIn(rec.verdict, ["Strong Upgrade", "Upgrade", "Hold Existing", "Duplicate", "Pass"])
+        # Descriptive grade difference cannot resolve the issue comparison.
+        self.assertEqual(rec.verdict, "REVIEW")
+        self.assertEqual(rec.candidate_grade, "EF-40")
+        self.assertEqual(rec.candidate_estimate, 15.0)
+        self.assertIsNone(rec.upgrade_score)
+        self.assertIsNone(rec.existing_item_id)
     
     def test_upgrade_advisor_displays_melt_value_as_supporting_factor(self):
         """Test Upgrade Advisor displays melt value as supporting factor only."""
-        rec = self.upgrade_advisor.analyze_upgrade(
-            candidate_country="Canada",
-            candidate_denomination="dime",
-            candidate_year="1935",
-            candidate_grade="EF-40",
-            candidate_estimate=15.0
+        # Explicit comparison result at the downstream advisor boundary. The
+        # real focused engine remains unresolved for these descriptive inputs.
+        holding = self.collection.items[0]
+        intelligence = CollectionIntelligenceResult(
+            MatchStatus.BETTER_GRADE_UPGRADE,
+            ExistingMatch(holding.id, "Canada", "dime", "1935", "VF-20"),
+            "BETTER_GRADE", "Synthetic supported comparison", "BUY", 80,
         )
+        with patch("upgrade_advisor.FocusedCollectionIntelligenceEngine") as engine:
+            engine.return_value.analyze_candidate.return_value = intelligence
+            engine.return_value.find_exact_items.return_value = [holding]
+            rec = self.upgrade_advisor.analyze_upgrade(
+                candidate_country="Canada",
+                candidate_denomination="dime",
+                candidate_year="1935",
+                candidate_grade="EF-40",
+                candidate_estimate=15.0
+            )
         
         # Melt value should be available for silver coins
         self.assertIsNotNone(rec.candidate_melt_value_cad)
         self.assertIsNotNone(rec.existing_melt_value_cad)
         # Melt value should be mentioned in explanation
         self.assertIn("Melt Value Analysis", rec.explanation)
+        self.assertGreater(rec.candidate_melt_value_cad, 0)
+        self.assertEqual(rec.candidate_melt_value_cad, rec.existing_melt_value_cad)
+        self.assertEqual(rec.melt_value_improvement, 0)
     
     def test_upgrade_advisor_not_driven_by_melt_value(self):
         """Test Upgrade Advisor recommendations are not driven by melt value alone."""
-        # Test a lower-grade candidate - should still be Hold Existing regardless of melt value
+        # A lower descriptive grade cannot establish a supported hold decision.
         rec = self.upgrade_advisor.analyze_upgrade(
             candidate_country="Canada",
             candidate_denomination="dime",
@@ -285,8 +329,11 @@ class TestV06MeltValueAudit(unittest.TestCase):
             candidate_estimate=5.0
         )
         
-        # Should still be Hold Existing even though it has melt value
-        self.assertEqual(rec.verdict, "Hold Existing")
+        self.assertEqual(rec.verdict, "REVIEW")
+        self.assertEqual(rec.candidate_grade, "G-4")
+        self.assertEqual(rec.candidate_estimate, 5.0)
+        self.assertIsNone(rec.grade_improvement)
+        self.assertIsNone(rec.melt_value_improvement)
     
     def test_non_silver_coins_no_false_melt_values(self):
         """Test non-silver coins do not receive false melt values."""

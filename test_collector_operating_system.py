@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from coin_collection import CoinItem
 from collector_operating_system import (
@@ -13,7 +14,7 @@ from collector_operating_system import (
 from legacy_portfolio_importer import LegacyWantListIntent
 from market_awareness import MarketAwarenessEngine, ObservedPriceRecord
 from photo_vault import PhotoRecord
-from smart_shopping_assistant import ShoppingCandidate
+from smart_shopping_assistant import ShoppingCandidate, ShoppingRecommendation, ShoppingRecommendationReport
 
 
 def make_item(item_id, country, denomination, year, grade, **overrides):
@@ -109,15 +110,23 @@ class TestCollectorOperatingSystem(unittest.TestCase):
         self.assertTrue(home.workflow_steps)
 
     def test_collector_home_reuses_smart_shopping_output(self):
-        home = CollectorHome(
-            self.items,
-            self.want_list,
-            self.candidates,
-            market_awareness_engine=self.market,
-        ).generate_home()
+        # Exercise the consolidation boundary with supported report data rather
+        # than deriving authority from a title or a descriptive observation.
+        supported = ShoppingRecommendation(
+            1, "Synthetic supported opportunity", "BUY", 45, 30, 2, 1,
+            "NOT_ON_WANT_LIST", "Synthetic report boundary", 80, 50, "Synthetic",
+        )
+        shopping = ShoppingRecommendationReport([supported], supported, supported)
+        with patch("collector_operating_system.SmartShoppingAssistant.generate_report", return_value=shopping):
+            home = CollectorHome(
+                self.items,
+                self.want_list,
+                self.candidates,
+                market_awareness_engine=self.market,
+            ).generate_home()
 
-        self.assertIn("Newfoundland 50 cents 1904", home.best_next_purchase)
-        self.assertIn("score", home.best_next_purchase)
+        self.assertEqual(home.best_next_purchase, "Synthetic supported opportunity (BUY, score 45)")
+        self.assertEqual(home.highest_impact_opportunity, "Synthetic supported opportunity (BUY, score 45)")
 
     def test_collection_health_report_combines_existing_engines(self):
         report = CollectionHealthReportEngine(
