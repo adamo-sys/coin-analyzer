@@ -150,6 +150,24 @@ class TestCollectionDashboard(unittest.TestCase):
         self.assertEqual(data.snapshot.total_want_list_items, 1)
         self.assertTrue(data.want_list_priorities)
 
+    def test_quality_improvement_display_withholds_legacy_disposition(self):
+        items = [
+            make_item("a", "Canada", "10 cents", "1911", "F-12"),
+            make_item("b", "Canada", "10 cents", "1911", "EF-40", quantity=3),
+        ]
+        dashboard = CollectionDashboard(items, [make_intent("Canada 10 cents 1911")])
+        data = dashboard.generate_dashboard()
+        panel = data.top_potential_collection_improvements
+        self.assertEqual([row.title for row in panel], ["Acquire Canada 10 cents 1911"])
+        self.assertIn("Explicit WANT_LIST", panel[0].detail)
+        self.assertIn("Human-curated", panel[0].action)
+        # Legacy dashboard metrics remain deferred; omitted advice is not zero evidence.
+        self.assertEqual(data.snapshot.total_upgrade_opportunities, 1)
+        quality_section = dashboard.format_markdown().split("## Top Recommended Actions", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Acquire Canada 10 cents 1911", quality_section)
+        self.assertNotIn("replace weaker", quality_section)
+        self.assertNotIn("Reduce duplicate holdings", quality_section)
+
 
 if __name__ == "__main__":
     unittest.main()

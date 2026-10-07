@@ -6,7 +6,7 @@ import unittest
 
 from collection_dashboard import CollectionDashboard
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
-from coin_collection import CoinItem
+from coin_collection import CoinItem, IdentificationStatus, ItemType
 from legacy_portfolio_importer import LegacyWantListIntent
 
 
@@ -154,6 +154,113 @@ class TestCollectionQualityEngine(unittest.TestCase):
                 self.assertIn("Overall", handle.read())
             with open(md_path, "r", encoding="utf-8") as handle:
                 self.assertIn("# Collection Quality Report", handle.read())
+
+
+class TestRecommendationContainment(unittest.TestCase):
+    def assert_no_disposition(self, actions):
+        text = " ".join(
+            f"{action.action} {action.why_it_matters} {action.expected_impact}"
+            for action in actions
+        ).lower()
+        for phrase in ("upgrade", "replace", "keep current best", "reduce", "sell", "trade", "redundant"):
+            self.assertNotIn(phrase, text)
+        for phrase in ("no duplicates", "no action needed", "no replacement", "optimal"):
+            self.assertNotIn(phrase, text)
+
+    def test_legacy_groups_never_authorize_replacement_or_reduction(self):
+        cases = [
+            ("weak fields", {}, {}, "F-12", "EF-40"),
+            ("unidentified", {"identification_status": IdentificationStatus.UNIDENTIFIED}, {}, "F-12", "EF-40"),
+            ("ineligible identity", {"identification_status": IdentificationStatus.PARTIAL}, {}, "F-12", "EF-40"),
+            ("different types", {"item_type": ItemType.BANKNOTE}, {}, "F-12", "EF-40"),
+            ("grade only", {}, {}, "VF-20", "AU-50"),
+            ("equal grades", {}, {}, "VF-20", "VF-20"),
+            ("group quantity", {"quantity": 4}, {"quantity": 3}, "F-12", "EF-40"),
+        ]
+        for name, first, second, first_grade, second_grade in cases:
+            with self.subTest(name=name):
+                items = [
+                    make_item("a", "Canada", "10 cents", "1911", first_grade, **first),
+                    make_item("b", "Canada", "10 cents", "1911", second_grade, **second),
+                ]
+                engine = CollectionQualityEngine(items)
+                self.assertTrue(engine.intelligence.detect_duplicates())
+                report = engine.generate_report()
+                self.assert_no_disposition(report.recommended_actions)
+                self.assertFalse(any(a.action.startswith("Acquire") for a in report.recommended_actions))
+                # Omitted advice does not turn unavailable authority into a negative metric.
+                self.assertEqual(report.supporting_metrics["duplicate_groups"], 1)
+
+    def test_recorded_quantity_does_not_authorize_reduction(self):
+        engine = CollectionQualityEngine([
+            make_item("a", "Canada", "10 cents", "1911", "VF-20", quantity=5),
+        ])
+        self.assertTrue(engine.intelligence.detect_duplicates())
+        report = engine.generate_report()
+        self.assert_no_disposition(report.recommended_actions)
+        self.assertEqual(report.supporting_metrics["duplicate_groups"], 1)
+
+    def test_upgrade_target_is_omitted_but_matching_explicit_want_is_preserved(self):
+        items = [
+            make_item("a", "Canada", "10 cents", "1911", "F-12"),
+            make_item("b", "Canada", "10 cents", "1911", "EF-40"),
+        ]
+        engine = CollectionQualityEngine(items, [make_intent("Canada 10 cents 1911")])
+        targets = engine.intelligence.generate_want_list(staged_want_list_intents=engine.staged_want_list_intents)
+        self.assertEqual({t.target_type for t in targets}, {"Upgrade Candidate", "Explicit WANT_LIST Target"})
+        report = engine.generate_report()
+        acquisitions = [a for a in report.recommended_actions if a.action.startswith("Acquire")]
+        self.assertEqual(len(acquisitions), 1)
+        self.assertEqual(acquisitions[0].action, "Acquire Canada 10 cents 1911")
+        self.assertIn("Explicit WANT_LIST", acquisitions[0].why_it_matters)
+        self.assert_no_disposition(report.recommended_actions)
+
+    def test_legacy_targets_cannot_crowd_out_explicit_want_before_filtering(self):
+        items = [
+            make_item(f"{year}-{grade}", "Newfoundland", "20 cents", str(year), grade)
+            for year in range(1900, 1912)
+            for grade in ("F-12", "EF-40")
+        ]
+        report = CollectionQualityEngine(items, [make_intent("France 1 franc 2000", priority_score=0)]).generate_report()
+        self.assertEqual([a.action for a in report.recommended_actions], ["Acquire France 1 franc 2000"])
+        self.assertEqual(report.supporting_metrics["priority_targets"], 10)
+        self.assert_no_disposition(report.recommended_actions)
+
+    def test_unrelated_gap_recommendations_remain(self):
+        items = [
+            make_item("a", "Canada", "10 cents", "1911", "F-12"),
+            make_item("b", "Canada", "10 cents", "1911", "EF-40"),
+            make_item("c", "Canada", "10 cents", "1913", "VF-20"),
+        ]
+        report = CollectionQualityEngine(items).generate_report()
+        self.assertEqual({a.action for a in report.recommended_actions}, {
+            "Complete Canada / 10 cents", "Acquire Canada 10 cents 1912",
+        })
+        self.assert_no_disposition(report.recommended_actions)
+
+    def test_exported_recommendations_preserve_containment(self):
+        import csv
+
+        engine = CollectionQualityEngine([
+            make_item("a", "Canada", "10 cents", "1911", "F-12"),
+            make_item("b", "Canada", "10 cents", "1911", "EF-40"),
+        ], [make_intent("France 1 franc 2000")])
+        with tempfile.TemporaryDirectory() as directory:
+            md_path = os.path.join(directory, "quality.md")
+            csv_path = os.path.join(directory, "quality.csv")
+            self.assertTrue(engine.export_markdown(md_path))
+            self.assertTrue(engine.export_csv(csv_path))
+            with open(md_path, encoding="utf-8") as handle:
+                recommendations = handle.read().split("## Recommended Actions\n", 1)[1].split("## Supporting Metrics", 1)[0]
+            self.assertIn("Acquire France 1 franc 2000", recommendations)
+            self.assertNotIn("Acquire Canada 10 cents 1911", recommendations)
+            self.assertNotIn("replace", recommendations.lower())
+            self.assertNotIn("reduce", recommendations.lower())
+            with open(csv_path, encoding="utf-8", newline="") as handle:
+                rows = [row for row in csv.reader(handle) if row[0] == "Recommended Action"]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0][1], "Acquire France 1 franc 2000")
+            self.assertIn("Explicit WANT_LIST", rows[0][3])
 
 
 if __name__ == "__main__":

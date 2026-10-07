@@ -102,12 +102,12 @@ class CollectionQualityEngine:
         series_rows = gap_report["series_rows"]
         duplicates = gap_report["duplicates"]
         upgrade_candidates = gap_report["upgrade_candidates"]
-        want_targets = self.intelligence.generate_want_list(
-            limit=10,
+        want_targets = self.intelligence.generate_acquisition_priorities(
             staged_want_list_intents=self.staged_want_list_intents,
         )
 
-        supporting_metrics = self._supporting_metrics(gap_report, want_targets)
+        # Preserve the legacy metric's ten-target window, independently of advice.
+        supporting_metrics = self._supporting_metrics(gap_report, want_targets[:10])
         category_scores = [
             self._completeness_score(series_rows),
             self._upgrade_score(upgrade_candidates),
@@ -419,7 +419,10 @@ class CollectionQualityEngine:
                 row["suggested_next_acquisitions"],
                 score,
             ))
-        for target in want_targets[:5]:
+        # target_type records origin; do not infer it from labels or grade text.
+        # Filter before limiting so legacy upgrades cannot crowd out explicit wants.
+        advice_targets = [target for target in want_targets if target.target_type != "Upgrade Candidate"]
+        for target in advice_targets[:5]:
             actions.append(QualityRecommendedAction(
                 0,
                 f"Acquire {target.coin_label}",
@@ -427,24 +430,9 @@ class CollectionQualityEngine:
                 target.estimated_impact,
                 int(target.priority_score),
             ))
-        for candidate in upgrade_candidates[:5]:
-            label = f"{candidate['country']} {candidate['denomination']} {candidate['year']}".strip()
-            actions.append(QualityRecommendedAction(
-                0,
-                f"Upgrade {label}",
-                candidate["reason"],
-                f"Keep current best grade {candidate['current_best_grade']} and replace weaker duplicates.",
-                65,
-            ))
-        for duplicate in duplicates[:3]:
-            label = f"{duplicate['country']} {duplicate['denomination']} {duplicate['year']}".strip()
-            actions.append(QualityRecommendedAction(
-                0,
-                f"Reduce duplicate holdings in {label}",
-                f"{duplicate['count']} duplicate holding(s) detected.",
-                "Lower duplicate exposure and focus budget on upgrades or gaps.",
-                45,
-            ))
+        # Legacy groups, grades and quantities provide no replacement/disposition
+        # authority. Omit unsupported actions; this establishes no negative fact
+        # about physical duplication, redundant holdings or replacement needs.
 
         ranked = sorted(actions, key=lambda action: (-action.priority_score, action.action))[:10]
         for index, action in enumerate(ranked, 1):
