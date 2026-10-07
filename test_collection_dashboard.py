@@ -1,5 +1,6 @@
 """Tests for actionable Collection Dashboard."""
 
+import csv
 import os
 import tempfile
 import unittest
@@ -7,7 +8,9 @@ import unittest
 from openpyxl import Workbook
 
 from collection_dashboard import CollectionDashboard, CollectionDashboardData
-from coin_collection import CoinItem
+from coin_collection import CoinItem, IdentificationStatus, ItemType
+from collection_intelligence import CollectionIntelligenceEngine
+from collection_quality import CollectionQualityEngine
 from legacy_portfolio_importer import LegacyWantListIntent
 from session_context import SessionContext
 
@@ -99,7 +102,10 @@ class TestCollectionDashboard(unittest.TestCase):
         data = CollectionDashboard(self.items).generate_dashboard()
 
         self.assertGreaterEqual(data.snapshot.total_upgrade_opportunities, 1)
-        self.assertTrue(any("1911" in item.title for item in data.best_upgrade_opportunities))
+        # Legacy counts remain descriptive; they cannot authorize specimen advice.
+        self.assertEqual(len(data.best_upgrade_opportunities), 1)
+        self.assertIn("unavailable", data.best_upgrade_opportunities[0].title)
+        self.assertEqual(data.best_upgrade_opportunities[0].action, "")
 
     def test_collection_gap_reporting(self):
         data = CollectionDashboard(self.items).generate_dashboard()
@@ -167,6 +173,132 @@ class TestCollectionDashboard(unittest.TestCase):
         self.assertIn("Acquire Canada 10 cents 1911", quality_section)
         self.assertNotIn("replace weaker", quality_section)
         self.assertNotIn("Reduce duplicate holdings", quality_section)
+
+
+class TestDashboardLegacyAuthorityContainment(unittest.TestCase):
+    def assert_contained(self, data):
+        advice = data.top_collection_priorities + data.want_list_priorities
+        text = " ".join(f"{row.title} {row.detail} {row.action}" for row in advice).lower()
+        for phrase in ("keep highest", "keeping best", "replacing lower", "upgrade opportunity:",
+                       "reduce duplicate", "replacement candidate"):
+            self.assertNotIn(phrase, text)
+        self.assertEqual(len(data.best_upgrade_opportunities), 1)
+        limitation = data.best_upgrade_opportunities[0]
+        self.assertIn("unavailable", limitation.title.lower())
+        self.assertIn("do not establish", limitation.detail)
+        self.assertEqual(limitation.action, "")
+        self.assertEqual(limitation.priority, 0)
+        displayed = text + " " + limitation.detail.lower()
+        for phrase in ("no duplicates", "no replacement needed", "no action required",
+                       "holdings are optimal", "all examples are distinct"):
+            self.assertNotIn(phrase, displayed)
+
+    def test_legacy_groups_never_authorize_disposition(self):
+        cases = [
+            ("weak fields", {}, {}, "F-12", "EF-40"),
+            ("unidentified", {"identification_status": IdentificationStatus.UNIDENTIFIED}, {}, "F-12", "EF-40"),
+            ("partial", {"identification_status": IdentificationStatus.PARTIAL}, {}, "F-12", "EF-40"),
+            ("different types", {"item_type": ItemType.BANKNOTE}, {}, "F-12", "EF-40"),
+            ("grade differences", {}, {}, "VG-8", "AU-50"),
+            ("equal grades", {}, {}, "VF-20", "VF-20"),
+            ("multiple records", {}, {}, "", ""),
+            ("recorded quantities", {"quantity": 4}, {"quantity": 3}, "F-12", "EF-40"),
+        ]
+        for name, first, second, low, high in cases:
+            with self.subTest(name=name):
+                items = [make_item("a", "Canada", "10 cents", "1911", low, **first),
+                         make_item("b", "Canada", "10 cents", "1911", high, **second)]
+                engine = CollectionIntelligenceEngine(items)
+                self.assertTrue(engine.detect_duplicates())
+                data = CollectionDashboard(items).generate_dashboard()
+                self.assert_contained(data)
+                self.assertEqual(data.snapshot.total_duplicate_items,
+                                 sum(row["count"] - 1 for row in engine.detect_duplicates()))
+                self.assertEqual(data.snapshot.total_upgrade_opportunities,
+                                 len(engine.detect_upgrade_candidates()))
+                self.assertEqual(data.snapshot.total_collection_items, 2)
+                self.assertEqual(data.quality_report.to_dict(),
+                                 CollectionQualityEngine(items).generate_report().to_dict())
+
+    def test_same_recorded_issue_still_does_not_authorize_disposition(self):
+        fields = {"identification_status": IdentificationStatus.IDENTIFIED,
+                  "issuer": "Canada", "type_design": "Synthetic issue", "numista_n": "12345"}
+        items = [make_item("a", "Canada", "10 cents", "1911", "F-12", **fields),
+                 make_item("b", "Canada", "10 cents", "1911", "EF-40", **fields)]
+        self.assertTrue(CollectionIntelligenceEngine(items).analyze_same_issue_records()["established_groups"])
+        self.assert_contained(CollectionDashboard(items).generate_dashboard())
+
+    def test_single_record_quantity_does_not_authorize_disposition(self):
+        data = CollectionDashboard([make_item("a", "Canada", "10 cents", "1911", "VF-20", quantity=5)]).generate_dashboard()
+        self.assert_contained(data)
+        self.assertEqual(data.snapshot.total_duplicate_items, 4)
+        self.assertEqual(data.snapshot.total_upgrade_opportunities, 0)
+
+    def test_unsafe_targets_cannot_crowd_out_explicit_want_before_limits(self):
+        items = [make_item(f"{year}-{grade}", "Canada", "10 cents", str(year), grade)
+                 for year in range(1900, 1912) for grade in ("F-12", "EF-40")]
+        want = make_intent("France 1 franc 2000")
+        want.priority_score = 0
+        engine = CollectionIntelligenceEngine(items)
+        before = engine.generate_want_list(limit=10, staged_want_list_intents=[want])
+        self.assertTrue(all(target.target_type == "Upgrade Candidate" for target in before))
+        data = CollectionDashboard(items, [want]).generate_dashboard()
+        self.assert_contained(data)
+        for panel in (data.top_collection_priorities, data.want_list_priorities):
+            self.assertEqual([row.title for row in panel], [want.target_coin])
+            self.assertIn("Explicit WANT_LIST", panel[0].detail)
+        self.assertEqual(data.snapshot.total_upgrade_opportunities, 12)
+
+    def test_matching_explicit_want_survives_and_quality_containment_remains(self):
+        items = [make_item("a", "Canada", "10 cents", "1911", "F-12"),
+                 make_item("b", "Canada", "10 cents", "1911", "EF-40")]
+        want = make_intent("Canada 10 cents 1911")
+        data = CollectionDashboard(items, [want]).generate_dashboard()
+        self.assert_contained(data)
+        for panel in (data.top_collection_priorities, data.want_list_priorities):
+            self.assertEqual([row.title for row in panel], [want.target_coin])
+            self.assertIn("Explicit WANT_LIST", panel[0].detail)
+        self.assertEqual([row.action for row in data.quality_report.recommended_actions],
+                         ["Acquire Canada 10 cents 1911"])
+
+    def test_missing_date_priorities_and_want_fallback_remain(self):
+        items = [make_item("a", "Canada", "10 cents", "1910", "F-12"),
+                 make_item("b", "Canada", "10 cents", "1912", "EF-40")]
+        data = CollectionDashboard(items).generate_dashboard()
+        self.assert_contained(data)
+        self.assertTrue(any("nearing completion" in row.title for row in data.top_collection_priorities))
+        self.assertTrue(any("1911" in row.title and row.action == "Review acquisition candidate."
+                            for row in data.want_list_priorities))
+
+    def test_markdown_and_csv_withhold_legacy_advice_preserve_metrics_and_want(self):
+        items = [make_item("a", "Canada", "10 cents", "1911", "F-12"),
+                 make_item("b", "Canada", "10 cents", "1911", "EF-40", quantity=3)]
+        dashboard = CollectionDashboard(items, [make_intent("Canada 10 cents 1911")])
+        markdown = dashboard.format_markdown()
+        self.assertIn("Total duplicate items: 3", markdown)
+        self.assertIn("Total upgrade opportunities: 1", markdown)
+        self.assertIn("Upgrade/replacement advice unavailable", markdown)
+        self.assertIn("Acquire Canada 10 cents 1911", markdown)
+        for phrase in ("Keep highest-grade", "replacing lower-grade", "Upgrade opportunity:", "Reduce duplicate holdings"):
+            self.assertNotIn(phrase, markdown)
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "dashboard.csv")
+            self.assertTrue(dashboard.export_csv(path))
+            with open(path, newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+        for section in ("Top Collection Priorities", "WANT_LIST Priorities"):
+            advice = [row for row in rows if row["Section"] == section]
+            self.assertEqual([row["Title"] for row in advice], ["Canada 10 cents 1911"])
+            self.assertIn("Explicit WANT_LIST", advice[0]["Detail"])
+        upgrade_rows = [row for row in rows if row["Section"] == "Best Upgrade Opportunities"]
+        self.assertEqual(len(upgrade_rows), 1)
+        self.assertIn("unavailable", upgrade_rows[0]["Title"])
+        self.assertEqual(upgrade_rows[0]["Action"], "")
+        quality_actions = [row["Title"] for row in rows if row["Section"] == "Quality Recommended Action"]
+        self.assertEqual(quality_actions, ["Acquire Canada 10 cents 1911"])
+        metrics = {row["Title"]: row["Detail"] for row in rows if row["Section"] == "Snapshot"}
+        self.assertEqual(metrics["total_duplicate_items"], "3")
+        self.assertEqual(metrics["total_upgrade_opportunities"], "1")
 
 
 if __name__ == "__main__":

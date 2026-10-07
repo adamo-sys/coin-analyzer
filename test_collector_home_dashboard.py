@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from backup_manager import BackupManager
 from coin_collection import CoinItem
+from collection_dashboard import CollectionDashboard
 from collection_snapshot import CollectionSnapshotManager
 from collector_home_dashboard import (
     CollectorHomeDashboard,
@@ -55,6 +56,27 @@ def make_intent(target_coin):
 
 
 class TestCollectorHomeDashboard(unittest.TestCase):
+    def test_unchanged_home_fallback_does_not_inherit_legacy_upgrade_advice(self):
+        items = [make_item("a", "Canada", "10 cents", "1911", "F-12"),
+                 make_item("b", "Canada", "10 cents", "1911", "EF-40")]
+        shopping = ShoppingRecommendationReport()
+        for wants in ([], [make_intent("Canada 10 cents 1911")]):
+            with self.subTest(explicit_want=bool(wants)):
+                data = CollectionDashboard(items, wants).generate_dashboard()
+                card = CollectorHomeDashboard._acquisition_focus_card(shopping, data)
+                opportunities = CollectorHomeDashboard._top_opportunities(shopping, data)
+                text = " ".join(card.details + opportunities)
+                self.assertNotIn("Keep highest-grade", text)
+                self.assertNotIn("Upgrade opportunity:", text)
+                self.assertNotIn("replacing lower-grade", text)
+                if wants:
+                    self.assertIn("Explicit WANT_LIST", text)
+                    self.assertIn("Canada 10 cents 1911", text)
+                else:
+                    self.assertEqual(card.details, [])
+                    self.assertEqual(opportunities, [])
+                self.assertEqual(data.snapshot.total_upgrade_opportunities, 1)
+
     def setUp(self):
         self.items = [
             make_item("1", "Newfoundland", "20 cents", "1900", "F-12"),

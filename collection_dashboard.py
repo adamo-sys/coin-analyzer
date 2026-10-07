@@ -120,10 +120,14 @@ class CollectionDashboard:
         )
 
         series_completion = self._series_completion(gap_report["series_rows"])
-        want_targets = self.intelligence.generate_want_list(
-            limit=10,
-            staged_want_list_intents=self.staged_want_list_intents,
-        )
+        # target_type records origin. Filter before any dashboard limit so
+        # legacy upgrades cannot authorize purchases or crowd out explicit wants.
+        want_targets = [
+            target for target in self.intelligence.generate_acquisition_priorities(
+                staged_want_list_intents=self.staged_want_list_intents,
+            )
+            if target.target_type != "Upgrade Candidate"
+        ][:10]
         quality_report = CollectionQualityEngine(
             self.items,
             self.staged_want_list_intents,
@@ -376,13 +380,7 @@ class CollectionDashboard:
                 priority=target.priority_score,
                 action="Evaluate as next acquisition target.",
             ))
-        for upgrade in upgrades[:2]:
-            priorities.append(DashboardItem(
-                title=f"{upgrade['country']} {upgrade['denomination']} {upgrade['year']}",
-                detail=upgrade["reason"],
-                priority=60,
-                action="Consider keeping best grade and replacing lower-grade duplicates.",
-            ))
+        # Legacy groups and grade ordering establish no keep/replace preference.
         return sorted(priorities, key=lambda item: (-item.priority, item.title))[:8]
 
     def _last_mobile_recommendation(self) -> Optional[DashboardItem]:
@@ -419,15 +417,12 @@ class CollectionDashboard:
         )
 
     def _upgrade_panel(self, upgrades) -> List[DashboardItem]:
-        rows = []
-        for upgrade in upgrades[:8]:
-            rows.append(DashboardItem(
-                title=f"{upgrade['country']} {upgrade['denomination']} {upgrade['year']}",
-                detail=f"Current best grade: {upgrade['current_best_grade']}",
-                priority=60,
-                action=upgrade["reason"],
-            ))
-        return rows
+        # Withheld advice is unavailable authority, not evidence of no duplicates
+        # or no replacement need. Descriptive counts remain in the snapshot.
+        return [DashboardItem(
+            title="Upgrade/replacement advice unavailable",
+            detail="Legacy groups and recorded grades do not establish which holding to keep, replace or acquire.",
+        )]
 
     def _quality_improvement_panel(self, quality_report: CollectionQualityReport) -> List[DashboardItem]:
         rows = []
@@ -459,7 +454,7 @@ class CollectionDashboard:
     def _want_list_panel(self, targets) -> List[DashboardItem]:
         rows = []
         for target in targets:
-            if target.target_type in {"Explicit WANT_LIST", "Want List Target"} or "WANT_LIST" in target.reason:
+            if target.target_type in {"Explicit WANT_LIST Target", "Explicit WANT_LIST", "Want List Target"}:
                 rows.append(DashboardItem(
                     title=target.coin_label,
                     detail=target.reason,
