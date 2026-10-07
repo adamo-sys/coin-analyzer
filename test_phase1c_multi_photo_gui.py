@@ -1,10 +1,242 @@
 import os
 import tempfile
 import unittest
+import copy
+from pathlib import Path
+import tkinter as tk
+from tkinter import ttk
+from unittest.mock import Mock, patch
 from datetime import datetime
+from PIL import Image, ImageDraw
 
-from coin_collection import CoinCollection, CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole
+from coin_collection import CoinCollection, CoinCollectionApp, CoinItem, ItemPhoto, PhotoRole, IdentificationStatus
 from coin_collection_gui import CoinCollectionGUI
+
+
+class PreviewScaleTests(unittest.TestCase):
+    def test_fit_is_bounded_and_preserves_aspect_ratio(self):
+        from coin_collection_gui import SavedPhotoPreview
+        self.assertEqual(SavedPhotoPreview.fit_size((1200, 600), (300, 300)), (300, 150))
+        self.assertEqual(SavedPhotoPreview.fit_size((100, 50), (300, 300)), (100, 50))
+        self.assertEqual(SavedPhotoPreview.fit_size((600, 900), (300, 300)), (200, 300))
+
+
+class SavedPhotoPreviewTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.directory = Path(self.temp.name)
+        self.front = self.directory / "front.png"
+        self.back = self.directory / "reverse.png"
+        image = Image.new("RGB", (1200, 600), "white")
+        ImageDraw.Draw(image).text((100, 100), "SYNTHETIC 1920 A", fill="black")
+        image.save(self.front)
+        Image.new("RGB", (600, 900), "green").save(self.back)
+        self.bytes = {path: path.read_bytes() for path in (self.front, self.back)}
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(str(error))
+        self.addCleanup(self.root.destroy)
+        self.root.geometry("300x100")
+        self.collection = CoinCollection(str(self.directory / "collection.json"))
+        self.item = CoinItem("preview", "", "", "", "", "", "collector notes", "2026-10-07",
+            photos=[ItemPhoto(str(self.front), PhotoRole.FRONT, True, "front notes"),
+                    ItemPhoto(str(self.back), PhotoRole.BACK, False, "reverse notes", 1)])
+        self.assertTrue(self.collection.add_item(self.item))
+        self.gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
+        self.gui.root = self.root
+        self.gui.app = CoinCollectionApp(collection=self.collection)
+        self.gui.refresh_collection_list = Mock()
+
+    def widgets(self, parent):
+        for child in parent.winfo_children():
+            yield child
+            yield from self.widgets(child)
+
+    def open_editor(self):
+        self.gui.open_edit_item_window(self.item)
+        self.root.update()
+        self.dialog = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel))
+        self.preview = next(w for w in self.widgets(self.dialog) if hasattr(w, "show_photo"))
+        self.tree = next(w for w in self.widgets(self.dialog) if isinstance(w, ttk.Treeview))
+
+    def button(self, text):
+        return next(w for w in self.widgets(self.dialog) if isinstance(w, ttk.Button) and w.cget("text") == text)
+
+    def select(self, index):
+        self.tree.selection_set(str(index))
+        self.root.update()
+
+    def test_initial_selection_exact_switch_and_read_only_metadata(self):
+        before = copy.deepcopy(vars(self.item))
+        with patch("socket.socket", side_effect=AssertionError("network forbidden")):
+            self.open_editor()
+            self.assertEqual(self.preview.path, str(self.front))
+            self.assertIsNotNone(self.preview.tk_image)
+            self.assertIn("Front", self.preview.caption.get())
+            self.select(1)
+            self.assertEqual(self.preview.path, str(self.back))
+            self.assertEqual(self.preview.source_image.size, (600, 900))
+            self.assertIn("Reverse", self.preview.caption.get())
+        self.assertEqual(vars(self.item), before)
+
+    def test_one_photo_and_no_photo_opening(self):
+        self.item.photos = self.item.photos[:1]
+        self.open_editor()
+        self.assertEqual(self.preview.path, str(self.front))
+        self.assertGreater(self.preview.display_size[0], 0)
+        self.button("Cancel").invoke()
+        self.item.photos = []
+        self.item.image_path = ""
+        self.open_editor()
+        self.assertEqual(self.preview.preview_status, "No photos attached")
+        self.assertIsNone(self.preview.tk_image)
+
+    def test_inscription_zoom_bounds_aspect_and_reset(self):
+        self.open_editor()
+        fit = self.preview.display_size
+        self.button("Zoom In").invoke()
+        larger = self.preview.display_size
+        self.assertGreater(larger[0], fit[0])
+        for _ in range(4):
+            self.button("Zoom In").invoke()
+        self.assertGreaterEqual(self.preview.display_size[0], fit[0] * 3)
+        self.assertAlmostEqual(self.preview.display_size[0] / self.preview.display_size[1], 2, places=2)
+        before = self.preview.scale
+        self.button("Zoom Out").invoke()
+        self.assertLess(self.preview.scale, before)
+        for _ in range(40):
+            self.button("Zoom In").invoke()
+        maximum = self.preview.scale
+        self.button("Zoom In").invoke()
+        self.assertEqual(self.preview.scale, maximum)
+        for _ in range(50):
+            self.button("Zoom Out").invoke()
+        self.assertGreater(self.preview.scale, 0)
+        self.button("Reset / Fit").invoke()
+        self.assertEqual(self.preview.display_size, fit)
+        self.assertEqual(self.front.read_bytes(), self.bytes[self.front])
+
+    def test_draft_add_reorder_remove_and_empty_preview(self):
+        self.open_editor()
+        extra = self.directory / "detail.png"
+        Image.new("RGB", (100, 50), "red").save(extra)
+        with patch("coin_collection_gui.filedialog.askopenfilenames", return_value=(str(extra),)):
+            self.button("Add Photos").invoke()
+        self.root.update()
+        self.assertEqual(self.preview.path, str(extra))
+        self.button("Move Up").invoke()
+        self.root.update()
+        self.assertEqual(self.preview.path, str(extra))
+        self.button("Remove").invoke()
+        self.root.update()
+        self.assertEqual(self.preview.path, str(self.back))
+        self.button("Remove").invoke()
+        self.button("Remove").invoke()
+        self.root.update()
+        self.assertIsNone(self.preview.source_image)
+        self.assertIsNone(self.preview.tk_image)
+        self.assertEqual(self.preview.preview_status, "No photos attached")
+        self.assertEqual(len(self.item.photos), 2)
+
+    def test_role_notes_refresh_preserves_image_and_cancel_bytes(self):
+        before = copy.deepcopy(vars(self.item))
+        disk = Path(self.collection.storage_path).read_bytes()
+        self.open_editor()
+        combos = [w for w in self.widgets(self.dialog) if isinstance(w, ttk.Combobox)]
+        role = next(w for w in combos if PhotoRole.FRONT.value in w.cget("values"))
+        role.set(PhotoRole.OTHER.value)
+        role.event_generate("<<ComboboxSelected>>")
+        self.root.update()
+        self.assertIn("Other", self.preview.caption.get())
+        self.assertEqual(self.preview.path, str(self.front))
+        photo_frame = self.tree.master
+        notes = next(w for w in photo_frame.winfo_children() if isinstance(w, ttk.Entry))
+        notes.delete(0, tk.END)
+        notes.insert(0, "draft photo notes")
+        notes.event_generate("<Return>")
+        self.root.update()
+        self.assertEqual(self.preview.path, str(self.front))
+        self.assertEqual(self.preview.source_image.size, (1200, 600))
+        self.button("Zoom In").invoke()
+        self.button("Cancel").invoke()
+        self.assertEqual(vars(self.item), before)
+        self.assertEqual(Path(self.collection.storage_path).read_bytes(), disk)
+        for path, data in self.bytes.items():
+            self.assertEqual(path.read_bytes(), data)
+
+    def test_missing_and_unreadable_do_not_block_edit_or_delete_metadata(self):
+        bad = self.directory / "bad.png"
+        bad.write_bytes(b"unreadable synthetic bytes")
+        for path in (self.directory / "missing.png", bad):
+            with self.subTest(path=path):
+                self.item.photos = [ItemPhoto(str(path), PhotoRole.OTHER, True, "keep notes")]
+                self.item.image_path = ""
+                self.open_editor()
+                self.assertEqual(self.preview.preview_status, "Photo unavailable")
+                self.assertIsNone(self.preview.tk_image)
+                self.assertEqual(self.item.photos[0].notes, "keep notes")
+                self.assertFalse(self.button("Save").instate(("disabled",)))
+                self.button("Remove").invoke()
+                self.root.update()
+                self.assertEqual(self.preview.preview_status, "No photos attached")
+                self.preview.show_photo(ItemPhoto(""))
+                self.assertEqual(self.preview.preview_status, "Photo unavailable")
+                self.preview.show_photo(None)
+                self.assertEqual(self.preview.preview_status, "No photos attached")
+                self.button("Cancel").invoke()
+
+    def test_work_queue_identity_task_opens_same_record_preview(self):
+        self.gui.open_work_queue()
+        window = self.gui._work_queue_window
+        self.root.update()
+        row = next(row for row in window.tree.get_children() if "Confirm identity" in window.tree.item(row)["values"])
+        window.tree.selection_set(row)
+        window.activate_selected_task()
+        self.root.update()
+        dialog = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel) and w.title() == "Edit Item")
+        preview = next(w for w in self.widgets(dialog) if hasattr(w, "show_photo"))
+        self.assertEqual(preview.path, str(self.front))
+        self.assertEqual(self.item.country, "")
+        self.assertEqual(self.item.year, "")
+
+    def test_save_preserves_unresolved_identity_and_refreshes_queue(self):
+        self.item.country = "Canada"
+        self.item.identification_status = IdentificationStatus.PARTIAL
+        self.assertTrue(self.collection.save_collection())
+        self.gui.open_work_queue()
+        window = self.gui._work_queue_window
+        self.root.update()
+        row = next(row for row in window.tree.get_children() if "Confirm identity" in window.tree.item(row)["values"])
+        window.tree.selection_set(row)
+        window.activate_selected_task()
+        self.root.update()
+        self.dialog = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel) and w.title() == "Edit Item")
+        with patch("coin_collection_gui.messagebox.showinfo"), patch("socket.socket", side_effect=AssertionError("network forbidden")):
+            self.button("Save").invoke()
+        self.root.update()
+        self.assertEqual(self.item.identification_status, IdentificationStatus.PARTIAL)
+        self.assertEqual(self.item.year, "")
+        self.assertEqual(window.status_var.get(), "Saved. This task still needs attention.")
+        self.gui.refresh_collection_list.assert_called_once()
+        for path, data in self.bytes.items():
+            self.assertEqual(path.read_bytes(), data)
+
+    def test_stale_reference_and_save_failure_keep_editor_open(self):
+        self.open_editor()
+        before = copy.deepcopy(vars(self.item))
+        with patch("coin_collection.write_json_atomically", side_effect=OSError("synthetic write failure")), patch("coin_collection_gui.messagebox.showerror") as error:
+            self.button("Save").invoke()
+            self.assertTrue(error.called)
+        self.assertEqual(vars(self.item), before)
+        self.assertTrue(self.dialog.winfo_exists())
+        self.collection.items = [copy.deepcopy(self.item)]
+        with patch("coin_collection_gui.messagebox.showerror") as error:
+            self.button("Save").invoke()
+            self.assertTrue(error.called)
+        self.assertTrue(self.dialog.winfo_exists())
+        self.gui.refresh_collection_list.assert_not_called()
 
 
 class Phase1CMultiPhotoGuiTests(unittest.TestCase):
