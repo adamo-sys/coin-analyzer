@@ -119,9 +119,10 @@ class TestSeriesTracker(unittest.TestCase):
         candidate = CandidateItem("Newfoundland", "20 cents", "1899", grade="VF-20", asking_price=100)
         report = AcquisitionImpactEngine(self.items, [make_intent("Newfoundland 20 cents 1899")]).evaluate(candidate)
 
-        self.assertEqual(report.series_name, "Newfoundland 20 Cents")
-        self.assertNotEqual(report.series_priority_after, 0)
-        self.assertEqual(report.series_priority_delta, report.series_priority_after - report.series_priority_before)
+        for name in ("series_name", "series_priority_before", "series_priority_after", "series_priority_delta"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertIsNone(report.impact_score)
+        self.assertTrue(report.recommendation_reasoning)
 
     def test_export_support(self):
         tracker = SeriesTracker(self.items, [make_intent("Newfoundland 20 cents 1899")])

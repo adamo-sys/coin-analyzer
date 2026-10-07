@@ -235,11 +235,11 @@ class DealHunterResult:
     listing: DealListing
     parsed_candidate: ParsedDealCandidate
     collection_status: str
-    priority_score: int
+    priority_score: Optional[int]
     liquidity_score: int
-    collection_fit_score: int
+    collection_fit_score: Optional[int]
     risk_score: int
-    max_rational_price: float
+    max_rational_price: Optional[float]
     recommendation: str
     counterargument: str
     reasons: List[str] = field(default_factory=list)
@@ -303,18 +303,22 @@ class DealHunterReport:
             return "\n".join(lines) + "\n"
         for index, result in enumerate(self.results, start=1):
             parsed = result.parsed_candidate
+            priority = result.priority_score if result.priority_score is not None else "unavailable"
+            fit = result.collection_fit_score if result.collection_fit_score is not None else "unavailable"
+            max_price = f"{result.max_rational_price:.2f}" if result.max_rational_price is not None else "unavailable"
+            position = " (unranked; listing order)" if result.priority_score is None else ""
             lines.extend([
-                f"## {index}. {result.listing.title}",
+                f"## {index}. {result.listing.title}{position}",
                 "",
                 f"- Recommendation: {result.recommendation}",
                 f"- Total cost CAD: {result.listing.total_cost:.2f}",
                 f"- Collection status: {result.collection_status}",
                 f"- Parsed candidate: {' '.join(part for part in [parsed.country, parsed.year, parsed.denomination, parsed.grade, parsed.certifier] if part)}",
-                f"- Priority score: {result.priority_score}",
+                f"- Priority score: {priority}",
                 f"- Liquidity score: {result.liquidity_score}",
-                f"- Collection-fit score: {result.collection_fit_score}",
+                f"- Collection-fit score: {fit}",
                 f"- Risk score: {result.risk_score}",
-                f"- Max rational price CAD: {result.max_rational_price:.2f}",
+                f"- Max rational price CAD: {max_price}",
                 f"- Risk flags: {', '.join(result.risk_flags) if result.risk_flags else 'None'}",
                 f"- Counterargument: {result.counterargument}",
                 "",
@@ -363,6 +367,9 @@ class DealHunterReport:
             for result in self.results:
                 row = result.to_dict()
                 row.pop("parsed_candidate", None)
+                for key in ("priority_score", "collection_fit_score", "max_rational_price"):
+                    if row[key] is None:
+                        row[key] = "unavailable"
                 writer.writerow(row)
         return True
 
@@ -418,27 +425,56 @@ class DealHunter:
                 candidate=candidate,
             )
         ], include_want_list_targets=False)
-        shopping = shopping_report.best_next_purchase
+        shopping = shopping_report.recommendations[0] if shopping_report.recommendations else None
+        # Every upstream containment boundary is authoritative. Descriptive
+        # parsing, price, interest and independent risk cannot supply identity.
+        if shopping is not None:
+            shopping.contain_authority()
+        contained = (
+            listing_analysis.recommendation == "REVIEW"
+            or (listing_analysis.acquisition_decision is not None
+                and not SmartShoppingAssistant._advice_available(listing_analysis.acquisition_decision, impact))
+            or not SmartShoppingAssistant._advice_available(acquisition, impact)
+            or acquisition.recommendation == "REVIEW"
+            or acquisition.collection_intelligence_status == MatchStatus.NEEDS_REVIEW.value
+            or acquisition.max_rational_price is None
+            or impact.impact_score is None
+            or shopping is None
+            or shopping.recommendation_status == "REVIEW"
+            or shopping.opportunity_score is None
+            or shopping.rank is None
+            or shopping_report.best_next_purchase is None
+        )
         parsed = self.parse_listing(listing, candidate)
         warnings = _dedupe(list(listing.input_warnings) + list(acquisition.warning_flags) + self._risk_warnings(listing, parsed, candidate, acquisition.collection_intelligence_status))
         risk_flags = self._risk_flags(listing, parsed, candidate, acquisition.collection_intelligence_status, warnings)
-        reasons = self._reasons(listing, parsed, acquisition, impact, shopping)
+        reasons = self._reasons(listing, parsed, acquisition, impact, shopping, contained)
         liquidity = self._liquidity_score(listing, parsed)
-        fit = self._collection_fit_score(acquisition.collection_intelligence_status, impact.impact_score, parsed)
         risk = self._risk_score(listing, parsed, warnings, risk_flags)
-        priority = self._priority_score(shopping.opportunity_score if shopping else 0, impact.impact_score, liquidity, fit, risk, parsed, acquisition.collection_intelligence_status)
-        counterargument = self._counterargument(listing, acquisition.collection_intelligence_status, risk, warnings, risk_flags)
-        recommendation = self._recommendation(acquisition.recommendation, priority, fit, risk, listing, counterargument, warnings, risk_flags)
+        status = MatchStatus.NEEDS_REVIEW.value if contained else acquisition.collection_intelligence_status
+        counterargument = self._counterargument(listing, status, risk, warnings, risk_flags)
+        if contained:
+            # Do not calculate a hidden composite or neutralize missing inputs.
+            fit = None
+            priority = None
+            recommendation = "REVIEW"
+        elif shopping is not None:
+            fit = self._collection_fit_score(status, impact.impact_score, parsed)
+            priority = self._priority_score(shopping.opportunity_score, impact.impact_score, liquidity, fit, risk, parsed, status)
+            recommendation = self._recommendation(acquisition.recommendation, priority, fit, risk, listing, counterargument, warnings, risk_flags)
+        else:
+            fit = priority = None
+            recommendation = "REVIEW"
 
         return DealHunterResult(
             listing=listing,
             parsed_candidate=parsed,
-            collection_status=self._collection_status(acquisition.collection_intelligence_status),
+            collection_status=self._collection_status(status),
             priority_score=priority,
             liquidity_score=liquidity,
             collection_fit_score=fit,
             risk_score=risk,
-            max_rational_price=acquisition.max_rational_price,
+            max_rational_price=None if contained else acquisition.max_rational_price,
             recommendation=recommendation,
             counterargument=counterargument,
             reasons=reasons,
@@ -448,8 +484,16 @@ class DealHunter:
 
     def generate_report(self, listings: Iterable[DealListing]) -> DealHunterReport:
         results = [self.analyze_listing(listing) for listing in listings]
-        results = sorted(results, key=lambda row: (-row.priority_score, row.risk_score, row.listing.total_cost, row.listing.title))
-        return DealHunterReport(results)
+        def ranking_key(row: DealHunterResult) -> tuple[int, int, float, str]:
+            score = row.priority_score
+            assert score is not None
+            return (-score, row.risk_score, row.listing.total_cost, row.listing.title)
+        ranked = sorted(
+            [row for row in results if row.priority_score is not None],
+            key=ranking_key,
+        )
+        unranked = [row for row in results if row.priority_score is None]
+        return DealHunterReport(ranked + unranked)
 
     @staticmethod
     def import_csv(input_path: str) -> List[DealListing]:
@@ -587,12 +631,13 @@ class DealHunter:
             score += 8
         return min(100, score)
 
-    def _collection_fit_score(self, status: str, impact_score: int, parsed: ParsedDealCandidate) -> int:
+    def _collection_fit_score(self, status: str, impact_score: Optional[int], parsed: ParsedDealCandidate) -> Optional[int]:
+        if status == MatchStatus.NEEDS_REVIEW.value or impact_score is None:
+            return None
         score = {
             MatchStatus.WANT_LIST_MATCH.value: 82,
             MatchStatus.BETTER_GRADE_UPGRADE.value: 76,
             MatchStatus.COLLECTION_GAP.value: 68,
-            MatchStatus.NEEDS_REVIEW.value: 42,
             MatchStatus.ALREADY_OWNED.value: 18,
             MatchStatus.SAME_GRADE_DUPLICATE.value: 8,
             MatchStatus.LOWER_GRADE_DUPLICATE.value: 3,
@@ -625,7 +670,9 @@ class DealHunter:
         score += 12 if RISK_RAW_OVERGRADED in flags else 0
         return max(0, min(100, score))
 
-    def _priority_score(self, shopping_score: int, impact_score: int, liquidity: int, fit: int, risk: int, parsed: ParsedDealCandidate, status: str) -> int:
+    def _priority_score(self, shopping_score: Optional[int], impact_score: Optional[int], liquidity: int, fit: Optional[int], risk: int, parsed: ParsedDealCandidate, status: str) -> Optional[int]:
+        if status == MatchStatus.NEEDS_REVIEW.value or shopping_score is None or impact_score is None or fit is None:
+            return None
         score = max(shopping_score, impact_score)
         score += fit // 3
         score += liquidity // 4
@@ -714,27 +761,31 @@ class DealHunter:
             return True
         return any(token in text for token in [" ms60", " ms61", " ms62", " ms63", " ms64", " ms65", " au50", " au55", " au58"])
 
-    def _reasons(self, listing: DealListing, parsed: ParsedDealCandidate, acquisition: Any, impact: Any, shopping: Any) -> List[str]:
+    def _reasons(self, listing: DealListing, parsed: ParsedDealCandidate, acquisition: Any, impact: Any, shopping: Any, contained: bool = False) -> List[str]:
         reasons = []
+        if contained:
+            reasons.append("Manual review required: identity-dependent deal advice unavailable")
         if acquisition.want_list_status == "ON_WANT_LIST":
             reasons.append("Explicit WANT_LIST match")
-        if acquisition.collection_intelligence_status == MatchStatus.COLLECTION_GAP.value:
+        if not contained and acquisition.collection_intelligence_status == MatchStatus.COLLECTION_GAP.value:
             reasons.append("Fills a collection gap")
-        if acquisition.collection_intelligence_status == MatchStatus.BETTER_GRADE_UPGRADE.value:
+        if not contained and acquisition.collection_intelligence_status == MatchStatus.BETTER_GRADE_UPGRADE.value:
             reasons.append("Potential upgrade over current holding")
         if parsed.country == "Newfoundland":
-            reasons.append("Newfoundland priority")
+            reasons.append("Newfoundland collector interest")
         if "silver" in parsed.keywords or parsed.denomination in {"10 cents", "25 cents", "50 cents", "dollar"} and parsed.country == "Canada":
-            reasons.append("Canadian silver priority")
+            reasons.append("Canadian silver collector interest")
         if parsed.year == "1859" and "cent" in parsed.denomination:
-            reasons.append("1859 Large Cent priority")
+            reasons.append("1859 Large Cent collector interest")
         if "banknote" in parsed.keywords:
             reasons.append("Canadian banknote target")
         if parsed.certifier:
             reasons.append(f"Slabbed/certified by {parsed.certifier}")
-        if impact.impact_score:
+        if not contained and impact.impact_score:
             reasons.append(f"Acquisition impact score {impact.impact_score}")
-        if shopping:
+        if impact.market_context_summary and impact.market_context_summary != "No local observation context available.":
+            reasons.append(impact.market_context_summary)
+        if shopping and not contained:
             reasons.extend(shopping.reasons[:3])
         return _dedupe(reasons)
 
@@ -756,7 +807,9 @@ class DealHunter:
             points.append("better opportunities may exist at the same budget")
         return "; ".join(points) if points else "No major counterargument beyond normal manual review."
 
-    def _recommendation(self, base: str, priority: int, fit: int, risk: int, listing: DealListing, counterargument: str, warnings: List[str], risk_flags: Optional[List[str]] = None) -> str:
+    def _recommendation(self, base: str, priority: Optional[int], fit: Optional[int], risk: int, listing: DealListing, counterargument: str, warnings: List[str], risk_flags: Optional[List[str]] = None) -> str:
+        if base == "REVIEW" or priority is None or fit is None:
+            return "REVIEW"
         flags = set(risk_flags or [])
         if RISK_UNCLEAR_CURRENCY in flags:
             return "REVIEW" if fit >= 45 else "PASS"
@@ -772,8 +825,6 @@ class DealHunter:
             return "WATCH"
         if base == "PASS":
             return "PASS"
-        if base == "REVIEW":
-            return "REVIEW"
         if base == "NEGOTIATE":
             return "NEGOTIATE"
         if any("high shipping" in warning.lower() for warning in warnings):

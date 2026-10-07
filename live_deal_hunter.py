@@ -437,9 +437,13 @@ class LiveDealHunterReport:
         lines.extend(["", "## Market Intelligence", ""])
         if self.market_intelligence_reports:
             for report in self.market_intelligence_reports:
+                expected_value = (
+                    "unavailable" if report.fair_value.expected_value is None
+                    else f"${report.fair_value.expected_value:.2f}"
+                )
                 lines.append(
                     f"- {report.listing.title}: {report.deal_quality.quality}, "
-                    f"confidence {report.confidence.score}, expected value ${report.fair_value.expected_value:.2f}"
+                    f"confidence {report.confidence.score}, expected value {expected_value}"
                 )
         else:
             lines.append("- No market intelligence summaries generated.")
@@ -485,11 +489,15 @@ class LiveDealHunterReport:
                     f"score={deal.ranking_score.score}; cost={deal.listing.total_cost:.2f}; url={deal.listing.listing_url}",
                 ])
             for report in self.market_intelligence_reports:
+                expected_value = (
+                    "unavailable" if report.fair_value.expected_value is None
+                    else f"{report.fair_value.expected_value:.2f}"
+                )
                 writer.writerow([
                     "market_intelligence",
                     report.listing.title,
                     report.deal_quality.quality,
-                    f"confidence={report.confidence.score}; expected_value={report.fair_value.expected_value:.2f}",
+                    f"confidence={report.confidence.score}; expected_value={expected_value}",
                 ])
             if self.market_enrichment_report:
                 for row in self.market_enrichment_report.enriched_candidates:

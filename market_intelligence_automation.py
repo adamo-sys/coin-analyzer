@@ -16,6 +16,7 @@ from deal_hunter import DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingReport, RankedDeal
 from market_awareness import MarketAwarenessEngine
 from market_intelligence import MarketIntelligenceEngine, MarketIntelligenceReport
+from opportunity_engine import OpportunityEngine
 
 
 REVIEW_CONFIDENCE_THRESHOLD = 45
@@ -57,7 +58,7 @@ class FairValueEvidenceSummary:
         if count == 0:
             gaps.append("No local comparable sales or observations were available.")
         if report.fair_value.evidence_count == 0:
-            gaps.append("Fair value relies on internal guidance rather than direct comparable records.")
+            gaps.append("No direct comparable records support fair value.")
         return cls(
             comparable_sales_count=count,
             market_awareness_records_used=sum(1 for row in report.comparable_sales if "local observation" in row.sale_type.lower()),
@@ -78,7 +79,7 @@ class FairValueEvidenceSummary:
 
 @dataclass
 class CollectionRelevanceSummary:
-    collection_relevance_score: int = 0
+    collection_relevance_score: Optional[int] = None
     relevance_explanation: str = ""
     collection_goal_advanced: str = "No specific collection objective advanced."
     classifications: List[str] = field(default_factory=list)
@@ -112,11 +113,11 @@ class MarketEnrichedCandidate:
         return self.market_report.deal_quality.quality
 
     @property
-    def fair_value_estimate(self) -> float:
+    def fair_value_estimate(self) -> Optional[float]:
         return self.market_report.fair_value.expected_value
 
     @property
-    def opportunity_confidence(self) -> int:
+    def opportunity_confidence(self) -> Optional[int]:
         return self.market_report.confidence.score
 
     @property
@@ -205,9 +206,9 @@ class MarketEnrichmentBatchReport:
                 f"- Original recommendation: {row.original_recommendation}",
                 f"- Enriched recommendation: {row.escalated_recommendation}",
                 f"- Deal quality: {row.deal_quality}",
-                f"- Confidence: {row.opportunity_confidence}",
-                f"- Expected fair value CAD: {row.fair_value_estimate:.2f}",
-                f"- Collection relevance: {row.collection_relevance.collection_relevance_score}/100",
+                f"- Confidence: {row.opportunity_confidence}" if row.opportunity_confidence is not None else "- Confidence: unavailable",
+                f"- Expected fair value CAD: {row.fair_value_estimate:.2f}" if row.fair_value_estimate is not None else "- Expected fair value CAD: unavailable",
+                f"- Collection relevance: {row.collection_relevance.collection_relevance_score}/100" if row.collection_relevance.collection_relevance_score is not None else "- Collection relevance: unavailable",
                 f"- Classifications: {', '.join(row.collection_relevance.classifications) or 'None'}",
                 f"- Goal advanced: {row.collection_relevance.collection_goal_advanced}",
                 f"- Helps collection: {row.collection_relevance.helps_collection}",
@@ -244,7 +245,7 @@ class MarketEnrichmentBatchReport:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             for row in self.enriched_candidates:
-                writer.writerow(row.to_dict())
+                writer.writerow({key: "unavailable" if value is None else value for key, value in row.to_dict().items()})
         return True
 
 
@@ -308,14 +309,16 @@ class MarketIntelligenceAutomationEngine:
         return self.enrich_candidates(pool.listings, source_name)
 
     def enrich_ranking_report(self, report: DealHunterRankingReport, source_name: str = "Deal Hunter Ranking") -> MarketEnrichmentBatchReport:
-        return self.enrich_candidates(report.ranked_deals, source_name)
+        """Enrich the supplied result pool, retaining unranked REVIEW entries."""
+        return self.enrich_candidates(report.ranked_deals + report.unranked_deals, source_name)
 
     def enrich_live_batch(self, batch: Any, source_name: str = "Live listing batch") -> MarketEnrichmentBatchReport:
         return self.enrich_candidates(batch.listings, source_name or batch.source_name)
 
     def enrich_live_deal_hunter_report(self, report: Any, source_name: str = "Live Deal Hunter") -> MarketEnrichmentBatchReport:
-        candidates = report.ranking_report.ranked_deals if report.ranking_report else []
-        return self.enrich_candidates(candidates, source_name or report.source_name)
+        if report.ranking_report is not None:
+            return self.enrich_ranking_report(report.ranking_report, source_name or report.source_name)
+        return self.enrich_candidates([], source_name or report.source_name)
 
     def _candidate_to_listing(self, candidate: Any) -> Tuple[DealListing, str]:
         if isinstance(candidate, RankedDeal):
@@ -334,38 +337,31 @@ class MarketIntelligenceAutomationEngine:
 
     def _collection_relevance(self, report: MarketIntelligenceReport) -> CollectionRelevanceSummary:
         result = report.deal_result
-        status = result.collection_status.lower()
-        title = result.listing.title.lower()
-        reasons = " ".join(result.reasons).lower()
+        status = result.collection_status.strip().upper()
         classifications: List[str] = []
-        score = max(0, min(100, int(result.collection_fit_score)))
+        available = OpportunityEngine._deal_evidence_available(result) and result.collection_fit_score is not None
+        score = max(0, min(100, int(result.collection_fit_score))) if available and result.collection_fit_score is not None else None
+        if score is None:
+            return CollectionRelevanceSummary(
+                relevance_explanation="Collection comparison unavailable; review required.",
+                collection_goal_advanced="unavailable",
+                helps_collection="Collection benefit unavailable pending supported comparison.",
+                does_not_help_collection="Absence of comparison does not establish lack of collection benefit.",
+            )
         goal = "General collection fit"
-        if "upgrade" in status:
+        if status == "BETTER_GRADE_UPGRADE":
             classifications.append("Upgrade")
             goal = "Upgrade opportunity"
-        if "gap" in status:
+        if status == "COLLECTION_GAP":
             classifications.append("Collection Gap")
             goal = "Date-run or type gap reduction"
-        if "want-list" in status or "want_list" in status or "explicit want_list" in reasons:
+        if status == "ON_WANT_LIST":
             classifications.append("Want-List Match")
             goal = "Explicit WANT_LIST target"
-        if "same-grade" in status or "same grade" in status:
+        if status == "SAME_GRADE_DUPLICATE":
             classifications.append("Same-Grade Duplicate")
-        if "lower-grade" in status or "lower grade" in status:
+        if status == "LOWER_GRADE_DUPLICATE":
             classifications.append("Lower-Grade Duplicate")
-        if "duplicate" in status and not any("Duplicate" in row for row in classifications):
-            classifications.append("Same-Grade Duplicate")
-        if "newfoundland" in title:
-            goal = "Newfoundland completion or upgrade"
-            score = min(100, score + 10)
-        elif "1859" in title and ("large cent" in title or "1 cent" in title):
-            goal = "1859 Canadian Large Cent variety target"
-            score = min(100, score + 10)
-        elif "canada" in title and any(token in title for token in ("5 cents", "10 cents", "25 cents", "50 cents", "silver", "dime", "quarter", "half dollar", "dollar")):
-            goal = "Canadian silver expansion"
-            score = min(100, score + 5)
-        elif "banknote" in title or "bank note" in title:
-            goal = "Canadian banknote target"
         if not classifications and score >= 45:
             classifications.append("General Collection Fit")
         if not classifications and report.deal_quality.quality in {"Excellent", "Good"}:
@@ -396,13 +392,18 @@ class MarketIntelligenceAutomationEngine:
         warnings = list(report.risk_summary.warnings)
         reason = ""
         final = original_recommendation or report.deal_result.recommendation
-        low_confidence = report.confidence.score < REVIEW_CONFIDENCE_THRESHOLD
+        unavailable = (report.confidence.score is None or relevance.collection_relevance_score is None
+                       or report.fair_value.expected_value is None
+                       or not OpportunityEngine._deal_evidence_available(report.deal_result))
+        low_confidence = report.confidence.score is not None and report.confidence.score < REVIEW_CONFIDENCE_THRESHOLD
         weak_evidence = evidence.evidence_quality == "Weak" and report.fair_value.evidence_count == 0
         high_risk = report.risk_summary.severity == "High"
         weak_relevance = "Not Collection Relevant" in relevance.classifications
-        if low_confidence or high_risk or (weak_evidence and weak_relevance):
+        if unavailable or low_confidence or high_risk or (weak_evidence and weak_relevance):
             final = "REVIEW"
             triggers = []
+            if unavailable:
+                triggers.append("unavailable Market Intelligence evidence")
             if low_confidence:
                 triggers.append("low Market Intelligence confidence")
             if high_risk:

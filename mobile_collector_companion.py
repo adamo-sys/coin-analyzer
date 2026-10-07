@@ -559,6 +559,6 @@ class MobileCollectorCompanion:
         if not enriched:
             return "Market intelligence unavailable."
         return (
-            f"{enriched.deal_quality}; fair value guidance ${enriched.fair_value_estimate:.2f}; "
+            f"{enriched.deal_quality}; fair value guidance {("unavailable" if enriched.fair_value_estimate is None else f"${enriched.fair_value_estimate:.2f}")}; "
             f"confidence {enriched.opportunity_confidence}"
         )

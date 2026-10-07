@@ -1,13 +1,11 @@
 """Acquisition impact simulation for collection improvement decisions."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 from acquisition_workflow import AcquisitionDecision, AcquisitionWorkflow
 from collection_intelligence import CollectionIntelligenceEngine
 from collection_quality import CollectionQualityEngine, CollectionQualityReport
-from coin_collection import CoinItem
 from focused_collection_intelligence import CandidateItem, MatchStatus
 from market_awareness import MarketAwarenessEngine
 from series_tracker import SeriesTracker
@@ -17,25 +15,25 @@ from series_tracker import SeriesTracker
 class AcquisitionImpactReport:
     """Structured impact output for a candidate acquisition."""
 
-    impact_score: int
-    collection_impact: str
-    quality_delta: int
-    quality_before: int
-    quality_after: int
-    completion_delta: float
-    completion_before: float
-    completion_after: float
-    upgrade_impact: str
-    upgrade_opportunities_before: int
-    upgrade_opportunities_after: int
-    want_list_impact: str
-    want_list_completed_delta: int
-    want_list_completed_before: int
-    want_list_completed_after: int
-    series_name: str = ""
-    series_priority_before: int = 0
-    series_priority_after: int = 0
-    series_priority_delta: int = 0
+    impact_score: Optional[int]
+    collection_impact: Optional[str]
+    quality_delta: Optional[int]
+    quality_before: Optional[int]
+    quality_after: Optional[int]
+    completion_delta: Optional[float]
+    completion_before: Optional[float]
+    completion_after: Optional[float]
+    upgrade_impact: Optional[str]
+    upgrade_opportunities_before: Optional[int]
+    upgrade_opportunities_after: Optional[int]
+    want_list_impact: Optional[str]
+    want_list_completed_delta: Optional[int]
+    want_list_completed_before: Optional[int]
+    want_list_completed_after: Optional[int]
+    series_name: Optional[str] = None
+    series_priority_before: Optional[int] = None
+    series_priority_after: Optional[int] = None
+    series_priority_delta: Optional[int] = None
     market_context_summary: str = ""
     historical_observed_costs: List[float] = field(default_factory=list)
     recommendation_reasoning: List[str] = field(default_factory=list)
@@ -85,126 +83,49 @@ class AcquisitionImpactEngine:
 
     def evaluate(self, candidate: CandidateItem) -> AcquisitionImpactReport:
         acquisition = AcquisitionWorkflow(self.collection_items, self.want_list_intents).evaluate(candidate)
-        before_quality = CollectionQualityEngine(
-            self.collection_items,
-            self.want_list_intents,
-        ).generate_report()
-        simulated_items = self._simulate_collection(candidate, acquisition)
-        after_quality = CollectionQualityEngine(
-            simulated_items,
-            self.want_list_intents,
-        ).generate_report()
-
-        completion_before = self._series_completion(self.collection_items, candidate)
-        completion_after = self._series_completion(simulated_items, candidate)
-        upgrade_before = self._upgrade_count(self.collection_items)
-        upgrade_after = self._upgrade_count(simulated_items)
-        want_before = self._want_completed_count(self.collection_items)
-        want_after = self._want_completed_count(simulated_items)
-        before_series = SeriesTracker(
-            self.collection_items,
-            self.want_list_intents,
-        ).find_report_for_candidate(candidate)
-        after_series = SeriesTracker(
-            simulated_items,
-            self.want_list_intents,
-        ).find_report_for_candidate(candidate)
-        quality_delta = after_quality.overall_quality_score - before_quality.overall_quality_score
-        completion_delta = round(completion_after - completion_before, 1)
-        want_delta = want_after - want_before
-        series_priority_before = before_series.priority_score if before_series else 0
-        series_priority_after = after_series.priority_score if after_series else 0
-
-        score = self._impact_score(
-            acquisition,
-            quality_delta,
-            completion_delta,
-            upgrade_before,
-            upgrade_after,
-            want_delta,
-        )
+        # CandidateItem has no supported canonical issue identity. Neither a
+        # mapped recommendation nor retained legacy intelligence can authorize
+        # addition/replacement or supply an identity-derived impact component.
+        # Stop before constructing a hypothetical collection or running quality,
+        # series, upgrade, or want-list completion analysis.
         market_context = self.market_awareness_engine.historical_context_for_candidate(
-            candidate,
-            candidate.asking_price or 0.0,
+            candidate, candidate.asking_price or 0.0,
         )
-
         return AcquisitionImpactReport(
-            impact_score=score,
-            collection_impact=self._impact_band(score),
-            quality_delta=quality_delta,
-            quality_before=before_quality.overall_quality_score,
-            quality_after=after_quality.overall_quality_score,
-            completion_delta=completion_delta,
-            completion_before=completion_before,
-            completion_after=completion_after,
-            upgrade_impact=self._upgrade_impact(acquisition, upgrade_before, upgrade_after),
-            upgrade_opportunities_before=upgrade_before,
-            upgrade_opportunities_after=upgrade_after,
-            want_list_impact=self._want_list_impact(want_delta, acquisition),
-            want_list_completed_delta=want_delta,
-            want_list_completed_before=want_before,
-            want_list_completed_after=want_after,
-            series_name=(after_series or before_series).series_name if (after_series or before_series) else "",
-            series_priority_before=series_priority_before,
-            series_priority_after=series_priority_after,
-            series_priority_delta=series_priority_after - series_priority_before,
+            impact_score=None,
+            collection_impact=None,
+            quality_delta=None,
+            quality_before=None,
+            quality_after=None,
+            completion_delta=None,
+            completion_before=None,
+            completion_after=None,
+            upgrade_impact=None,
+            upgrade_opportunities_before=None,
+            upgrade_opportunities_after=None,
+            want_list_impact=None,
+            want_list_completed_delta=None,
+            want_list_completed_before=None,
+            want_list_completed_after=None,
             market_context_summary=market_context.context_summary,
             historical_observed_costs=market_context.observed_costs,
-            recommendation_reasoning=self._reasoning(
-                acquisition,
-                quality_delta,
-                completion_delta,
-                upgrade_before,
-                upgrade_after,
-                want_delta,
-            ),
+            recommendation_reasoning=[
+                "Collection impact unavailable: candidate issue equivalence unresolved",
+                *acquisition.priority_reasons,
+            ],
             acquisition_decision=acquisition,
-            quality_before_report=before_quality,
-            quality_after_report=after_quality,
         )
 
-    def _simulate_collection(self, candidate: CandidateItem, acquisition: AcquisitionDecision) -> List[Any]:
-        simulated = list(self.collection_items)
-        intelligence = acquisition.intelligence_result
-        if not intelligence:
-            simulated.append(self._candidate_to_coin_item(candidate))
-            return simulated
+    def _simulate_collection(
+        self, candidate: CandidateItem, acquisition: AcquisitionDecision,
+    ) -> Optional[List[Any]]:
+        """No current candidate can authorize identity-dependent simulation.
 
-        if intelligence.match_status == MatchStatus.BETTER_GRADE_UPGRADE and intelligence.best_existing_match:
-            match_id = intelligence.best_existing_match.item_id
-            simulated = [
-                item for item in simulated
-                if str(getattr(item, "id", "")) != str(match_id)
-            ]
-
-        if intelligence.match_status in {
-            MatchStatus.LOWER_GRADE_DUPLICATE,
-            MatchStatus.SAME_GRADE_DUPLICATE,
-            MatchStatus.NOT_RELEVANT,
-        }:
-            return simulated
-
-        simulated.append(self._candidate_to_coin_item(candidate))
-        return simulated
-
-    def _candidate_to_coin_item(self, candidate: CandidateItem) -> CoinItem:
-        notes = " ".join([
-            candidate.notes or "",
-            candidate.certifier or "",
-            candidate.certification_number or "",
-        ]).strip()
-        return CoinItem(
-            id="simulated_candidate",
-            image_path="",
-            country=candidate.country,
-            denomination=candidate.denomination,
-            year=candidate.year,
-            grade=candidate.grade,
-            notes=notes,
-            date_added=datetime.now().strftime("%Y-%m-%d"),
-            reference=candidate.variety,
-            title=candidate.type_series,
-        )
+        An ID, grade, legacy match, or free text cannot supply the missing
+        canonical candidate-to-holding relationship. None means unavailable;
+        returning unchanged items would falsely imply a completed simulation.
+        """
+        return None
 
     def _series_completion(self, items: List[Any], candidate: CandidateItem) -> float:
         country = (candidate.country or "").strip()

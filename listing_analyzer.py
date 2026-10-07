@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import urlparse
 
 from acquisition_workflow import AcquisitionDecision, AcquisitionWorkflow
 from acquisition_impact import AcquisitionImpactEngine, AcquisitionImpactReport
-from focused_collection_intelligence import CandidateItem, CollectionIntelligenceResult, MatchStatus
+from focused_collection_intelligence import CandidateItem, CollectionIntelligenceResult
 
 
 def _now_iso() -> str:
@@ -98,12 +98,12 @@ class ListingAnalysisResult:
     duplicate_status: str
     upgrade_status: str
     want_list_status: str
-    collection_impact: str
-    priority_score: int
-    max_rational_price: float
-    acquisition_impact_score: int
-    quality_impact: int
-    completion_impact: float
+    collection_impact: Optional[str]
+    priority_score: Optional[int]
+    max_rational_price: Optional[float]
+    acquisition_impact_score: Optional[int]
+    quality_impact: Optional[int]
+    completion_impact: Optional[float]
     recommendation_reasoning: List[str]
     recommendation: str
     acquisition_decision: AcquisitionDecision
@@ -177,22 +177,61 @@ class ListingAnalyzer:
         intelligence = acquisition.intelligence_result
         warnings = list(listing.validate())
         warnings.extend(acquisition.warning_flags)
+        listing_text = " ".join([listing.title, listing.description, listing.notes])
+        if re.search(r"\b(?:cleaned|damaged|damage|scratched|corroded|holed)\b", listing_text, re.IGNORECASE):
+            warnings.append("Listing describes damage or cleaning; inspect condition manually")
+        if re.search(r"\b(?:lot|multiple coins|bulk)\b", listing_text, re.IGNORECASE):
+            warnings.append("Listing may contain a lot; verify contents and price basis")
+        if re.search(r"\b(?:USD|EUR|GBP|AUD)\b|[£€]", listing_text, re.IGNORECASE):
+            warnings.append("Listing currency requires manual verification; no conversion applied")
 
+        # Listing text supplies descriptors, not canonical issue identity.
+        # Retained raw intelligence cannot establish ownership/non-ownership
+        # or duplication/non-duplication. Positive activation is a later slice.
+        # Independently evaluated impact may contain stale resolved values.
+        # Contain the public report before attaching it or copying consequences.
+        interest_labels = {
+            "High-Priority Series: Newfoundland",
+            "High-Priority Series: 1859 Canadian Large Cent",
+            "High-Priority Series: Canadian silver",
+            "Low-priority world base-metal candidate",
+        }
+        reasoning = [reason for reason in acquisition.priority_reasons if reason in interest_labels]
+        if acquisition.want_list_status == "ON_WANT_LIST":
+            reasoning.append("Explicit WANT_LIST Target")
+        reasoning.append("Collection impact unavailable: candidate issue equivalence unresolved")
+        impact = replace(
+            impact, acquisition_decision=acquisition,
+            impact_score=None, collection_impact=None,
+            quality_delta=None, quality_before=None, quality_after=None,
+            completion_delta=None, completion_before=None, completion_after=None,
+            upgrade_impact=None, upgrade_opportunities_before=None, upgrade_opportunities_after=None,
+            want_list_impact=None, want_list_completed_delta=None,
+            want_list_completed_before=None, want_list_completed_after=None,
+            series_priority_before=None, series_priority_after=None, series_priority_delta=None,
+            recommendation_reasoning=reasoning,
+        )
         return ListingAnalysisResult(
             listing=listing,
             candidate=candidate,
-            ownership_status=self._ownership_status(intelligence),
-            duplicate_status=self._duplicate_status(intelligence),
-            upgrade_status=acquisition.upgrade_status,
+            ownership_status="UNRESOLVED",
+            duplicate_status="UNRESOLVED",
+            upgrade_status="UNRESOLVED",
             want_list_status=acquisition.want_list_status,
-            collection_impact=intelligence.collection_impact if intelligence else "",
-            priority_score=self._priority_score(acquisition),
-            max_rational_price=acquisition.max_rational_price,
+            collection_impact=impact.collection_impact,
+            # The identity component of the composite is unavailable; neither
+            # independent interest nor removing a duplicate penalty supplies it.
+            priority_score=None,
+            # Conflicting mapped fields cannot authorize an identity-based price
+            # or upgrade when the candidate has no canonical issue identity.
+            max_rational_price=None,
             acquisition_impact_score=impact.impact_score,
             quality_impact=impact.quality_delta,
             completion_impact=impact.completion_delta,
             recommendation_reasoning=impact.recommendation_reasoning,
-            recommendation=self._listing_recommendation(acquisition),
+            # Current CandidateItem cannot establish issue equivalence. Price,
+            # interest, and independent risks cannot resolve that review state.
+            recommendation="REVIEW",
             acquisition_decision=acquisition,
             acquisition_impact_report=impact,
             intelligence_result=intelligence,
@@ -270,56 +309,6 @@ class ListingAnalyzer:
         if listing.notes:
             parts.append(listing.notes)
         return "\n".join(parts)
-
-    def _ownership_status(self, intelligence: Optional[CollectionIntelligenceResult]) -> str:
-        if not intelligence:
-            return "UNKNOWN"
-        if intelligence.match_status in {
-            MatchStatus.ALREADY_OWNED,
-            MatchStatus.BETTER_GRADE_UPGRADE,
-            MatchStatus.SAME_GRADE_DUPLICATE,
-            MatchStatus.LOWER_GRADE_DUPLICATE,
-        }:
-            return "OWNED_MATCH"
-        return "NOT_OWNED"
-
-    def _duplicate_status(self, intelligence: Optional[CollectionIntelligenceResult]) -> str:
-        if not intelligence:
-            return "UNKNOWN"
-        if intelligence.match_status == MatchStatus.SAME_GRADE_DUPLICATE:
-            return "SAME_GRADE_DUPLICATE"
-        if intelligence.match_status == MatchStatus.LOWER_GRADE_DUPLICATE:
-            return "LOWER_GRADE_DUPLICATE"
-        if intelligence.match_status == MatchStatus.ALREADY_OWNED:
-            return "ALREADY_OWNED"
-        return "NOT_DUPLICATE"
-
-    def _priority_score(self, acquisition: AcquisitionDecision) -> int:
-        intelligence = acquisition.intelligence_result
-        if not intelligence:
-            return 0
-        score = {
-            MatchStatus.WANT_LIST_MATCH: 100,
-            MatchStatus.BETTER_GRADE_UPGRADE: 85,
-            MatchStatus.COLLECTION_GAP: 70,
-            MatchStatus.NEEDS_REVIEW: 45,
-            MatchStatus.ALREADY_OWNED: 20,
-            MatchStatus.SAME_GRADE_DUPLICATE: 5,
-            MatchStatus.LOWER_GRADE_DUPLICATE: 0,
-            MatchStatus.NOT_RELEVANT: 0,
-        }.get(intelligence.match_status, 0)
-        score += 10 * len(acquisition.priority_reasons)
-        return min(score, 150)
-
-    def _listing_recommendation(self, acquisition: AcquisitionDecision) -> str:
-        base = acquisition.recommendation
-        if base == "BUY":
-            if acquisition.want_list_status == "ON_WANT_LIST" and acquisition.asking_price <= acquisition.max_rational_price * 0.8:
-                return "MUST BUY"
-            if acquisition.asking_price <= acquisition.max_rational_price * 0.95:
-                return "STRONG BUY"
-            return "BUY"
-        return base if base in {"NEGOTIATE", "WATCH", "PASS", "REVIEW"} else "REVIEW"
 
     @staticmethod
     def _dedupe(values: Iterable[str]) -> List[str]:

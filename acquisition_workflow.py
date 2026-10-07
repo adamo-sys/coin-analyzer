@@ -20,9 +20,9 @@ class AcquisitionDecision:
     want_list_status: str
     upgrade_status: str
     asking_price: float
-    max_rational_price: float
+    max_rational_price: Optional[float]
     recommendation: str
-    confidence_score: int
+    confidence_score: Optional[int]
     priority_reasons: List[str] = field(default_factory=list)
     warning_flags: List[str] = field(default_factory=list)
     intelligence_result: Optional[CollectionIntelligenceResult] = None
@@ -57,13 +57,46 @@ class AcquisitionWorkflow:
         """Evaluate a manual candidate and asking price."""
         intelligence = self.intelligence_engine.analyze_candidate(candidate)
         asking_price = float(candidate.asking_price or 0.0)
-        max_price = self._max_rational_price(intelligence, candidate)
         warnings = list(intelligence.warning_flags)
         priority_reasons = list(intelligence.priority_reasons)
 
         if asking_price <= 0:
             warnings.append("Missing asking price")
 
+        # The current candidate API has no canonical issue identity. A retained
+        # classification cannot supply the exact-equivalence evidence withheld
+        # by the current identity boundary.
+        identity_unavailable = self.intelligence_engine.find_exact_items(candidate) is None
+        unavailable_states = {"UNAVAILABLE", "UNRESOLVED", "REVIEW", "NEEDS_REVIEW"}
+        comparisons_unavailable = any(
+            value.split(":", 1)[0].strip().upper() in unavailable_states
+            for value in (intelligence.grade_comparison, intelligence.collection_impact)
+        )
+        if (identity_unavailable or comparisons_unavailable
+                or intelligence.match_status == MatchStatus.NEEDS_REVIEW
+                or intelligence.recommendation.strip().upper() == "REVIEW"
+                or intelligence.confidence_score is None):
+            # Review is a containment boundary: interest cannot supply missing
+            # ownership evidence or authorize the legacy price calculation.
+            unsupported_reasons = {
+                "Collection Gap", "Upgrade Candidate", "Certified candidate may replace raw example",
+            }
+            warnings.append("Owned issue equivalence unresolved: authoritative identity/comparison unavailable")
+            return AcquisitionDecision(
+                collection_intelligence_status=MatchStatus.NEEDS_REVIEW.value,
+                owned_current_match_summary="UNRESOLVED: owned issue equivalence unavailable",
+                want_list_status=intelligence.want_list_status,
+                upgrade_status="UNRESOLVED",
+                asking_price=asking_price,
+                max_rational_price=None,
+                recommendation="REVIEW",
+                confidence_score=None,
+                priority_reasons=self._dedupe([reason for reason in priority_reasons if reason not in unsupported_reasons]),
+                warning_flags=self._dedupe(warnings),
+                intelligence_result=intelligence,
+            )
+
+        max_price = self._max_rational_price(intelligence, candidate)
         if self._is_raw_expensive_candidate(candidate, intelligence, asking_price, max_price):
             warnings.append("Raw expensive candidate requires manual review")
 
@@ -130,7 +163,8 @@ class AcquisitionWorkflow:
 
         if status in {MatchStatus.SAME_GRADE_DUPLICATE, MatchStatus.LOWER_GRADE_DUPLICATE, MatchStatus.NOT_RELEVANT}:
             return "PASS"
-        if status == MatchStatus.NEEDS_REVIEW or intelligence.confidence_score < 75:
+        if (status == MatchStatus.NEEDS_REVIEW or intelligence.confidence_score is None
+                or intelligence.confidence_score < 75):
             return "REVIEW"
         if "Raw expensive candidate requires manual review" in warnings:
             return "REVIEW" if asking_price > max_price * 1.5 else "NEGOTIATE"

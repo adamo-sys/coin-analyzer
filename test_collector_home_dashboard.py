@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from backup_manager import BackupManager
 from coin_collection import CoinItem
@@ -20,7 +21,7 @@ from ocr_experiment import OCRExperiment
 from persistence_manager import AppState, PersistenceManager
 from photo_assisted_entry import PhotoCandidate
 from photo_vault import PhotoRecord
-from smart_shopping_assistant import ShoppingCandidate
+from smart_shopping_assistant import ShoppingCandidate, ShoppingRecommendation, ShoppingRecommendationReport
 
 
 def make_item(item_id, country, denomination, year, grade, **overrides):
@@ -190,12 +191,23 @@ class TestCollectorHomeDashboard(unittest.TestCase):
             self.assertTrue(report.recent_progress)
 
     def test_top_opportunity_card_uses_smart_shopping(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        # Test presentation of explicit supported report data. Title/WANT_LIST
+        # parsing no longer produces ranked advice in the current engines.
+        supported = ShoppingRecommendation(
+            1, "Synthetic supported opportunity", "BUY", 45, 30, 2, 1,
+            "NOT_ON_WANT_LIST", "Synthetic report boundary", 80, 50, "Synthetic",
+        )
+        shopping = ShoppingRecommendationReport([supported], supported, supported)
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "collector_home_dashboard.SmartShoppingAssistant.generate_report", return_value=shopping
+        ):
             report = self.make_dashboard(temp_dir).generate_report()
             card = next(card for card in report.status_cards if card.title == "Acquisition Focus")
 
-            self.assertIn("Newfoundland 50 cents 1904", card.headline)
-            self.assertTrue(report.top_opportunities)
+            self.assertEqual(card.headline, "BUY: Synthetic supported opportunity")
+            self.assertEqual(card.metrics["Opportunity score"], 45)
+            self.assertEqual(card.metrics["Total cost"], 50)
+            self.assertIn("Synthetic supported opportunity", "; ".join(report.top_opportunities))
 
     def test_export_generation(self):
         with tempfile.TemporaryDirectory() as temp_dir:

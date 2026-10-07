@@ -51,7 +51,7 @@ class ExistingMatch:
     notes: str = ""
     match_score: int = 0
     match_type: str = ""
-    variety_match: bool = False
+    variety_match: Optional[bool] = None
     certified: bool = False
 
 
@@ -64,7 +64,7 @@ class CollectionIntelligenceResult:
     grade_comparison: str
     collection_impact: str
     recommendation: str
-    confidence_score: int
+    confidence_score: Optional[int]
     priority_reasons: List[str] = field(default_factory=list)
     warning_flags: List[str] = field(default_factory=list)
     want_list_status: str = "WANT_LIST_UNAVAILABLE"
@@ -139,158 +139,44 @@ class FocusedCollectionIntelligenceEngine:
         self.want_list_intents = list(want_list_intents or [])
 
     def analyze_candidate(self, candidate: CandidateItem) -> CollectionIntelligenceResult:
-        """Classify a candidate against the collection and staged want-list intent."""
+        """Preserve interest without asserting identity from legacy candidates.
+
+        CandidateItem has no canonical design, item type or effective status.
+        Triplets and free text cannot establish v1 issue equivalence. Positive
+        ownership, duplicate and upgrade activation belongs to a later slice.
+        """
         candidate = self._normalize_candidate(candidate)
         warnings = self._candidate_warnings(candidate)
-        priority_reasons = self._candidate_priority_reasons(candidate)
-        matches = self._find_matches(candidate)
-        best_match = matches[0] if matches else None
+        warnings.append("Owned issue equivalence unresolved: canonical candidate identity unavailable")
+        reasons = self._candidate_priority_reasons(candidate)
         want_match = self._matches_want_list(candidate)
-        want_list_status = self._want_list_status(want_match)
         if want_match:
-            priority_reasons.append("Explicit WANT_LIST Target")
-
-        if best_match and best_match.match_score >= self.EXACT_THRESHOLD:
-            status, grade_text, recommendation, impact, extra_reasons, extra_warnings = self._classify_existing_match(
-                candidate, best_match
-            )
-            priority_reasons.extend(extra_reasons)
-            warnings.extend(extra_warnings)
-            confidence = min(100, best_match.match_score + (5 if best_match.variety_match else 0))
-            return CollectionIntelligenceResult(
-                match_status=status,
-                best_existing_match=best_match,
-                grade_comparison=grade_text,
-                collection_impact=impact,
-                recommendation=recommendation,
-                confidence_score=confidence,
-                priority_reasons=self._dedupe(priority_reasons),
-                warning_flags=self._dedupe(warnings),
-                want_list_status=want_list_status,
-            )
-
-        if want_match:
-            return CollectionIntelligenceResult(
-                match_status=MatchStatus.WANT_LIST_MATCH,
-                best_existing_match=best_match,
-                grade_comparison="No exact owned match found.",
-                collection_impact="Candidate matches staged acquisition intent.",
-                recommendation="BUY",
-                confidence_score=85 if not best_match else max(75, best_match.match_score),
-                priority_reasons=self._dedupe(priority_reasons),
-                warning_flags=self._dedupe(warnings),
-                want_list_status=want_list_status,
-            )
-
-        if self._is_collection_gap(candidate):
-            priority_reasons.append("Collection Gap")
-            return CollectionIntelligenceResult(
-                match_status=MatchStatus.COLLECTION_GAP,
-                best_existing_match=best_match,
-                grade_comparison="No exact owned match found.",
-                collection_impact="Candidate fills a collection gap.",
-                recommendation="WATCH",
-                confidence_score=78 if not best_match else max(78, best_match.match_score),
-                priority_reasons=self._dedupe(priority_reasons),
-                warning_flags=self._dedupe(warnings),
-                want_list_status="GAP_NOT_EXPLICITLY_TARGETED" if self.want_list_intents else want_list_status,
-            )
-
-        if best_match and best_match.match_score >= self.REVIEW_THRESHOLD:
-            warnings.append("Close fuzzy match requires manual review")
-            return CollectionIntelligenceResult(
-                match_status=MatchStatus.NEEDS_REVIEW,
-                best_existing_match=best_match,
-                grade_comparison="Potential type-only or fuzzy match.",
-                collection_impact="Candidate may relate to an existing collection area.",
-                recommendation="REVIEW",
-                confidence_score=best_match.match_score,
-                priority_reasons=self._dedupe(priority_reasons),
-                warning_flags=self._dedupe(warnings),
-                want_list_status=want_list_status,
-            )
-
+            reasons.append("Explicit WANT_LIST Target")
         if self._is_low_priority_world_base(candidate):
-            priority_reasons.append("Low-priority world base-metal candidate")
-
+            reasons.append("Low-priority world base-metal candidate")
         return CollectionIntelligenceResult(
-            match_status=MatchStatus.NOT_RELEVANT,
+            match_status=MatchStatus.NEEDS_REVIEW,
             best_existing_match=None,
-            grade_comparison="No owned match found.",
-            collection_impact="No collection impact detected.",
-            recommendation="PASS",
-            confidence_score=70,
-            priority_reasons=self._dedupe(priority_reasons),
+            grade_comparison="UNAVAILABLE",
+            collection_impact="UNAVAILABLE: owned issue equivalence unresolved",
+            recommendation="REVIEW",
+            confidence_score=None,
+            priority_reasons=self._dedupe(reasons),
             warning_flags=self._dedupe(warnings),
-            want_list_status=want_list_status,
+            want_list_status=self._want_list_status(want_match),
         )
 
-    def find_exact_items(self, candidate: CandidateItem) -> List[Any]:
-        """Return exact owned collection items for a manual candidate."""
-        normalized_candidate = self._normalize_candidate(candidate)
-        exact_items = [
-            item
-            for item in self.collection_items
-            if self._match_score(normalized_candidate, item) >= self.EXACT_THRESHOLD
-            and self._variety_matches(normalized_candidate, item)
-        ]
-        return sorted(exact_items, key=lambda item: self._grade_score(getattr(item, "grade", "")), reverse=True)
+    def find_exact_items(self, candidate: CandidateItem) -> Optional[List[Any]]:
+        """Unavailable, not an empty set of owned issues, for legacy candidates."""
+        return None
 
     def _classify_existing_match(
         self, candidate: CandidateItem, match: ExistingMatch
     ) -> Tuple[MatchStatus, str, str, str, List[str], List[str]]:
-        grade_delta = self._grade_score(candidate.grade) - self._grade_score(match.grade)
-        reasons = []
-        warnings = []
-        if candidate.variety and not match.variety_match:
-            warnings.append("Candidate variety differs from or is not proven on existing match")
-            return (
-                MatchStatus.NEEDS_REVIEW,
-                f"Candidate grade {candidate.grade or 'unknown'} vs existing {match.grade or 'unknown'}.",
-                "REVIEW",
-                "Existing type match found, but variety needs review.",
-                reasons,
-                warnings,
-            )
-        if not candidate.grade:
-            return (
-                MatchStatus.ALREADY_OWNED,
-                f"Existing collection grade is {match.grade or 'unknown'}; candidate grade was not provided.",
-                "REVIEW",
-                "Exact owned match found; grade comparison unavailable.",
-                reasons,
-                warnings,
-            )
-        if self._candidate_certified(candidate) and not match.certified and grade_delta >= 0:
-            reasons.append("Certified candidate may replace raw example")
-        if grade_delta > 0:
-            reasons.append("Upgrade Candidate")
-            return (
-                MatchStatus.BETTER_GRADE_UPGRADE,
-                f"Candidate is {grade_delta} grade step(s) higher than existing.",
-                "BUY",
-                "Improves collection quality without adding duplicate exposure.",
-                reasons,
-                warnings,
-            )
-        if grade_delta == 0:
-            reasons.append("Duplicate Risk")
-            return (
-                MatchStatus.SAME_GRADE_DUPLICATE,
-                "Candidate grade matches best existing example.",
-                "PASS",
-                "Adds duplicate exposure without quality improvement.",
-                reasons,
-                warnings,
-            )
-        reasons.append("Duplicate Risk")
+        """A similarity summary cannot authorize issue or grade advice."""
         return (
-            MatchStatus.LOWER_GRADE_DUPLICATE,
-            f"Candidate is {abs(grade_delta)} grade step(s) lower than existing.",
-            "PASS",
-            "Candidate is a downgrade relative to the current holding.",
-            reasons,
-            warnings,
+            MatchStatus.NEEDS_REVIEW, "UNAVAILABLE", "REVIEW", "UNAVAILABLE",
+            [], ["Owned issue equivalence unresolved"],
         )
 
     def _find_matches(self, candidate: CandidateItem) -> List[ExistingMatch]:
@@ -303,7 +189,6 @@ class FocusedCollectionIntelligenceEngine:
             matches,
             key=lambda match: (
                 -match.match_score,
-                -self._grade_score(match.grade),
                 match.country,
                 match.denomination,
                 match.year,
@@ -318,7 +203,6 @@ class FocusedCollectionIntelligenceEngine:
         denom_score = self._text_score(candidate.denomination, item_denom)
         year_score = 100 if candidate.year and candidate.year == item_year else 0
         score = int((country_score * 0.35) + (denom_score * 0.35) + (year_score * 0.25))
-        score += 5 if candidate.variety and self._variety_matches(candidate, item) else 0
         return min(score, 100)
 
     def _to_existing_match(self, candidate: CandidateItem, item: Any, score: int) -> ExistingMatch:
@@ -332,31 +216,21 @@ class FocusedCollectionIntelligenceEngine:
             title=str(getattr(item, "title", "")),
             notes=str(getattr(item, "notes", "")),
             match_score=score,
-            match_type="exact" if score >= self.EXACT_THRESHOLD else "fuzzy",
+            match_type="similarity",
             variety_match=self._variety_matches(candidate, item),
             certified=self._item_certified(item),
         )
 
-    def _is_collection_gap(self, candidate: CandidateItem) -> bool:
-        if not candidate.country or not candidate.denomination or not candidate.year:
-            return False
-        same_area = [
-            item for item in self.collection_items
-            if self._normalize_country(getattr(item, "country", "")) == candidate.country
-            and self._normalize_denomination(getattr(item, "denomination", "")) == candidate.denomination
-        ]
-        if same_area:
-            return not any(self._clean(getattr(item, "year", "")) == candidate.year for item in same_area)
-        same_country = [
-            item for item in self.collection_items
-            if self._normalize_country(getattr(item, "country", "")) == candidate.country
-        ]
-        return bool(same_country and self._is_adam_priority(candidate))
+    def _is_collection_gap(self, candidate: CandidateItem) -> Optional[bool]:
+        """Missing matches do not establish issue absence."""
+        return None
 
     def _matches_want_list(self, candidate: CandidateItem) -> bool:
         candidate_text = self._token_set(" ".join([
             candidate.country, candidate.denomination, candidate.year, candidate.type_series, candidate.variety
         ]))
+        if not candidate_text:
+            return False
         for intent in self.want_list_intents:
             target = getattr(intent, "target_coin", "") or str(intent)
             target_tokens = self._token_set(target)
@@ -443,19 +317,12 @@ class FocusedCollectionIntelligenceEngine:
             return 90
         return int(SequenceMatcher(None, left, right).ratio() * 100)
 
-    def _grade_score(self, grade: str) -> int:
-        return GRADE_HIERARCHY.get(self._normalize_grade(grade), 0)
+    def _grade_score(self, grade: str) -> Optional[int]:
+        return GRADE_HIERARCHY.get(self._normalize_grade(grade))
 
-    def _variety_matches(self, candidate: CandidateItem, item: Any) -> bool:
-        if not candidate.variety:
-            return True
-        haystack = " ".join([
-            str(getattr(item, "reference", "")),
-            str(getattr(item, "title", "")),
-            str(getattr(item, "notes", "")),
-            str(getattr(item, "comments", "")),
-        ]).lower()
-        return candidate.variety in haystack
+    def _variety_matches(self, candidate: CandidateItem, item: Any) -> Optional[bool]:
+        """Free-text variety is not operative identity evidence."""
+        return None
 
     def _candidate_certified(self, candidate: CandidateItem) -> bool:
         text = f"{candidate.certifier} {candidate.certification_number} {candidate.notes}".lower()

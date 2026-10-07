@@ -74,7 +74,11 @@ class TestMobileCollectionEntry(unittest.TestCase):
 
         engine._apply_collection_context(candidate)
 
-        self.assertEqual(candidate.collection_status, "possible upgrade")
+        # A descriptive grade difference cannot establish the same issue.
+        self.assertEqual(candidate.collection_status, "review required")
+        self.assertEqual(candidate.grade_estimate, "EF-40")
+        self.assertIn("unresolved", candidate.collection_context)
+        self.assertIn("Manual review", "; ".join(candidate.warnings))
 
     def test_want_list_and_watchlist_contexts_are_reviewed(self):
         intent = LegacyWantListIntent(

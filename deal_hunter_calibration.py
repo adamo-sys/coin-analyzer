@@ -1,12 +1,14 @@
 """Deal Hunter calibration against offline collector-judgment cases."""
 
 import csv
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 from deal_hunter import DealHunter, DealHunterResult, DealListing
 from deal_hunter_ranking import CandidatePool, DealHunterRankingEngine, RankedDeal
+from opportunity_engine import OpportunityEngine
 from market_awareness import MarketAwarenessEngine
 
 
@@ -97,10 +99,19 @@ class CalibrationCaseResult:
     false_buy: bool = False
     false_pass: bool = False
     false_review: bool = False
-    ranking_miss: bool = False
+    ranking_miss: Optional[bool] = None
     missing_risk_flags: List[str] = field(default_factory=list)
     over_penalized: bool = False
     under_penalized: bool = False
+
+    @property
+    def accepted(self) -> bool:
+        if not self.passed:
+            return False
+        if not self.case.expected_rank_category.strip():
+            return True
+        return (self.ranking_miss is False
+                and DealHunterCalibrationEngine._ranking_miss(self.case.expected_rank_category, self.ranked_deal) is False)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -111,7 +122,7 @@ class CalibrationCaseResult:
             "expected_rank_category": self.case.expected_rank_category,
             "actual_rank": self.ranked_deal.rank if self.ranked_deal else "",
             "ranking_score": self.ranked_deal.ranking_score.score if self.ranked_deal else "",
-            "passed": self.passed,
+            "passed": self.accepted,
             "false_buy": self.false_buy,
             "false_pass": self.false_pass,
             "false_review": self.false_review,
@@ -140,7 +151,7 @@ class DealHunterCalibrationReport:
 
     @property
     def passed_cases(self) -> int:
-        return sum(1 for row in self.case_results if row.passed)
+        return sum(1 for row in self.case_results if row.accepted)
 
     @property
     def failed_cases(self) -> int:
@@ -160,7 +171,7 @@ class DealHunterCalibrationReport:
 
     @property
     def ranking_misses(self) -> List[CalibrationCaseResult]:
-        return [row for row in self.case_results if row.ranking_miss]
+        return [row for row in self.case_results if row.ranking_miss is True]
 
     @property
     def missing_risk_flag_cases(self) -> List[CalibrationCaseResult]:
@@ -198,7 +209,7 @@ class DealHunterCalibrationReport:
             "## Failed Cases",
             "",
         ]
-        failed = [row for row in self.case_results if not row.passed]
+        failed = [row for row in self.case_results if not row.accepted]
         if not failed:
             lines.append("- No failed calibration cases.")
         for row in failed:
@@ -239,7 +250,10 @@ class DealHunterCalibrationReport:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             for row in self.case_results:
-                writer.writerow(row.to_dict())
+                exported = row.to_dict()
+                if row.ranking_miss is None:
+                    exported["ranking_miss"] = "unavailable"
+                writer.writerow(exported)
         return True
 
 
@@ -297,9 +311,12 @@ class DealHunterCalibrationEngine:
         ]
         if missing_risk_flags:
             findings.append(f"Missing risk flags: {', '.join(missing_risk_flags)}")
-        ranking_miss = self._ranking_miss(case.expected_rank_category, ranked)
-        if ranking_miss:
+        ranking_miss = (self._ranking_miss(case.expected_rank_category, ranked)
+                        if OpportunityEngine._deal_evidence_available(deal_result) else None)
+        if ranking_miss is True:
             findings.append(f"Ranking miss for {case.expected_rank_category}")
+        elif ranking_miss is None and case.expected_rank_category.strip():
+            findings.append(f"Ranking comparison unavailable for {case.expected_rank_category}")
         if case.expected_priority_reason:
             all_text = " ".join(deal_result.reasons + deal_result.warnings + [deal_result.counterargument]).lower()
             if case.expected_priority_reason.lower() not in all_text:
@@ -307,7 +324,9 @@ class DealHunterCalibrationEngine:
         findings.extend(self._explanation_findings(expected, deal_result))
         over_penalized = expected in EXPECTED_POSITIVE and actual in {"PASS", "REVIEW"}
         under_penalized = expected in EXPECTED_NEGATIVE and actual in {"BUY", "NEGOTIATE"}
-        passed = not findings and not false_buy and not false_pass and not false_review and not ranking_miss
+        # Cases without a ranking expectation retain their existing acceptance route.
+        ranking_satisfied = not case.expected_rank_category.strip() or ranking_miss is False
+        passed = not findings and not false_buy and not false_pass and not false_review and ranking_satisfied
         return CalibrationCaseResult(
             case=case,
             deal_result=deal_result,
@@ -324,12 +343,21 @@ class DealHunterCalibrationEngine:
         )
 
     @staticmethod
-    def _ranking_miss(expected_rank_category: str, ranked: Optional[RankedDeal]) -> bool:
+    def _ranking_miss(expected_rank_category: str, ranked: Optional[RankedDeal]) -> Optional[bool]:
         category = str(expected_rank_category or "").strip().upper()
         if not category:
-            return False
-        if not ranked:
-            return True
+            return None
+        if ranked is None:
+            return None
+        if (ranked.ranking_score.score is None
+                or ranked.recommendation.strip().upper() in {"REVIEW", "NEEDS_REVIEW", "UNRESOLVED", "UNAVAILABLE"}
+                or not OpportunityEngine._deal_evidence_available(ranked.deal_result)):
+            return None
+        if category == "LOW_PRIORITY":
+            score = ranked.ranking_score.score
+            return None if score is None else score > 35
+        if ranked.rank is None:
+            return None
         if category == "TOP_3":
             return ranked.rank > 3
         if category == "TOP_10":
@@ -338,8 +366,6 @@ class DealHunterCalibrationEngine:
             return ranked.rank <= 10
         if category == "TOP_UNDER_100":
             return not (ranked.rank <= 10 and ranked.listing.total_cost <= 100)
-        if category == "LOW_PRIORITY":
-            return ranked.ranking_score.score > 35
         return False
 
     @staticmethod
@@ -355,7 +381,8 @@ class DealHunterCalibrationEngine:
             if not any(term in text for term in ["duplicate", "irrelevant", "damage", "risk", "weak"]):
                 findings.append("PASS explanation does not clearly describe risk, duplicate, or poor fit")
         if expected == "REVIEW" and result.recommendation == "REVIEW":
-            if not any(term in text for term in ["review", "unclear", "ambiguous", "currency", "lot"]):
+            if not (any(term in text for term in ["review", "unclear", "ambiguous", "currency", "lot"])
+                    or re.search(r"\b(?:unresolved|unavailable)\b", text)):
                 findings.append("REVIEW explanation does not identify uncertainty")
         return findings
 
@@ -366,7 +393,7 @@ class DealHunterCalibrationEngine:
             notes.append("Review positive recommendation thresholds; false BUYs were detected.")
         if any(row.false_pass for row in results):
             notes.append("Review risk penalties or priority boosts; false PASSes were detected.")
-        if any(row.ranking_miss for row in results):
+        if any(row.ranking_miss is True for row in results):
             notes.append("Review ranking score weights for high-priority opportunities.")
         if any(row.missing_risk_flags for row in results):
             notes.append("Review parser/risk-flag coverage for expected risk signals.")

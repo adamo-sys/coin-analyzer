@@ -1,277 +1,170 @@
-"""
-Unit tests for Upgrade Advisor.
-"""
-
-import unittest
-import os
+"""Upgrade containment regressions using sanitized synthetic holdings."""
+import csv
 import tempfile
+import unittest
 from dataclasses import dataclass
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
-from upgrade_advisor import UpgradeAdvisor, UpgradeRecommendation
-from coin_collection import CoinItem
-from focused_collection_intelligence import FocusedCollectionIntelligenceEngine
+from focused_collection_intelligence import CollectionIntelligenceResult, ExistingMatch, MatchStatus
+from upgrade_advisor import UpgradeAdvisor
 
 
 @dataclass
 class MockCoinItem:
-    """Mock coin item for testing."""
     id: str
     country: str
     denomination: str
     year: str
     grade: str
     estimate_cad: float = 0.0
+    notes: str = ""
 
 
 class TestUpgradeAdvisor(unittest.TestCase):
-    """Test Upgrade Advisor functionality."""
-    
+    def test_retained_holding_and_upgrade_status_cannot_outvote_review(self):
+        holding = MockCoinItem("synthetic", "Canada", "1 cent", "1967", "VF-20", 5)
+        upstream = CollectionIntelligenceResult(
+            MatchStatus.BETTER_GRADE_UPGRADE,
+            ExistingMatch("synthetic", "Canada", "1 cent", "1967", "VF-20"),
+            "UNAVAILABLE", "UNAVAILABLE", "REVIEW", None,
+        )
+        with patch("upgrade_advisor.FocusedCollectionIntelligenceEngine") as engine:
+            engine.return_value.analyze_candidate.return_value = upstream
+            engine.return_value.find_exact_items.return_value = [holding]
+            rec = UpgradeAdvisor([holding]).analyze_upgrade("Canada", "1 cent", "1967", "MS-65", 50)
+        self.assert_unresolved(rec)
+        self.assertEqual(rec.candidate_grade, "MS-65")
+        self.assertEqual(rec.candidate_estimate, 50)
+        self.assertIn("equivalence unresolved", rec.reason)
+
+    def test_unresolved_identity_does_not_infer_positive_or_zero_melt(self):
+        for country, denomination in (("Canada", "dollar"), ("", "1 cent")):
+            with self.subTest(country=country, denomination=denomination):
+                rec = UpgradeAdvisor([]).analyze_upgrade(country, denomination, "", "VF-20", 10)
+                self.assert_unresolved(rec)
+                self.assertIsNone(rec.candidate_melt_value_cad)
+                self.assertEqual(rec.candidate_estimate, 10)
+                self.assertIn("equivalence unresolved", rec.reason)
     def setUp(self):
-        """Set up test fixtures."""
-        # Create mock collection items
-        self.collection_items = [
-            MockCoinItem("1", "Canada", "1 cent", "1967", "VF-20", 5.0),
-            MockCoinItem("2", "Canada", "1 cent", "1967", "VF-30", 10.0),
-            MockCoinItem("3", "Newfoundland", "50 cents", "1909", "F-12", 50.0),
-            MockCoinItem("4", "Canada", "dollar", "1935", "VF-20", 100.0),
-            MockCoinItem("5", "Canada", "1 cent", "1859", "VG-8", 200.0),
-        ]
-        
-        self.advisor = UpgradeAdvisor(self.collection_items)
-    
-    def test_better_grade_upgrade(self):
-        """Test that a better grade candidate is identified as an upgrade."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 20.0
-        )
-        
-        # EF-40 (score 9) vs VF-30 (score 8) = +1 grade improvement = 10 points
-        # Below threshold for Upgrade (40), so Hold Existing
-        self.assertEqual(recommendation.verdict, "Hold Existing")
-        self.assertEqual(recommendation.grade_improvement, 1)
+        self.items = [MockCoinItem("1", "Canada", "1 cent", "1967", "VF-20", 5.0),
+                      MockCoinItem("2", "Canada", "1 cent", "1967", "VF-30", 10.0)]
+        self.advisor = UpgradeAdvisor(self.items)
 
-    def test_uses_collection_intelligence_engine_for_upgrade_match(self):
-        """Upgrade Advisor routes match/upgrade classification through Collection Intelligence."""
-        with patch(
-            "upgrade_advisor.FocusedCollectionIntelligenceEngine",
-            wraps=FocusedCollectionIntelligenceEngine,
-        ) as engine_class:
-            recommendation = self.advisor.analyze_upgrade(
-                "Canada", "1 cent", "1967", "EF-40", 20.0
-            )
+    def assert_unresolved(self, rec):
+        self.assertEqual(rec.verdict, "REVIEW")
+        for field in ("existing_country", "existing_denomination", "existing_year",
+                      "existing_grade", "existing_estimate", "existing_item_id",
+                      "upgrade_score", "grade_improvement", "value_improvement",
+                      "existing_melt_value_cad", "melt_value_improvement"):
+            with self.subTest(field=field):
+                self.assertIsNone(getattr(rec, field))
+                self.assertIsNone(rec.to_dict()[field])
+        for claim in ("keep your current coin", "no matching coin", "no grade difference"):
+            self.assertNotIn(claim, rec.explanation.lower())
+        self.assertIn("unavailable", rec.explanation.lower())
 
-        self.assertTrue(engine_class.called)
-        self.assertEqual(recommendation.existing_grade, "VF-30")
-        self.assertEqual(recommendation.grade_improvement, 1)
-    
-    def test_same_grade_duplicate(self):
-        """Test that same-grade candidate is not an upgrade."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "VF-30", 10.0
-        )
-        
-        self.assertEqual(recommendation.verdict, "Hold Existing")
-        self.assertEqual(recommendation.grade_improvement, 0)
-    
-    def test_lower_grade_candidate(self):
-        """Test that lower-grade candidate is not an upgrade."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "VG-8", 3.0
-        )
-        
-        self.assertEqual(recommendation.verdict, "Hold Existing")
-        self.assertLess(recommendation.grade_improvement, 0)
-    
-    def test_newfoundland_upgrade(self):
-        """Test Newfoundland upgrade gets priority boost."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Newfoundland", "50 cents", "1909", "VF-20", 75.0
-        )
-        
-        # F-12 (score 6) to VF-20 (score 7) = +1 grade improvement = 10 points
-        # Newfoundland boost = 30 points
-        # Total = 40 points, which is exactly the threshold for "Upgrade"
-        self.assertEqual(recommendation.verdict, "Upgrade")
-        self.assertGreater(recommendation.upgrade_score, 30)
-    
-    def test_canadian_silver_upgrade(self):
-        """Test Canadian silver upgrade gets priority boost."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "dollar", "1935", "EF-40", 150.0
-        )
-        
-        # VF-20 (score 7) to EF-40 (score 9) = +2 grade improvement = 20 points
-        # Canadian silver boost = 25 points
-        # Total = 45 points, which is above threshold for "Upgrade" but below "Strong Upgrade"
-        self.assertEqual(recommendation.verdict, "Upgrade")
-        self.assertGreater(recommendation.upgrade_score, 40)
-    
-    def test_1859_large_cent_upgrade(self):
-        """Test 1859 Large Cent upgrade gets priority boost."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1859", "VF-20", 250.0
-        )
-        
-        # VG-8 (score 5) to VF-20 (score 7) = +2 grade improvement = 20 points
-        # 1859 Large Cent boost = 35 points
-        # Total = 55 points, which is above threshold for "Upgrade" but below "Strong Upgrade"
-        self.assertEqual(recommendation.verdict, "Upgrade")
-        self.assertGreater(recommendation.upgrade_score, 40)
-    
-    def test_no_match_pass(self):
-        """Test that candidate with no collection match returns Pass."""
-        recommendation = self.advisor.analyze_upgrade(
-            "USA", "1 cent", "1900", "VF-20", 5.0
-        )
-        
-        self.assertEqual(recommendation.verdict, "Pass")
-        self.assertEqual(recommendation.upgrade_score, 0)
-    
+    def test_triplet_grade_cannot_authorize_upgrade_duplicate_or_hold(self):
+        for grade in ("MS-65", "EF-40", "VF-30", "VG-8", "", "mystery"):
+            with self.subTest(grade=grade):
+                rec = self.advisor.analyze_upgrade("Canada", "1 cent", "1967", grade, 25.0)
+                self.assert_unresolved(rec)
+                self.assertEqual(rec.candidate_grade, grade)
+                self.assertEqual(rec.candidate_estimate, 25.0)
+
+    def test_empty_collection_does_not_establish_absence(self):
+        self.assert_unresolved(UpgradeAdvisor([]).analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0))
+
+    def test_different_triplet_does_not_establish_absence(self):
+        self.assert_unresolved(self.advisor.analyze_upgrade("USA", "1 cent", "1900", "VF-20", 5.0))
+
+    def test_missing_holding_grade_or_year_does_not_establish_upgrade_or_gap(self):
+        for year, grade in (("1967", ""), ("", "VF-20"), ("1967", "mystery")):
+            with self.subTest(year=year, grade=grade):
+                advisor = UpgradeAdvisor([MockCoinItem("1", "Canada", "1 cent", year, grade)])
+                self.assert_unresolved(advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0))
+
+    def test_historical_note_variety_cannot_authorize_comparison(self):
+        item = MockCoinItem("1", "Canada", "1 cent", "1859", "VG-8", 200.0, "Historical narrow 9 variety")
+        self.assert_unresolved(UpgradeAdvisor([item]).analyze_upgrade("Canada", "1 cent", "1859", "VF-20", 250.0))
+
+    def test_incomplete_candidate_cannot_establish_safe_purchase(self):
+        for country, denom, year in (("", "1 cent", "1967"), ("Canada", "", "1967"), ("Canada", "1 cent", "")):
+            with self.subTest(country=country, denom=denom, year=year):
+                self.assert_unresolved(UpgradeAdvisor([]).analyze_upgrade(country, denom, year, "VF-20", 10.0))
+
+    def test_unknown_grade_is_unavailable_instead_of_zero(self):
+        for grade in ("", "mystery", "UNGRADED"):
+            with self.subTest(grade=grade):
+                self.assertIsNone(self.advisor._grade_score(grade))
+                self.assertIsNone(self.advisor._calculate_grade_improvement(grade, "VF-20"))
+                self.assertIsNone(self.advisor._calculate_grade_improvement("VF-20", grade))
+
+    def test_no_highest_grade_fallback_without_authoritative_selection(self):
+        self.assertIsNone(self.advisor._get_intelligence_best_item(SimpleNamespace(best_existing_match=None), self.items))
+
+    def test_lost_wrong_or_ambiguous_selection_does_not_choose_holding(self):
+        for item_id, holdings in (("missing", self.items), ("", self.items), ("1", [self.items[0], self.items[0]])):
+            with self.subTest(item_id=item_id):
+                result = SimpleNamespace(best_existing_match=SimpleNamespace(item_id=item_id))
+                self.assertIsNone(self.advisor._get_intelligence_best_item(result, holdings))
+
+    def test_silver_identity_does_not_supply_independent_melt_evidence(self):
+        rec = self.advisor.analyze_upgrade("Canada", "dollar", "1935", "EF-40", 150.0)
+        self.assert_unresolved(rec)
+        self.assertIsNone(rec.candidate_melt_value_cad)
+        self.assertIn("equivalence unresolved", rec.reason)
+        self.assertNotIn("Candidate melt value", rec.explanation)
+        self.assertEqual(rec.candidate_estimate, 150.0)
+
+    def test_non_silver_identity_does_not_authorize_zero_melt(self):
+        rec = self.advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0)
+        self.assert_unresolved(rec)
+        self.assertIsNone(rec.candidate_melt_value_cad)
+        self.assertEqual(rec.candidate_estimate, 20)
+        self.assertEqual(rec.candidate_grade, "EF-40")
+        self.assertIn("equivalence unresolved", rec.reason)
+
+    def test_collector_interest_does_not_boost_upgrade_score(self):
+        rec = self.advisor.analyze_upgrade("Newfoundland", "50 cents", "1909", "VF-20", 75.0)
+        self.assert_unresolved(rec)
+        self.assertIn("Newfoundland", rec.explanation)
+        self.assertIn("interest", rec.explanation.lower())
+
     def test_read_only_behavior(self):
-        """Test that Upgrade Advisor does not modify collection."""
-        original_count = len(self.collection_items)
-        
-        self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 20.0
-        )
-        
-        # Collection should not be modified
-        self.assertEqual(len(self.collection_items), original_count)
-    
-    def test_csv_export(self):
-        """Test CSV export functionality."""
-        recommendations = [
-            self.advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0),
-            self.advisor.analyze_upgrade("Newfoundland", "50 cents", "1909", "VF-20", 75.0),
-        ]
-        
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
-            temp_path = f.name
-        
-        try:
-            # Export to CSV
-            result = self.advisor.export_to_csv(recommendations, temp_path)
-            self.assertTrue(result)
-            
-            # Verify file exists
-            self.assertTrue(os.path.exists(temp_path))
-            
-            # Verify file has content
-            with open(temp_path, 'r') as f:
-                content = f.read()
-                self.assertIn("candidate_country", content)
-                self.assertIn("verdict", content)
-        
-        finally:
-            # Clean up
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-    
-    def test_value_improvement_calculation(self):
-        """Test value improvement calculation."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 25.0
-        )
-        
-        # Best existing is VF-30 with estimate 10.0
-        # Candidate is EF-40 with estimate 25.0
-        self.assertGreater(recommendation.value_improvement, 0)
-    
-    def test_explanation_generation(self):
-        """Test that explanation is generated correctly."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 20.0
-        )
-        
-        self.assertIsNotNone(recommendation.explanation)
-        self.assertIn("Upgrade Analysis", recommendation.explanation)
-        self.assertIn("Candidate Coin", recommendation.explanation)
-        self.assertIn("Existing Coin", recommendation.explanation)
-    
-    def test_ungraded_candidate(self):
-        """Test candidate with no grade."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "", 20.0
-        )
-        
-        # Ungraded candidate (score 0) vs VF-30 (score 8) = -8 grade improvement
-        # Should still work but with negative grade improvement
-        self.assertIsNotNone(recommendation)
-        self.assertEqual(recommendation.grade_improvement, -8)
-        self.assertEqual(recommendation.verdict, "Hold Existing")
-    
-    def test_ungraded_existing(self):
-        """Test when existing item has no grade."""
-        collection = [MockCoinItem("1", "Canada", "1 cent", "1967", "", 5.0)]
-        advisor = UpgradeAdvisor(collection)
-        
-        recommendation = advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "VF-20", 20.0
-        )
-        
-        # Should still work
-        self.assertIsNotNone(recommendation)
-        self.assertEqual(recommendation.verdict, "Upgrade")
-    
-    def test_melt_value_integration_for_silver_coin(self):
-        """Test that melt value is calculated for silver coins."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "dollar", "1935", "EF-40", 150.0
-        )
-        
-        # Melt value should be available for silver coins
-        self.assertIsNotNone(recommendation.candidate_melt_value_cad)
-        self.assertIsNotNone(recommendation.existing_melt_value_cad)
-        self.assertIsNotNone(recommendation.melt_value_improvement)
-        # Melt value should be mentioned in explanation
-        self.assertIn("Melt Value Analysis", recommendation.explanation)
-    
-    def test_melt_value_not_available_for_non_silver_coin(self):
-        """Test that melt value is not calculated for non-silver coins."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 20.0
-        )
-        
-        # Melt value should be 0 for non-silver coins
-        self.assertEqual(recommendation.candidate_melt_value_cad, 0.0)
-        self.assertEqual(recommendation.existing_melt_value_cad, 0.0)
-        self.assertEqual(recommendation.melt_value_improvement, 0.0)
-    
-    def test_melt_value_does_not_change_verdict(self):
-        """Test that melt value is a supporting factor, not a primary driver."""
-        # This test ensures that melt value integration doesn't change existing verdict logic
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "1 cent", "1967", "EF-40", 20.0
-        )
-        
-        # Should still be Hold Existing regardless of melt value
-        self.assertEqual(recommendation.verdict, "Hold Existing")
-    
-    def test_melt_value_fields_populated_correctly(self):
-        """Test that all melt value fields are populated correctly."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "dollar", "1935", "EF-40", 150.0
-        )
-        
-        # Check that all melt value fields are present
-        self.assertTrue(hasattr(recommendation, 'candidate_melt_value_cad'))
-        self.assertTrue(hasattr(recommendation, 'existing_melt_value_cad'))
-        self.assertTrue(hasattr(recommendation, 'melt_value_improvement'))
-        self.assertTrue(hasattr(recommendation, 'spot_price_warning'))
-        
-        # For silver coins with manual provider, no warning should be present
-        self.assertIsNone(recommendation.spot_price_warning)
-    
-    def test_melt_value_improvement_calculation(self):
-        """Test that melt value improvement is calculated correctly."""
-        recommendation = self.advisor.analyze_upgrade(
-            "Canada", "dollar", "1935", "EF-40", 150.0
-        )
-        
-        # Both coins have same ASW, so melt value improvement should be 0
-        self.assertEqual(recommendation.melt_value_improvement, 0.0)
+        before = [vars(item).copy() for item in self.items]
+        self.advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0)
+        self.assertEqual([vars(item) for item in self.items], before)
+
+    def test_csv_marks_unavailable_comparisons_explicitly(self):
+        rec = self.advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "recommendations.csv"
+            self.assertTrue(self.advisor.export_to_csv([rec], str(path)))
+            with path.open(newline="", encoding="utf-8") as source:
+                row = next(csv.DictReader(source))
+            self.assertEqual(row["verdict"], "REVIEW")
+            for field in ("upgrade_score", "grade_improvement", "value_improvement", "existing_item_id", "existing_estimate", "melt_value_improvement"):
+                self.assertEqual(row[field], "unavailable")
+            self.assertEqual(row["candidate_estimate"], "20.0")
+
+    def test_csv_supported_zero_remains_zero(self):
+        rec = self.advisor.analyze_upgrade("Canada", "1 cent", "1967", "EF-40", 20.0)
+        rec.upgrade_score = rec.grade_improvement = 0
+        rec.value_improvement = rec.existing_estimate = rec.melt_value_improvement = 0.0
+        # An explicitly supplied supported numeric value at the serialization
+        # boundary remains zero; the unresolved advisor no longer infers it.
+        rec.candidate_melt_value_cad = 0.0
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "zero.csv"
+            self.assertTrue(self.advisor.export_to_csv([rec], str(path)))
+            with path.open(newline="", encoding="utf-8") as source:
+                row = next(csv.DictReader(source))
+        for field in ("upgrade_score", "grade_improvement"):
+            self.assertEqual(row[field], "0")
+        for field in ("value_improvement", "existing_estimate", "melt_value_improvement", "candidate_melt_value_cad"):
+            self.assertEqual(row[field], "0.0")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

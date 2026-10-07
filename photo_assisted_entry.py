@@ -181,7 +181,7 @@ class PhotoReviewReport:
                 f"- Recommendation: {analysis.recommendation}",
                 f"- Impact score: {analysis.impact_score}",
                 f"- WANT_LIST status: {analysis.want_list_status}",
-                f"- Max rational price: ${analysis.max_rational_price:.2f}",
+                f"- Max rational price: ${analysis.max_rational_price:.2f}" if analysis.max_rational_price is not None else "- Max rational price: unavailable",
                 f"- Top reason: {analysis.top_reason or 'No reason available'}",
                 f"- Summary: {analysis.recommendation_summary}",
             ])

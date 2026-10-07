@@ -20,6 +20,45 @@ def _money(value: Any) -> float:
     return round(float(cleaned), 2) if cleaned else 0.0
 
 
+def _status(value: Optional[str]) -> str:
+    """Normalize a structured sentinel, without interpreting narrative text."""
+    return value.strip().upper() if value is not None else ""
+
+
+def _unavailable_status(value: Optional[str]) -> bool:
+    """Recognize structured status tokens and their colon-delimited detail."""
+    return value is None or _status(value).partition(":")[0].strip() in {
+        "UNAVAILABLE", "UNRESOLVED", "REVIEW", "NEEDS_REVIEW",
+    }
+
+
+def _impact_available(impact: AcquisitionImpactReport) -> bool:
+    if impact.acquisition_decision is not None and not _decision_available(impact.acquisition_decision):
+        return False
+    return all(value is not None and (not isinstance(value, str) or not _unavailable_status(value))
+               for value in (impact.impact_score, impact.quality_delta, impact.completion_delta,
+                             impact.collection_impact, impact.upgrade_impact, impact.want_list_impact))
+
+
+def _decision_available(decision: AcquisitionDecision) -> bool:
+    supported_statuses = {status.value for status in MatchStatus if status != MatchStatus.NEEDS_REVIEW}
+    if (_status(decision.recommendation) in {"REVIEW", "UNRESOLVED", "UNAVAILABLE"}
+            or _status(decision.collection_intelligence_status) not in supported_statuses
+            or _status(decision.upgrade_status) in {"", "UNRESOLVED", "UNAVAILABLE", "NEEDS_REVIEW"}
+            or not decision.owned_current_match_summary
+            or _status(decision.owned_current_match_summary.partition(":")[0]) in {"UNRESOLVED", "UNAVAILABLE"}
+            or decision.max_rational_price is None):
+        return False
+    intelligence = decision.intelligence_result
+    if intelligence is not None and (
+            intelligence.match_status == MatchStatus.NEEDS_REVIEW
+            or _status(intelligence.recommendation) in {"REVIEW", "UNRESOLVED", "UNAVAILABLE"}
+            or _unavailable_status(intelligence.grade_comparison)
+            or _unavailable_status(intelligence.collection_impact)):
+        return False
+    return True
+
+
 @dataclass
 class ShoppingCandidate:
     """Opportunity input from manual entry, listing, WANT_LIST, or market records."""
@@ -115,16 +154,16 @@ class ShoppingCandidate:
 class ShoppingRecommendation:
     """Ranked purchasing recommendation for one opportunity."""
 
-    rank: int
+    rank: Optional[int]
     item_name: str
     recommendation_status: str
-    opportunity_score: int
-    impact_score: int
-    quality_delta: int
-    series_delta: float
+    opportunity_score: Optional[int]
+    impact_score: Optional[int]
+    quality_delta: Optional[int]
+    series_delta: Optional[float]
     want_list_status: str
     market_context: str
-    max_rational_price: float
+    max_rational_price: Optional[float]
     total_cost: float
     source: str
     reasons: List[str] = field(default_factory=list)
@@ -133,7 +172,22 @@ class ShoppingRecommendation:
     acquisition_decision: Optional[AcquisitionDecision] = None
     impact_report: Optional[AcquisitionImpactReport] = None
 
+    def contain_authority(self) -> None:
+        unresolved = self.opportunity_score is None or _status(self.recommendation_status) in {"REVIEW", "UNRESOLVED", "UNAVAILABLE"}
+        if self.acquisition_decision is not None:
+            unresolved = unresolved or not _decision_available(self.acquisition_decision)
+        if self.impact_report is not None:
+            unresolved = unresolved or not _impact_available(self.impact_report)
+        if unresolved:
+            self.recommendation_status = "REVIEW"
+            self.rank = self.opportunity_score = self.impact_score = self.quality_delta = None
+            self.series_delta = self.max_rational_price = None
+            reason = "Manual review required: identity-dependent shopping advice unavailable"
+            if reason not in self.reasons:
+                self.reasons.append(reason)
+
     def to_dict(self) -> Dict[str, Any]:
+        self.contain_authority()
         return {
             "rank": self.rank,
             "item_name": self.item_name,
@@ -163,7 +217,20 @@ class ShoppingRecommendationReport:
     highest_priority_want_list_target: Optional[ShoppingRecommendation] = None
     connected_data: Optional[Dict[str, Any]] = None  # NEW: Phase 3 metadata
 
+    def contain_authority(self) -> None:
+        for row in self.recommendations:
+            row.contain_authority()
+        if self.best_next_purchase is not None:
+            self.best_next_purchase.contain_authority()
+            if self.best_next_purchase.rank is None or self.best_next_purchase.opportunity_score is None:
+                self.best_next_purchase = None
+        if self.highest_impact_candidate is not None:
+            self.highest_impact_candidate.contain_authority()
+            if self.highest_impact_candidate.rank is None or self.highest_impact_candidate.impact_score is None:
+                self.highest_impact_candidate = None
+
     def to_dict(self) -> Dict[str, Any]:
+        self.contain_authority()
         return {
             "recommendations": [row.to_dict() for row in self.recommendations],
             "best_next_purchase": self.best_next_purchase.to_dict() if self.best_next_purchase else None,
@@ -205,29 +272,56 @@ class SmartShoppingAssistant:
                 for record in self.market_awareness_engine.observations
             )
 
-        recommendations = [
-            self._evaluate_candidate(candidate)
-            for candidate in candidate_rows
+        eligible_candidates = [
+            candidate for candidate in candidate_rows
             if candidate.item_name or candidate.candidate or candidate.listing
         ]
-        recommendations = sorted(
-            recommendations,
-            key=lambda row: (
-                -row.opportunity_score,
-                self._status_sort(row.recommendation_status),
-                row.total_cost,
-                row.item_name,
-            ),
+        recommendations = [
+            self._evaluate_candidate(candidate)
+            for candidate in eligible_candidates
+        ]
+        for row in recommendations:
+            row.contain_authority()
+        interest_priorities = {
+            id(row): candidate.want_list_priority
+            for row, candidate in zip(recommendations, eligible_candidates)
+        }
+        # Unavailable composites never enter numeric comparisons or receive a
+        # rank. Preserve their display order separately from ranked advice.
+        def ranking_key(row: ShoppingRecommendation) -> tuple[int, int, float, str]:
+            score = row.opportunity_score
+            assert score is not None  # The ranked input excludes unavailable scores.
+            return (-score, self._status_sort(row.recommendation_status), row.total_cost, row.item_name)
+
+        ranked = sorted(
+            [row for row in recommendations if row.opportunity_score is not None
+             and row.recommendation_status != "REVIEW"],
+            key=ranking_key,
         )
-        for index, recommendation in enumerate(recommendations, start=1):
+        unranked = [row for row in recommendations if row.opportunity_score is None
+                    or row.recommendation_status == "REVIEW"]
+        for row in unranked:
+            row.rank = None
+        for index, recommendation in enumerate(ranked, start=1):
             recommendation.rank = index
 
-        top_rows = recommendations[:limit]
+        top_rows = (ranked + unranked)[:limit]
+        purchase_rows = [row for row in top_rows if row.rank is not None
+                         and row.recommendation_status in {"STRONG BUY", "BUY", "NEGOTIATE"}]
+
+        def impact_key(row: ShoppingRecommendation) -> int:
+            score = row.impact_score
+            assert score is not None  # The highest-impact input excludes unavailable scores.
+            return score
+
         report = ShoppingRecommendationReport(
             recommendations=top_rows,
-            best_next_purchase=top_rows[0] if top_rows else None,
-            highest_impact_candidate=max(top_rows, key=lambda row: row.impact_score, default=None),
-            highest_priority_want_list_target=self._highest_priority_want_list(top_rows),
+            best_next_purchase=purchase_rows[0] if purchase_rows else None,
+            highest_impact_candidate=max(
+                [row for row in top_rows if row.rank is not None and row.impact_score is not None],
+                key=impact_key, default=None,
+            ),
+            highest_priority_want_list_target=self._highest_priority_want_list(top_rows, interest_priorities),
         )
 
         # Phase 3: metadata-only enrichment (no reordering, no scoring, no filtering)
@@ -253,6 +347,7 @@ class SmartShoppingAssistant:
 
     def format_markdown(self, report: Optional[ShoppingRecommendationReport] = None) -> str:
         report = report or self.generate_report()
+        report.contain_authority()
         lines = ["# Smart Shopping Assistant", ""]
         if report.best_next_purchase:
             top = report.best_next_purchase
@@ -263,8 +358,8 @@ class SmartShoppingAssistant:
                 f"- Recommendation: {top.recommendation_status}",
                 f"- Opportunity score: {top.opportunity_score}",
                 f"- Impact score: {top.impact_score}",
-                f"- Quality delta: {top.quality_delta:+d}",
-                f"- Series completion delta: {top.series_delta:+g}%",
+                f"- Quality delta: {self._signed(top.quality_delta) if top.quality_delta is not None else 'unavailable'}",
+                f"- Series completion delta: {self._signed(top.series_delta) + '%' if top.series_delta is not None else 'unavailable'}",
                 f"- Market context: {top.market_context}",
                 "",
             ])
@@ -273,11 +368,18 @@ class SmartShoppingAssistant:
             lines.append("- No shopping opportunities available.")
         for row in report.recommendations:
             lines.append(
-                f"{row.rank}. {row.item_name} - {row.recommendation_status} "
-                f"(score {row.opportunity_score}, impact {row.impact_score})"
+                f"{str(row.rank) + '.' if row.rank is not None else 'Unranked:'} {row.item_name} - {row.recommendation_status} "
+                f"(score {row.opportunity_score if row.opportunity_score is not None else 'unavailable'}, "
+                f"impact {row.impact_score if row.impact_score is not None else 'unavailable'})"
             )
             for reason in row.reasons:
                 lines.append(f"   - {reason}")
+            for warning in row.warnings:
+                lines.append(f"   - Warning: {warning}")
+            # Explainability is a later containment package. Do not let it
+            # reconstruct purchase benefits for unavailable shopping advice.
+            if row.opportunity_score is None or row.recommendation_status == "REVIEW":
+                continue
             try:
                 from shopping_explainability import ShoppingExplanationEngine
 
@@ -322,7 +424,8 @@ class SmartShoppingAssistant:
                 ])
                 writer.writeheader()
                 for recommendation in report.recommendations:
-                    writer.writerow(recommendation.to_dict())
+                    writer.writerow({key: "unavailable" if value is None else value
+                                     for key, value in recommendation.to_dict().items()})
             return True
         except Exception as exc:
             print(f"Error exporting smart shopping CSV: {exc}")
@@ -343,21 +446,27 @@ class SmartShoppingAssistant:
         reasons = self._reasons(shopping_candidate, acquisition, impact, status)
         score = self._opportunity_score(shopping_candidate, acquisition, impact, status)
 
+        warnings = list(acquisition.warning_flags)
+        if shopping_candidate.listing:
+            warnings.extend(ListingAnalyzer(self.collection_items, self.want_list_intents).analyze(
+                shopping_candidate.listing,
+            ).warnings)
+
         return ShoppingRecommendation(
-            rank=0,
+            rank=None,
             item_name=shopping_candidate.item_name or self._candidate_label(candidate),
             recommendation_status=status,
             opportunity_score=score,
-            impact_score=impact.impact_score,
-            quality_delta=impact.quality_delta,
-            series_delta=impact.completion_delta,
+            impact_score=impact.impact_score if score is not None else None,
+            quality_delta=impact.quality_delta if score is not None else None,
+            series_delta=impact.completion_delta if score is not None else None,
             want_list_status=acquisition.want_list_status,
             market_context=impact.market_context_summary,
-            max_rational_price=acquisition.max_rational_price,
+            max_rational_price=acquisition.max_rational_price if score is not None else None,
             total_cost=shopping_candidate.total_cost,
             source=shopping_candidate.recommendation_source,
             reasons=reasons,
-            warnings=list(acquisition.warning_flags),
+            warnings=self._dedupe(warnings),
             photo_reference_ids=list(shopping_candidate.photo_reference_ids),
             acquisition_decision=acquisition,
             impact_report=impact,
@@ -380,23 +489,35 @@ class SmartShoppingAssistant:
         return ListingAnalyzer(self.collection_items, self.want_list_intents).to_candidate_item(listing)
 
     def _shopping_status(self, acquisition: AcquisitionDecision, impact: AcquisitionImpactReport) -> str:
-        if acquisition.recommendation == "PASS":
-            return "PASS"
-        if acquisition.recommendation == "REVIEW":
+        if not self._advice_available(acquisition, impact):
             return "REVIEW"
-        if acquisition.recommendation == "NEGOTIATE":
+        impact_score = impact.impact_score
+        quality_delta = impact.quality_delta
+        recommendation = _status(acquisition.recommendation)
+        # Availability has already established both numeric components.
+        assert impact_score is not None and quality_delta is not None
+        if recommendation == "PASS":
+            return "PASS"
+        if recommendation == "REVIEW":
+            return "REVIEW"
+        if recommendation == "NEGOTIATE":
             return "NEGOTIATE"
-        if acquisition.recommendation == "WATCH":
+        if recommendation == "WATCH":
             return "WATCH"
-        if acquisition.recommendation == "BUY":
+        if recommendation == "BUY":
             if impact.market_context_summary == "Above recent observed range":
                 return "NEGOTIATE"
-            if impact.impact_score >= 75 and acquisition.want_list_status == "ON_WANT_LIST":
+            if impact_score >= 75 and acquisition.want_list_status == "ON_WANT_LIST":
                 return "STRONG BUY"
-            if impact.impact_score >= 65 and impact.quality_delta > 0:
+            if impact_score >= 65 and quality_delta > 0:
                 return "STRONG BUY"
             return "BUY"
         return "REVIEW"
+
+    @staticmethod
+    def _advice_available(acquisition: AcquisitionDecision, impact: AcquisitionImpactReport) -> bool:
+        """Require contained comparable advice, never retained raw intelligence."""
+        return _decision_available(acquisition) and _impact_available(impact)
 
     def _opportunity_score(
         self,
@@ -404,10 +525,17 @@ class SmartShoppingAssistant:
         acquisition: AcquisitionDecision,
         impact: AcquisitionImpactReport,
         status: str,
-    ) -> int:
+    ) -> Optional[int]:
+        status = _status(status)
+        if status in {"REVIEW", "UNRESOLVED", "UNAVAILABLE"} or not self._advice_available(acquisition, impact):
+            return None
         score = impact.impact_score
-        score += max(0, min(20, impact.quality_delta * 3))
-        score += max(0, min(15, int(round(impact.completion_delta))))
+        quality_delta = impact.quality_delta
+        completion_delta = impact.completion_delta
+        # Availability has already established every arithmetic component.
+        assert score is not None and quality_delta is not None and completion_delta is not None
+        score += max(0, min(20, quality_delta * 3))
+        score += max(0, min(15, int(round(completion_delta))))
         score += max(0, min(20, shopping_candidate.want_list_priority // 5))
         if impact.want_list_impact in {"COMPLETES_WANT_LIST_TARGET", "MATCHES_WANT_LIST_TARGET"}:
             score += 15
@@ -445,6 +573,22 @@ class SmartShoppingAssistant:
         status: str,
     ) -> List[str]:
         reasons = []
+        if not self._advice_available(acquisition, impact):
+            reasons.append("Manual review required: identity-dependent shopping advice unavailable")
+            independent_interest = {
+                "High-Priority Series: Newfoundland",
+                "High-Priority Series: 1859 Canadian Large Cent",
+                "High-Priority Series: Canadian silver",
+                "Low-priority world base-metal candidate",
+            }
+            reasons.extend(reason for reason in acquisition.priority_reasons if reason in independent_interest)
+            if acquisition.want_list_status == "ON_WANT_LIST":
+                reasons.append("Explicit WANT_LIST Target")
+            if impact.market_context_summary and impact.market_context_summary != "No local observation context available.":
+                reasons.append(impact.market_context_summary)
+            if shopping_candidate.photo_reference_ids:
+                reasons.append("Linked photo references available")
+            return self._dedupe(reasons)
         if status == "STRONG BUY":
             reasons.append("High impact shopping opportunity")
         if impact.impact_score:
@@ -473,9 +617,18 @@ class SmartShoppingAssistant:
         return self._dedupe(reasons)
 
     @staticmethod
-    def _highest_priority_want_list(rows: List[ShoppingRecommendation]) -> Optional[ShoppingRecommendation]:
+    def _highest_priority_want_list(
+        rows: List[ShoppingRecommendation], priorities: Optional[Dict[int, int]] = None,
+    ) -> Optional[ShoppingRecommendation]:
         matches = [row for row in rows if row.want_list_status == "ON_WANT_LIST" or "WANT_LIST" in " ".join(row.reasons)]
-        return max(matches, key=lambda row: row.opportunity_score, default=None)
+        if len(matches) == 1:
+            return matches[0]
+        if priorities and matches:
+            highest = max(priorities.get(id(row), 0) for row in matches)
+            leaders = [row for row in matches if priorities.get(id(row), 0) == highest]
+            if highest > 0 and len(leaders) == 1:
+                return leaders[0]
+        return None
 
     @staticmethod
     def _status_sort(status: str) -> int:

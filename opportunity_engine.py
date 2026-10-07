@@ -1,9 +1,10 @@
 """Budget-aware opportunity planning built from existing collection engines."""
 
 import csv
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, cast
 
 from collection_intelligence import AcquisitionTarget, CollectionIntelligenceEngine
 from deal_hunter import DealHunterResult
@@ -21,6 +22,11 @@ OPPORTUNITY_CANADIAN_BANKNOTE = "Canadian Banknote Opportunity"
 OPPORTUNITY_HIGH_ROI = "High-ROI Opportunity"
 
 DEFAULT_BUDGETS = (50, 100, 250, 500)
+
+
+def _unresolved_status(value: str) -> bool:
+    token = "_".join(value.strip().upper().partition(":")[0].split())
+    return token in {"REVIEW", "NEEDS_REVIEW", "UNRESOLVED", "UNAVAILABLE"}
 
 
 def _now_iso() -> str:
@@ -43,13 +49,13 @@ def _dedupe(values: Iterable[str]) -> List[str]:
 class OpportunityScore:
     """Explainable 0-100 score components for an opportunity."""
 
-    score: int
-    collection_fit: int = 0
-    upgrade_impact: int = 0
-    completion_impact: int = 0
+    score: Optional[int]
+    collection_fit: Optional[int] = 0
+    upgrade_impact: Optional[int] = 0
+    completion_impact: Optional[int] = 0
     liquidity: int = 0
     risk: int = 0
-    collection_priority: int = 0
+    collection_priority: Optional[int] = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -67,10 +73,10 @@ class OpportunityScore:
 class OpportunityReport:
     """One ranked collection opportunity."""
 
-    rank: int
+    rank: Optional[int]
     opportunity_type: str
     item_name: str
-    score: int
+    score: Optional[int]
     reasoning: List[str] = field(default_factory=list)
     risks: List[str] = field(default_factory=list)
     counterargument: str = ""
@@ -80,6 +86,7 @@ class OpportunityReport:
     source: str = ""
     recommendation: str = ""
     score_detail: Optional[OpportunityScore] = None
+    market_context: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -95,12 +102,13 @@ class OpportunityReport:
             "total_cost": self.total_cost,
             "source": self.source,
             "recommendation": self.recommendation,
-            "collection_fit": self.score_detail.collection_fit if self.score_detail else 0,
-            "upgrade_impact": self.score_detail.upgrade_impact if self.score_detail else 0,
-            "completion_impact": self.score_detail.completion_impact if self.score_detail else 0,
-            "liquidity": self.score_detail.liquidity if self.score_detail else 0,
-            "risk": self.score_detail.risk if self.score_detail else 0,
-            "collection_priority": self.score_detail.collection_priority if self.score_detail else 0,
+            "market_context": self.market_context,
+            "collection_fit": self.score_detail.collection_fit if self.score_detail else None,
+            "upgrade_impact": self.score_detail.upgrade_impact if self.score_detail else None,
+            "completion_impact": self.score_detail.completion_impact if self.score_detail else None,
+            "liquidity": self.score_detail.liquidity if self.score_detail else None,
+            "risk": self.score_detail.risk if self.score_detail else None,
+            "collection_priority": self.score_detail.collection_priority if self.score_detail else None,
         }
 
 
@@ -116,6 +124,7 @@ class TopOpportunitiesReport:
     top_banknote: List[OpportunityReport] = field(default_factory=list)
     top_upgrade: List[OpportunityReport] = field(default_factory=list)
     generated_at: str = ""
+    unranked_opportunities: List[OpportunityReport] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.generated_at = self.generated_at or _now_iso()
@@ -124,6 +133,7 @@ class TopOpportunitiesReport:
         return {
             "generated_at": self.generated_at,
             "opportunities": [row.to_dict() for row in self.opportunities],
+            "unranked_opportunities": [row.to_dict() for row in self.unranked_opportunities],
             "budget_recommendations": {
                 str(budget): row.to_dict() if row else None
                 for budget, row in self.budget_recommendations.items()
@@ -148,6 +158,9 @@ class TopOpportunitiesReport:
         if not self.top_overall:
             lines.append("- No opportunities generated from available collection context.")
         for row in self.top_overall:
+            lines.extend(self._format_opportunity(row))
+        lines.extend(["", "## Unranked Review Opportunities", ""])
+        for row in self.unranked_opportunities:
             lines.extend(self._format_opportunity(row))
         lines.extend(["", "## Budget Recommendations", ""])
         for budget, row in self.budget_recommendations.items():
@@ -182,6 +195,7 @@ class TopOpportunitiesReport:
                 "total_cost",
                 "source",
                 "recommendation",
+                "market_context",
                 "collection_fit",
                 "upgrade_impact",
                 "completion_impact",
@@ -191,17 +205,18 @@ class TopOpportunitiesReport:
             ]
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
-            for opportunity in self.opportunities:
+            for opportunity in self.opportunities + self.unranked_opportunities:
                 writer.writerow(opportunity.to_dict())
         return True
 
     @staticmethod
     def _format_opportunity(row: OpportunityReport) -> List[str]:
         lines = [
-            f"### {row.rank}. {row.item_name}",
+            f"### {str(row.rank) + '. ' if row.rank is not None else 'Unranked review: '}{row.item_name}",
             "",
             f"- Type: {row.opportunity_type}",
-            f"- Score: {row.score}",
+            f"- Score: {row.score if row.score is not None else 'unavailable'}",
+            f"- Market context: {row.market_context}",
             f"- Recommendation: {row.recommendation or 'REVIEW'}",
             f"- Budget fit: {row.budget_fit}",
             f"- Estimated impact: {row.estimated_collection_impact}",
@@ -249,13 +264,18 @@ class OpportunityEngine:
         opportunities.extend(self._collection_target_opportunities())
         opportunities.extend(self._deal_hunter_opportunities(deal_hunter_results or []))
         opportunities = self._dedupe_opportunities(opportunities)
-        opportunities.sort(key=lambda row: (-row.score, self._budget_sort(row.total_cost), row.item_name))
+        unranked = [row for row in opportunities if row.score is None]
+        for row in unranked:
+            row.rank = None
+        opportunities = [row for row in opportunities if row.score is not None]
+        opportunities.sort(key=lambda row: (-cast(int, row.score), self._budget_sort(row.total_cost), row.item_name))
         for index, opportunity in enumerate(opportunities, 1):
             opportunity.rank = index
 
         budget_map = {int(budget): self._best_for_budget(opportunities, int(budget)) for budget in budgets}
         return TopOpportunitiesReport(
             opportunities=opportunities,
+            unranked_opportunities=unranked,
             budget_recommendations=budget_map,
             top_overall=opportunities[:limit],
             top_under_100=[row for row in opportunities if 0 < row.total_cost <= 100][:limit],
@@ -292,32 +312,35 @@ class OpportunityEngine:
         return [self._from_deal_hunter(result) for result in deal_hunter_results]
 
     def _from_shopping(self, row: ShoppingRecommendation) -> OpportunityReport:
+        row.contain_authority()
+        available = not _unresolved_status(row.recommendation_status)
         opportunity_type = self._type_from_text(row.item_name, row.reasons, row.want_list_status, row.source)
         risk = self._risk_from_warnings(row.warnings, row.recommendation_status)
         score_detail = OpportunityScore(
             score=row.opportunity_score,
-            collection_fit=min(100, row.impact_score),
-            upgrade_impact=25 if any("upgrade" in reason.lower() for reason in row.reasons) else 0,
-            completion_impact=max(0, min(25, int(round(row.series_delta)))),
+            collection_fit=min(100, row.impact_score) if available and row.impact_score is not None else None,
+            upgrade_impact=0 if available and row.quality_delta is not None else None,
+            completion_impact=max(0, min(25, int(round(row.series_delta)))) if available and row.series_delta is not None else None,
             liquidity=15 if row.market_context and "range" in row.market_context.lower() else 0,
             risk=risk,
-            collection_priority=self._priority_from_text(row.item_name, row.reasons),
+            collection_priority=self._priority_from_text(row.item_name, row.reasons) if available else None,
         )
         score_detail.score = self._score(score_detail, row.opportunity_score)
         return OpportunityReport(
-            rank=0,
+            rank=None,
             opportunity_type=opportunity_type,
             item_name=row.item_name,
             score=score_detail.score,
             reasoning=_dedupe(row.reasons),
             risks=_dedupe(row.warnings),
             counterargument=self._counterargument(row.item_name, row.total_cost, row.warnings, opportunity_type),
-            estimated_collection_impact=self._impact_summary(row),
+            estimated_collection_impact=self._impact_summary(row) if available else "Collection comparison unavailable; REVIEW required",
             budget_fit=self._budget_fit(row.total_cost),
             total_cost=row.total_cost,
             source=row.source,
-            recommendation=row.recommendation_status,
+            recommendation=row.recommendation_status if available else "REVIEW",
             score_detail=score_detail,
+            market_context=row.market_context,
         )
 
     def _from_target(self, target: AcquisitionTarget) -> OpportunityReport:
@@ -326,6 +349,8 @@ class OpportunityEngine:
             opportunity_type = OPPORTUNITY_UPGRADE
         elif target.target_type == "Missing Date" and "complete" in (target.estimated_impact or "").lower():
             opportunity_type = OPPORTUNITY_SERIES_COMPLETION
+        elif target.target_type == "Missing Date":
+            opportunity_type = OPPORTUNITY_COLLECTION_GAP
         score_detail = OpportunityScore(
             score=0,
             collection_fit=min(100, target.priority_score),
@@ -337,7 +362,7 @@ class OpportunityEngine:
         )
         score_detail.score = self._score(score_detail, target.priority_score)
         return OpportunityReport(
-            rank=0,
+            rank=None,
             opportunity_type=opportunity_type,
             item_name=target.coin_label,
             score=score_detail.score,
@@ -353,6 +378,8 @@ class OpportunityEngine:
         )
 
     def _from_deal_hunter(self, result: DealHunterResult) -> OpportunityReport:
+        available = self._deal_evidence_available(result)
+        relationship = result.collection_status.strip().upper()
         opportunity_type = self._type_from_text(
             result.listing.title,
             result.reasons,
@@ -362,31 +389,38 @@ class OpportunityEngine:
         risk = max(0, min(100, result.risk_score))
         score_detail = OpportunityScore(
             score=0,
-            collection_fit=result.collection_fit_score,
-            upgrade_impact=20 if "upgrade" in result.collection_status.lower() else 0,
-            completion_impact=18 if "gap" in result.collection_status.lower() else 0,
+            collection_fit=result.collection_fit_score if available else None,
+            upgrade_impact=(20 if relationship == "BETTER_GRADE_UPGRADE" else 0) if available and result.collection_fit_score is not None else None,
+            completion_impact=(18 if relationship == "COLLECTION_GAP" else 0) if available and result.collection_fit_score is not None else None,
             liquidity=result.liquidity_score,
             risk=risk,
-            collection_priority=result.priority_score,
+            collection_priority=result.priority_score if available else None,
         )
         score_detail.score = self._score(score_detail, result.priority_score)
         return OpportunityReport(
-            rank=0,
+            rank=None,
             opportunity_type=opportunity_type,
             item_name=result.listing.title,
             score=score_detail.score,
             reasoning=_dedupe(result.reasons),
             risks=_dedupe(list(result.warnings) + list(result.risk_flags)),
             counterargument=result.counterargument or self._counterargument(result.listing.title, result.listing.total_cost, result.warnings, opportunity_type),
-            estimated_collection_impact=f"{result.collection_status}; max rational price CAD {result.max_rational_price:.2f}",
+            estimated_collection_impact=(f"{result.collection_status}; max rational price " + (f"CAD {result.max_rational_price:.2f}" if result.max_rational_price is not None else "unavailable")) if available else "Collection comparison unavailable; max rational price unavailable; REVIEW required",
             budget_fit=self._budget_fit(result.listing.total_cost),
             total_cost=result.listing.total_cost,
             source="Deal Hunter",
-            recommendation=result.recommendation,
+            recommendation=result.recommendation if available else "REVIEW",
             score_detail=score_detail,
         )
 
-    def _score(self, detail: OpportunityScore, base: int) -> int:
+    @staticmethod
+    def _deal_evidence_available(result: DealHunterResult) -> bool:
+        return not (_unresolved_status(result.recommendation) or _unresolved_status(result.collection_status))
+
+    def _score(self, detail: OpportunityScore, base: Optional[int]) -> Optional[int]:
+        if (base is None or detail.collection_fit is None or detail.upgrade_impact is None
+                or detail.completion_impact is None or detail.collection_priority is None):
+            return None
         score = int(round(base * 0.45))
         score += int(round(detail.collection_fit * 0.22))
         score += detail.upgrade_impact
@@ -404,15 +438,11 @@ class OpportunityEngine:
             return OPPORTUNITY_WANT_LIST
         if "newfoundland" in text:
             return OPPORTUNITY_NEWFOUNDLAND
-        if "upgrade" in text:
-            return OPPORTUNITY_UPGRADE
         if "silver" in text or any(term in text for term in ["10 cents", "25 cents", "50 cents", "dollar", "dime", "quarter"]):
             return OPPORTUNITY_CANADIAN_SILVER
-        if "missing" in text or "gap" in text:
-            return OPPORTUNITY_COLLECTION_GAP
         if "within recent observed range" in text or "below recent observed range" in text:
             return OPPORTUNITY_HIGH_ROI
-        return OPPORTUNITY_COLLECTION_GAP
+        return "Collection Opportunity"
 
     def _priority_from_text(self, item_name: str, reasons: Iterable[str]) -> int:
         text = " ".join([item_name, " ".join(reasons or [])]).lower()
@@ -435,11 +465,11 @@ class OpportunityEngine:
         risk = 0
         if "manual review" in text or status == "REVIEW":
             risk += 25
-        if "duplicate" in text or status == "PASS":
+        if status == "PASS":
             risk += 20
         if "high shipping" in text:
             risk += 18
-        if "grade" in text:
+        if re.search(r"\bgrade\b", text):
             risk += 12
         return min(100, risk)
 
@@ -466,8 +496,8 @@ class OpportunityEngine:
     def _impact_summary(row: ShoppingRecommendation) -> str:
         parts = [
             f"impact score {row.impact_score}",
-            f"quality {row.quality_delta:+d}",
-            f"series {row.series_delta:+g}%",
+            f"quality {row.quality_delta:+d}" if row.quality_delta is not None else "quality unavailable",
+            f"series {row.series_delta:+g}%" if row.series_delta is not None else "series unavailable",
         ]
         if row.want_list_status:
             parts.append(row.want_list_status)
@@ -497,6 +527,6 @@ class OpportunityEngine:
         for row in rows:
             key = " ".join(row.item_name.lower().split())
             existing = selected.get(key)
-            if not existing or row.score > existing.score:
+            if not existing or (row.score is not None and existing.score is not None and row.score > existing.score):
                 selected[key] = row
         return list(selected.values())

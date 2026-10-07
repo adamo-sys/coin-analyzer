@@ -200,8 +200,12 @@ class TestSessionContext(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.WANT_LIST_MATCH)
+        # Shared interest survives; narrative target text cannot resolve ownership.
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.want_list_status, "ON_WANT_LIST")
+        self.assertIn("Explicit WANT_LIST Target", result.priority_reasons)
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertIsNone(result.best_existing_match)
 
     def test_acquisition_workflow_uses_shared_want_list_context(self):
         create_workbook(self.workbook_path, want_rows=[[
@@ -224,8 +228,12 @@ class TestSessionContext(unittest.TestCase):
             certifier="PCGS",
         ))
 
-        self.assertEqual(decision.collection_intelligence_status, "WANT_LIST_MATCH")
-        self.assertEqual(decision.recommendation, "BUY")
+        self.assertEqual(decision.collection_intelligence_status, "NEEDS_REVIEW")
+        self.assertEqual(decision.recommendation, "REVIEW")
+        self.assertEqual(decision.want_list_status, "ON_WANT_LIST")
+        self.assertIn("Explicit WANT_LIST Target", decision.priority_reasons)
+        self.assertEqual(decision.asking_price, 125.0)
+        self.assertIsNone(decision.max_rational_price)
 
     def test_buy_advisor_can_access_shared_context(self):
         create_workbook(self.workbook_path, want_rows=[[
@@ -249,8 +257,14 @@ class TestSessionContext(unittest.TestCase):
             estimated_market_value=150.0,
         )
 
-        self.assertIn("+50 Explicit WANT_LIST target", recommendation.collection_intelligence_factors)
-        self.assertGreater(recommendation.collection_impact_score, 0)
+        workflow = recommendation.acquisition_workflow_result
+        self.assertEqual(workflow["want_list_status"], "ON_WANT_LIST")
+        self.assertIn("Explicit WANT_LIST Target", workflow["priority_reasons"])
+        self.assertIsNone(recommendation.collection_impact_score)
+        self.assertIsNone(recommendation.max_rational_bid)
+        self.assertEqual(recommendation.purchase_verdict, "REVIEW")
+        self.assertEqual(recommendation.landed_cost, 125.0)
+        self.assertEqual(recommendation.estimated_market_value, 150.0)
 
     def test_clear_session_context_resets_state(self):
         create_workbook(self.workbook_path, want_rows=[[
@@ -283,8 +297,11 @@ class TestSessionContext(unittest.TestCase):
             grade="VF-30",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.SAME_GRADE_DUPLICATE)
-        self.assertEqual(result.recommendation, "PASS")
+        # Alias normalization and equal grades do not prove a duplicate issue.
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertIsNone(result.best_existing_match)
+        self.assertEqual(result.grade_comparison, "UNAVAILABLE")
 
 
 if __name__ == "__main__":
