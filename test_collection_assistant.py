@@ -31,6 +31,73 @@ from collection_assistant import (
 )
 
 
+class TestSlice2CAssistantContainment(unittest.TestCase):
+    def setUp(self):
+        self.engine = CollectionAssistantEngine()
+        self.session = self.engine.start_session("containment")
+        self.candidate = CollectionAssistantCandidate(id="candidate")
+        self.session.queue.candidates.append(self.candidate)
+
+    def test_r1_triplets_are_discovery_only(self):
+        base = {"country": "Canada", "denomination": "1 cent", "year": "1900"}
+        for extra in ({}, {"design": "different"}, {"type": "token"},
+                      {"status": "unidentified"}, {"mint_mark": "S"}):
+            with self.subTest(extra=extra):
+                self.candidate.suggested_identification = dict(base, design="portrait", type="coin")
+                match = self.engine.check_collection_for_candidate("containment", "candidate", [dict(base, **extra)])
+                self.assertFalse(match.matched)
+                self.assertEqual(match.duplicate_risk, "unresolved")
+                self.assertEqual(match.match_type, "discovery")
+                self.assertIsNotNone(match.existing_item)
+                self.assertNotIn("Exact duplicate", " ".join(match.notes))
+
+    def test_r1_empty_values_are_not_agreement(self):
+        for value in ("", None, False, 0):
+            with self.subTest(value=value):
+                fields = dict.fromkeys(("country", "denomination", "year"), value)
+                self.candidate.suggested_identification = fields
+                match = self.engine.check_collection_for_candidate("containment", "candidate", [fields])
+                self.assertFalse(match.matched)
+                self.assertIsNone(match.existing_item)
+                self.assertEqual(match.similarity_score, 0)
+                self.assertEqual(match.duplicate_risk, "unresolved")
+
+    def test_r2_weak_series_and_collecting_area_withhold_gap(self):
+        self.engine.process_ocr_for_candidate("containment", "candidate", "CANADA 1900 1 CENT")
+        self.assertIsNotNone(self.candidate.ocr_result)
+        for series in (None, {"series_definitions": [{"name": "Unrelated dollars", "missing_dates": ["1900"]}]}):
+            gap = self.engine.check_collection_gaps("containment", "candidate", series)
+            self.assertFalse(gap.fills_gap)
+            self.assertEqual(gap.missing_dates, [])
+            self.assertEqual(gap.impact_score, 0)
+            self.candidate.gap_info = gap
+            self.candidate.confidence = 0.99
+            advice = self.engine.build_side_by_side_comparison("containment", "candidate")
+            self.assertNotIn("Consider approval", " ".join(advice.recommendations))
+            self.assertTrue(any("Possible collecting interest" in e for e in advice.evidence))
+
+    def test_r3_unchecked_and_no_hit_are_unresolved(self):
+        self.assertEqual(self.candidate.collection_match.duplicate_risk, "unresolved")
+        self.candidate.confidence = 0.99
+        advice = self.engine.build_side_by_side_comparison("containment", "candidate")
+        self.assertNotIn("no duplicates", " ".join(advice.recommendations).lower())
+        self.assertNotIn("Consider approval", " ".join(advice.recommendations))
+        self.candidate.suggested_identification = {"country": "Canada", "year": "1900"}
+        no_hit = self.engine.check_collection_for_candidate("containment", "candidate", [])
+        self.assertEqual(no_hit.duplicate_risk, "unresolved")
+
+    def test_r3_reidentification_invalidates_assessments(self):
+        self.candidate.suggested_identification = {"country": "Canada", "year": "1900"}
+        self.candidate.collection_match = CollectionMatch(matched=True, duplicate_risk="high", existing_item={"id": "old"})
+        self.candidate.gap_info = CollectionGapInfo(fills_gap=True, missing_dates=["1900"])
+        self.engine.process_ocr_for_candidate("containment", "candidate", "CANADA 1910 1 CENT")
+        self.assertIsNone(self.candidate.collection_match.existing_item)
+        self.assertEqual(self.candidate.collection_match.duplicate_risk, "unresolved")
+        self.assertFalse(self.candidate.gap_info.fills_gap)
+        self.assertEqual(self.candidate.gap_info.missing_dates, [])
+        self.assertEqual(self.candidate.suggested_identification["year"], "1910")
+
+
 class TestCollectionAssistantEngine(unittest.TestCase):
     """Test suite for CollectionAssistantEngine."""
 
@@ -236,8 +303,8 @@ class TestCollectionAssistantEngine(unittest.TestCase):
         self.assertEqual(suggested["denomination"], "10 Cents")
         self.assertEqual(suggested["confidence"], 0.9)
 
-    def test_check_collection_exact_match(self):
-        """Test exact collection match detection."""
+    def test_check_collection_triplet_discovery(self):
+        """Test shared search fields without duplicate authority."""
         collection_items = [
             {"country": "Canada", "denomination": "10 Cents", "year": "1880"}
         ]
@@ -245,9 +312,10 @@ class TestCollectionAssistantEngine(unittest.TestCase):
         match = self.engine.check_collection_for_candidate(
             "test_session", "test_session_candidate_1", collection_items
         )
-        self.assertTrue(match.matched)
-        self.assertEqual(match.match_type, "exact")
-        self.assertEqual(match.duplicate_risk, "high")
+        self.assertFalse(match.matched)
+        self.assertEqual(match.match_type, "discovery")
+        self.assertEqual(match.duplicate_risk, "unresolved")
+        self.assertIsNotNone(match.existing_item)
 
     def test_check_collection_no_match(self):
         """Test no collection match."""
@@ -275,8 +343,10 @@ class TestCollectionAssistantEngine(unittest.TestCase):
         gap = self.engine.check_collection_gaps(
             "test_session", "test_session_candidate_1", series_data
         )
-        self.assertTrue(gap.fills_gap)
-        self.assertEqual(gap.gap_type, "series")
+        self.assertFalse(gap.fills_gap)
+        self.assertEqual(gap.gap_type, "possible_series_interest")
+        self.assertEqual(gap.series_name, "Newfoundland 5 Cent")
+        self.assertEqual(gap.missing_dates, [])
 
     def test_check_acquisition_priority_want_list(self):
         """Test acquisition priority from WANT_LIST."""

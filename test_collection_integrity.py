@@ -52,6 +52,28 @@ def make_safety_managers(temp_dir):
 
 
 class TestCollectionIntegrityAudit(unittest.TestCase):
+    def test_r4_shared_fields_have_no_duplicate_ownership_penalty(self):
+        for extras in ({"design": "different"}, {"type": "token"}, {"mint_mark": "S"}, {}):
+            with self.subTest(extras=extras), tempfile.TemporaryDirectory() as temp_dir:
+                persistence, backup = make_safety_managers(temp_dir)
+                first, second = item("1"), item("2")
+                for key, value in extras.items():
+                    setattr(second, key, value)
+                report = CollectionIntegrityAudit([first, second], persistence_manager=persistence, backup_manager=backup).run()
+                self.assertFalse(any(f.category == "Duplicate Ownership" for f in report.findings))
+                self.assertEqual(report.integrity_score.category_scores["ownership data"], 100)
+
+    def test_r5_triplets_do_not_decide_market_linkage(self):
+        for year in ("1900", "1901", ""):
+            with self.subTest(year=year), tempfile.TemporaryDirectory() as temp_dir:
+                persistence, backup = make_safety_managers(temp_dir)
+                market = MarketAwarenessEngine(purchases=[PurchaseRecord("synthetic", country="Newfoundland", denomination="20 cents", year=year, linked_photo_ids=["missing-photo"])])
+                report = CollectionIntegrityAudit([item()], market_awareness_engine=market, persistence_manager=persistence, backup_manager=backup).run()
+                self.assertEqual(report.market_summary.orphan_market_records, 0)
+                self.assertEqual(report.market_summary.invalid_references, 1)
+                self.assertEqual(report.integrity_score.category_scores["market records"], 92)
+                self.assertFalse(any("owned collection item" in f.message for f in report.findings))
+
     def test_integrity_report_generates(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             persistence, backup = make_safety_managers(temp_dir)
@@ -61,7 +83,7 @@ class TestCollectionIntegrityAudit(unittest.TestCase):
             self.assertGreaterEqual(report.integrity_score.score, 80)
             self.assertIn("Integrity Score", report.format_markdown())
 
-    def test_duplicate_ownership_detection(self):
+    def test_shared_search_fields_discovery(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             persistence, backup = make_safety_managers(temp_dir)
             report = CollectionIntegrityAudit(
@@ -70,7 +92,7 @@ class TestCollectionIntegrityAudit(unittest.TestCase):
                 backup_manager=backup,
             ).run()
 
-            self.assertTrue(any(finding.category == "Duplicate Ownership" for finding in report.findings))
+            self.assertTrue(any(finding.category == "Discovery" and "unresolved" in finding.message for finding in report.findings))
 
     def test_missing_grade_detection(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -115,7 +137,7 @@ class TestCollectionIntegrityAudit(unittest.TestCase):
             self.assertEqual(report.photo_summary.orphan_photo_references, 1)
             self.assertEqual(report.photo_summary.missing_files, 1)
 
-    def test_orphan_market_record_detection(self):
+    def test_unequal_triplet_cannot_establish_orphan_market_record(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             persistence, backup = make_safety_managers(temp_dir)
             market = MarketAwarenessEngine(
@@ -129,7 +151,7 @@ class TestCollectionIntegrityAudit(unittest.TestCase):
                 backup_manager=backup,
             ).run()
 
-            self.assertEqual(report.market_summary.orphan_market_records, 1)
+            self.assertEqual(report.market_summary.orphan_market_records, 0)
 
     def test_duplicate_market_observation_detection(self):
         with tempfile.TemporaryDirectory() as temp_dir:

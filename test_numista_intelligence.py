@@ -69,6 +69,73 @@ def make_numista_item(numista_n, title, country, year, grade="", **overrides):
     return values
 
 
+class TestSlice2CNumistaContainment(unittest.TestCase):
+    def test_r6_catalogue_equality_is_discovery_only(self):
+        for country, year in (("", ""), ("Canada", "1900"), ("Argentina", "1960")):
+            with self.subTest(country=country, year=year):
+                engine = NumistaIntelligenceEngine.from_items([make_item("local", "Canada", "1 cent", "1900", numista_n="12345")])
+                result = engine.analyze_data([make_numista_item("12345", "50 cents", country, year)]).item_analyses[0]
+                self.assertEqual(result.status.value, "unresolved")
+                self.assertIsNone(result.matched_collection_item)
+                self.assertIn("discovery", " ".join(result.reasons).lower())
+
+    def test_r6_malformed_catalogue_values_have_no_authority(self):
+        for value in ("arbitrary", "123x", "0", "000", "１２３", "1" * 5000, False, None, 0):
+            with self.subTest(value=value):
+                engine = NumistaIntelligenceEngine.from_items([make_item("local", "", "", "", numista_n=value)])
+                result = engine.analyze_data([make_numista_item(value, "", "", "")]).item_analyses[0]
+                self.assertNotEqual(result.status, NumistaMatchStatus.OWNED)
+                self.assertIsNone(result.matched_collection_item)
+
+    def test_r7_weak_signatures_cannot_duplicate_or_upgrade(self):
+        for numista_n in ("12346", "", None):
+            for reference in ("", "KM1", "KM2"):
+                for grade in ("", "UNKNOWN", "AU-50"):
+                    with self.subTest(numista_n=numista_n, reference=reference, grade=grade):
+                        engine = NumistaIntelligenceEngine.from_items([make_item("local", "Canada", "1 cent", "1900", "F-12", numista_n="12345", reference="KM1", title="portrait")])
+                        report = engine.analyze_data([make_numista_item(numista_n, "different design", "Canada", "1900", grade, face_value="50 cents", reference=reference)])
+                        self.assertEqual(report.duplicate_count, 0)
+                        self.assertEqual(report.upgrade_count, 0)
+                        self.assertEqual(report.duplicate_reports, [])
+                        self.assertEqual(report.upgrade_reports, [])
+                        self.assertIsNone(report.item_analyses[0].matched_collection_item)
+                        self.assertEqual(report.item_analyses[0].upgrade_delta, 0)
+                        self.assertEqual(report.item_analyses[0].status, NumistaMatchStatus.UNRESOLVED)
+                        self.assertIn("discovery", " ".join(report.item_analyses[0].reasons).lower())
+
+    def test_r8_no_hit_preserves_interest_without_gap_consequences(self):
+        engine = NumistaIntelligenceEngine.from_items([])
+        report = engine.analyze_data([make_numista_item("12345", "50 cents variety", "Newfoundland", "1888", estimate_cad=100)])
+        result = report.item_analyses[0]
+        self.assertEqual(result.status.value, "unresolved")
+        self.assertTrue(result.series_relevance)
+        self.assertIn("variety", " ".join(result.reasons).lower())
+        self.assertEqual(result.gap_value, 0)
+        self.assertEqual(result.priority, NumistaPriority.NONE)
+        self.assertEqual(report.gap_count, 0)
+        self.assertEqual(report.gap_reports, [])
+        self.assertEqual(report.top_priorities, [])
+        self.assertNotIn("acquir", " ".join(report.summary_recommendations).lower())
+
+    def test_r9_failed_refresh_replaces_exported_report(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = NumistaIntelligenceEngine.from_items([])
+            engine.analyze_data([make_numista_item("12345", "PREVIOUS-SYNTHETIC", "Newfoundland", "1888")])
+            failed = engine.analyze_file(os.path.join(temp_dir, "missing.csv"))
+            self.assertIs(engine.report, failed)
+            for suffix in ("csv", "md"):
+                path = os.path.join(temp_dir, "report." + suffix)
+                if suffix == "csv":
+                    engine.export_report_csv(path)
+                else:
+                    engine.export_report_markdown(path)
+                with open(path, encoding="utf-8") as handle:
+                    exported = handle.read()
+                self.assertNotIn("PREVIOUS-SYNTHETIC", exported)
+                self.assertNotIn("Consider acquiring", exported)
+            self.assertIn("Failed to load", " ".join(failed.warnings))
+
+
 class TestNumistaDataModel(unittest.TestCase):
     """Verify Numista data parsing and normalization."""
 
@@ -177,43 +244,45 @@ class TestNumistaCollectionAnalyzer(unittest.TestCase):
     def test_owned_by_numista_n(self):
         numista_item = make_numista_item("5001", "50 cents", "Newfoundland", "1900")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.OWNED)
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
         self.assertEqual(analysis.priority, NumistaPriority.NONE)
-        self.assertIn("Already owned", analysis.reasons[0])
+        self.assertIn("Catalogue discovery", analysis.reasons[0])
+        self.assertIsNone(analysis.matched_collection_item)
 
     def test_duplicate_by_signature(self):
         numista_item = make_numista_item("9999", "50 cents", "Newfoundland", "1900", "F-12")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.DUPLICATE)
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
         self.assertEqual(analysis.priority, NumistaPriority.NONE)
 
     def test_upgrade_by_better_grade(self):
         numista_item = make_numista_item("9999", "50 cents", "Newfoundland", "1900", "AU-50")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.UPGRADE)
-        self.assertEqual(analysis.priority, NumistaPriority.HIGH)
-        self.assertIn("Upgrade", analysis.reasons[0])
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
+        self.assertEqual(analysis.upgrade_delta, 0)
 
     def test_newfoundland_gap(self):
         numista_item = make_numista_item("5003", "50 cents", "Newfoundland", "1904", "VF-20")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.GAP)
-        self.assertEqual(analysis.priority, NumistaPriority.HIGH)
-        self.assertIn("Collection gap", analysis.reasons[0])
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
+        self.assertIn("Possible series interest", " ".join(analysis.reasons))
+        self.assertEqual(analysis.gap_value, 0)
 
     def test_canadian_silver_gap(self):
         numista_item = make_numista_item("1003", "10 cents silver", "Canada", "1912", "VF-20")
         analysis = self.analyzer.analyze_item(numista_item)
-        # Canadian silver without specific series match becomes NEW_SERIES
-        self.assertEqual(analysis.status, NumistaMatchStatus.NEW_SERIES)
-        self.assertEqual(analysis.priority, NumistaPriority.MEDIUM)
+        # Collecting-area interest does not establish a new unowned series.
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
 
     def test_new_series_for_newfoundland(self):
         numista_item = make_numista_item("5004", "1 cent", "Newfoundland", "1913", "VF-20")
         analysis = self.analyzer.analyze_item(numista_item)
-        # Newfoundland 1 cent matches supported series, so it's GAP not NEW_SERIES
-        self.assertEqual(analysis.status, NumistaMatchStatus.GAP)
-        self.assertEqual(analysis.priority, NumistaPriority.HIGH)
+        # Heuristic series interest does not establish absence from holdings.
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
 
     def test_not_relevant_for_unsupported_country(self):
         numista_item = make_numista_item("9999", "1 peso", "Argentina", "1960", "VF-20")
@@ -225,14 +294,15 @@ class TestNumistaCollectionAnalyzer(unittest.TestCase):
         numista_item = make_numista_item("1004", "1 cent large", "Canada", "1859", "VF-20",
                                          reference="Wide 9 variety")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.VARIETY)
-        self.assertEqual(analysis.priority, NumistaPriority.HIGH)
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
+        self.assertIn("Possible variety interest", " ".join(analysis.reasons))
 
     def test_key_date_priority(self):
         numista_item = make_numista_item("5005", "50 cents", "Newfoundland", "1888", "VF-20")
         analysis = self.analyzer.analyze_item(numista_item)
-        self.assertEqual(analysis.status, NumistaMatchStatus.GAP)
-        self.assertEqual(analysis.priority, NumistaPriority.HIGH)
+        self.assertEqual(analysis.status, NumistaMatchStatus.UNRESOLVED)
+        self.assertEqual(analysis.priority, NumistaPriority.NONE)
 
     def test_grade_comparison_upgrade(self):
         self.assertTrue(self.analyzer._is_upgrade(
@@ -288,40 +358,39 @@ class TestNumistaIntelligenceEngine(unittest.TestCase):
 
     def test_analyze_data_returns_report(self):
         numista_items = [
-            make_numista_item("5001", "50 cents", "Newfoundland", "1900", "F-12"),  # owned (matches nf_1900 by N#)
-            make_numista_item("5002x", "50 cents", "Newfoundland", "1902", "VF-20"),  # gap (Newfoundland 50 cents series, not in collection)
+            make_numista_item("5001", "50 cents", "Newfoundland", "1900", "F-12"),  # Discovery/interest only.
+            make_numista_item("5002x", "50 cents", "Newfoundland", "1902", "VF-20"),  # Discovery/interest only.
             make_numista_item("1002", "1 cent", "Canada", "1860", "VF-20"),  # not relevant (no series match)
         ]
         report = self.engine.analyze_data(numista_items)
         self.assertIsInstance(report, NumistaIntelligenceReport)
         self.assertEqual(report.total_numista_items, 3)
-        self.assertEqual(report.owned_count, 1)  # N#5001 matches nf_1900
-        self.assertEqual(report.gap_count, 1)  # 5002x is Newfoundland 50 cents gap
+        self.assertEqual(report.owned_count, 0)  # Weak evidence withholds authority.
+        self.assertEqual(report.gap_count, 0)  # Weak evidence withholds authority.
         self.assertEqual(report.not_relevant_count, 1)  # Canada 1 cent 1860 not in supported series
 
     def test_report_counts_are_correct(self):
         numista_items = [
-            make_numista_item("5001", "50 cents", "Newfoundland", "1900", "F-12"),  # owned (matches nf_1900 by N#)
-            make_numista_item("5001x", "50 cents", "Newfoundland", "1900", "F-12"),  # duplicate (same country/year as nf_1900)
-            make_numista_item("5002x", "50 cents", "Newfoundland", "1902", "AU-50"),  # gap (Newfoundland 50 cents series)
-            make_numista_item("5003", "50 cents", "Newfoundland", "1904", "VF-20"),  # gap (Newfoundland 50 cents series)
+            make_numista_item("5001", "50 cents", "Newfoundland", "1900", "F-12"),  # Discovery/interest only.
+            make_numista_item("5001x", "50 cents", "Newfoundland", "1900", "F-12"),  # Discovery/interest only.
+            make_numista_item("5002x", "50 cents", "Newfoundland", "1902", "AU-50"),  # Discovery/interest only.
+            make_numista_item("5003", "50 cents", "Newfoundland", "1904", "VF-20"),  # Discovery/interest only.
             make_numista_item("9999", "1 peso", "Argentina", "1960", "VF-20"),  # not relevant
         ]
         report = self.engine.analyze_data(numista_items)
-        self.assertEqual(report.owned_count, 1)  # N#5001 matches nf_1900
-        self.assertEqual(report.duplicate_count, 1)  # 5001x same country/year as nf_1900
+        self.assertEqual(report.owned_count, 0)  # Weak evidence withholds authority.
+        self.assertEqual(report.duplicate_count, 0)  # Weak evidence withholds authority.
         self.assertEqual(report.upgrade_count, 0)  # No nf_1902 in engine collection to upgrade
-        self.assertEqual(report.gap_count, 2)  # 5002x and 5003 are Newfoundland 50 cents gaps
+        self.assertEqual(report.gap_count, 0)  # Weak evidence withholds authority.
         self.assertEqual(report.not_relevant_count, 1)  # Argentina
 
     def test_top_priorities_filtered_correctly(self):
         numista_items = [
-            make_numista_item("5003", "50 cents", "Newfoundland", "1904", "VF-20"),  # HIGH gap
+            make_numista_item("5003", "50 cents", "Newfoundland", "1904", "VF-20"),  # Discovery/interest only.
             make_numista_item("1002", "1 cent", "Canada", "1860", "VF-20"),  # not relevant (no series match)
         ]
         report = self.engine.analyze_data(numista_items)
-        self.assertEqual(len(report.top_priorities), 1)  # Only Newfoundland gap is prioritized
-        self.assertEqual(report.top_priorities[0].priority, NumistaPriority.HIGH)
+        self.assertEqual(report.top_priorities, [])  # No verified gap-based priority.
 
     def test_summary_recommendations_generated(self):
         numista_items = [
@@ -339,7 +408,7 @@ class TestNumistaIntelligenceEngine(unittest.TestCase):
         report = self.engine.analyze_data(numista_items)
         d = report.to_dict()
         self.assertEqual(d['total_numista_items'], 1)
-        self.assertEqual(d['owned_count'], 1)
+        self.assertEqual(d['owned_count'], 0)
         self.assertIn('report_date', d)
 
     def test_analyze_file_with_csv(self):
@@ -359,8 +428,8 @@ class TestNumistaIntelligenceEngine(unittest.TestCase):
         try:
             report = self.engine.analyze_file(temp_path)
             self.assertEqual(report.total_numista_items, 2)
-            self.assertEqual(report.owned_count, 1)
-            self.assertEqual(report.gap_count, 1)
+            self.assertEqual(report.owned_count, 0)  # Weak evidence withholds authority.
+            self.assertEqual(report.gap_count, 0)  # Weak evidence withholds authority.
         finally:
             os.unlink(temp_path)
 

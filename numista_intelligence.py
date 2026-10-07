@@ -22,6 +22,7 @@ from collection_intelligence import CollectionIntelligenceEngine
 
 class NumistaMatchStatus(Enum):
     """Status of a Numista item relative to local collection."""
+    UNRESOLVED = "unresolved"
     OWNED = "owned"
     DUPLICATE = "duplicate"
     UPGRADE = "upgrade"
@@ -267,62 +268,39 @@ class NumistaCollectionAnalyzer:
             currency=numista_item.get('currency', ''),
             face_value=numista_item.get('face_value', ''),
             estimate_cad=numista_item.get('estimate_cad', 0.0),
-            status=NumistaMatchStatus.NOT_RELEVANT,
+            status=NumistaMatchStatus.UNRESOLVED,
             priority=NumistaPriority.NONE,
             reasons=[],
             warnings=[],
         )
 
-        owned_item = self._find_by_numista_n(analysis.numista_n)
-        if owned_item:
-            analysis.status = NumistaMatchStatus.OWNED
-            analysis.matched_collection_item = owned_item.id
-            analysis.priority = NumistaPriority.NONE
-            analysis.reasons.append(f"Already owned (N# {analysis.numista_n})")
-            return analysis
-
-        owned_item = self._find_by_signature(analysis.country, analysis.year, analysis.reference)
-        if owned_item:
-            if self._is_upgrade(owned_item, analysis):
-                analysis.status = NumistaMatchStatus.UPGRADE
-                analysis.matched_collection_item = owned_item.id
-                analysis.priority = NumistaPriority.HIGH
-                analysis.upgrade_delta = self._calculate_upgrade_delta(owned_item, analysis)
-                analysis.reasons.append(f"Upgrade opportunity: owned grade {owned_item.grade}, Numista grade {analysis.grade}")
-            else:
-                analysis.status = NumistaMatchStatus.DUPLICATE
-                analysis.matched_collection_item = owned_item.id
-                analysis.priority = NumistaPriority.NONE
-                analysis.reasons.append(f"Duplicate: already owned ({owned_item.id})")
-            return analysis
+        # Catalogue and search-field associations are discovery only in this slice.
+        discovery_item = self._find_by_numista_n(analysis.numista_n)
+        if discovery_item:
+            analysis.reasons.append(f"Catalogue discovery association: {discovery_item.id}; issue equivalence unresolved")
+        else:
+            discovery_item = self._find_by_signature(analysis.country, analysis.year, analysis.reference)
+            if discovery_item:
+                analysis.reasons.append(f"Shared search fields with {discovery_item.id}; discovery only, issue equivalence unresolved")
 
         series_relevance = self._check_series_relevance(analysis)
         if series_relevance:
             analysis.series_relevance = series_relevance
-            analysis.status = NumistaMatchStatus.GAP
-            analysis.priority = self._calculate_gap_priority(analysis)
-            analysis.gap_value = self._calculate_gap_value(analysis)
-            analysis.reasons.append(f"Collection gap in {series_relevance}")
-        else:
-            if self._is_newfoundland(analysis) or self._is_canadian_silver(analysis):
-                analysis.status = NumistaMatchStatus.NEW_SERIES
-                analysis.priority = NumistaPriority.MEDIUM
-                analysis.reasons.append("New series opportunity for Adam-specific priorities")
-            else:
-                analysis.status = NumistaMatchStatus.NOT_RELEVANT
-                analysis.priority = NumistaPriority.NONE
-                analysis.reasons.append("Not in supported collecting areas")
+            analysis.reasons.append(f"Possible series interest: {series_relevance}; holdings absence unverified")
+        elif self._is_newfoundland(analysis) or self._is_canadian_silver(analysis):
+            analysis.reasons.append("Possible collecting-area interest; holdings absence unverified")
+        elif not discovery_item:
+            analysis.status = NumistaMatchStatus.NOT_RELEVANT
+            analysis.reasons.append("Not in supported collecting areas; ownership unresolved")
 
         if self._has_variety_indicators(analysis):
-            if analysis.status in [NumistaMatchStatus.GAP, NumistaMatchStatus.NEW_SERIES]:
-                analysis.status = NumistaMatchStatus.VARIETY
-                analysis.priority = NumistaPriority.HIGH
-                analysis.reasons.append("Variety opportunity")
+            analysis.reasons.append("Possible variety interest from descriptive text; identity unresolved")
 
         return analysis
 
     def _find_by_numista_n(self, numista_n: str) -> Optional[CoinItem]:
-        if not numista_n:
+        if (not isinstance(numista_n, str) or not numista_n.isascii() or
+                not numista_n.isdecimal() or not numista_n.strip("0")):
             return None
         for item in self.collection.items:
             if item.numista_n == numista_n:
@@ -332,10 +310,10 @@ class NumistaCollectionAnalyzer:
     def _find_by_signature(self, country: str, year: str, reference: str) -> Optional[CoinItem]:
         if not country or not year:
             return None
+        # Country/year overlap remains useful discovery even with absent qualifiers.
+        # No reference or catalogue agreement is inferred here.
         for item in self.collection.items:
-            if (item.country == country and 
-                item.year == year and 
-                (item.reference == reference or not reference)):
+            if item.country == country and item.year == year:
                 return item
         return None
 
@@ -460,12 +438,15 @@ class NumistaIntelligenceEngine:
         return cls(collection)
 
     def analyze_file(self, file_path: str) -> NumistaIntelligenceReport:
+        # Invalidate prior advice even if the current analysis raises unexpectedly.
+        self.report = None
         if file_path.endswith('.csv'):
             success = self.data_model.load_from_csv(file_path)
         else:
             success = self.data_model.load_from_excel(file_path)
         if not success:
-            return self._create_error_report()
+            self.report = self._create_error_report()
+            return self.report
         items = self.data_model.get_items()
         analyses = []
         for item in items:
@@ -546,7 +527,7 @@ class NumistaIntelligenceEngine:
     def _build_gap_reports(self, report: NumistaIntelligenceReport, analyses: List[NumistaItemAnalysis]):
         series_items: Dict[str, List[NumistaItemAnalysis]] = {}
         for analysis in analyses:
-            if analysis.series_relevance:
+            if analysis.series_relevance and analysis.status in [NumistaMatchStatus.OWNED, NumistaMatchStatus.GAP]:
                 if analysis.series_relevance not in series_items:
                     series_items[analysis.series_relevance] = []
                 series_items[analysis.series_relevance].append(analysis)
@@ -575,8 +556,11 @@ class NumistaIntelligenceEngine:
             recommendations.append(f"Skip {report.duplicate_count} duplicates")
         if report.new_series_count > 0:
             recommendations.append(f"Explore {report.new_series_count} new series opportunities")
+        unresolved = sum(1 for analysis in report.item_analyses if analysis.status == NumistaMatchStatus.UNRESOLVED)
+        if unresolved:
+            recommendations.append(f"Review {unresolved} discovery candidates; ownership and gaps remain unresolved")
         if not recommendations:
-            recommendations.append("No immediate action required")
+            recommendations.append("No supported collector advice available")
         return recommendations
 
     def _create_error_report(self) -> NumistaIntelligenceReport:
