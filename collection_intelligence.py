@@ -1,8 +1,53 @@
 """Collection intelligence engine for gap reports and acquisition planning."""
 
 import csv
+import json
+from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from itertools import combinations
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from issue_equivalence import (
+    EffectiveStatus, IssueDecision, IssueIdentity, ItemType,
+    compare_issue_identity,
+)
+
+
+def _operative_issue_projection(item: Any, record_id: str) -> tuple[IssueIdentity | None, str]:
+    """Map only current structured fields and exact supported source enums.
+
+    The collection model resolves its operative status before this boundary.
+    This adapter does not derive one, interpret discovery text, or repair IDs.
+    """
+    from coin_collection import IdentificationStatus, ItemType as CollectionItemType
+
+    source_type = getattr(item, "item_type", None)
+    source_status = getattr(item, "identification_status", None)
+    type_map = {
+        CollectionItemType.COIN: ItemType.COIN,
+        CollectionItemType.BANKNOTE: ItemType.BANKNOTE,
+    }
+    status_map = {
+        IdentificationStatus.IDENTIFIED: EffectiveStatus.IDENTIFIED,
+        IdentificationStatus.PARTIAL: EffectiveStatus.PARTIAL,
+        IdentificationStatus.UNIDENTIFIED: EffectiveStatus.UNIDENTIFIED,
+    }
+    # Check exact types before dict lookup: foreign str enums compare equal.
+    if (type(source_type) is not CollectionItemType
+            or not any(source_type is member for member in type_map)):
+        return None, "Missing or unsupported operative item type"
+    if (type(source_status) is not IdentificationStatus
+            or not any(source_status is member for member in status_map)):
+        return None, "Missing or unsupported operative identification status"
+    fields = {}
+    for name in ("country", "denomination", "year", "type_design", "issuer",
+                 "reference", "numista_n"):
+        value = getattr(item, name, None)
+        if value is not None and type(value) is not str:
+            return None, f"Malformed operative {name}"
+        fields[name] = value
+    return IssueIdentity(subject_key=record_id, item_type=type_map[source_type],
+                         effective_status=status_map[source_status], **fields), ""
 
 
 GRADE_HIERARCHY = {
@@ -90,6 +135,158 @@ class CollectionIntelligenceEngine:
 
     def __init__(self, items: Iterable):
         self.items = list(items)
+
+    def analyze_same_issue_records(self) -> Dict:
+        """Read-only issue evidence, isolated from legacy duplicate/advice APIs.
+
+        Groups are a deterministic, disjoint greedy clique partition, not
+        connected components or an exhaustive enumeration of overlapping cliques.
+        All pair results survive, including positive pairs across group boundaries.
+        No quantity is summed and no physical holding assertion is deduplicated.
+        """
+        ids = [getattr(item, "id", None) for item in self.items]
+
+        def valid_id(value):
+            return (type(value) is str and bool(value.strip())
+                    and not any(ord(char) < 32 or ord(char) == 127 for char in value))
+
+        occurrences = Counter(value for value in ids if valid_id(value))
+        members = []
+        unresolved = []
+        for position, (item, record_id) in enumerate(zip(self.items, ids), start=1):
+            # source_position locates a failed entry; it is never a record ID.
+            if not valid_id(record_id):
+                unresolved.append({"record_id": record_id if type(record_id) is str else None,
+                                   "source_position": position,
+                                   "reason": "Missing or malformed record ID; entry excluded"})
+                continue
+            assert type(record_id) is str
+            if occurrences[record_id] != 1:
+                unresolved.append({"record_id": record_id, "source_position": position,
+                                   "reason": "Ambiguous repeated record ID; all occurrences excluded"})
+                continue
+            projection, reason = _operative_issue_projection(item, record_id)
+            if projection is None:
+                unresolved.append({"record_id": record_id, "source_position": position,
+                                   "reason": reason})
+                continue
+            quantity = getattr(item, "quantity", None)
+            member = {"record_id": record_id, "operative_projection": projection,
+                      "recorded_quantity": quantity if type(quantity) is int and quantity >= 1 else None}
+            members.append(member)
+            admission = compare_issue_identity(projection, projection)
+            if admission.decision is IssueDecision.ABSTAIN:
+                unresolved.append({"record_id": record_id, "source_position": position,
+                                   "reason": ", ".join(r.value.lower().replace("_", " ")
+                                                       for r in admission.reason_codes),
+                                   "result": admission})
+
+        comparisons = []
+        pairs = {}
+        for left, right in combinations(members, 2):
+            pair = {"member_ids": [left["record_id"], right["record_id"]],
+                    "result": compare_issue_identity(left["operative_projection"],
+                                                     right["operative_projection"])}
+            comparisons.append(pair)
+            pairs[frozenset(pair["member_ids"])] = pair
+
+        partitions = []
+        for member in members:
+            for group in partitions:
+                if all(pairs[frozenset((member["record_id"], other["record_id"]))]
+                       ["result"].decision is IssueDecision.SAME_ISSUE for other in group):
+                    group.append(member)
+                    break
+            else:
+                partitions.append([member])
+        established = []
+        for group in partitions:
+            if len(group) < 2:
+                continue
+            evidence = [pairs[frozenset((a["record_id"], b["record_id"]))]
+                        for a, b in combinations(group, 2)]
+            # Enforce the invariant at the output boundary too; no transitivity assumption.
+            if not all(pair["result"].decision is IssueDecision.SAME_ISSUE for pair in evidence):
+                raise AssertionError("Established group must have SAME_ISSUE for every distinct pair")
+            established.append({"member_ids": [m["record_id"] for m in group],
+                                "same_issue_record_count": len(group),
+                                "members": group, "comparisons": evidence})
+        same_ids = {record_id for pair in comparisons
+                    if pair["result"].decision is IssueDecision.SAME_ISSUE
+                    for record_id in pair["member_ids"]}
+        unresolved_comparisons = [p for p in comparisons
+                                 if p["result"].decision is IssueDecision.ABSTAIN]
+        unresolved_ids = {r["record_id"] for r in unresolved}
+        for pair in unresolved_comparisons:
+            for record_id in pair["member_ids"]:
+                if record_id not in unresolved_ids:
+                    unresolved.append({"record_id": record_id,
+                                       "reason": "Issue equivalence unresolved in pair comparison"})
+                    unresolved_ids.add(record_id)
+        return {"record_count": len(members), "same_issue_record_count": len(same_ids),
+                "members": members, "established_groups": established,
+                "comparisons": comparisons, "unresolved_records": unresolved,
+                "unresolved_comparisons": unresolved_comparisons}
+
+    def format_same_issue_report_markdown(self) -> str:
+        """Collector-facing evidence only; quantities describe individual entries."""
+        report = self.analyze_same_issue_records()
+        # JSON quoting keeps exact opaque IDs legible, including spaces and markup.
+        def label(record_id):
+            return json.dumps(record_id, ensure_ascii=False) if record_id is not None else "unavailable ID"
+
+        lines = ["# Same recorded issue/type report", "",
+                 "SAME_ISSUE means the same recorded issue/type under current operative recorded evidence.",
+                 "It does not independently establish duplicate records or holdings, physical specimen identity, "
+                 "or verified identity; separate physical specimens are unverified.",
+                 "Recorded quantities describe each entry and are not verified physical specimen counts. "
+                 "Quantities are not added together because entries may overlap.", "",
+                 "## Established groups", ""]
+        if not report["established_groups"]:
+            lines.append("No group established by the shared issue-equivalence contract.")
+        for number, group in enumerate(report["established_groups"], start=1):
+            lines.append(f"### Group {number}: {group['same_issue_record_count']} distinct records "
+                         "for the same recorded issue/type")
+            for member in group["members"]:
+                quantity = member["recorded_quantity"]
+                lines.append(f"- Record {label(member['record_id'])}; recorded quantity: "
+                             f"{quantity if quantity is not None else 'unavailable'}")
+            lines.append("")
+        lines.extend(["", "## Entry evidence", ""])
+        if not report["members"]:
+            lines.append("No entries admitted for comparison.")
+        for member in report["members"]:
+            projection = member["operative_projection"]
+            fields = "; ".join(f"{name.replace('_', ' ')}: {label(getattr(projection, name))}"
+                               for name in ("country", "denomination", "year", "type_design",
+                                            "issuer", "reference", "numista_n")
+                               if getattr(projection, name) not in (None, ""))
+            quantity = member["recorded_quantity"]
+            lines.append(f"- Record {label(member['record_id'])}: {projection.item_type.value}; "
+                         f"{projection.effective_status.value.lower()}; {fields}; recorded quantity: "
+                         f"{quantity if quantity is not None else 'unavailable'}")
+        lines.extend(["", "## Pair evidence", "",
+                      "Groups require every distinct pair to be established. Groups are disjoint; "
+                      "established pairs across groups remain listed here."])
+        decisions = {IssueDecision.SAME_ISSUE: "SAME ISSUE — same recorded issue/type",
+                     IssueDecision.ABSTAIN: "ABSTAIN — unresolved issue equivalence",
+                     IssueDecision.DIFFERENT_ISSUE: "DIFFERENT ISSUE — supported different issue"}
+        for pair in report["comparisons"]:
+            result = pair["result"]
+            reasons = ", ".join(r.value.lower().replace("_", " ") for r in result.reason_codes)
+            lines.append(f"- {label(pair['member_ids'][0])} / {label(pair['member_ids'][1])}: "
+                         f"{decisions[result.decision]} ({reasons}).")
+        if not report["comparisons"]:
+            lines.append("No distinct admitted record pairs to compare.")
+        lines.extend(["", "## Unresolved records and admission limitations", ""])
+        for record in report["unresolved_records"]:
+            position = (f" (input entry {record['source_position']})"
+                        if "source_position" in record else "")
+            lines.append(f"- Record {label(record['record_id'])}{position}: {record['reason']}.")
+        if not report["unresolved_records"]:
+            lines.append("No unresolved evidence encountered in this input.")
+        lines.extend(["", "Absence from a group establishes no conclusion about ownership or physical holdings."])
+        return "\n".join(lines) + "\n"
 
     def analyze_by_country(self) -> Dict[str, Dict]:
         countries: Dict[str, Dict] = {}
