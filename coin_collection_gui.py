@@ -219,6 +219,119 @@ PHOTO_INBOX_SETTINGS_DEFAULTS = {
 }
 
 
+class SavedPhotoPreview(ttk.LabelFrame):
+    """Display only the active draft photo; scaling is transient UI state."""
+
+    def __init__(self, parent):
+        super().__init__(parent, text="Current Photo", padding=8)
+        self.path = None
+        self.has_photo = False
+        self.source_image = None
+        self.tk_image = None
+        self.scale = 1.0
+        self.display_size = (0, 0)
+        self.preview_status = "No photos attached"
+        self.fitted = True
+        self.caption = tk.StringVar(value=self.preview_status)
+        ttk.Label(self, textvariable=self.caption, wraplength=320).grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        self.canvas = tk.Canvas(self, width=320, height=380, background="#eeeeee", highlightthickness=0)
+        self.canvas.grid(row=1, column=0, sticky=tk.NSEW, pady=(8, 0))
+        vertical = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        vertical.grid(row=1, column=1, sticky=tk.NS, pady=(8, 0))
+        horizontal = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas.xview)
+        horizontal.grid(row=2, column=0, sticky=tk.EW)
+        self.canvas.configure(xscrollcommand=horizontal.set, yscrollcommand=vertical.set)
+        controls = ttk.Frame(self)
+        controls.grid(row=3, column=0, columnspan=2, pady=(8, 0))
+        self.zoom_in = ttk.Button(controls, text="Zoom In", command=lambda: self.zoom(1.5))
+        self.zoom_out = ttk.Button(controls, text="Zoom Out", command=lambda: self.zoom(1 / 1.5))
+        self.reset = ttk.Button(controls, text="Reset / Fit", command=self.fit)
+        for button in (self.zoom_in, self.zoom_out, self.reset):
+            button.pack(side=tk.LEFT, padx=2)
+        ttk.Label(self, text="Use scrollbars to inspect enlarged details.", wraplength=320).grid(row=4, column=0, columnspan=2, pady=(8, 0))
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+        self.canvas.bind("<Configure>", self._resize)
+
+    @staticmethod
+    def fit_size(image_size, area_size):
+        width, height = image_size
+        factor = min(1.0, max(1, area_size[0]) / width, max(1, area_size[1]) / height)
+        return max(1, round(width * factor)), max(1, round(height * factor))
+
+    def show_photo(self, photo):
+        path = photo.path if photo else ""
+        self.caption.set(
+            f"{CoinCollectionGUI.role_display_label(photo.role)} — {os.path.basename(path)}"
+            if photo else "No photos attached"
+        )
+        if path == self.path and self.has_photo == (photo is not None):
+            return
+        self.path = path
+        self.has_photo = photo is not None
+        self.source_image = None
+        self.tk_image = None
+        self.preview_status = "No photos attached" if not photo else "Photo unavailable"
+        if photo:
+            try:
+                with Image.open(path) as image:
+                    self.source_image = image.convert("RGB")
+                self.preview_status = ""
+            except (OSError, ValueError, Image.DecompressionBombError):
+                pass
+        self.fit()
+
+    def _area(self):
+        return max(1, self.canvas.winfo_width()), max(1, self.canvas.winfo_height())
+
+    def _fit_scale(self):
+        if self.source_image is None:
+            return 1.0
+        width, height = self.source_image.size
+        area_width, area_height = self._area()
+        return min(1.0, area_width / width, area_height / height)
+
+    def fit(self):
+        self.fitted = True
+        self.scale = self._fit_scale()
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(0)
+        self._render()
+
+    def zoom(self, factor):
+        if self.source_image is None:
+            return
+        self.fitted = False
+        upper = min(4.0, 4096 / max(self.source_image.size))
+        self.scale = min(upper, max(self._fit_scale() / 4, self.scale * factor))
+        self._render()
+
+    def _resize(self, event=None):
+        if self.fitted:
+            self.fit()
+
+    def _render(self):
+        self.canvas.delete("all")
+        self.tk_image = None
+        self.display_size = (0, 0)
+        available = self.source_image is not None
+        for button in (self.zoom_in, self.zoom_out, self.reset):
+            button.configure(state=tk.NORMAL if available else tk.DISABLED)
+        if self.source_image is None:
+            self.canvas.create_text(12, 16, anchor=tk.NW, text=self.preview_status)
+            self.canvas.configure(scrollregion=(0, 0, *self._area()))
+            return
+        width, height = self.source_image.size
+        self.display_size = (
+            self.fit_size((width, height), self._area()) if self.fitted else
+            (max(1, round(width * self.scale)), max(1, round(height * self.scale)))
+        )
+        displayed = self.source_image.resize(self.display_size, Image.Resampling.LANCZOS)
+        self.tk_image = ImageTk.PhotoImage(displayed, master=self.canvas)
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
+        self.canvas.configure(scrollregion=(0, 0, *self.display_size))
+
+
 class CoinCollectionGUI:
     """GUI for coin collection management."""
     
@@ -5006,7 +5119,7 @@ Total Unique Dates: {total_unique_dates}
             return
         dialog = tk.Toplevel(self.root)
         dialog.title("Edit Item")
-        dialog.geometry("720x650")
+        dialog.geometry("1000x700")
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -5016,6 +5129,8 @@ Total Unique Dates: {total_unique_dates}
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
         form.rowconfigure(9, weight=1)
+        preview = SavedPhotoPreview(form)
+        preview.grid(row=0, column=2, rowspan=10, sticky=tk.NSEW, padx=(12, 0))
 
         country_var = tk.StringVar(value=item.country)
         denomination_var = tk.StringVar(value=item.denomination)
@@ -5043,7 +5158,7 @@ Total Unique Dates: {total_unique_dates}
             )
 
         ttk.Label(form, text="Notes:").grid(row=5, column=0, sticky=tk.NW, pady=4)
-        notes_text = tk.Text(form, height=4)
+        notes_text = tk.Text(form, height=4, width=36)
         notes_text.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=4, padx=(5, 0))
         notes_text.insert(tk.END, item.notes)
 
@@ -5090,7 +5205,7 @@ Total Unique Dates: {total_unique_dates}
         edit_tree.heading("file", text="File")
         edit_tree.column("primary", width=65, anchor=tk.CENTER)
         edit_tree.column("role", width=120, anchor=tk.W)
-        edit_tree.column("file", width=360, anchor=tk.W)
+        edit_tree.column("file", width=250, minwidth=60, anchor=tk.W)
         edit_tree.grid(row=0, column=0, columnspan=6, sticky=(tk.W, tk.E))
 
         def refresh_edit_tree():
@@ -5105,10 +5220,12 @@ Total Unique Dates: {total_unique_dates}
                 selected_photo = edit_photos["photos"][edit_photos["selected"]]
                 role_var.set(selected_photo.role.value)
                 note_var.set(selected_photo.notes)
+                preview.show_photo(selected_photo)
             else:
                 edit_photos["selected"] = None
                 role_var.set(PhotoRole.OTHER.value)
                 note_var.set("")
+                preview.show_photo(None)
 
         def edit_selection_changed(event=None):
             selection = edit_tree.selection()
@@ -5117,6 +5234,7 @@ Total Unique Dates: {total_unique_dates}
                 selected_photo = edit_photos["photos"][edit_photos["selected"]]
                 role_var.set(selected_photo.role.value)
                 note_var.set(selected_photo.notes)
+                preview.show_photo(selected_photo)
 
         def add_edit_photos():
             paths = filedialog.askopenfilenames(
