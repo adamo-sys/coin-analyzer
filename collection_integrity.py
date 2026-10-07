@@ -286,10 +286,10 @@ class CollectionIntegrityAudit:
             if len(rows) > 1:
                 labels = ", ".join(_text(getattr(row, "id", "")) or _coin_label(row) for row in rows)
                 findings.append(self._finding(
-                    "WARNING",
-                    "Duplicate Ownership",
-                    f"Probable duplicate ownership records: {labels}.",
-                    "Review duplicate holdings before using dashboard and shopping recommendations.",
+                    "INFO",
+                    "Discovery",
+                    f"Shared country, denomination and year search fields: {labels}; issue equivalence unresolved.",
+                    "Review identity evidence if relevant.",
                     labels,
                 ))
         return findings
@@ -322,15 +322,11 @@ class CollectionIntegrityAudit:
 
     def _audit_market(self, findings: List[IntegrityFinding]) -> MarketIntegritySummary:
         records = self._market_records()
-        collection_keys = {_record_key(getattr(item, "country", ""), getattr(item, "denomination", ""), getattr(item, "year", "")) for item in self.collection_items}
         photo_refs = self._photo_reference_ids()
         seen_observations: Dict[str, int] = {}
         orphan_records = invalid_refs = duplicate_observations = 0
         for kind, record in records:
-            key = _record_key(getattr(record, "country", ""), getattr(record, "denomination", ""), getattr(record, "year", ""))
-            if key.strip("|") and key not in collection_keys and kind in {"purchase", "sale"}:
-                orphan_records += 1
-                findings.append(self._finding("WARNING", "Market Records", f"{kind.title()} record is not linked to an owned collection item: {self._market_label(record)}.", "Review whether this market record should be linked or retained."))
+            # Search-field equality/absence cannot verify record-to-holding linkage.
             for photo_id in getattr(record, "linked_photo_ids", []) or []:
                 if photo_id and photo_id not in photo_refs:
                     invalid_refs += 1
@@ -409,9 +405,9 @@ class CollectionIntegrityAudit:
         backup_status: str,
     ) -> CollectionIntegrityScore:
         category_scores = {
-            "ownership data": self._category_score(findings, "Ownership Data", "Duplicate Ownership"),
+            "ownership data": self._category_score(findings, "Ownership Data"),
             "photos": max(0, 100 - (photo_summary.missing_files * 8) - (photo_summary.orphan_photo_references * 10) - (photo_summary.duplicate_photo_references * 5) - (photo_summary.invalid_photo_metadata * 8)),
-            "market records": max(0, 100 - (market_summary.orphan_market_records * 10) - (market_summary.invalid_references * 8) - (market_summary.duplicate_observations * 5)),
+            "market records": max(0, 100 - (market_summary.invalid_references * 8) - (market_summary.duplicate_observations * 5)),
             "certifications": max(0, 100 - (certification_summary.duplicate_certification_ids * 12) - (certification_summary.missing_certification_references * 8) - (certification_summary.malformed_certification_references * 8)),
             "persistence": self._category_score(findings, "Backups"),
             "backups": 100 if backup_status == "PASS" else 75 if backup_status == "WARNING" else 45,

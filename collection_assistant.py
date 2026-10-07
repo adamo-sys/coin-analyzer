@@ -86,11 +86,11 @@ class OCRCandidate:
 @dataclass
 class CollectionMatch:
     """Match result from existing collection lookup."""
-    matched: bool = False
-    match_type: str = ""  # "exact", "similar", "duplicate", "upgrade"
+    matched: bool = False  # No authoritative match established; not nonownership.
+    match_type: str = ""  # "discovery" for shared search fields
     existing_item: Optional[Dict[str, Any]] = None
     similarity_score: float = 0.0
-    duplicate_risk: str = "none"  # "none", "low", "medium", "high"
+    duplicate_risk: str = "unresolved"  # Weak/unchecked evidence cannot establish absence.
     upgrade_opportunity: bool = False
     notes: List[str] = field(default_factory=list)
 
@@ -532,7 +532,12 @@ class CollectionAssistantEngine:
             session.metrics.ocr_successes += 1
 
         # Build suggested identification
-        candidate.suggested_identification = self._build_suggested_identification(ocr_result)
+        suggested = self._build_suggested_identification(ocr_result)
+        if suggested != candidate.suggested_identification:
+            candidate.collection_match = CollectionMatch()
+            candidate.gap_info = CollectionGapInfo()
+            candidate.acquisition_priority = AcquisitionPriorityInfo()
+        candidate.suggested_identification = suggested
 
         # Update candidate confidence
         candidate.confidence = ocr_result.confidence
@@ -633,7 +638,7 @@ class CollectionAssistantEngine:
         candidate_id: str,
         collection_items: List[Dict[str, Any]]
     ) -> CollectionMatch:
-        """Check if candidate already exists in collection."""
+        """Find discovery candidates without establishing duplicate authority."""
         session = self.sessions.get(session_id)
         if not session:
             return CollectionMatch()
@@ -651,48 +656,25 @@ class CollectionAssistantEngine:
         if not suggested or not collection_items:
             return match
 
-        # Look for exact or similar matches
+        # Shared search fields are discovery hints, never issue equivalence.
         for item in collection_items:
-            item_year = str(item.get("year", ""))
-            item_denom = str(item.get("denomination", "")).lower()
-            item_country = str(item.get("country", "")).lower()
-
-            cand_year = str(suggested.get("year", ""))
-            cand_denom = str(suggested.get("denomination", "")).lower()
-            cand_country = str(suggested.get("country", "")).lower()
-
-            # Exact match check
-            if (item_year == cand_year and
-                item_denom == cand_denom and
-                item_country == cand_country):
-                match.matched = True
-                match.match_type = "exact"
-                match.existing_item = item
-                match.duplicate_risk = "high"
-                match.notes.append(f"Exact duplicate found: {item_country.title()} {item_denom} {item_year}")
-                return match
-
-            # Similar match check
-            score = 0
-            if item_year == cand_year:
-                score += 0.4
-            if item_denom == cand_denom:
-                score += 0.3
-            if item_country == cand_country:
-                score += 0.3
-
+            score = 0.0
+            for key, weight in (("year", 0.4), ("denomination", 0.3), ("country", 0.3)):
+                left, right = item.get(key), suggested.get(key)
+                if (left and right and not isinstance(left, bool) and
+                        not isinstance(right, bool) and
+                        str(left).strip() and str(right).strip() and
+                        str(left).strip().casefold() == str(right).strip().casefold()):
+                    score += weight
             if score > match.similarity_score:
                 match.similarity_score = score
                 if score >= 0.7:
-                    match.matched = True
-                    match.match_type = "similar"
+                    match.match_type = "discovery"
                     match.existing_item = item
-                    match.duplicate_risk = "medium"
-                    match.notes.append(f"Similar item found: {item_country.title()} {item_denom} {item_year}")
-
-        if not match.matched:
-            match.notes.append("No matching item found in collection")
-
+        if match.existing_item is not None:
+            match.notes.append("Shared search fields found; issue equivalence and duplicate status unresolved.")
+        else:
+            match.notes.append("No discovery candidate found; duplicate status remains unresolved.")
         return match
 
     def check_collection_gaps(
@@ -701,7 +683,7 @@ class CollectionAssistantEngine:
         candidate_id: str,
         series_data: Optional[Dict[str, Any]] = None
     ) -> CollectionGapInfo:
-        """Check if candidate fills a collection gap."""
+        """Suggest collecting interests without verifying gap membership/absence."""
         session = self.sessions.get(session_id)
         if not session:
             return CollectionGapInfo()
@@ -719,29 +701,16 @@ class CollectionAssistantEngine:
         if not suggested:
             return gap
 
-        # Check for series gaps if series data provided
+        # Date overlap does not establish series membership or absence from holdings.
         if series_data:
-            series_definitions = series_data.get("series_definitions", [])
-            for series_def in series_definitions:
-                series_name = series_def.get("name", "")
-                owned_dates = series_def.get("owned_dates", [])
-                missing_dates = series_def.get("missing_dates", [])
-                cand_year = str(suggested.get("year", ""))
-
-                if cand_year in missing_dates:
-                    gap.fills_gap = True
-                    gap.gap_type = "series"
-                    gap.series_name = series_name
-                    gap.missing_dates = [cand_year]
-                    gap.impact_score = 0.8
+            for series_def in series_data.get("series_definitions", []):
+                year = suggested.get("year")
+                if year and str(year) in series_def.get("missing_dates", []):
+                    gap.gap_type = "possible_series_interest"
+                    gap.series_name = series_def.get("name", "")
                     return gap
-
-        # Check for country/denomination gaps
         if suggested.get("country") and suggested.get("denomination"):
-            gap.fills_gap = True
-            gap.gap_type = "denomination"
-            gap.impact_score = 0.5
-
+            gap.gap_type = "possible_collecting_area"
         return gap
 
     def check_acquisition_priority(
@@ -838,6 +807,9 @@ class CollectionAssistantEngine:
         if candidate.ocr_result:
             evidence.append(f"OCR confidence: {candidate.ocr_result.confidence:.1%}")
             evidence.append(f"Trust level: {candidate.ocr_result.trust_level}")
+        evidence.extend(candidate.collection_match.notes)
+        if candidate.gap_info.gap_type.startswith("possible_"):
+            evidence.append(f"Possible collecting interest: {candidate.gap_info.series_name or candidate.gap_info.gap_type}; gap unverified")
         if candidate.fills_collection_gap:
             evidence.append(f"Fills gap: {candidate.gap_info.gap_type}")
         if candidate.acquisition_priority.has_priority:
@@ -846,10 +818,8 @@ class CollectionAssistantEngine:
 
         # Build recommendations
         recommendations = []
-        if candidate.has_high_confidence and not candidate.is_duplicate_risk:
-            recommendations.append("High confidence, no duplicates. Consider approval.")
-        if candidate.fills_collection_gap:
-            recommendations.append("Fills collection gap. Consider approval.")
+        if candidate.has_high_confidence:
+            recommendations.append("High OCR confidence. Verify suggested identity and holdings manually.")
         if candidate.is_duplicate_risk:
             recommendations.append("Duplicate risk detected. Review carefully.")
         if not candidate.has_high_confidence:
