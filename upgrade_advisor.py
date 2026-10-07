@@ -24,17 +24,17 @@ class UpgradeRecommendation:
     candidate_grade: str
     candidate_estimate: float
     
-    existing_country: str
-    existing_denomination: str
-    existing_year: str
-    existing_grade: str
-    existing_estimate: float
-    existing_item_id: str
+    existing_country: Optional[str]
+    existing_denomination: Optional[str]
+    existing_year: Optional[str]
+    existing_grade: Optional[str]
+    existing_estimate: Optional[float]
+    existing_item_id: Optional[str]
     
     verdict: str  # Strong Upgrade, Upgrade, Hold Existing, Duplicate, Pass
-    upgrade_score: int
-    grade_improvement: int  # Grade hierarchy difference
-    value_improvement: float  # Value difference
+    upgrade_score: Optional[int]
+    grade_improvement: Optional[int]  # Grade hierarchy difference, when supported
+    value_improvement: Optional[float]  # Value difference, when supported
     reason: str
     explanation: str
     candidate_melt_value_cad: Optional[float] = None
@@ -110,7 +110,21 @@ class UpgradeAdvisor:
         )
         intelligence = FocusedCollectionIntelligenceEngine(self.collection_items)
         intelligence_result = intelligence.analyze_candidate(candidate)
+        unavailable_states = {"UNAVAILABLE", "UNRESOLVED", "REVIEW", "NEEDS_REVIEW"}
+        if (intelligence_result.match_status.value == "NEEDS_REVIEW"
+                or intelligence_result.recommendation.strip().upper() == "REVIEW"
+                or any(value.split(":", 1)[0].strip().upper() in unavailable_states
+                       for value in (intelligence_result.grade_comparison, intelligence_result.collection_impact))):
+            return self._create_review_recommendation(
+                candidate_country, candidate_denomination, candidate_year,
+                candidate_grade, candidate_estimate, intelligence_result.priority_reasons,
+            )
         matching_items = intelligence.find_exact_items(candidate)
+        if matching_items is None:
+            return self._create_review_recommendation(
+                candidate_country, candidate_denomination, candidate_year,
+                candidate_grade, candidate_estimate, intelligence_result.priority_reasons,
+            )
         
         if not matching_items:
             # No matching coins - not an upgrade scenario
@@ -121,11 +135,21 @@ class UpgradeAdvisor:
         
         # Get best existing item
         best_existing = self._get_intelligence_best_item(intelligence_result, matching_items)
+        if best_existing is None:
+            return self._create_review_recommendation(
+                candidate_country, candidate_denomination, candidate_year,
+                candidate_grade, candidate_estimate, intelligence_result.priority_reasons,
+            )
         
         # Calculate upgrade metrics
         grade_improvement = self._calculate_grade_improvement(
             candidate_grade, best_existing.grade
         )
+        if grade_improvement is None:
+            return self._create_review_recommendation(
+                candidate_country, candidate_denomination, candidate_year,
+                candidate_grade, candidate_estimate, intelligence_result.priority_reasons,
+            )
         value_improvement = candidate_estimate - self._estimate_value(best_existing)
         
         # Calculate upgrade score
@@ -221,7 +245,7 @@ class UpgradeAdvisor:
     
     def _find_matching_items(
         self, country: str, denomination: str, year: str
-    ) -> List:
+    ) -> Optional[List]:
         """Find owned items through the focused Collection Intelligence Engine."""
         candidate = CandidateItem(country=country, denomination=denomination, year=year)
         return FocusedCollectionIntelligenceEngine(self.collection_items).find_exact_items(candidate)
@@ -229,23 +253,17 @@ class UpgradeAdvisor:
     def _get_intelligence_best_item(self, intelligence_result, matching_items: List):
         """Resolve the best item selected by Collection Intelligence."""
         best_match = intelligence_result.best_existing_match
-        if best_match:
-            for item in matching_items:
-                if str(getattr(item, "id", "")) == best_match.item_id:
-                    return item
-        return self._get_best_grade_item(matching_items)
-    
-    def _get_best_grade_item(self, items: List):
-        """Get item with highest grade from list."""
-        graded = [item for item in items if self._grade_score(item.grade) > 0]
-        if not graded:
-            return items[0]  # Return first if none graded
-        return sorted(graded, key=lambda item: self._grade_score(item.grade), reverse=True)[0]
+        if not best_match or not best_match.item_id or matching_items is None:
+            return None
+        selected = [item for item in matching_items
+                    if str(getattr(item, "id", "")) == best_match.item_id]
+        return selected[0] if len(selected) == 1 else None
     
     @staticmethod
-    def _grade_score(grade: str) -> int:
+    def _grade_score(grade: str) -> Optional[int]:
         """Convert grade to numeric score."""
-        return GRADE_HIERARCHY.get((grade or "").strip(), 0)
+        score = GRADE_HIERARCHY.get((grade or "").strip())
+        return score if score is not None and score > 0 else None
     
     @staticmethod
     def _estimate_value(item) -> float:
@@ -255,11 +273,49 @@ class UpgradeAdvisor:
         except (TypeError, ValueError):
             return 0.0
     
-    def _calculate_grade_improvement(self, candidate_grade: str, existing_grade: str) -> int:
+    def _calculate_grade_improvement(self, candidate_grade: str, existing_grade: str) -> Optional[int]:
         """Calculate grade improvement (positive = candidate is better)."""
         candidate_score = self._grade_score(candidate_grade)
         existing_score = self._grade_score(existing_grade)
+        if candidate_score is None or existing_score is None:
+            return None
         return candidate_score - existing_score
+
+    def _create_review_recommendation(
+        self, country: str, denomination: str, year: str,
+        grade: str, estimate: float, interest_reasons: List[str],
+    ) -> UpgradeRecommendation:
+        """Keep independent candidate facts separate from unavailable comparisons."""
+        melt_value = None
+        warning = None
+        # This API accepts descriptive identity and estimate only; it has no
+        # explicit composition, weight or ASW evidence. Identity-derived melt
+        # inference is therefore unavailable on the unresolved review path.
+        lines = [
+            f"Upgrade Analysis for {country} {denomination} {year}",
+            "", "**Candidate Coin:**",
+            f"- Descriptive grade: {grade or 'Not available'}",
+            f"- Estimated Value: ${estimate:.2f}" if estimate > 0 else "- Estimated Value: Not available",
+            "", "**Verdict:** REVIEW",
+            "Owned issue equivalence unresolved. Existing holding and comparative grade, "
+            "value, melt improvement and upgrade score are unavailable.",
+        ]
+        if interest_reasons:
+            lines.append("Collector interest (independent of ownership/equivalence): " + "; ".join(interest_reasons))
+        if melt_value is not None:
+            lines.extend(["", "**Melt Value Analysis:**", f"- Candidate melt value: ${melt_value:.2f} CAD"])
+        if warning:
+            lines.append(warning)
+        return UpgradeRecommendation(
+            candidate_country=country, candidate_denomination=denomination,
+            candidate_year=year, candidate_grade=grade, candidate_estimate=estimate,
+            existing_country=None, existing_denomination=None, existing_year=None,
+            existing_grade=None, existing_estimate=None, existing_item_id=None,
+            verdict="REVIEW", upgrade_score=None, grade_improvement=None,
+            value_improvement=None, reason="Owned issue equivalence unresolved; review required.",
+            explanation="\n".join(lines), candidate_melt_value_cad=melt_value,
+            spot_price_warning=warning,
+        )
     
     def _calculate_upgrade_score(
         self, country: str, denomination: str, year: str,
@@ -432,7 +488,8 @@ class UpgradeAdvisor:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for rec in recommendations:
-                    writer.writerow(rec.to_dict())
+                    writer.writerow({key: "unavailable" if value is None else value
+                                     for key, value in rec.to_dict().items()})
             return True
         except Exception as e:
             print(f"Error exporting to CSV: {e}")

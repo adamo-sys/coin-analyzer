@@ -18,31 +18,31 @@ from focused_collection_intelligence import (
 @dataclass
 class BuyRecommendation:
     """Buy recommendation result."""
-    already_owned: bool
-    duplicate_count: int
-    upgrade_candidate: bool
+    already_owned: Optional[bool]
+    duplicate_count: Optional[int]
+    upgrade_candidate: Optional[bool]
     existing_grade: str
-    missing_date_in_series: bool
-    missing_denomination_in_country: bool
-    series_completion: float
-    country_completion: float
+    missing_date_in_series: Optional[bool]
+    missing_denomination_in_country: Optional[bool]
+    series_completion: Optional[float]
+    country_completion: Optional[float]
     base_recommendation: str
     recommendation: str
     reasons: List[str]
     explanation: str
-    matching_items: List[Dict]
-    max_rational_bid: float
+    matching_items: Optional[List[Dict]]
+    max_rational_bid: Optional[float]
     max_bid_explanation: str
     value_data_available: bool
     value_warning: str
-    confidence_score: int
+    confidence_score: Optional[int]
     value_quality: str
     warnings: List[str]
-    adam_priority_score: int
+    adam_priority_score: Optional[int]
     adam_priority_reasons: List[str]
-    collection_impact_score: int
+    collection_impact_score: Optional[int]
     collection_intelligence_factors: List[str]
-    liquidity_score: int
+    liquidity_score: Optional[int]
     liquidity_reasons: List[str]
     landed_cost: float
     price_verdict: str
@@ -102,8 +102,37 @@ class BuyAdvisor:
             staged_want_list_intents,
         )
 
-        # Check if already owned
-        owned_items = self.find_owned_items(country, denomination, year, reference, numista_n)
+        # Authoritative review precedes retained legacy ownership evidence.
+        unavailable_states = {"UNAVAILABLE", "UNRESOLVED", "REVIEW", "NEEDS_REVIEW"}
+        unresolved = (
+            intelligence_result.match_status == MatchStatus.NEEDS_REVIEW
+            or intelligence_result.recommendation.strip().upper() == "REVIEW"
+            or acquisition_result.recommendation.strip().upper() == "REVIEW"
+            or acquisition_result.collection_intelligence_status.strip().upper() in unavailable_states
+            or any(value.split(":", 1)[0].strip().upper() in unavailable_states
+                   for value in (intelligence_result.grade_comparison, intelligence_result.collection_impact))
+        )
+        owned_items = None if unresolved else self.find_owned_items(country, denomination, year, reference, numista_n)
+        if owned_items is None:
+            reason = "Manual review required: ownership equivalence unresolved; identity-dependent advice unavailable."
+            value_available, value_warning = self.check_value_data([], estimated_market_value)
+            return BuyRecommendation(
+                already_owned=None, duplicate_count=None, upgrade_candidate=None,
+                existing_grade="", missing_date_in_series=None,
+                missing_denomination_in_country=None, series_completion=None,
+                country_completion=None, base_recommendation="REVIEW", recommendation="REVIEW",
+                reasons=[reason], explanation=reason, matching_items=None,
+                max_rational_bid=None, max_bid_explanation="Unavailable pending identity review",
+                value_data_available=value_available, value_warning=value_warning,
+                confidence_score=None, value_quality=self.classify_value_quality(value_available, []),
+                warnings=self.generate_warnings(value_available, grade, reference, numista_n) + [reason],
+                adam_priority_score=None, adam_priority_reasons=[reason],
+                collection_impact_score=None, collection_intelligence_factors=[reason],
+                liquidity_score=None, liquidity_reasons=[reason],
+                landed_cost=asking_price + shipping + tax_fees, price_verdict="REVIEW",
+                purchase_verdict="REVIEW", estimated_market_value=estimated_market_value,
+                acquisition_workflow_result=acquisition_result.to_dict(),
+            )
         already_owned = self._is_owned_status(intelligence_result.match_status) or len(owned_items) > 0
         duplicate_count = len(owned_items)
         
@@ -275,10 +304,12 @@ class BuyAdvisor:
         )
     
     def find_owned_items(self, country: str, denomination: str, year: str,
-                       reference: str = "", numista_n: str = "") -> List:
+                       reference: str = "", numista_n: str = "") -> Optional[List]:
         """Find owned items through the focused Collection Intelligence Engine."""
         candidate = CandidateItem(country=country, denomination=denomination, year=year)
         matches = FocusedCollectionIntelligenceEngine(self.collection.items).find_exact_items(candidate)
+        if matches is None:
+            return None
 
         for item in self.collection.items:
             # Match by Numista N# if provided
@@ -1152,18 +1183,18 @@ def test_buy_advisor():
     # Test 1: Coin not in collection
     print("\n=== Test 1: Argentina 1.0 1960 (in collection) ===")
     rec = advisor.advise("Argentina", "1.0", "1960")
-    print(f"Already Owned: {rec.already_owned}")
-    print(f"Duplicate Count: {rec.duplicate_count}")
-    print(f"Upgrade Candidate: {rec.upgrade_candidate}")
-    print(f"Missing Date: {rec.missing_date_in_series}")
-    print(f"Missing Denomination: {rec.missing_denomination_in_country}")
-    print(f"Series Completion: {rec.series_completion:.1%}")
-    print(f"Country Completion: {rec.country_completion:.1%}")
+    print(f"Already Owned: {rec.already_owned if rec.already_owned is not None else 'unavailable'}")
+    print(f"Duplicate Count: {rec.duplicate_count if rec.duplicate_count is not None else 'unavailable'}")
+    print(f"Upgrade Candidate: {rec.upgrade_candidate if rec.upgrade_candidate is not None else 'unavailable'}")
+    print(f"Missing Date: {rec.missing_date_in_series if rec.missing_date_in_series is not None else 'unavailable'}")
+    print(f"Missing Denomination: {rec.missing_denomination_in_country if rec.missing_denomination_in_country is not None else 'unavailable'}")
+    print(f"Series Completion: {rec.series_completion:.1%}" if rec.series_completion is not None else "Series Completion: unavailable")
+    print(f"Country Completion: {rec.country_completion:.1%}" if rec.country_completion is not None else "Country Completion: unavailable")
     print(f"Base Recommendation: {rec.base_recommendation}")
     print(f"Final Recommendation: {rec.recommendation}")
     print(f"Reasons: {rec.reasons}")
     print(f"Explanation: {rec.explanation}")
-    print(f"Matching Items: {len(rec.matching_items)}")
+    print(f"Matching Items: {len(rec.matching_items) if rec.matching_items is not None else 'unavailable'}")
     if rec.matching_items:
         for item in rec.matching_items[:3]:
             print(f"  [{item['match_type']}] {item['country']} {item['denomination']} {item['year']}")
@@ -1176,14 +1207,14 @@ def test_buy_advisor():
             if item['estimate_cad']:
                 print(f"      Estimate: ${item['estimate_cad']:.2f}")
     print(f"Value Data Available: {rec.value_data_available}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
+    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}" if rec.max_rational_bid is not None else "Max Rational Bid: unavailable")
     print(f"Max Bid Explanation: {rec.max_bid_explanation}")
-    print(f"Confidence Score: {rec.confidence_score}/100")
+    print(f"Confidence Score: {rec.confidence_score}/100" if rec.confidence_score is not None else "Confidence Score: unavailable")
     print(f"Value Quality: {rec.value_quality}")
     print(f"Warnings: {rec.warnings}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
+    print(f"Adam Priority Score: {rec.adam_priority_score if rec.adam_priority_score is not None else 'unavailable'}")
     print(f"Adam Priority Reasons: {rec.adam_priority_reasons}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
+    print(f"Liquidity Score: {rec.liquidity_score if rec.liquidity_score is not None else 'unavailable'}")
     print(f"Liquidity Reasons: {rec.liquidity_reasons}")
     print(f"Landed Cost: ${rec.landed_cost:.2f}")
     print(f"Price Verdict: {rec.price_verdict}")
@@ -1195,16 +1226,16 @@ def test_buy_advisor():
     # Test 2: Coin in collection
     print("\n=== Test 2: Canada 1 cent 1967 (likely in collection) ===")
     rec = advisor.advise("Canada", "1 cent", "1967")
-    print(f"Already Owned: {rec.already_owned}")
-    print(f"Duplicate Count: {rec.duplicate_count}")
+    print(f"Already Owned: {rec.already_owned if rec.already_owned is not None else 'unavailable'}")
+    print(f"Duplicate Count: {rec.duplicate_count if rec.duplicate_count is not None else 'unavailable'}")
     print(f"Base Recommendation: {rec.base_recommendation}")
     print(f"Final Recommendation: {rec.recommendation}")
     print(f"Reasons: {rec.reasons}")
     print(f"Explanation: {rec.explanation}")
-    print(f"Matching Items: {len(rec.matching_items)}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
+    print(f"Matching Items: {len(rec.matching_items) if rec.matching_items is not None else 'unavailable'}")
+    print(f"Adam Priority Score: {rec.adam_priority_score if rec.adam_priority_score is not None else 'unavailable'}")
     print(f"Adam Priority Reasons: {rec.adam_priority_reasons}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
+    print(f"Liquidity Score: {rec.liquidity_score if rec.liquidity_score is not None else 'unavailable'}")
     print(f"Liquidity Reasons: {rec.liquidity_reasons}")
     if rec.matching_items:
         for item in rec.matching_items[:3]:
@@ -1221,8 +1252,8 @@ def test_buy_advisor():
     # Test 3: Upgrade candidate
     print("\n=== Test 3: Canada 1 cent 1967 with MS-65 grade ===")
     rec = advisor.advise("Canada", "1 cent", "1967", grade="MS-65")
-    print(f"Already Owned: {rec.already_owned}")
-    print(f"Upgrade Candidate: {rec.upgrade_candidate}")
+    print(f"Already Owned: {rec.already_owned if rec.already_owned is not None else 'unavailable'}")
+    print(f"Upgrade Candidate: {rec.upgrade_candidate if rec.upgrade_candidate is not None else 'unavailable'}")
     print(f"Existing Grade: {rec.existing_grade}")
     print(f"Base Recommendation: {rec.base_recommendation}")
     print(f"Final Recommendation: {rec.recommendation}")
@@ -1232,24 +1263,24 @@ def test_buy_advisor():
     # Test 4: Near match with value data (to test bid calculation)
     print("\n=== Test 4: Argentina 20 cents 1975 (near match to 1974) ===")
     rec = advisor.advise("Argentina", "20 cents", "1975")
-    print(f"Already Owned: {rec.already_owned}")
-    print(f"Duplicate Count: {rec.duplicate_count}")
+    print(f"Already Owned: {rec.already_owned if rec.already_owned is not None else 'unavailable'}")
+    print(f"Duplicate Count: {rec.duplicate_count if rec.duplicate_count is not None else 'unavailable'}")
     print(f"Base Recommendation: {rec.base_recommendation}")
     print(f"Final Recommendation: {rec.recommendation}")
     print(f"Reasons: {rec.reasons}")
     print(f"Explanation: {rec.explanation}")
-    print(f"Matching Items: {len(rec.matching_items)}")
+    print(f"Matching Items: {len(rec.matching_items) if rec.matching_items is not None else 'unavailable'}")
     if rec.matching_items:
         for item in rec.matching_items[:3]:
             print(f"  [{item['match_type']}] {item['country']} {item['denomination']} {item['year']}")
             if item['estimate_cad']:
                 print(f"      Estimate: ${item['estimate_cad']:.2f}")
     print(f"Value Data Available: {rec.value_data_available}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
+    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}" if rec.max_rational_bid is not None else "Max Rational Bid: unavailable")
     print(f"Max Bid Explanation: {rec.max_bid_explanation}")
-    print(f"Adam Priority Score: {rec.adam_priority_score}")
+    print(f"Adam Priority Score: {rec.adam_priority_score if rec.adam_priority_score is not None else 'unavailable'}")
     print(f"Adam Priority Reasons: {rec.adam_priority_reasons}")
-    print(f"Liquidity Score: {rec.liquidity_score}")
+    print(f"Liquidity Score: {rec.liquidity_score if rec.liquidity_score is not None else 'unavailable'}")
     print(f"Liquidity Reasons: {rec.liquidity_reasons}")
     print(f"Landed Cost: ${rec.landed_cost:.2f}")
     print(f"Price Verdict: {rec.price_verdict}")
@@ -1262,7 +1293,7 @@ def test_buy_advisor():
     print(f"Final Recommendation: {rec.recommendation}")
     print(f"Price Verdict: {rec.price_verdict}")
     print(f"Purchase Verdict: {rec.purchase_verdict}")
-    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}")
+    print(f"Max Rational Bid: ${rec.max_rational_bid:.2f}" if rec.max_rational_bid is not None else "Max Rational Bid: unavailable")
     print(f"Landed Cost: ${rec.landed_cost:.2f}")
     print(f"Estimated Market Value: ${rec.estimated_market_value:.2f}")
     print(f"Value Data Available: {rec.value_data_available}")

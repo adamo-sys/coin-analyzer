@@ -29,7 +29,37 @@ def make_item(item_id, country, denomination, year, grade, **overrides):
 class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
     """Verify deterministic candidate classification."""
 
-    def test_better_grade_newfoundland_upgrade(self):
+    def test_incomplete_identity_never_creates_consequential_advice(self):
+        cases = [
+            ("higher grade", [make_item("1", "Canada", "10 cents", "1911", "VF-20")], "EF-40", ""),
+            ("equal grade", [make_item("1", "Canada", "10 cents", "1911", "VF-20")], "VF-20", ""),
+            ("unknown holding grade", [make_item("1", "Canada", "10 cents", "1911", "")], "VF-20", ""),
+            ("missing holding year", [make_item("1", "Canada", "10 cents", "", "VF-20")], "VF-20", ""),
+            ("historical variety", [make_item("1", "Canada", "10 cents", "1911", "VF-20", notes="Former attribution: narrow 9")], "EF-40", "narrow 9"),
+            ("empty collection", [], "VF-20", ""),
+            ("catalogue identifiers", [make_item("1", "Canada", "10 cents", "1911", "VF-20", reference="R", numista_n="123")], "EF-40", "R"),
+        ]
+        for label, items, grade, variety in cases:
+            with self.subTest(case=label):
+                candidate = CandidateItem("Canada", "10 cents", "1911", grade=grade, variety=variety)
+                engine = FocusedCollectionIntelligenceEngine(items)
+                result = engine.analyze_candidate(candidate)
+                self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+                self.assertEqual(result.recommendation, "REVIEW")
+                self.assertIsNone(result.best_existing_match)
+                self.assertIsNone(result.confidence_score)
+                self.assertIsNone(engine.find_exact_items(candidate))
+                self.assertNotIn("Collection Gap", result.priority_reasons)
+                self.assertNotIn("Upgrade Candidate", result.priority_reasons)
+                self.assertNotIn("Duplicate Risk", result.priority_reasons)
+
+    def test_unknown_grade_has_no_numeric_score(self):
+        engine = FocusedCollectionIntelligenceEngine([])
+        for grade in ["", "unknown", "MS+++", "ungraded"]:
+            with self.subTest(grade=grade):
+                self.assertIsNone(engine._grade_score(grade))
+
+    def test_newfoundland_interest_without_upgrade(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Newfoundland", "50 cents", "1909", "F-12")
         ])
@@ -41,11 +71,11 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.BETTER_GRADE_UPGRADE)
-        self.assertEqual(result.recommendation, "BUY")
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
         self.assertIn("High-Priority Series: Newfoundland", result.priority_reasons)
 
-    def test_same_grade_duplicate(self):
+    def test_equal_grade_is_unresolved(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Canada", "1 cent", "1967", "VF-30")
         ])
@@ -57,10 +87,10 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-30",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.SAME_GRADE_DUPLICATE)
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
 
-    def test_exact_match_without_candidate_grade_is_already_owned(self):
+    def test_missing_grade_does_not_establish_ownership(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Canada", "1 cent", "1967", "VF-30")
         ])
@@ -71,11 +101,11 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             year="1967",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.ALREADY_OWNED)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.recommendation, "REVIEW")
         self.assertIn("Missing grade", result.warning_flags)
 
-    def test_lower_grade_candidate(self):
+    def test_lower_grade_is_unresolved(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Canada", "1 cent", "1967", "VF-30")
         ])
@@ -87,10 +117,10 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VG-8",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.LOWER_GRADE_DUPLICATE)
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
 
-    def test_canadian_silver_upgrade(self):
+    def test_silver_interest_without_upgrade(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Canada", "dollar", "1935", "VF-20")
         ])
@@ -102,7 +132,7 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="EF-40",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.BETTER_GRADE_UPGRADE)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertIn("High-Priority Series: Canadian silver", result.priority_reasons)
 
     def test_1859_large_cent_upgrade(self):
@@ -121,7 +151,7 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
 
         self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.recommendation, "REVIEW")
-        self.assertIn("Candidate variety differs", " ".join(result.warning_flags))
+        self.assertIn("equivalence unresolved", " ".join(result.warning_flags))
 
     def test_1859_large_cent_upgrade_with_variety_match(self):
         engine = FocusedCollectionIntelligenceEngine([
@@ -136,7 +166,7 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.BETTER_GRADE_UPGRADE)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertIn("High-Priority Series: 1859 Canadian Large Cent", result.priority_reasons)
 
     def test_explicit_want_list_interaction(self):
@@ -161,12 +191,12 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.WANT_LIST_MATCH)
-        self.assertEqual(result.recommendation, "BUY")
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
         self.assertEqual(result.want_list_status, "ON_WANT_LIST")
         self.assertIn("Explicit WANT_LIST Target", result.priority_reasons)
 
-    def test_want_list_match_already_owned_preserves_duplicate_status(self):
+    def test_want_list_interest_does_not_establish_duplicate(self):
         intent = LegacyWantListIntent(
             sheet_name="WANT_LIST",
             row_number=2,
@@ -190,12 +220,12 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-30",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.SAME_GRADE_DUPLICATE)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.want_list_status, "ON_WANT_LIST")
         self.assertIn("Explicit WANT_LIST Target", result.priority_reasons)
-        self.assertIn("Duplicate Risk", result.priority_reasons)
+        self.assertNotIn("Duplicate Risk", result.priority_reasons)
 
-    def test_want_list_upgrade_candidate_preserves_upgrade_status(self):
+    def test_want_list_interest_does_not_establish_upgrade(self):
         intent = LegacyWantListIntent(
             sheet_name="WANT_LIST",
             row_number=2,
@@ -219,11 +249,11 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="EF-40",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.BETTER_GRADE_UPGRADE)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.want_list_status, "ON_WANT_LIST")
-        self.assertIn("Upgrade Candidate", result.priority_reasons)
+        self.assertNotIn("Upgrade Candidate", result.priority_reasons)
 
-    def test_gap_not_on_want_list_is_explicitly_reported(self):
+    def test_missing_date_does_not_establish_gap(self):
         unrelated_intent = LegacyWantListIntent(
             sheet_name="WANT_LIST",
             row_number=2,
@@ -248,9 +278,9 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.COLLECTION_GAP)
-        self.assertEqual(result.want_list_status, "GAP_NOT_EXPLICITLY_TARGETED")
-        self.assertIn("Collection Gap", result.priority_reasons)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.want_list_status, "NOT_ON_WANT_LIST")
+        self.assertNotIn("Collection Gap", result.priority_reasons)
 
     def test_missing_want_list_source_is_graceful(self):
         engine = FocusedCollectionIntelligenceEngine([])
@@ -286,7 +316,7 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.WANT_LIST_MATCH)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertIn("High-Priority Series: Newfoundland", result.priority_reasons)
 
     def test_canadian_silver_want_list_target(self):
@@ -311,7 +341,7 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="EF-40",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.WANT_LIST_MATCH)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertIn("High-Priority Series: Canadian silver", result.priority_reasons)
 
     def test_random_world_base_metal_non_upgrade(self):
@@ -324,8 +354,8 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             grade="VF-20",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.NOT_RELEVANT)
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertEqual(result.recommendation, "REVIEW")
         self.assertIn("Low-priority world base-metal candidate", result.priority_reasons)
 
     def test_ambiguous_candidate_needs_review(self):
@@ -342,9 +372,9 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
 
         self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
         self.assertEqual(result.recommendation, "REVIEW")
-        self.assertIn("Close fuzzy match requires manual review", result.warning_flags)
+        self.assertIn("Owned issue equivalence unresolved: canonical candidate identity unavailable", result.warning_flags)
 
-    def test_certified_candidate_can_replace_raw_example(self):
+    def test_certification_does_not_authorize_replacement(self):
         engine = FocusedCollectionIntelligenceEngine([
             make_item("1", "Canada", "10 cents", "1911", "VF-20", notes="raw coin")
         ])
@@ -358,8 +388,8 @@ class TestFocusedCollectionIntelligenceEngine(unittest.TestCase):
             certification_number="12345678",
         ))
 
-        self.assertEqual(result.match_status, MatchStatus.BETTER_GRADE_UPGRADE)
-        self.assertIn("Certified candidate may replace raw example", result.priority_reasons)
+        self.assertEqual(result.match_status, MatchStatus.NEEDS_REVIEW)
+        self.assertNotIn("Certified candidate may replace raw example", result.priority_reasons)
 
 
 if __name__ == "__main__":

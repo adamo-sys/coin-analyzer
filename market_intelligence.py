@@ -90,9 +90,9 @@ class ComparableSale:
 
 @dataclass
 class FairValueEstimate:
-    conservative_value: float = 0.0
-    expected_value: float = 0.0
-    aggressive_value: float = 0.0
+    conservative_value: Optional[float] = None
+    expected_value: Optional[float] = None
+    aggressive_value: Optional[float] = None
     evidence_count: int = 0
     basis: str = "No local valuation evidence."
 
@@ -108,11 +108,11 @@ class FairValueEstimate:
 
 @dataclass
 class OpportunityConfidence:
-    score: int = 0
-    collection_fit: int = 0
-    duplicate_penalty: int = 0
-    upgrade_potential: int = 0
-    gap_impact: int = 0
+    score: Optional[int] = None
+    collection_fit: Optional[int] = None
+    duplicate_penalty: Optional[int] = None
+    upgrade_potential: Optional[int] = None
+    gap_impact: Optional[int] = None
     data_completeness: int = 0
     risk_penalty: int = 0
     valuation_evidence: int = 0
@@ -208,9 +208,9 @@ class MarketIntelligenceReport:
             f"- Listing: {self.listing.title}",
             f"- Total cost CAD: {self.listing.total_cost:.2f}",
             f"- Deal quality: {self.deal_quality.quality}",
-            f"- Confidence score: {self.confidence.score}",
-            f"- Fair value range CAD: {self.fair_value.conservative_value:.2f} - {self.fair_value.aggressive_value:.2f}",
-            f"- Expected value CAD: {self.fair_value.expected_value:.2f}",
+            f"- Confidence score: {self.confidence.score}" if self.confidence.score is not None else "- Confidence score: unavailable",
+            f"- Fair value range CAD: {self.fair_value.conservative_value:.2f} - {self.fair_value.aggressive_value:.2f}" if self.fair_value.conservative_value is not None and self.fair_value.aggressive_value is not None else "- Fair value range CAD: unavailable",
+            f"- Expected value CAD: {self.fair_value.expected_value:.2f}" if self.fair_value.expected_value is not None else "- Expected value CAD: unavailable",
             f"- Valuation basis: {self.fair_value.basis}",
             f"- Deal Hunter recommendation: {self.deal_result.recommendation}",
             f"- Collection status: {self.deal_result.collection_status}",
@@ -243,7 +243,7 @@ class MarketIntelligenceReport:
         with open(output_path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=list(self.to_dict().keys()))
             writer.writeheader()
-            writer.writerow(self.to_dict())
+            writer.writerow({key: "unavailable" if value is None else value for key, value in self.to_dict().items()})
         return True
 
 
@@ -329,7 +329,7 @@ class MarketIntelligenceEngine:
                 evidence_count=len(values),
                 basis="Local comparable sales and observations.",
             )
-        if deal_result.max_rational_price > 0:
+        if OpportunityEngine._deal_evidence_available(deal_result) and deal_result.max_rational_price is not None:
             basis = deal_result.max_rational_price
             return FairValueEstimate(
                 conservative_value=round(basis * 0.85, 2),
@@ -337,15 +337,6 @@ class MarketIntelligenceEngine:
                 aggressive_value=round(basis * 1.15, 2),
                 evidence_count=0,
                 basis="Internal max rational price; no local comparable sales.",
-            )
-        if deal_result.listing.total_cost > 0:
-            basis = deal_result.listing.total_cost
-            return FairValueEstimate(
-                conservative_value=round(basis * 0.8, 2),
-                expected_value=round(basis, 2),
-                aggressive_value=round(basis * 1.2, 2),
-                evidence_count=0,
-                basis="Listing total used as placeholder because no local valuation evidence exists.",
             )
         return FairValueEstimate()
 
@@ -364,7 +355,7 @@ class MarketIntelligenceEngine:
         }
         for flag in deal_result.risk_flags:
             factors.append(flag_map.get(flag, flag))
-        if "duplicate" in deal_result.collection_status.lower():
+        if OpportunityEngine._deal_evidence_available(deal_result) and deal_result.collection_status.strip().upper() == "SAME_GRADE_DUPLICATE":
             factors.append("Duplicate ownership")
         if not deal_result.parsed_candidate.grade:
             factors.append("Low-information listing")
@@ -377,10 +368,12 @@ class MarketIntelligenceEngine:
 
     @staticmethod
     def _confidence(deal_result: DealHunterResult, fair_value: FairValueEstimate, risk_summary: RiskSummary) -> OpportunityConfidence:
-        collection_fit = min(25, max(0, deal_result.collection_fit_score // 4))
-        duplicate_penalty = -20 if "duplicate" in deal_result.collection_status.lower() else 0
-        upgrade_potential = 15 if "upgrade" in deal_result.collection_status.lower() else 0
-        gap_impact = 15 if "gap" in deal_result.collection_status.lower() or "want-list" in deal_result.collection_status.lower() else 0
+        available = OpportunityEngine._deal_evidence_available(deal_result) and deal_result.collection_fit_score is not None
+        collection_fit = min(25, max(0, deal_result.collection_fit_score // 4)) if available and deal_result.collection_fit_score is not None else None
+        relationship = deal_result.collection_status.strip().upper()
+        duplicate_penalty = (-20 if relationship == "SAME_GRADE_DUPLICATE" else 0) if available else None
+        upgrade_potential = (15 if relationship == "BETTER_GRADE_UPGRADE" else 0) if available else None
+        gap_impact = (15 if relationship == "COLLECTION_GAP" else 0) if available else None
         data_completeness = 20
         if not deal_result.parsed_candidate.grade:
             data_completeness -= 7
@@ -388,9 +381,13 @@ class MarketIntelligenceEngine:
             data_completeness -= 8
         risk_penalty = min(30, deal_result.risk_score // 3)
         valuation_evidence = min(20, fair_value.evidence_count * 7)
-        score = 40 + collection_fit + upgrade_potential + gap_impact + data_completeness + valuation_evidence + duplicate_penalty - risk_penalty
-        score = max(0, min(100, int(round(score))))
+        score = None
+        if collection_fit is not None and upgrade_potential is not None and gap_impact is not None and duplicate_penalty is not None:
+            score = 40 + collection_fit + upgrade_potential + gap_impact + data_completeness + valuation_evidence + duplicate_penalty - risk_penalty
+            score = max(0, min(100, int(round(score))))
         explanation = "Confidence is based on collection fit, duplicate/upgrade/gap status, data completeness, risk, and local valuation evidence."
+        if score is None:
+            explanation += " Collection comparison unavailable; review required."
         return OpportunityConfidence(score, collection_fit, duplicate_penalty, upgrade_potential, gap_impact, max(0, data_completeness), risk_penalty, valuation_evidence, explanation)
 
     @staticmethod
@@ -402,12 +399,16 @@ class MarketIntelligenceEngine:
     ) -> DealQuality:
         total = deal_result.listing.total_cost
         reasons = []
-        if total <= 0 or fair_value.expected_value <= 0:
+        if total <= 0 or fair_value.expected_value is None or fair_value.expected_value <= 0 or fair_value.conservative_value is None or fair_value.aggressive_value is None:
             return DealQuality(QUALITY_UNKNOWN, ["Missing price or valuation evidence."])
-        if "duplicate" in deal_result.collection_status.lower() and deal_result.recommendation == "PASS":
+        if OpportunityEngine._deal_evidence_available(deal_result) and deal_result.collection_status.strip().upper() == "SAME_GRADE_DUPLICATE" and deal_result.recommendation == "PASS":
             return DealQuality(QUALITY_WEAK, ["Duplicate ownership limits opportunity quality."])
         if risk_summary.severity == "High" and deal_result.recommendation == "REVIEW":
             return DealQuality(QUALITY_WEAK, ["Material risk factors require manual review."])
+        if total > fair_value.aggressive_value:
+            return DealQuality(QUALITY_OVERPRICED, ["Total cost exceeds the aggressive local value estimate."])
+        if confidence.score is None:
+            return DealQuality(QUALITY_UNKNOWN, ["Collection comparison unavailable; review required."])
         if total <= fair_value.conservative_value and confidence.score >= 70 and risk_summary.severity != "High":
             reasons.append("Total cost is at or below conservative local value estimate.")
             reasons.append("Confidence is strong enough to treat this as a high-quality deal.")
@@ -423,15 +424,16 @@ class MarketIntelligenceEngine:
     @staticmethod
     def _strengths(deal_result: DealHunterResult, fair_value: FairValueEstimate, confidence: OpportunityConfidence) -> List[str]:
         strengths = []
-        if deal_result.collection_fit_score >= 55:
+        available = OpportunityEngine._deal_evidence_available(deal_result)
+        if available and deal_result.collection_fit_score is not None and deal_result.collection_fit_score >= 55:
             strengths.append("Strong collection fit")
-        if "upgrade" in deal_result.collection_status.lower():
+        if available and deal_result.collection_status.strip().upper() == "BETTER_GRADE_UPGRADE":
             strengths.append("Upgrade potential")
-        if "gap" in deal_result.collection_status.lower() or "want-list" in deal_result.collection_status.lower():
+        if available and deal_result.collection_status.strip().upper() == "COLLECTION_GAP":
             strengths.append("Collection gap or WANT_LIST relevance")
         if fair_value.evidence_count:
             strengths.append("Local comparable evidence available")
-        if confidence.score >= 70:
+        if confidence.score is not None and confidence.score >= 70:
             strengths.append("High confidence")
         return _dedupe(strengths)
 
@@ -440,9 +442,9 @@ class MarketIntelligenceEngine:
         weaknesses = []
         if fair_value.evidence_count == 0:
             weaknesses.append("No local comparable sales")
-        if deal_result.listing.total_cost > fair_value.aggressive_value > 0:
+        if fair_value.aggressive_value is not None and deal_result.listing.total_cost > fair_value.aggressive_value > 0:
             weaknesses.append("Asking total exceeds aggressive value band")
-        if "duplicate" in deal_result.collection_status.lower():
+        if OpportunityEngine._deal_evidence_available(deal_result) and deal_result.collection_status.strip().upper() == "SAME_GRADE_DUPLICATE":
             weaknesses.append("Duplicate ownership")
         weaknesses.extend(risk_summary.risk_factors)
         return _dedupe(weaknesses)
@@ -462,10 +464,12 @@ class MarketIntelligenceEngine:
 
     @staticmethod
     def _buy_rationale(deal_result: DealHunterResult, deal_quality: DealQuality, confidence: OpportunityConfidence, fair_value: FairValueEstimate) -> str:
+        if confidence.score is None or not OpportunityEngine._deal_evidence_available(deal_result):
+            return "No buy rationale: collection comparison unavailable; review required."
         if deal_result.recommendation not in {"BUY", "NEGOTIATE", "WATCH"}:
             return "No buy rationale: Deal Hunter recommendation is not positive."
         parts = [f"Deal Hunter says {deal_result.recommendation}", f"deal quality is {deal_quality.quality}", f"confidence is {confidence.score}/100"]
-        if fair_value.expected_value > 0:
+        if fair_value.expected_value is not None and fair_value.expected_value > 0:
             parts.append(f"expected local value estimate is ${fair_value.expected_value:.2f}")
         return "; ".join(parts) + "."
 

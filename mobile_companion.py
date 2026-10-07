@@ -128,14 +128,14 @@ class MobileAnalysisReport:
 
     candidate: MobileCandidateEntry
     recommendation: str
-    impact_score: int
-    quality_delta: int
-    series_delta: float
+    impact_score: Optional[int]
+    quality_delta: Optional[int]
+    series_delta: Optional[float]
     want_list_status: str
     top_reason: str
     recommendation_summary: str
     warning_flags: List[str] = field(default_factory=list)
-    max_rational_price: float = 0.0
+    max_rational_price: Optional[float] = None
     total_cost: float = 0.0
     photo_reference_status: str = ""
     generated_at: str = ""
@@ -143,10 +143,10 @@ class MobileAnalysisReport:
     def __post_init__(self) -> None:
         self.generated_at = self.generated_at or _now_iso()
         self.recommendation = self._normalize_recommendation(self.recommendation)
-        self.impact_score = int(self.impact_score or 0)
-        self.quality_delta = int(self.quality_delta or 0)
-        self.series_delta = round(float(self.series_delta or 0.0), 1)
-        self.max_rational_price = round(float(self.max_rational_price or 0.0), 2)
+        self.impact_score = int(self.impact_score) if self.impact_score is not None else None
+        self.quality_delta = int(self.quality_delta) if self.quality_delta is not None else None
+        self.series_delta = round(float(self.series_delta), 1) if self.series_delta is not None else None
+        self.max_rational_price = round(float(self.max_rational_price), 2) if self.max_rational_price is not None else None
         self.total_cost = round(float(self.total_cost or self.candidate.total_cost or 0.0), 2)
         self.warning_flags = [str(flag) for flag in self.warning_flags if str(flag).strip()]
 
@@ -172,14 +172,14 @@ class MobileAnalysisReport:
         return cls(
             candidate=MobileCandidateEntry.from_dict(payload.get("candidate") or {}),
             recommendation=str(payload.get("recommendation") or "REVIEW"),
-            impact_score=int(payload.get("impact_score") or 0),
-            quality_delta=int(payload.get("quality_delta") or 0),
-            series_delta=float(payload.get("series_delta") or 0.0),
+            impact_score=payload.get("impact_score"),
+            quality_delta=payload.get("quality_delta"),
+            series_delta=payload.get("series_delta"),
             want_list_status=str(payload.get("want_list_status") or "WANT_LIST_UNAVAILABLE"),
             top_reason=str(payload.get("top_reason") or ""),
             recommendation_summary=str(payload.get("recommendation_summary") or ""),
             warning_flags=list(payload.get("warning_flags") or []),
-            max_rational_price=float(payload.get("max_rational_price") or 0.0),
+            max_rational_price=payload.get("max_rational_price"),
             total_cost=float(payload.get("total_cost") or 0.0),
             photo_reference_status=str(payload.get("photo_reference_status") or ""),
             generated_at=str(payload.get("generated_at") or ""),
@@ -192,10 +192,10 @@ class MobileAnalysisReport:
             f"- Candidate: {self.candidate.item_title}",
             f"- Recommendation: {self.recommendation}",
             f"- Total cost: ${self.total_cost:.2f}",
-            f"- Max rational price: ${self.max_rational_price:.2f}",
-            f"- Impact score: {self.impact_score}",
-            f"- Quality delta: {self.quality_delta:+d}",
-            f"- Series delta: {self.series_delta:+g}%",
+            f"- Max rational price: ${self.max_rational_price:.2f}" if self.max_rational_price is not None else "- Max rational price: unavailable",
+            f"- Impact score: {self.impact_score}" if self.impact_score is not None else "- Impact score: unavailable",
+            f"- Quality delta: {self.quality_delta:+d}" if self.quality_delta is not None else "- Quality delta: unavailable",
+            f"- Series delta: {self.series_delta:+g}%" if self.series_delta is not None else "- Series delta: unavailable",
             f"- WANT_LIST status: {self.want_list_status}",
             f"- Top reason: {self.top_reason or 'No reason available'}",
             f"- Summary: {self.recommendation_summary}",
@@ -398,10 +398,17 @@ class MobileCompanionWorkflow:
         ).generate_report([entry.to_shopping_candidate()], include_want_list_targets=False, limit=1)
         shopping_top = shopping_report.best_next_purchase
         acquisition = listing_result.acquisition_decision
-        top_reason = self._top_reason(
+        # Uncertainty in either the public result or required attachments wins
+        # over retained decisive advice and numeric consequences.
+        recommendation = MobileAnalysisReport._normalize_recommendation(listing_result.recommendation)
+        unresolved = recommendation == "REVIEW" or not SmartShoppingAssistant._advice_available(acquisition, impact)
+        if unresolved:
+            recommendation = "REVIEW"
+        top_reason = "Manual review required: collection comparison unresolved; identity-dependent advice unavailable" if unresolved else self._top_reason(
+            [],
             shopping_top.reasons if shopping_top else [],
             impact.recommendation_reasoning,
-            acquisition.priority_reasons,
+            [] if unresolved else acquisition.priority_reasons,
             listing_result.warnings,
         )
         warnings = self._dedupe(entry.validate() + listing_result.warnings + acquisition.warning_flags)
@@ -410,15 +417,15 @@ class MobileCompanionWorkflow:
             warnings.append(photo_status)
         report = MobileAnalysisReport(
             candidate=entry,
-            recommendation=acquisition.recommendation,
-            impact_score=impact.impact_score,
-            quality_delta=impact.quality_delta,
-            series_delta=impact.completion_delta,
+            recommendation=recommendation,
+            impact_score=None if unresolved else impact.impact_score,
+            quality_delta=None if unresolved else impact.quality_delta,
+            series_delta=None if unresolved else impact.completion_delta,
             want_list_status=acquisition.want_list_status,
             top_reason=top_reason,
-            recommendation_summary=self._summary(entry, acquisition.recommendation, top_reason, impact.impact_score),
+            recommendation_summary=self._summary(entry, recommendation, top_reason, None if unresolved else impact.impact_score),
             warning_flags=self._dedupe(warnings),
-            max_rational_price=acquisition.max_rational_price,
+            max_rational_price=None if unresolved else listing_result.max_rational_price,
             total_cost=entry.total_cost,
             photo_reference_status=photo_status,
         )
@@ -437,8 +444,8 @@ class MobileCompanionWorkflow:
         return _first(item for group in groups for item in group) or "Analysis completed with existing collector logic"
 
     @staticmethod
-    def _summary(entry: MobileCandidateEntry, recommendation: str, top_reason: str, impact_score: int) -> str:
-        return f"{recommendation}: {entry.item_title} has impact score {impact_score}. {top_reason}"
+    def _summary(entry: MobileCandidateEntry, recommendation: str, top_reason: str, impact_score: Optional[int]) -> str:
+        return f"{recommendation}: {entry.item_title} has impact score {impact_score if impact_score is not None else 'unavailable'}. {top_reason}"
 
     @staticmethod
     def _dedupe(values: Iterable[str]) -> List[str]:
@@ -539,7 +546,11 @@ class PhoneWorkflowSimulation:
         return PhoneWorkflowReport(
             recommendation=analysis.recommendation,
             rationale=analysis.top_reason,
-            impact=f"Impact score {analysis.impact_score}; quality {analysis.quality_delta:+d}; series {analysis.series_delta:+g}%",
+            impact="; ".join([
+                f"Impact score {analysis.impact_score}" if analysis.impact_score is not None else "Impact score unavailable",
+                f"quality {analysis.quality_delta:+d}" if analysis.quality_delta is not None else "quality unavailable",
+                f"series {analysis.series_delta:+g}%" if analysis.series_delta is not None else "series unavailable",
+            ]),
             required_steps=required_steps,
             workflow_complexity=complexity,
             friction_notes=friction,

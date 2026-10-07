@@ -3,9 +3,11 @@
 import os
 import tempfile
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
 from coin_collection import CoinItem
-from deal_hunter import DealListing
+from deal_hunter import DealHunter, DealHunterReport, DealHunterResult, DealListing, ParsedDealCandidate
 from deal_hunter_ranking import (
     CandidatePool,
     DealHunterRankingEngine,
@@ -48,6 +50,98 @@ def make_intent(target_coin, priority_score=90):
 
 
 class TestDealHunterRanking(unittest.TestCase):
+    def test_real_needs_review_dominates_stale_pool_advice(self):
+        result = DealHunter([]).analyze_listing(DealListing("Unattributed coin lot", 80, 5))
+        self.assertEqual(result.collection_status, "needs review")
+        for status in ("BUY", "WATCH", "PASS"):
+            with self.subTest(status=status):
+                stale = replace(result, recommendation=status, priority_score=90,
+                                collection_fit_score=90, max_rational_price=100)
+                with patch("deal_hunter_ranking.DealHunter.generate_report", return_value=DealHunterReport([stale])):
+                    report = DealHunterRankingEngine([]).rank_pool(CandidatePool.from_listings([result.listing]))
+                self.assertEqual(report.ranked_deals, [])
+                self.assertIsNone(report.unranked_deals[0].rank)
+                self.assertIsNone(report.unranked_deals[0].ranking_score.score)
+
+    def test_relationship_prose_does_not_supply_categories_or_scores(self):
+        from opportunity_engine import OpportunityReport
+
+        result = DealHunterResult(DealListing("Synthetic", 80, 5), ParsedDealCandidate(),
+                                  "Supported boundary", 80, 20, 70, 0, 100, "WATCH", "Review")
+        opportunity = OpportunityReport(1, "Collection Opportunity", "Synthetic", 50, recommendation="WATCH")
+        engine = DealHunterRankingEngine([])
+        baseline = engine._rank_result(result, opportunity)
+        for text in ("duplicate", "not a duplicate", "upgrade", "not an upgrade", "collection gap", "not a collection gap"):
+            with self.subTest(text=text):
+                row = engine._rank_result(replace(result, collection_status=text), opportunity)
+                views = engine._category_views([row], 5)
+                self.assertEqual(row.ranking_score.score, baseline.ranking_score.score)
+                self.assertEqual(views["Top Upgrade Opportunities"], [])
+                self.assertEqual(views["Top Collection Gap Opportunities"], [])
+
+    def test_review_retained_numerics_cannot_rank(self):
+        from opportunity_engine import OpportunityReport
+        result = DealHunter([]).analyze_listing(DealListing("Unattributed coin lot", 80, 5))
+        retained = replace(result, priority_score=90, collection_fit_score=90)
+        ranked = DealHunterRankingEngine([])._rank_result(retained, OpportunityReport(None, "Boundary", "Retained", 90))
+        self.assertIsNone(ranked.ranking_score.score)
+        self.assertIsNone(ranked.rank)
+        self.assertEqual(ranked.recommendation, "REVIEW")
+        self.assertEqual(ranked.listing.total_cost, 85)
+
+    def test_negative_relationship_narrative_has_no_bonus(self):
+        from opportunity_engine import OpportunityReport
+        result = DealHunterResult(DealListing("Boundary", 20), ParsedDealCandidate(), "Supported boundary", 20, 0, 20, 0, 20, "WATCH", "Context")
+        engine = DealHunterRankingEngine([])
+        opportunity = OpportunityReport(None, "Boundary", "Supported", 17)
+        baseline = engine._rank_result(result, opportunity).ranking_score.score
+        for text in ("not an upgrade", "not a collection gap"):
+            self.assertEqual(engine._rank_result(replace(result, collection_status=text, reasons=[text]), opportunity).ranking_score.score, baseline)
+
+    def test_unresolved_pool_is_retained_without_numeric_rank(self):
+        import json
+
+        report = DealHunterRankingEngine([]).rank_pool(CandidatePool.from_listings([
+            DealListing("Unattributed coin lot", 80, 5, seller="Synthetic seller"),
+            DealListing("Another unattributed lot", 40, 2),
+        ]))
+        self.assertEqual(report.ranked_deals, [])
+        self.assertEqual(len(report.unranked_deals), 2)
+        for row in report.unranked_deals:
+            self.assertIsNone(row.rank)
+            self.assertIsNone(row.ranking_score.score)
+            self.assertIsNone(json.loads(json.dumps(row.to_dict()))["ranking_score"])
+            self.assertTrue(row.risk_flags)
+        self.assertEqual(report.unranked_deals[0].listing.total_cost, 85)
+        self.assertEqual(report.unranked_deals[0].listing.seller, "Synthetic seller")
+        self.assertIn("unavailable", report.format_markdown())
+
+    def test_mixed_pool_only_supported_deal_receives_rank(self):
+        import json
+        unresolved = DealHunter([]).analyze_listing(DealListing("Unattributed coin lot", 80, 5))
+        # Already-supported DealHunterResult boundary fixtures; these do not
+        # claim that a parsed country/denomination/year supports these scores.
+        supported = DealHunterResult(
+            DealListing("Supported downstream", 70, 5), ParsedDealCandidate(),
+            "Supported boundary", 80, 20, 70, 0, 100, "WATCH", "Manual review")
+        zero = DealHunterResult(
+            DealListing("Supported zero", 0, 0), ParsedDealCandidate(),
+            "Supported zero boundary", 0, 0, 0, 100, 0, "WATCH", "Manual review")
+        results = [unresolved, zero, supported]
+        with patch("deal_hunter_ranking.DealHunter.generate_report", return_value=DealHunterReport(results)):
+            report = DealHunterRankingEngine([]).rank_pool(CandidatePool.from_listings(row.listing for row in results))
+        self.assertEqual([row.ranking_score.score for row in report.ranked_deals], [70, 0])
+        self.assertEqual([row.rank for row in report.ranked_deals], [1, 2])
+        self.assertEqual(len(report.unranked_deals), 1)
+        self.assertIsNone(report.unranked_deals[0].rank)
+        self.assertIsNone(report.unranked_deals[0].ranking_score.score)
+        self.assertEqual(report.ranked_deals[0].ranking_score.opportunity_score, 69)
+        self.assertEqual(report.ranked_deals[1].deal_result.max_rational_price, 0)
+        payload = json.loads(json.dumps({"ranked_deals": [row.to_dict() for row in report.ranked_deals],
+                                         "unranked_deals": [row.to_dict() for row in report.unranked_deals]}))
+        self.assertEqual(payload["ranked_deals"][1]["ranking_score"], 0)
+        self.assertIsNone(payload["unranked_deals"][0]["ranking_score"])
+
     def setUp(self):
         self.items = [
             make_item("nf1900", "Newfoundland", "50 cents", "1900", "VF-20"),
@@ -132,16 +226,20 @@ class TestDealHunterRanking(unittest.TestCase):
 
         self.assertIsInstance(report, DealHunterRankingReport)
         self.assertIsInstance(report, TopOpportunitiesReport)
-        self.assertGreater(len(report.ranked_deals), 0)
-        self.assertGreaterEqual(report.ranked_deals[0].ranking_score.score, report.ranked_deals[-1].ranking_score.score)
-        self.assertTrue(all(0 <= row.ranking_score.score <= 100 for row in report.ranked_deals))
+        self.assertEqual(report.ranked_deals, [])
+        self.assertEqual(len(report.unranked_deals), 5)
+        self.assertEqual(report.candidate_count, 5)
+        for row in report.unranked_deals:
+            self.assertIsNone(row.rank)
+            self.assertIsNone(row.ranking_score.score)
 
     def test_budget_ranking(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings), budgets=[50, 100, 250, 500])
 
         self.assertIn(100, report.budget_reports)
-        self.assertTrue(report.budget_reports[100].best_deals)
-        self.assertLessEqual(report.budget_reports[100].best_deals[0].listing.total_cost, 100)
+        self.assertEqual(report.budget_reports[100].best_deals, [])
+        self.assertEqual(len(report.unranked_deals), 5)
+        self.assertEqual(report.unranked_deals[0].listing.total_cost, 90)
 
     def test_budget_points_exact_boundaries(self):
         cases = [
@@ -165,22 +263,34 @@ class TestDealHunterRanking(unittest.TestCase):
     def test_newfoundland_category(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))
 
-        self.assertTrue(report.category_views["Top Newfoundland Opportunities"])
+        self.assertEqual(report.category_views["Top Newfoundland Opportunities"], [])
+        rows = [row for row in report.unranked_deals if "Newfoundland" in row.listing.title]
+        self.assertTrue(rows)
+        self.assertTrue(all(row.rank is None and row.ranking_score.score is None for row in rows))
 
     def test_banknote_category(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))
 
-        self.assertTrue(report.category_views["Top Banknote Opportunities"])
+        self.assertEqual(report.category_views["Top Banknote Opportunities"], [])
+        rows = [row for row in report.unranked_deals if "banknote" in row.listing.title]
+        self.assertTrue(rows)
+        self.assertTrue(all(row.rank is None and row.ranking_score.score is None for row in rows))
 
     def test_upgrade_category(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))
 
-        self.assertTrue(report.category_views["Top Upgrade Opportunities"])
+        self.assertEqual(report.category_views["Top Upgrade Opportunities"], [])
+        rows = [row for row in report.unranked_deals if "1911 Canada" in row.listing.title]
+        self.assertTrue(rows)
+        self.assertTrue(all(row.rank is None and row.ranking_score.score is None for row in rows))
 
     def test_collection_gap_category(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))
 
-        self.assertTrue(report.category_views["Top Collection Gap Opportunities"])
+        self.assertEqual(report.category_views["Top Collection Gap Opportunities"], [])
+        rows = [row for row in report.unranked_deals if "1901 Newfoundland" in row.listing.title]
+        self.assertTrue(rows)
+        self.assertTrue(all(row.rank is None and row.ranking_score.score is None for row in rows))
 
     def test_export_generation(self):
         report = self.engine.rank_pool(CandidatePool.from_listings(self.listings))

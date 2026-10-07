@@ -4634,16 +4634,16 @@ Total Unique Dates: {total_unique_dates}
             report += f"Base Recommendation: {rec.base_recommendation}\n"
             report += f"Final Recommendation: {rec.recommendation}\n\n"
             report += f"=== Analysis ===\n"
-            report += f"Already Owned: {rec.already_owned}\n"
-            report += f"Duplicate Count: {rec.duplicate_count}\n"
-            report += f"Upgrade Candidate: {rec.upgrade_candidate}\n"
+            report += f"Already Owned: {rec.already_owned if rec.already_owned is not None else 'unavailable'}\n"
+            report += f"Duplicate Count: {rec.duplicate_count if rec.duplicate_count is not None else 'unavailable'}\n"
+            report += f"Upgrade Candidate: {rec.upgrade_candidate if rec.upgrade_candidate is not None else 'unavailable'}\n"
             if rec.existing_grade:
                 report += f"Existing Grade: {rec.existing_grade}\n"
-            report += f"Missing Date in Series: {rec.missing_date_in_series}\n"
-            report += f"Missing Denomination in Country: {rec.missing_denomination_in_country}\n"
-            report += f"Series Completion: {rec.series_completion:.1%}\n"
-            report += f"Country Completion: {rec.country_completion:.1%}\n"
-            report += f"Confidence Score: {rec.confidence_score}/100\n"
+            report += f"Missing Date in Series: {rec.missing_date_in_series if rec.missing_date_in_series is not None else 'unavailable'}\n"
+            report += f"Missing Denomination in Country: {rec.missing_denomination_in_country if rec.missing_denomination_in_country is not None else 'unavailable'}\n"
+            report += f"Series Completion: {rec.series_completion:.1%}\n" if rec.series_completion is not None else "Series Completion: unavailable\n"
+            report += f"Country Completion: {rec.country_completion:.1%}\n" if rec.country_completion is not None else "Country Completion: unavailable\n"
+            report += f"Confidence Score: {rec.confidence_score}/100\n" if rec.confidence_score is not None else "Confidence Score: unavailable\n"
             report += f"Value Quality: {rec.value_quality}\n\n"
             
             report += f"=== Explanation ===\n"
@@ -4654,7 +4654,9 @@ Total Unique Dates: {total_unique_dates}
                 report += f"  - {reason}\n"
             
             report += f"\n=== Matching Items ===\n"
-            if rec.matching_items:
+            if rec.matching_items is None:
+                report += "  Matching evidence unavailable; review required\n"
+            elif rec.matching_items:
                 for item in rec.matching_items:
                     match_type = item['match_type'].upper()
                     report += f"  [{match_type}] {item['country']} {item['denomination']} {item['year']}"
@@ -4673,11 +4675,10 @@ Total Unique Dates: {total_unique_dates}
                 report += "  No matching items found in collection\n"
             
             report += f"\n=== Value Information ===\n"
-            if rec.value_data_available:
-                if rec.max_rational_bid > 0:
-                    report += f"Max Rational Bid: ${rec.max_rational_bid:.2f}\n"
-                else:
-                    report += f"Max Rational Bid: Not recommended\n"
+            if rec.max_rational_bid is None:
+                report += "Max Rational Bid: unavailable; review required\n"
+            elif rec.value_data_available:
+                report += f"Max Rational Bid: ${rec.max_rational_bid:.2f}\n"
             else:
                 report += f"Max Rational Bid: No value data available\n"
             report += f"{rec.max_bid_explanation}\n"
@@ -4692,8 +4693,10 @@ Total Unique Dates: {total_unique_dates}
                 report += "  No warnings\n"
             
             report += f"\n=== Adam Priority Score ===\n"
-            report += f"Score: {rec.adam_priority_score}\n"
-            if rec.adam_priority_score >= 80:
+            report += f"Score: {rec.adam_priority_score if rec.adam_priority_score is not None else 'unavailable'}\n"
+            if rec.adam_priority_score is None:
+                report += "Strategic Category: review required\n"
+            elif rec.adam_priority_score >= 80:
                 report += f"Strategic Category: Core Target\n"
             elif rec.adam_priority_score >= 50:
                 report += f"Strategic Category: Good Fit\n"
@@ -4709,7 +4712,7 @@ Total Unique Dates: {total_unique_dates}
                 report += f"No priority factors applied\n"
 
             report += f"\n=== Collection Intelligence Factors ===\n"
-            report += f"Collection Impact Score: {rec.collection_impact_score}\n"
+            report += f"Collection Impact Score: {rec.collection_impact_score if rec.collection_impact_score is not None else 'unavailable'}\n"
             if rec.collection_intelligence_factors:
                 for factor in rec.collection_intelligence_factors:
                     report += f"  - {factor}\n"
@@ -4717,8 +4720,10 @@ Total Unique Dates: {total_unique_dates}
                 report += f"  No collection intelligence factors applied\n"
             
             report += f"\n=== Liquidity Score ===\n"
-            report += f"Score: {rec.liquidity_score}\n"
-            if rec.liquidity_score >= 20:
+            report += f"Score: {rec.liquidity_score if rec.liquidity_score is not None else 'unavailable'}\n"
+            if rec.liquidity_score is None:
+                report += "Liquidity Category: review required\n"
+            elif rec.liquidity_score >= 20:
                 report += f"Liquidity Category: High Liquidity\n"
             elif rec.liquidity_score >= 10:
                 report += f"Liquidity Category: Medium Liquidity\n"
@@ -4736,8 +4741,8 @@ Total Unique Dates: {total_unique_dates}
             report += f"\n=== Price Analysis ===\n"
             if rec.landed_cost > 0:
                 report += f"Landed Cost: ${rec.landed_cost:.2f}\n"
-                report += f"Max Rational Bid: ${rec.max_rational_bid:.2f}\n"
-                if rec.max_rational_bid > 0:
+                report += f"Max Rational Bid: ${rec.max_rational_bid:.2f}\n" if rec.max_rational_bid is not None else "Max Rational Bid: unavailable\n"
+                if rec.max_rational_bid is not None and rec.max_rational_bid > 0:
                     over_under = rec.landed_cost - rec.max_rational_bid
                     if over_under >= 0:
                         report += f"Over Max Bid: ${over_under:.2f}\n"
@@ -5322,7 +5327,7 @@ Total Unique Dates: {total_unique_dates}
                 "",
                 f"Match Status: {result.match_status.value}",
                 f"Recommendation: {result.recommendation}",
-                f"Confidence Score: {result.confidence_score}/100",
+                f"Confidence Score: {result.confidence_score}/100" if result.confidence_score is not None else "Confidence Score: unavailable",
                 f"WANT_LIST Status: {result.want_list_status}",
                 "",
                 "Best Existing Match:",
@@ -5357,8 +5362,8 @@ Total Unique Dates: {total_unique_dates}
                     "Acquisition Guidance:",
                     f"  Recommendation: {acquisition_decision.recommendation}",
                     f"  Asking Price: ${acquisition_decision.asking_price:.2f}",
-                    f"  Max Rational Price: ${acquisition_decision.max_rational_price:.2f}",
-                    f"  Confidence Score: {acquisition_decision.confidence_score}/100",
+                    f"  Max Rational Price: ${acquisition_decision.max_rational_price:.2f}" if acquisition_decision.max_rational_price is not None else "  Max Rational Price: unavailable",
+                    f"  Confidence Score: {acquisition_decision.confidence_score}/100" if acquisition_decision.confidence_score is not None else "  Confidence Score: unavailable",
                 ])
             return "\n".join(lines)
 
@@ -5508,11 +5513,11 @@ Total Unique Dates: {total_unique_dates}
                 f"  Upgrade Status: {result.upgrade_status}",
                 f"  WANT_LIST Status: {result.want_list_status}",
                 f"  Collection Impact: {result.collection_impact}",
-                f"  Priority Score: {result.priority_score}",
-                f"  Acquisition Impact Score: {result.acquisition_impact_score}",
-                f"  Quality Impact: {result.quality_impact:+d}",
-                f"  Completion Impact: {result.completion_impact:+.1f}%",
-                f"  Max Rational Price: ${result.max_rational_price:.2f}",
+                f"  Priority Score: {result.priority_score if result.priority_score is not None else 'unavailable'}",
+                f"  Acquisition Impact Score: {result.acquisition_impact_score if result.acquisition_impact_score is not None else 'unavailable'}",
+                f"  Quality Impact: {result.quality_impact:+d}" if result.quality_impact is not None else "  Quality Impact: unavailable",
+                f"  Completion Impact: {result.completion_impact:+.1f}%" if result.completion_impact is not None else "  Completion Impact: unavailable",
+                f"  Max Rational Price: ${result.max_rational_price:.2f}" if result.max_rational_price is not None else "  Max Rational Price: unavailable",
                 f"  Recommendation: {result.recommendation}",
             ]
             if result.recommendation_reasoning:

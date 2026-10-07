@@ -3,9 +3,10 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from coin_collection import CoinItem
-from deal_hunter import DealListing
+from deal_hunter import DealListing, DealHunterResult, ParsedDealCandidate
 from legacy_portfolio_importer import LegacyWantListIntent
 from market_awareness import MarketAwarenessEngine, ObservedPriceRecord
 from market_intelligence import (
@@ -16,6 +17,7 @@ from market_intelligence import (
     QUALITY_GOOD,
     QUALITY_OVERPRICED,
     QUALITY_WEAK,
+    QUALITY_UNKNOWN,
 )
 
 
@@ -48,6 +50,51 @@ def make_intent(target_coin, priority_score=90):
 
 
 class TestMarketIntelligence(unittest.TestCase):
+    def test_ordinary_unavailable_entry_point_preserves_independent_facts(self):
+        listing = DealListing("Canada 25 cents 1936 VF20", 30, 5,
+                              seller="Synthetic seller", source="Manual", listing_url="https://example.test/coin")
+        report = MarketIntelligenceEngine([], []).evaluate_listing(listing)
+        self.assertIsNone(report.confidence.score)
+        self.assertIsNone(report.confidence.collection_fit)
+        self.assertIsNone(report.fair_value.expected_value)
+        self.assertEqual(report.deal_quality.quality, QUALITY_UNKNOWN)
+        self.assertEqual(report.listing.total_cost, 35)
+        self.assertEqual(report.listing.price_cad, 30)
+        self.assertEqual(report.listing.shipping_cad, 5)
+        self.assertEqual(report.listing.source, "Manual")
+        self.assertEqual(report.listing.seller, "Synthetic seller")
+        self.assertEqual(report.listing.listing_url, "https://example.test/coin")
+        self.assertEqual(report.deal_result.parsed_candidate.year, "1936")
+        self.assertTrue(report.deal_result.warnings)
+        self.assertIn("unavailable", report.format_markdown())
+        self.assertIsNone(report.to_dict()["expected_value"])
+
+    def test_comparables_survive_unavailable_fit(self):
+        report = MarketIntelligenceEngine([], []).evaluate_listing(
+            DealListing("Canada 25 cents 1936 VF20", 30, 5), [ComparableSale("Manual observation", 50)])
+        self.assertEqual(report.fair_value.expected_value, 50)
+        self.assertEqual(report.fair_value.evidence_count, 1)
+        self.assertIsNone(report.confidence.score)
+        self.assertIsNone(report.confidence.collection_fit)
+        self.assertEqual(report.confidence.valuation_evidence, 7)
+        self.assertIn("Local comparable evidence available", report.strengths)
+        self.assertNotIn("High confidence", report.strengths)
+
+    def test_supported_downstream_zero_and_positive_evaluation(self):
+        # Explicit numeric consumer fixtures; no production identity activation.
+        for value in (0, 100):
+            with self.subTest(value=value):
+                listing = DealListing("Synthetic supported consumer", 30, 5)
+                result = DealHunterResult(listing, ParsedDealCandidate(country="Canada", denomination="25 cents", year="1936", grade="VF20"),
+                                          "Supported boundary", value, 20, value, 0, value, "WATCH", "Manual review")
+                with patch("market_intelligence.DealHunter.analyze_listing", return_value=result):
+                    report = MarketIntelligenceEngine([], []).evaluate_listing(listing)
+                self.assertEqual(report.fair_value.expected_value, value)
+                self.assertEqual(report.confidence.collection_fit, value // 4)
+                self.assertEqual(report.confidence.score, 60 if value == 0 else 85)
+                self.assertEqual(report.deal_quality.quality, QUALITY_UNKNOWN if value == 0 else QUALITY_EXCELLENT)
+                self.assertIn(f"Expected value CAD: {value:.2f}", report.format_markdown())
+
     def setUp(self):
         self.items = [
             make_item("nf1900", "Newfoundland", "50 cents", "1900", "VF-20"),
@@ -76,13 +123,24 @@ class TestMarketIntelligence(unittest.TestCase):
     def test_confidence_scoring(self):
         report = self.engine.evaluate_listing(DealListing("1901 Newfoundland 50 cents VF20 PCGS", 80, 5))
 
-        self.assertGreaterEqual(report.confidence.score, 70)
+        self.assertIsNone(report.confidence.score)
+        self.assertIsNone(report.confidence.collection_fit)
+        self.assertEqual(report.confidence.valuation_evidence, 14)
+        self.assertEqual(report.fair_value.evidence_count, 2)
+        self.assertEqual(report.fair_value.expected_value, 100)
+        self.assertEqual(report.listing.total_cost, 85)
+        self.assertEqual(report.deal_result.recommendation, "REVIEW")
         self.assertIn("collection fit", report.confidence.explanation.lower())
 
     def test_deal_quality_classification_good_or_excellent(self):
         report = self.engine.evaluate_listing(DealListing("1901 Newfoundland 50 cents VF20 PCGS", 80, 5))
 
-        self.assertIn(report.deal_quality.quality, {QUALITY_EXCELLENT, QUALITY_GOOD})
+        self.assertEqual(report.deal_quality.quality, QUALITY_UNKNOWN)
+        self.assertIsNone(report.confidence.score)
+        self.assertEqual(report.fair_value.expected_value, 100)
+        self.assertEqual(report.listing.price_cad, 80)
+        self.assertEqual(report.listing.shipping_cad, 5)
+        self.assertIn("Local comparable evidence available", report.strengths)
         self.assertTrue(report.deal_quality.reasoning)
 
     def test_overpriced_classification(self):
@@ -123,14 +181,26 @@ class TestMarketIntelligence(unittest.TestCase):
     def test_duplicate_handling(self):
         report = self.engine.evaluate_listing(DealListing("1900 Newfoundland 50 cents VF20 ICCS", 75, 5))
 
-        self.assertEqual(report.deal_quality.quality, QUALITY_WEAK)
-        self.assertTrue(any("Duplicate" in weakness for weakness in report.weaknesses))
+        self.assertEqual(report.deal_quality.quality, QUALITY_UNKNOWN)
+        self.assertEqual(report.deal_result.recommendation, "REVIEW")
+        self.assertIsNone(report.confidence.duplicate_penalty)
+        self.assertNotIn("Duplicate ownership", report.weaknesses)
+        self.assertEqual(report.listing.price_cad, 75)
+        self.assertEqual(report.listing.shipping_cad, 5)
+        self.assertEqual(report.listing.total_cost, 80)
+        self.assertTrue(report.deal_result.warnings)
 
     def test_upgrade_handling(self):
         report = self.engine.evaluate_listing(DealListing("1900 Newfoundland 50 cents EF40 ICCS", 90, 5))
 
-        self.assertIn("Upgrade potential", report.strengths)
-        self.assertGreater(report.confidence.upgrade_potential, 0)
+        self.assertNotIn("Upgrade potential", report.strengths)
+        self.assertIsNone(report.confidence.upgrade_potential)
+        self.assertEqual(report.deal_result.recommendation, "REVIEW")
+        self.assertEqual(report.listing.price_cad, 90)
+        self.assertEqual(report.listing.shipping_cad, 5)
+        self.assertEqual(report.listing.total_cost, 95)
+        self.assertTrue(report.deal_result.parsed_candidate.grade)
+        self.assertTrue(report.deal_result.warnings)
 
     def test_unknown_or_fair_without_local_evidence(self):
         report = MarketIntelligenceEngine([], []).evaluate_listing(DealListing("Canada 25 cents 1936 VF20", 30, 5))

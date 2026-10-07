@@ -3,7 +3,12 @@
 import os
 import tempfile
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
+from acquisition_workflow import AcquisitionWorkflow
+from focused_collection_intelligence import CandidateItem, MatchStatus
+from listing_analyzer import ListingAnalyzer
 from coin_collection import CoinItem
 from collection_dashboard import CollectionDashboard
 from legacy_portfolio_importer import LegacyWantListIntent
@@ -51,6 +56,84 @@ def make_intent(target_coin, budget=150.0):
 
 
 class TestMobileCompanion(unittest.TestCase):
+    def test_nested_review_dominates_each_stale_outer_recommendation(self):
+        entry = MobileCandidateEntry("Canada dollar", asking_price=10, shipping=2)
+        result = ListingAnalyzer([]).analyze(entry.to_listing_candidate())
+        self.assertEqual(result.acquisition_decision.recommendation, "REVIEW")
+        for status in ("BUY", "PASS", "WATCH"):
+            for retained in (False, True):
+                with self.subTest(status=status, retained=retained):
+                    stale = replace(result, recommendation=status)
+                    if retained:
+                        stale.max_rational_price = 100
+                        stale.acquisition_impact_report = replace(
+                            result.acquisition_impact_report, impact_score=90)
+                    with patch("mobile_companion.ListingAnalyzer.analyze", return_value=stale):
+                        report = MobileCompanionWorkflow([]).analyze(entry)
+                    self.assertEqual(report.recommendation, "REVIEW")
+                    self.assertIsNone(report.impact_score)
+                    self.assertIsNone(report.max_rational_price)
+                    self.assertTrue(report.recommendation_summary.startswith("REVIEW:"))
+                    self.assertEqual(report.total_cost, 12)
+                    self.assertEqual(report.candidate.asking_price, 10)
+                    self.assertEqual(report.candidate.shipping, 2)
+                    self.assertTrue(set(result.warnings).issubset(report.warning_flags))
+
+    def test_contained_listing_review_dominates_stale_attached_buy(self):
+        decision = AcquisitionWorkflow([]).evaluate(CandidateItem(asking_price=1))
+        self.assertEqual(decision.collection_intelligence_status, MatchStatus.NEEDS_REVIEW.value)
+        stale = replace(decision, recommendation="BUY", max_rational_price=100)
+        entry = MobileCandidateEntry(
+            "Canada 1 cent 1967 VF20", asking_price=1, shipping=2,
+            url="https://example.com/coin", source="Synthetic dealer", notes="cleaned",
+        )
+        with patch("listing_analyzer.AcquisitionWorkflow.evaluate", return_value=stale):
+            listing = ListingAnalyzer([]).analyze(entry.to_listing_candidate())
+            self.assertEqual(listing.recommendation, "REVIEW")
+            self.assertIsNone(listing.max_rational_price)
+            # Preserve the contradictory public attachment that triggered High.
+            self.assertEqual(listing.acquisition_decision.recommendation, "BUY")
+            report = MobileCompanionWorkflow([]).analyze(entry)
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertTrue(report.recommendation_summary.startswith("REVIEW:"))
+        self.assertIn("unresolved", report.top_reason.lower())
+        self.assertEqual(report.total_cost, 3)
+        self.assertEqual(report.candidate.asking_price, 1)
+        self.assertEqual(report.candidate.shipping, 2)
+        self.assertEqual(report.candidate.url, "https://example.com/coin")
+        self.assertEqual(report.candidate.source, "Synthetic dealer")
+        self.assertTrue(any("cleaning" in warning for warning in report.warning_flags))
+
+    def test_unresolved_consequences_survive_serialization_and_display(self):
+        import json
+
+        report = MobileCompanionWorkflow([]).analyze(
+            MobileCandidateEntry("Unattributed coin lot", asking_price=80, shipping=5))
+        self.assertEqual(report.recommendation, "REVIEW")
+        self.assertEqual(report.total_cost, 85)
+        self.assertEqual(report.candidate.asking_price, 80)
+        self.assertEqual(report.candidate.shipping, 5)
+        self.assertTrue(report.warning_flags)
+        payload = json.loads(json.dumps(report.to_dict()))
+        restored = MobileAnalysisReport.from_dict(payload)
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+            self.assertIsNone(payload[name], name)
+            self.assertIsNone(getattr(restored, name), name)
+        markdown = restored.format_markdown()
+        self.assertIn("unavailable", markdown)
+        self.assertIn("$85.00", markdown)
+        for false_zero in ("$0.00", "+0", "+0%"):
+            self.assertNotIn(false_zero, markdown)
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            payload[name] = 0
+        zero = MobileAnalysisReport.from_dict(payload)
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertEqual(getattr(zero, name), 0)
+        self.assertIn("$0.00", zero.format_markdown())
+
     def setUp(self):
         self.items = [
             make_item("1", "Newfoundland", "50 cents", "1900", "F-12"),
@@ -115,36 +198,68 @@ class TestMobileCompanion(unittest.TestCase):
     def test_workflow_want_list_target(self):
         report = self.workflow.analyze(MobileCandidateEntry("Newfoundland 50 cents 1904 VF20", asking_price=120))
 
-        self.assertIn(report.recommendation, {"BUY", "NEGOTIATE", "WATCH", "REVIEW"})
-        self.assertEqual(report.want_list_status, "ON_WANT_LIST")
-        self.assertGreater(report.impact_score, 0)
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertEqual(report.candidate.asking_price, 120)
+        self.assertEqual(report.candidate.shipping, 0)
+        self.assertEqual(report.total_cost, 120)
         self.assertTrue(report.top_reason)
+        self.assertTrue(report.warning_flags)
+        self.assertIn("unavailable", report.format_markdown())
+        self.assertEqual(report.want_list_status, "ON_WANT_LIST")
 
     def test_workflow_duplicate_candidate_passes(self):
         report = self.workflow.analyze(MobileCandidateEntry("Canada 10 cents 1911 VF20", asking_price=10))
 
-        self.assertEqual(report.recommendation, "PASS")
-        self.assertGreaterEqual(report.impact_score, 0)
-        self.assertTrue(any("duplicate" in warning.lower() or report.top_reason for warning in report.warning_flags + [report.top_reason]))
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertEqual(report.candidate.asking_price, 10)
+        self.assertEqual(report.candidate.shipping, 0)
+        self.assertEqual(report.total_cost, 10)
+        self.assertTrue(report.top_reason)
+        self.assertTrue(report.warning_flags)
+        self.assertIn("unavailable", report.format_markdown())
 
     def test_workflow_upgrade_candidate(self):
         report = self.workflow.analyze(MobileCandidateEntry("Canada 1 cent 1859 VF20", asking_price=60))
 
-        self.assertIn(report.recommendation, {"BUY", "NEGOTIATE", "WATCH", "REVIEW"})
-        self.assertGreaterEqual(report.impact_score, 0)
-        self.assertTrue(report.recommendation_summary)
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertEqual(report.candidate.asking_price, 60)
+        self.assertEqual(report.candidate.shipping, 0)
+        self.assertEqual(report.total_cost, 60)
+        self.assertTrue(report.top_reason)
+        self.assertTrue(report.warning_flags)
+        self.assertIn("unavailable", report.format_markdown())
 
     def test_workflow_collection_gap(self):
         report = self.workflow.analyze(MobileCandidateEntry("Newfoundland 50 cents 1902 VF20", asking_price=90))
 
-        self.assertIn(report.recommendation, {"BUY", "NEGOTIATE", "WATCH", "REVIEW"})
-        self.assertGreater(report.impact_score, 0)
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertEqual(report.candidate.asking_price, 90)
+        self.assertEqual(report.candidate.shipping, 0)
+        self.assertEqual(report.total_cost, 90)
+        self.assertTrue(report.top_reason)
+        self.assertTrue(report.warning_flags)
+        self.assertIn("unavailable", report.format_markdown())
 
     def test_workflow_random_world_base_metal_non_priority(self):
         report = self.workflow.analyze(MobileCandidateEntry("Argentina 1 cent 1975 VF20", asking_price=1))
 
-        self.assertEqual(report.recommendation, "PASS")
-        self.assertEqual(report.impact_score, 0)
+        self.assertEqual(report.recommendation, "REVIEW")
+        for name in ("impact_score", "quality_delta", "series_delta", "max_rational_price"):
+            self.assertIsNone(getattr(report, name), name)
+        self.assertEqual(report.candidate.asking_price, 1)
+        self.assertEqual(report.candidate.shipping, 0)
+        self.assertEqual(report.total_cost, 1)
+        self.assertTrue(report.top_reason)
+        self.assertTrue(report.warning_flags)
+        self.assertIn("unavailable", report.format_markdown())
 
     def test_workflow_missing_price_is_graceful(self):
         report = self.workflow.analyze(MobileCandidateEntry("Newfoundland 50 cents 1904 VF20"))

@@ -3,7 +3,7 @@
 import csv
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, cast
 
 from deal_hunter import DealHunter, DealHunterCSVImportResult, DealHunterResult, DealListing
 from market_awareness import MarketAwarenessEngine
@@ -210,12 +210,12 @@ class CandidatePool:
 class RankingScore:
     """Explainable 0-100 ranking score."""
 
-    score: int
-    deal_score: int = 0
-    opportunity_score: int = 0
-    collection_fit: int = 0
-    upgrade_value: int = 0
-    gap_value: int = 0
+    score: Optional[int]
+    deal_score: Optional[int] = 0
+    opportunity_score: Optional[int] = 0
+    collection_fit: Optional[int] = 0
+    upgrade_value: Optional[int] = 0
+    gap_value: Optional[int] = 0
     want_list_relevance: int = 0
     liquidity: int = 0
     risk: int = 0
@@ -227,7 +227,7 @@ class RankingScore:
 
 @dataclass
 class RankedDeal:
-    rank: int
+    rank: Optional[int]
     listing: DealListing
     deal_result: DealHunterResult
     ranking_score: RankingScore
@@ -274,6 +274,7 @@ class DealHunterRankingReport:
     source_summary: Dict[str, int] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     generated_at: str = ""
+    unranked_deals: List[RankedDeal] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.generated_at = self.generated_at or _now_iso()
@@ -291,6 +292,8 @@ class DealHunterRankingReport:
             "",
         ]
         lines.extend(self._format_deals(self.category_views.get("Top Opportunities Overall", [])))
+        lines.extend(["", "## Unranked Review Deals", ""])
+        lines.extend(self._format_deals(self.unranked_deals))
         lines.extend(["", "## Budget Optimization", ""])
         for budget, report in self.budget_reports.items():
             lines.append(f"### ${budget}")
@@ -339,7 +342,7 @@ class DealHunterRankingReport:
             ]
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
-            for deal in self.ranked_deals:
+            for deal in self.ranked_deals + self.unranked_deals:
                 writer.writerow(deal.to_dict())
         return True
 
@@ -350,8 +353,8 @@ class DealHunterRankingReport:
         lines = []
         for deal in deals:
             lines.append(
-                f"{deal.rank}. {deal.listing.title} - {deal.recommendation} "
-                f"(ranking {deal.ranking_score.score}, cost ${deal.listing.total_cost:.2f})"
+                f"{str(deal.rank) + '. ' if deal.rank is not None else 'Unranked review: '}{deal.listing.title} - {deal.recommendation} "
+                f"(ranking {deal.ranking_score.score if deal.ranking_score.score is not None else 'unavailable'}, cost ${deal.listing.total_cost:.2f})"
             )
             lines.append(f"   - Impact: {deal.collection_impact}")
             lines.append(f"   - Counterargument: {deal.counterargument}")
@@ -384,15 +387,18 @@ class DealHunterRankingEngine:
             self.want_list_intents,
             self.market_awareness_engine,
         ).generate_report(deal_hunter_results=deal_results, limit=50)
-        opportunity_by_title = {_normalize(row.item_name): row for row in opportunity_report.opportunities}
+        opportunity_by_title = {_normalize(row.item_name): row for row in opportunity_report.opportunities + opportunity_report.unranked_opportunities}
         ranked = [self._rank_result(result, opportunity_by_title.get(_normalize(result.listing.title))) for result in deal_results]
-        ranked.sort(key=lambda row: (-row.ranking_score.score, row.listing.total_cost, row.listing.title))
+        unranked = [row for row in ranked if row.ranking_score.score is None]
+        ranked = [row for row in ranked if row.ranking_score.score is not None]
+        ranked.sort(key=lambda row: (-cast(int, row.ranking_score.score), row.listing.total_cost, row.listing.title))
         ranked = self._consolidate(ranked)
         for index, deal in enumerate(ranked, 1):
             deal.rank = index
         budget_reports = {int(budget): self._budget_report(ranked, int(budget), limit) for budget in budgets}
         return DealHunterRankingReport(
             ranked_deals=ranked,
+            unranked_deals=unranked,
             budget_reports=budget_reports,
             category_views=self._category_views(ranked, limit),
             candidate_count=pool.candidate_count,
@@ -402,39 +408,47 @@ class DealHunterRankingEngine:
         )
 
     def _rank_result(self, result: DealHunterResult, opportunity: Optional[Any]) -> RankedDeal:
+        available = OpportunityEngine._deal_evidence_available(result)
+        if opportunity is not None and str(opportunity.recommendation).strip().upper() in {"REVIEW", "NEEDS_REVIEW", "UNRESOLVED", "UNAVAILABLE"}:
+            available = False
+        relationship = result.collection_status.strip().upper()
         detail = RankingScore(
             score=0,
-            deal_score=result.priority_score,
-            opportunity_score=opportunity.score if opportunity else 0,
-            collection_fit=result.collection_fit_score,
-            upgrade_value=22 if "upgrade" in result.collection_status.lower() else 0,
-            gap_value=20 if "gap" in result.collection_status.lower() else 0,
+            deal_score=result.priority_score if available else None,
+            opportunity_score=opportunity.score if available and opportunity else None,
+            collection_fit=result.collection_fit_score if available else None,
+            upgrade_value=(22 if relationship == "BETTER_GRADE_UPGRADE" else 0) if available and result.collection_fit_score is not None else None,
+            gap_value=(20 if relationship == "COLLECTION_GAP" else 0) if available and result.collection_fit_score is not None else None,
             want_list_relevance=25 if "Explicit WANT_LIST match" in result.reasons else 0,
             liquidity=result.liquidity_score,
             risk=result.risk_score,
             budget_fit=self._budget_points(result.listing.total_cost),
         )
-        score = int(round(detail.deal_score * 0.30))
-        score += int(round(detail.opportunity_score * 0.25))
-        score += int(round(detail.collection_fit * 0.18))
-        score += detail.upgrade_value + detail.gap_value + detail.want_list_relevance
-        score += int(round(detail.liquidity * 0.08))
-        score += detail.budget_fit
-        score -= int(round(detail.risk * 0.22))
-        if result.recommendation == "PASS":
-            score = min(score, 20)
-        if result.recommendation == "REVIEW":
-            score = min(score, 70)
-        detail.score = max(0, min(100, score))
+        if (detail.deal_score is None or detail.opportunity_score is None
+                or detail.collection_fit is None or detail.upgrade_value is None or detail.gap_value is None):
+            detail.score = None
+        else:
+            score = int(round(detail.deal_score * 0.30))
+            score += int(round(detail.opportunity_score * 0.25))
+            score += int(round(detail.collection_fit * 0.18))
+            score += detail.upgrade_value + detail.gap_value + detail.want_list_relevance
+            score += int(round(detail.liquidity * 0.08))
+            score += detail.budget_fit
+            score -= int(round(detail.risk * 0.22))
+            if result.recommendation == "PASS":
+                score = min(score, 20)
+            if result.recommendation == "REVIEW":
+                score = min(score, 70)
+            detail.score = max(0, min(100, score))
         return RankedDeal(
-            rank=0,
+            rank=None,
             listing=result.listing,
             deal_result=result,
             ranking_score=detail,
-            recommendation=result.recommendation,
+            recommendation=result.recommendation if available else "REVIEW",
             collection_impact=result.collection_status,
             budget_fit=self._budget_fit(result.listing.total_cost),
-            risk_flags=list(result.risk_flags),
+            risk_flags=_dedupe(list(result.risk_flags) + list(result.warnings)),
             counterargument=result.counterargument,
             source=result.listing.source or "Manual",
         )
@@ -449,8 +463,8 @@ class DealHunterRankingEngine:
             "Top Newfoundland Opportunities": [row for row in ranked if "newfoundland" in row.listing.title.lower()][:limit],
             "Top Canadian Silver Opportunities": [row for row in ranked if self._is_canadian_silver(row)][:limit],
             "Top Banknote Opportunities": [row for row in ranked if "banknote" in row.listing.title.lower()][:limit],
-            "Top Upgrade Opportunities": [row for row in ranked if "upgrade" in row.collection_impact.lower()][:limit],
-            "Top Collection Gap Opportunities": [row for row in ranked if "gap" in row.collection_impact.lower()][:limit],
+            "Top Upgrade Opportunities": [row for row in ranked if row.deal_result.collection_status.strip().upper() == "BETTER_GRADE_UPGRADE"][:limit],
+            "Top Collection Gap Opportunities": [row for row in ranked if row.deal_result.collection_status.strip().upper() == "COLLECTION_GAP"][:limit],
             "Top Want-List Opportunities": [row for row in ranked if "Explicit WANT_LIST match" in row.deal_result.reasons][:limit],
         }
 
@@ -470,7 +484,7 @@ class DealHunterRankingEngine:
             if not key.strip("|"):
                 key = _normalize(deal.listing.title)
             existing = selected.get(key)
-            if not existing or deal.ranking_score.score > existing.ranking_score.score:
+            if not existing or (deal.ranking_score.score is not None and existing.ranking_score.score is not None and deal.ranking_score.score > existing.ranking_score.score):
                 selected[key] = deal
         return list(selected.values())
 

@@ -1,8 +1,17 @@
 """Tests for v3.1 Deal Hunter MVP."""
 
+import csv
+import json
 import os
 import tempfile
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
+
+from acquisition_workflow import AcquisitionWorkflow
+from acquisition_impact import AcquisitionImpactEngine
+from listing_analyzer import ListingAnalyzer
+from smart_shopping_assistant import ShoppingCandidate, SmartShoppingAssistant
 
 from coin_collection import CoinItem
 from deal_hunter import (
@@ -86,33 +95,33 @@ class TestDealHunter(unittest.TestCase):
             source="eBay.ca",
         ))
 
-        self.assertEqual(result.collection_status, "collection gap")
-        self.assertIn(result.recommendation, {"BUY", "NEGOTIATE", "WATCH"})
-        self.assertGreaterEqual(result.priority_score, 60)
-        self.assertIn("Newfoundland priority", result.reasons)
+        self.assertEqual(result.collection_status, "needs review")
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertIsNone(result.priority_score)
+        self.assertIn("Newfoundland collector interest", result.reasons)
 
     def test_same_grade_duplicate(self):
         result = self.hunter.analyze_listing(DealListing("1900 Newfoundland 50 cents VF20 ICCS", 75, 5))
 
-        self.assertEqual(result.collection_status, "same-grade duplicate")
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.collection_status, "needs review")
+        self.assertEqual(result.recommendation, "REVIEW")
 
     def test_lower_grade_duplicate(self):
         result = self.hunter.analyze_listing(DealListing("1900 Newfoundland 50 cents VG8", 25, 5))
 
-        self.assertEqual(result.collection_status, "lower-grade duplicate")
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.collection_status, "needs review")
+        self.assertEqual(result.recommendation, "REVIEW")
 
     def test_collection_gap(self):
         result = DealHunter(self.items, [], self.market).analyze_listing(DealListing("1901 Newfoundland 50 cents VF20", 85, 5))
 
-        self.assertEqual(result.collection_status, "collection gap")
-        self.assertGreater(result.collection_fit_score, 50)
+        self.assertEqual(result.collection_status, "needs review")
+        self.assertIsNone(result.collection_fit_score)
 
     def test_want_list_match(self):
         result = DealHunter([], self.intents).analyze_listing(DealListing("Canada chartered banknote BCS VF25", 120, 10))
 
-        self.assertEqual(result.collection_status, "want-list match")
+        self.assertEqual(result.collection_status, "needs review")
         self.assertIn("Explicit WANT_LIST match", result.reasons)
 
     def test_high_shipping_kills_deal(self):
@@ -145,7 +154,7 @@ class TestDealHunter(unittest.TestCase):
     def test_non_canadian_irrelevant_item(self):
         result = self.hunter.analyze_listing(DealListing("France 10 centimes 1975", 1, 5))
 
-        self.assertEqual(result.recommendation, "PASS")
+        self.assertEqual(result.recommendation, "REVIEW")
         self.assertIn("Non-Canadian item appears outside Adam's core priorities", result.warnings)
 
     def test_unclear_currency(self):
@@ -239,14 +248,15 @@ class TestDealHunter(unittest.TestCase):
         self.assertEqual(len(loaded.state.recent_deal_listings), 1)
         self.assertEqual(len(loaded.state.deal_hunter_reports), 1)
 
-    def test_report_generation_orders_best_first(self):
+    def test_report_generation_preserves_unranked_input_order(self):
         report = self.hunter.generate_report([
             DealListing("France 10 centimes 1975", 1, 5),
             DealListing("1901 Newfoundland 50 cents VF20 PCGS", 80, 5),
         ])
 
         self.assertIsInstance(report, DealHunterReport)
-        self.assertIn("Newfoundland", report.results[0].listing.title)
+        self.assertIn("France", report.results[0].listing.title)
+        self.assertTrue(all(row.priority_score is None for row in report.results))
 
     def test_gui_source_contains_deal_hunter_entry(self):
         with open("coin_collection_gui.py", "r", encoding="utf-8") as handle:
@@ -286,13 +296,13 @@ class TestDealHunter(unittest.TestCase):
         result = self.hunter.analyze_listing(DealListing("1973 Canada quarter Large Bust VF20", 35, 5))
 
         self.assertIn("large bust", result.parsed_candidate.keywords)
-        self.assertGreaterEqual(result.priority_score, 30)
+        self.assertIsNone(result.priority_score)
 
     def test_1926_near_6_priority(self):
         result = self.hunter.analyze_listing(DealListing("1926 Canada 5 cents Near 6 VF20", 45, 5))
 
         self.assertIn("near 6", result.parsed_candidate.keywords)
-        self.assertGreaterEqual(result.priority_score, 30)
+        self.assertIsNone(result.priority_score)
 
     def test_grade_words_are_parsed(self):
         result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents Very Fine", 85, 5))
@@ -304,6 +314,197 @@ class TestDealHunter(unittest.TestCase):
         result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents", 85, 5))
 
         self.assertIn(RISK_UNCLEAR_GRADE, result.risk_flags)
+
+
+class TestDealHunterContainment(unittest.TestCase):
+    def setUp(self):
+        TestDealHunter.setUp(self)
+
+    def test_nested_review_overrides_stale_watch_and_numeric_components(self):
+        listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS", 1, 2,
+                              seller="Synthetic seller", listing_url="https://example.invalid/coin")
+        analysis = ListingAnalyzer(self.items).analyze(listing.to_listing_candidate())
+        review = analysis.acquisition_decision
+        outer = replace(review, recommendation="WATCH", collection_intelligence_status="COLLECTION_GAP",
+                        upgrade_status="NOT_UPGRADE", owned_current_match_summary="Retained decisive summary",
+                        max_rational_price=100)
+        impact = AcquisitionImpactEngine(self.items).evaluate(analysis.candidate)
+        impact = replace(impact, impact_score=100, quality_delta=0, completion_delta=0,
+                         collection_impact="COLLECTION_GAP", upgrade_impact="NO_UPGRADE_IMPACT",
+                         want_list_impact="NO_WANT_LIST_IMPACT", acquisition_decision=review)
+        from smart_shopping_assistant import ShoppingRecommendation, ShoppingRecommendationReport
+        shopping = ShoppingRecommendation(1, listing.title, "WATCH", 100, 100, 0, 0,
+                                          "NOT_ON_WANT_LIST", "", 100, 3, "Synthetic")
+        with patch("deal_hunter.ListingAnalyzer.analyze", return_value=replace(analysis, recommendation="WATCH", max_rational_price=100)), patch(
+            "deal_hunter.AcquisitionWorkflow.evaluate", return_value=outer
+        ), patch("deal_hunter.AcquisitionImpactEngine.evaluate", return_value=impact), patch(
+            "deal_hunter.SmartShoppingAssistant.generate_report", return_value=ShoppingRecommendationReport([shopping], best_next_purchase=shopping)
+        ):
+            result = self.hunter.analyze_listing(listing)
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertEqual(result.collection_status, "needs review")
+        for name in ("priority_score", "collection_fit_score", "max_rational_price"):
+            self.assertIsNone(getattr(result, name))
+        self.assertFalse(any("collection gap" in reason.lower() for reason in result.reasons))
+        self.assertTrue(any("unavailable" in reason.lower() for reason in result.reasons))
+        self.assertEqual(result.listing.total_cost, 3)
+        self.assertEqual(result.listing.seller, "Synthetic seller")
+        self.assertEqual(result.listing.listing_url, "https://example.invalid/coin")
+
+    def test_each_nested_authority_independently_blocks_retained_watch(self):
+        listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS", 1, 2)
+        analysis = ListingAnalyzer(self.items).analyze(listing.to_listing_candidate())
+        review = analysis.acquisition_decision
+        supported = replace(review, recommendation="WATCH", collection_intelligence_status="COLLECTION_GAP",
+                            upgrade_status="NOT_UPGRADE", owned_current_match_summary="Supported boundary advice",
+                            max_rational_price=100, intelligence_result=None)
+        impact = replace(AcquisitionImpactEngine(self.items).evaluate(analysis.candidate),
+                         impact_score=100, quality_delta=0, completion_delta=0,
+                         collection_impact="COLLECTION_GAP", upgrade_impact="NO_UPGRADE_IMPACT",
+                         want_list_impact="NO_WANT_LIST_IMPACT", acquisition_decision=supported)
+        from smart_shopping_assistant import ShoppingRecommendation, ShoppingRecommendationReport
+        shopping = ShoppingRecommendation(1, listing.title, "WATCH", 100, 100, 0, 0,
+                                          "NOT_ON_WANT_LIST", "", 100, 3, "Synthetic")
+        for boundary in ("listing", "impact", "intelligence"):
+            with self.subTest(boundary=boundary):
+                attached = review if boundary == "listing" else supported
+                acquisition = replace(supported, intelligence_result=review.intelligence_result) if boundary == "intelligence" else supported
+                retained_impact = replace(impact, acquisition_decision=review) if boundary == "impact" else impact
+                with patch("deal_hunter.ListingAnalyzer.analyze", return_value=replace(analysis, recommendation="WATCH", max_rational_price=100, acquisition_decision=attached)), patch(
+                    "deal_hunter.AcquisitionWorkflow.evaluate", return_value=acquisition
+                ), patch("deal_hunter.AcquisitionImpactEngine.evaluate", return_value=retained_impact), patch(
+                    "deal_hunter.SmartShoppingAssistant.generate_report", return_value=ShoppingRecommendationReport([shopping], best_next_purchase=shopping)
+                ):
+                    result = self.hunter.analyze_listing(listing)
+                self.assertEqual(result.recommendation, "REVIEW")
+                self.assertIsNone(result.priority_score)
+                self.assertIsNone(result.collection_fit_score)
+                self.assertIsNone(result.max_rational_price)
+
+    def test_review_survives_price_extremes(self):
+        for price in (0, 0.01, 1, 10000):
+            with self.subTest(price=price):
+                result = self.hunter.analyze_listing(DealListing(
+                    "1901 Newfoundland 50 cents VF20 PCGS silver", price))
+                self.assertEqual(result.recommendation, "REVIEW")
+                self.assertIsNone(result.collection_fit_score)
+                self.assertIsNone(result.priority_score)
+                self.assertIsNone(result.max_rational_price)
+
+    def test_review_precedes_every_deal_override(self):
+        # Attack WATCH/PASS overrides and favorable BUY conditions.
+        for price, fit, priority, flags in (
+            (0, 60, 80, []), (10000, 0, 0, []),
+            (0.01, 100, 100, []), (5, 0, 80, [RISK_UNCLEAR_CURRENCY]),
+            (5, 0, 80, [RISK_POSSIBLE_DAMAGE]),
+        ):
+            with self.subTest(price=price, fit=fit, flags=flags):
+                self.assertEqual(self.hunter._recommendation(
+                    "REVIEW", priority, fit, 0, DealListing("coin", price),
+                    "", [], flags), "REVIEW")
+
+    def test_review_fit_and_priority_cannot_be_computed(self):
+        parsed = self.hunter.parse_listing(DealListing("1901 Newfoundland 50 cents VF20 silver"))
+        self.assertIsNone(self.hunter._collection_fit_score("NEEDS_REVIEW", 100, parsed))
+        self.assertIsNone(self.hunter._priority_score(100, 100, 100, 100, 0, parsed, "NEEDS_REVIEW"))
+
+    def test_no_upstream_composite_rank_or_best_purchase_is_rebuilt(self):
+        listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS", 0.01)
+        candidate = ListingAnalyzer(self.items).to_candidate_item(listing.to_listing_candidate())
+        upstream = SmartShoppingAssistant(self.items).generate_report([
+            ShoppingCandidate(listing.title, candidate=candidate, asking_price=0.01)
+        ], include_want_list_targets=False)
+        self.assertIsNone(upstream.best_next_purchase)
+        self.assertIsNone(upstream.recommendations[0].rank)
+        self.assertIsNone(upstream.recommendations[0].opportunity_score)
+        result = self.hunter.analyze_listing(listing)
+        self.assertIsNone(result.priority_score)
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertFalse(any("best next" in reason.lower() for reason in result.reasons))
+
+    def test_maximum_price_is_not_replaced_with_asking_or_zero(self):
+        listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS", 20)
+        candidate = ListingAnalyzer(self.items).to_candidate_item(listing.to_listing_candidate())
+        self.assertIsNone(AcquisitionWorkflow(self.items).evaluate(candidate).max_rational_price)
+        self.assertIsNone(self.hunter.analyze_listing(listing).max_rational_price)
+
+    def test_withholding_duplicate_evidence_has_no_score_benefit(self):
+        listing = DealListing("1900 Newfoundland 50 cents VF20 ICCS", 1)
+        for items in (self.items, [], [make_item("unknown-year", "Newfoundland", "50 cents", "", "VF-20")]):
+            with self.subTest(holdings=len(items)):
+                result = DealHunter(items).analyze_listing(listing)
+                self.assertEqual(result.recommendation, "REVIEW")
+                self.assertIsNone(result.priority_score)
+                self.assertIsNone(result.collection_fit_score)
+                self.assertFalse(any("duplicate" in reason.lower() for reason in result.reasons))
+                self.assertNotIn("already have a similar item", result.counterargument)
+
+    def test_triplet_grade_and_upgrade_words_have_no_authority(self):
+        for grade in ("VF20", "EF40", "VG8"):
+            with self.subTest(grade=grade):
+                result = self.hunter.analyze_listing(DealListing(
+                    f"1900 Newfoundland 50 cents {grade} ICCS upgrade", 1,
+                    description="upgrade fills collection gap; not duplicate"))
+                self.assertEqual(result.recommendation, "REVIEW")
+                self.assertIsNone(result.collection_fit_score)
+                self.assertIsNone(result.priority_score)
+                self.assertFalse(any("upgrade" in reason.lower() or "gap" in reason.lower()
+                                     for reason in result.reasons))
+
+    def test_incomplete_candidate_empty_collection_remains_review(self):
+        result = DealHunter([]).analyze_listing(DealListing("Canada silver", 1))
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertEqual(result.collection_status, "needs review")
+        self.assertIsNone(result.collection_fit_score)
+        self.assertIsNone(result.priority_score)
+        self.assertIsNone(result.max_rational_price)
+
+    def test_collector_interest_and_market_observation_are_descriptive(self):
+        result = self.hunter.analyze_listing(DealListing("1901 Newfoundland 50 cents VF20 PCGS", 1))
+        self.assertIn("Explicit WANT_LIST match", result.reasons)
+        self.assertTrue(any("observed" in reason.lower() for reason in result.reasons))
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertIsNone(result.collection_fit_score)
+        self.assertIsNone(result.priority_score)
+
+    def test_independent_facts_and_warnings_survive_review(self):
+        listing = DealListing("1901 Newfoundland 50 cents VF20 PCGS damaged lot of coins",
+                              10000, 40, seller="Synthetic seller", source="Manual",
+                              listing_url="https://example.invalid/coin", currency="USD")
+        result = self.hunter.analyze_listing(listing)
+        self.assertEqual(result.recommendation, "REVIEW")
+        self.assertEqual(result.listing.total_cost, 10040)
+        self.assertEqual(result.listing.price_cad, 10000)
+        self.assertEqual(result.listing.shipping_cad, 40)
+        self.assertEqual(result.listing.seller, "Synthetic seller")
+        self.assertEqual(result.listing.source, "Manual")
+        self.assertEqual(result.listing.listing_url, "https://example.invalid/coin")
+        self.assertEqual(result.parsed_candidate.certifier, "PCGS")
+        for flag in (RISK_HIGH_SHIPPING, RISK_POSSIBLE_DAMAGE, RISK_LOT_LISTING, RISK_UNCLEAR_CURRENCY):
+            self.assertIn(flag, result.risk_flags)
+        self.assertGreater(result.risk_score, 0)
+
+    def test_nulls_and_unranked_order_survive_exports(self):
+        listings = [DealListing("Canada silver", 10000),
+                    DealListing("1901 Newfoundland 50 cents VF20 PCGS", 1)]
+        report = self.hunter.generate_report(listings)
+        self.assertEqual([row.listing.title for row in report.results], [row.title for row in listings])
+        payload = json.loads(json.dumps(report.to_dict()))
+        for row in payload["results"]:
+            for key in ("priority_score", "collection_fit_score", "max_rational_price"):
+                self.assertIsNone(row[key])
+        text = report.format_markdown()
+        self.assertIn("Priority score: unavailable", text)
+        self.assertIn("Collection-fit score: unavailable", text)
+        self.assertIn("Max rational price CAD: unavailable", text)
+        self.assertIn("unranked", text.lower())
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "report.csv")
+            report.export_csv(path)
+            with open(path, encoding="utf-8", newline="") as handle:
+                for row in csv.DictReader(handle):
+                    for key in ("priority_score", "collection_fit_score", "max_rational_price"):
+                        self.assertEqual(row[key], "unavailable")
 
 
 if __name__ == "__main__":

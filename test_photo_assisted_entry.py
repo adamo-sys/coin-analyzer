@@ -43,6 +43,27 @@ def make_intent(target_coin):
 
 
 class TestPhotoAssistedEntry(unittest.TestCase):
+    def test_max_price_presentation_and_serialization(self):
+        # This isolates the presentation model, not candidate pricing authority.
+        from mobile_companion import MobileAnalysisReport, MobileCandidateEntry
+
+        for value, text in [(None, "unavailable"), (0, "$0.00"), (125.5, "$125.50")]:
+            with self.subTest(max_price=value):
+                analysis = MobileAnalysisReport(
+                    MobileCandidateEntry("Synthetic review", asking_price=80, shipping=5),
+                    "REVIEW", None, None, None, "WANT_LIST_UNAVAILABLE", "Review", "Review",
+                    max_rational_price=value,
+                )
+                report = PhotoReviewReport(PhotoCandidate(title="Synthetic review"),
+                                           mobile_analysis_report=analysis)
+                self.assertIn(f"Max rational price: {text}", report.format_markdown())
+                payload = json.loads(json.dumps(report.to_dict()))
+                actual = payload["mobile_analysis_report"]["max_rational_price"]
+                if value is None:
+                    self.assertIsNone(actual)
+                else:
+                    self.assertEqual(actual, value)
+
     def setUp(self):
         self.items = [
             make_item("1", "Newfoundland", "50 cents", "1900", "F-12"),
