@@ -462,6 +462,7 @@ class CoinCollectionGUI:
         collection_intelligence_menu.add_command(label="Buy Advisor", command=self.open_buy_advisor)
         collection_intelligence_menu.add_command(label="Upgrade Advisor", command=self.open_upgrade_advisor)
         collection_intelligence_menu.add_command(label="Want List Generator", command=self.open_want_list_generator)
+        collection_intelligence_menu.add_command(label="Same Recorded Issue/Type Report", command=self.open_same_issue_report)
         collection_intelligence_menu.add_command(label="Portfolio Import Preview", command=self.open_portfolio_import_preview)
         collection_intelligence_menu.add_command(label="Want List Preview", command=self.open_want_list_preview)
         collection_intelligence_menu.add_command(label="Collection Insights", command=self.open_collection_insights)
@@ -3149,6 +3150,39 @@ Total Unique Dates: {total_unique_dates}
         
         text.insert(tk.END, report)
         text.config(state=tk.DISABLED)
+
+    def open_same_issue_report(self):
+        """Open the dedicated read-only report; export the displayed snapshot."""
+        engine = CollectionIntelligenceEngine(self.app.collection.get_all_items())
+        report_text = engine.format_same_issue_report_markdown()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Same Recorded Issue/Type Report")
+        dialog.geometry("800x600")
+        text = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert(tk.END, report_text)
+        text.config(state=tk.DISABLED)
+        button_frame = ttk.Frame(dialog, padding="10")
+        button_frame.pack(fill=tk.X)
+
+        def export_markdown():
+            file_path = filedialog.asksaveasfilename(
+                title="Export Same Recorded Issue/Type Report",
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")],
+            )
+            if not file_path:
+                return
+            try:
+                with open(file_path, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(report_text)
+            except OSError:
+                messagebox.showerror("Error", "Failed to export same recorded issue/type report")
+            else:
+                messagebox.showinfo("Success", f"Report exported to {file_path}")
+
+        ttk.Button(button_frame, text="Export Markdown", command=export_markdown).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT)
 
     def open_collection_gap_report(self):
         """Show collection gap report and allow Markdown/CSV export."""

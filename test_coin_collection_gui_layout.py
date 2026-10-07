@@ -4,6 +4,8 @@ import ast
 import inspect
 import textwrap
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from coin_collection_gui import CoinCollectionGUI
 
@@ -121,6 +123,55 @@ class CollectionLayoutTests(unittest.TestCase):
                 for call in scrollbar_calls
             )
         )
+
+
+class SameIssueReportGuiTests(unittest.TestCase):
+    def test_menu_has_one_opt_in_same_issue_action(self):
+        tree = ast.parse(textwrap.dedent(inspect.getsource(CoinCollectionGUI.create_menu_bar)))
+        actions = [node for node in ast.walk(tree)
+                   if isinstance(node, ast.Call)
+                   and isinstance(node.func, ast.Attribute)
+                   and node.func.attr == "add_command"
+                   and any(k.arg == "command" and isinstance(k.value, ast.Attribute)
+                           and k.value.attr == "open_same_issue_report" for k in node.keywords)]
+        self.assertEqual(len(actions), 1)
+
+    def test_dedicated_report_hook_is_read_only_and_exports_displayed_snapshot(self):
+        from coin_collection import CoinItem, IdentificationStatus
+        from collection_intelligence import CollectionIntelligenceEngine
+        import tempfile
+        from pathlib import Path
+        items = [CoinItem(id=record_id, image_path="", country="Canada",
+                         denomination="1 cent", year="1910", grade="", notes="",
+                         date_added="", type_design="Maple leaves",
+                         identification_status=IdentificationStatus.IDENTIFIED)
+                 for record_id in ("A", "B")]
+        before = [vars(item).copy() for item in items]
+        gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
+        gui.root = MagicMock()
+        gui.app = SimpleNamespace(collection=SimpleNamespace(get_all_items=lambda: items))
+        buttons = {}
+        def button(parent, **kwargs):
+            buttons[kwargs["text"]] = kwargs["command"]
+            return MagicMock()
+        with patch("coin_collection_gui.tk.Toplevel"), \
+             patch("coin_collection_gui.tk.Text") as text, \
+             patch("coin_collection_gui.ttk.Frame"), \
+             patch("coin_collection_gui.ttk.Button", side_effect=button), \
+             patch.object(CollectionIntelligenceEngine, "detect_duplicates", side_effect=AssertionError), \
+             patch.object(CollectionIntelligenceEngine, "detect_upgrade_candidates", side_effect=AssertionError):
+            gui.open_same_issue_report()
+            displayed = text.return_value.insert.call_args.args[1]
+            self.assertIn("same recorded issue/type", displayed)
+            self.assertIn('"A"', displayed)
+            self.assertEqual(before, [vars(item) for item in items])
+            items.clear()  # Export must reflect the report the collector saw.
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "report.md"
+                with patch("coin_collection_gui.filedialog.asksaveasfilename", return_value=str(path)), \
+                     patch("coin_collection_gui.messagebox.showinfo"):
+                    buttons["Export Markdown"]()
+                self.assertEqual(path.read_text(encoding="utf-8"), displayed)
 
 
 if __name__ == "__main__":
