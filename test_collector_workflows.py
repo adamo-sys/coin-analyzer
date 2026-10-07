@@ -113,6 +113,33 @@ class TestCollectorWorkflows(unittest.TestCase):
             self.assertIsNotNone(report.snapshot_report)
             self.assertIn("Collection Dashboard", report.format_markdown())
 
+    def test_collection_review_quality_actions_withhold_legacy_disposition(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            engine = CollectorWorkflowEngine(
+                self.items,
+                [make_intent("Canada 10 cents 1911")],
+                snapshot_manager=CollectionSnapshotManager(os.path.join(temp_dir, "snapshots.json")),
+            )
+            review = engine.collection_review_workflow()
+            self.assertEqual([a.action for a in review.quality_report.recommended_actions], [
+                "Acquire Canada 10 cents 1911",
+            ])
+            self.assertIn("Explicit WANT_LIST", review.quality_report.recommended_actions[0].why_it_matters)
+            self.assertIn("Acquire Canada 10 cents 1911", review.summary.next_actions)
+            unified = engine.run_workflow(WorkflowRequest(WorkflowType.COLLECTION_REVIEW))
+            self.assertTrue(any(a.label == "Acquire Canada 10 cents 1911" for a in unified.next_actions))
+            for action in review.summary.next_actions:
+                self.assertNotIn("Upgrade Canada", action)
+                self.assertNotIn("Reduce duplicate holdings", action)
+                self.assertNotIn("replace weaker", action)
+            for action in unified.next_actions:
+                self.assertNotIn("Upgrade Canada", action.label)
+                self.assertNotIn("Reduce duplicate holdings", action.label)
+            quality_section = review.format_markdown().split("## Collection Quality", 1)[1].split("\n## ", 1)[0]
+            self.assertIn("Acquire Canada 10 cents 1911", quality_section)
+            self.assertNotIn("replace weaker", quality_section)
+            self.assertNotIn("Reduce duplicate holdings", quality_section)
+
     def test_photo_workflow(self):
         report = PhotoReviewWorkflow(
             photo_records=[
