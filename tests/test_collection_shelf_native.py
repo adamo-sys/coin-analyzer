@@ -175,6 +175,7 @@ class NativeShelfTests(unittest.TestCase):
 
     def test_native_paging_search_thumbnails_actions_and_close(self):
         self.assertIsNotNone(CollectionShelfWindow, "Shelf window missing")
+        assert CollectionShelfWindow is not None
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "synthetic.png"
             Image.new("RGB", (300, 500), "green").save(path)
@@ -200,6 +201,7 @@ class NativeShelfTests(unittest.TestCase):
             window.query.set("needle")
             window.search()
             self.root.update()
+            assert window.page is not None
             self.assertEqual(window.page.index, 0)
             self.assertEqual(window.page.total, 1)
             card = window.page.cards[0]
@@ -219,6 +221,7 @@ class NativeShelfTests(unittest.TestCase):
 
     def test_long_record_ids_and_controls_fit_minimum_window(self):
         self.assertIsNotNone(CollectionShelfWindow)
+        assert CollectionShelfWindow is not None
         collection = Collection([item(f"11111111-1111-4111-8111-{n:012}") for n in range(4)])
         window = CollectionShelfWindow(self.root, lambda: collection, lambda value: None, lambda value: None)
         self.addCleanup(window.close)
@@ -234,13 +237,14 @@ class NativeShelfTests(unittest.TestCase):
 
     def test_main_gui_opens_reuses_and_reopens_shelf(self):
         from coin_collection_gui import CoinCollectionGUI
-        from types import SimpleNamespace
+        from coin_collection import CoinCollectionApp
         gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
         gui.root = self.root
-        gui.app = SimpleNamespace(collection=Collection([item("a")]))
+        gui.app = CoinCollectionApp.__new__(CoinCollectionApp)
+        gui.app.collection = Collection([item("a")])
         gui.capture_import_ready = False
-        gui.open_item_details_window = lambda value, **kwargs: None
-        gui.open_edit_item_window = lambda value, on_saved=None, **kwargs: None
+        gui.open_item_details_window = lambda item, *, metadata_only=False: None
+        gui.open_edit_item_window = lambda item, on_saved=None, *, metadata_only=False: None
         self.assertTrue(callable(getattr(gui, "open_collection_shelf", None)), "Shelf entry point missing")
         gui.create_menu_bar()
         menubar = self.root.nametowidget(self.root["menu"])
@@ -305,6 +309,7 @@ class OrdinaryPreviewCompatibilityTests(unittest.TestCase):
                             if isinstance(w, SavedPhotoPreview)]
                 self.assertEqual(len(previews), 1)
                 self.assertEqual(previews[0].preview_status, "")
+                assert previews[0].source_image is not None
                 self.assertEqual(previews[0].source_image.size, (20, 20))
                 self.assertEqual(vars(specimen), before)
                 self.assertEqual(errors, [])

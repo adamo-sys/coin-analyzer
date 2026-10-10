@@ -145,7 +145,8 @@ class ShelfTests(unittest.TestCase):
             target.mkdir()
             Image.new("RGB", (20, 20), "red").save(target / "synthetic.png")
             junction = root / "redirect"
-            _winapi.CreateJunction(str(target), str(junction))
+            # Guarded native Windows test; cross-platform stubs omit this API.
+            _winapi.CreateJunction(str(target), str(junction))  # pyright: ignore[reportAttributeAccessIssue]
             try:
                 for suffix in (r"redirect\synthetic.png", r".\redirect/synthetic.png",
                                r"missing\..\redirect\synthetic.png",
@@ -206,6 +207,7 @@ class ShelfTests(unittest.TestCase):
                         preview = self.preview_without_widgets()
                         SavedPhotoPreview.show_photo(preview, photo)
                         self.assertEqual(preview.preview_status, "")
+                        assert preview.source_image is not None
                         self.assertEqual(preview.source_image.size, (20, 20))
                         preview.source_image.close()
             finally:
@@ -213,6 +215,7 @@ class ShelfTests(unittest.TestCase):
 
     def page(self, collection, **kwargs):
         self.assertIsNotNone(shelf_page, "Shelf projection is missing")
+        assert shelf_page is not None
         return shelf_page(collection, **kwargs)
 
     def test_pagination_boundaries_and_clamping(self):
@@ -255,6 +258,7 @@ class ShelfTests(unittest.TestCase):
         self.assertEqual(self.page(collection, query=" needle ").total, 1)
 
     def test_absent_missing_corrupt_legacy_and_changed_photos(self):
+        assert load_thumbnail is not None
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "synthetic.png"
             specimen = item("a", photos=[], image_path=str(path))
@@ -269,6 +273,7 @@ class ShelfTests(unittest.TestCase):
         self.assertIn("No photo reference recorded", card.photo.status)
 
     def test_missing_primary_never_substitutes_secondary_or_legacy(self):
+        assert load_thumbnail is not None
         specimen = item("a", image_path="legacy", photos=[
             ItemPhoto("missing-primary", is_primary=True), ItemPhoto("secondary")])
         card = self.page(Collection([specimen])).cards[0]
@@ -283,6 +288,7 @@ class ShelfTests(unittest.TestCase):
                 self.page(collection)
 
     def test_network_photo_paths_are_not_accessed(self):
+        assert load_thumbnail is not None
         from unittest.mock import patch
         for path in ("https://example.invalid/photo", "\\\\server\\share\\photo", "//server/share/photo"):
             with patch("os.stat", side_effect=AssertionError("Network access")):
@@ -319,6 +325,8 @@ class ShelfTests(unittest.TestCase):
     def test_drive_classification_uses_only_local_device_namespace(self):
         import ctypes
         from collection_shelf import _local_windows_drive
+        # Guarded native Windows test; cross-platform stubs omit this loader.
+        kernel32 = ctypes.windll.kernel32  # pyright: ignore[reportAttributeAccessIssue]
         for target, allowed in ((r"\Device\HarddiskVolume3", True),
                                 (r"\Device\LanmanRedirector\server\share", False),
                                 (r"\Device\Mup\server\share", False),
@@ -329,8 +337,8 @@ class ShelfTests(unittest.TestCase):
                 buffer.value = target
                 return len(target) + 1 if target else 0
             with self.subTest(target=target), \
-                 patch.object(ctypes.windll.kernel32, "QueryDosDeviceW", side_effect=query), \
-                 patch.object(ctypes.windll.kernel32, "GetDriveTypeW", side_effect=AssertionError("Volume query")), \
+                 patch.object(kernel32, "QueryDosDeviceW", side_effect=query), \
+                 patch.object(kernel32, "GetDriveTypeW", side_effect=AssertionError("Volume query")), \
                  patch("os.stat") as metadata, patch("os.lstat") as lstat:
                 self.assertEqual(_local_windows_drive("Z:\\"), allowed)
                 metadata.assert_not_called()
@@ -376,6 +384,7 @@ class ShelfTests(unittest.TestCase):
                 metadata.assert_not_called()
 
     def test_managed_photo_changed_since_save_refuses_preview(self):
+        assert load_thumbnail is not None
         import hashlib
         from coin_collection import CaptureImportMediaProvenance
         with tempfile.TemporaryDirectory() as directory:
@@ -390,6 +399,7 @@ class ShelfTests(unittest.TestCase):
             snapshot = ShelfPhoto(str(path), "", _signature(str(path)), provenance.artifact_sha256)
             image, status = load_thumbnail(snapshot)
             self.assertEqual(status, "")
+            assert image is not None
             image.close()
             Image.new("RGB", (100, 100), "blue").save(path)
             image, status = load_thumbnail(snapshot)

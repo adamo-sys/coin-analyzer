@@ -52,6 +52,7 @@ class ShelfActionTests(unittest.TestCase):
 
     def test_details_edit_revalidate_at_click_and_pass_exact_record(self):
         self.assertIsNotNone(ShelfActions, "Shelf actions are missing")
+        assert ShelfActions is not None
         specimen = item("a")
         collection = Collection([specimen])
         calls = []

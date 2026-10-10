@@ -5188,6 +5188,7 @@ Total Unique Dates: {total_unique_dates}
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
         form.rowconfigure(9, weight=1)
+        preview = None
         if not metadata_only:
             preview = SavedPhotoPreview(form)
             preview.grid(row=0, column=2, rowspan=10, sticky=tk.NSEW, padx=(12, 0))
@@ -5259,6 +5260,7 @@ Total Unique Dates: {total_unique_dates}
         photo_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         photo_frame.columnconfigure(0, weight=1)
 
+        initial_photo_refresh = None
         if metadata_only:
             recorded_photos = tk.Text(photo_frame, height=8, width=60, wrap=tk.WORD)
             recorded_photos.grid(row=0, column=0, sticky=tk.EW)
@@ -5275,6 +5277,7 @@ Total Unique Dates: {total_unique_dates}
             edit_tree.grid(row=0, column=0, columnspan=6, sticky=(tk.W, tk.E))
 
             def refresh_edit_tree():
+                assert preview is not None
                 edit_photos["photos"] = self.normalized_photo_state(edit_photos["photos"])
                 for row_id in edit_tree.get_children():
                     edit_tree.delete(row_id)
@@ -5294,6 +5297,7 @@ Total Unique Dates: {total_unique_dates}
                     preview.show_photo(None)
 
             def edit_selection_changed(event=None):
+                assert preview is not None
                 selection = edit_tree.selection()
                 if selection:
                     edit_photos["selected"] = int(selection[0])
@@ -5367,6 +5371,7 @@ Total Unique Dates: {total_unique_dates}
             note_entry.grid(row=3, column=1, columnspan=4, sticky=(tk.W, tk.E), pady=(5, 0), padx=(5, 0))
             note_entry.bind("<FocusOut>", update_edit_notes)
             note_entry.bind("<Return>", update_edit_notes)
+            initial_photo_refresh = refresh_edit_tree
 
         button_frame = ttk.Frame(form)
         button_frame.grid(row=10, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
@@ -5379,7 +5384,7 @@ Total Unique Dates: {total_unique_dates}
                 return
             photos = self.normalized_photo_state(edit_photos["photos"]) if not metadata_only else None
             primary = next((photo for photo in photos if photo.is_primary), None) if photos else None
-            updates = {
+            updates: dict[str, object] = {
                 "country": country_var.get().strip(),
                 "denomination": denomination_var.get().strip(),
                 "year": year_var.get().strip(),
@@ -5406,7 +5411,8 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
 
         if not metadata_only:
-            refresh_edit_tree()
+            assert initial_photo_refresh is not None
+            initial_photo_refresh()
     
     def delete_item(self):
         """Delete selected item."""

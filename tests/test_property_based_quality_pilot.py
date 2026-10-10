@@ -1,7 +1,7 @@
 import unittest
+from importlib import import_module
 
 from hypothesis import given, strategies as st
-from hypothesis.internal.conjecture.providers import _get_local_constants
 
 from market_intelligence_automation import _dedupe
 from photo_inbox import PhotoInboxConfig
@@ -14,7 +14,13 @@ class TestPropertyBasedQualityPilot(unittest.TestCase):
         # Prepare Hypothesis's source-constant cache outside timed generation.
         # Root discovery imports many local modules; scanning them on the first
         # draw can trigger too_slow even though the strategies themselves are fast.
-        _get_local_constants()
+        # Resolve only in the installed pilot environment. A private API change
+        # must fail this setup explicitly rather than silently lose warm-up.
+        providers = import_module("hypothesis.internal.conjecture.providers")
+        warm_constants = getattr(providers, "_get_local_constants", None)
+        if not callable(warm_constants):
+            raise RuntimeError("Hypothesis source-constant warm-up helper is unavailable")
+        warm_constants()
 
     @given(st.lists(st.text(max_size=40), max_size=30))
     def test_dedupe_is_idempotent_and_case_insensitive(self, values):

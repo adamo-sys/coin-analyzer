@@ -46,7 +46,8 @@ def _local_path_syntax(path):
 def _local_windows_drive(root):
     import ctypes
     try:
-        query = ctypes.windll.kernel32.QueryDosDeviceW
+        # Windows-only caller; cross-platform ctypes stubs omit this loader.
+        query = ctypes.windll.kernel32.QueryDosDeviceW  # pyright: ignore[reportAttributeAccessIssue]
         query.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint]
         query.restype = ctypes.c_uint
         target = ctypes.create_unicode_buffer(32768)
@@ -68,12 +69,14 @@ def _windows_path_attributes(path):
     before this query. Preserve Win32 failures as OSError subclasses.
     """
     import ctypes
-    query = ctypes.WinDLL("kernel32", use_last_error=True).GetFileAttributesW
+    # Windows-only caller; retain the Win32 loader and last-error translation.
+    query = ctypes.WinDLL("kernel32", use_last_error=True).GetFileAttributesW  # pyright: ignore[reportAttributeAccessIssue]
     query.argtypes = [ctypes.c_wchar_p]
     query.restype = ctypes.c_uint32
     attributes = query(path)
     if attributes == 0xFFFFFFFF:
-        raise ctypes.WinError(ctypes.get_last_error())
+        # Both APIs are Windows-only and absent from cross-platform stubs.
+        raise ctypes.WinError(ctypes.get_last_error())  # pyright: ignore[reportAttributeAccessIssue]
     return attributes
 
 
