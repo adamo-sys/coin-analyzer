@@ -1,0 +1,2310 @@
+{
+  "classification": "SYNTHETIC_ONLY_NOT_REAL_EVIDENCE",
+  "notice": "Every source, review, hash, issue, truth and outcome in this file is generated synthetic test data. No image or independently validated real-world evidence is present.",
+  "metadata": {
+    "schema_version": "ca-phase1a-metadata-v1",
+    "policy_version": "ca-phase1a-policy-v1",
+    "normalization_version": "ca-phase1a-normalization-v1",
+    "classification": "SYNTHETIC",
+    "sources": [
+      {
+        "source_id": "synthetic-source",
+        "kind": "SYNTHETIC",
+        "title": "SYNTHETIC ONLY",
+        "locator": "synthetic://contract-test",
+        "edition": "synthetic-v1",
+        "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "licence": "synthetic-test-only",
+        "attribution": "Generated synthetic contract fixture; no real-world evidence",
+        "retrieved_at": "2026-10-10T12:00:00Z",
+        "permission": "LOCAL_METADATA",
+        "review": {
+          "state": "APPROVED",
+          "author": "synthetic-author",
+          "reviewer": "synthetic-reviewer",
+          "reviewed_at": "2026-10-10T12:00:00Z",
+          "review_ref": "synthetic-review-only"
+        }
+      }
+    ],
+    "issues": [
+      {
+        "issue_id": "synthetic-issue",
+        "denomination": "25c",
+        "monarch": "ELIZABETH_II",
+        "year_start": 2000,
+        "year_end": 2001,
+        "obverse_design": "synthetic portrait",
+        "reverse_design": "synthetic alternate",
+        "disposition": "ALTERNATE",
+        "unsupported": false,
+        "review": {
+          "state": "APPROVED",
+          "author": "synthetic-author",
+          "reviewer": "synthetic-reviewer",
+          "reviewed_at": "2026-10-10T12:00:00Z",
+          "review_ref": "synthetic-review-only"
+        },
+        "source_refs": [
+          {
+            "field": "denomination",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "monarch",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "years",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "obverse_design",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "reverse_design",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "disposition",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          }
+        ]
+      },
+      {
+        "issue_id": "synthetic-standard-issue",
+        "denomination": "25c",
+        "monarch": "ELIZABETH_II",
+        "year_start": 2000,
+        "year_end": 2001,
+        "obverse_design": "synthetic portrait",
+        "reverse_design": "synthetic standard",
+        "disposition": "STANDARD",
+        "unsupported": false,
+        "review": {
+          "state": "APPROVED",
+          "author": "synthetic-author",
+          "reviewer": "synthetic-reviewer",
+          "reviewed_at": "2026-10-10T12:00:00Z",
+          "review_ref": "synthetic-review-only"
+        },
+        "source_refs": [
+          {
+            "field": "denomination",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "monarch",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "years",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "obverse_design",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "reverse_design",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          },
+          {
+            "field": "disposition",
+            "source_id": "synthetic-source",
+            "source_record": "synthetic-row",
+            "locator": "synthetic-section"
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "denomination": "25c",
+        "monarch": "ELIZABETH_II",
+        "disposition": "ALTERNATE",
+        "year_start": 2000,
+        "year_end": 2001,
+        "state": "COVERED",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "rationale": "Synthetic coverage only"
+      },
+      {
+        "denomination": "25c",
+        "monarch": "ELIZABETH_II",
+        "disposition": "STANDARD",
+        "year_start": 2000,
+        "year_end": 2001,
+        "state": "COVERED",
+        "issue_ids": [
+          "synthetic-standard-issue"
+        ],
+        "rationale": "Synthetic coverage only"
+      }
+    ]
+  },
+  "benchmark": {
+    "schema_version": "ca-phase1a-benchmark-v1",
+    "policy_version": "ca-phase1a-policy-v1",
+    "normalization_version": "ca-phase1a-normalization-v1",
+    "classification": "SYNTHETIC",
+    "sources": [
+      {
+        "source_id": "synthetic-source",
+        "kind": "SYNTHETIC",
+        "title": "SYNTHETIC ONLY",
+        "locator": "synthetic://contract-test",
+        "edition": "synthetic-v1",
+        "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "licence": "synthetic-test-only",
+        "attribution": "Generated synthetic contract fixture; no real-world evidence",
+        "retrieved_at": "2026-10-10T12:00:00Z",
+        "permission": "LOCAL_METADATA",
+        "review": {
+          "state": "APPROVED",
+          "author": "synthetic-author",
+          "reviewer": "synthetic-reviewer",
+          "reviewed_at": "2026-10-10T12:00:00Z",
+          "review_ref": "synthetic-review-only"
+        }
+      }
+    ],
+    "policy": {
+      "evaluation_split": "HOLDOUT",
+      "review": {
+        "state": "APPROVED",
+        "author": "synthetic-author",
+        "reviewer": "synthetic-reviewer",
+        "reviewed_at": "2026-10-10T12:00:00Z",
+        "review_ref": "synthetic-review-only"
+      },
+      "thresholds": [
+        {
+          "field": "country",
+          "min_truth": 1,
+          "min_supported": 1,
+          "min_precision": 1.0,
+          "min_coverage": 0.5
+        },
+        {
+          "field": "denomination",
+          "min_truth": 1,
+          "min_supported": 1,
+          "min_precision": 1.0,
+          "min_coverage": 0.5
+        },
+        {
+          "field": "year",
+          "min_truth": 1,
+          "min_supported": 1,
+          "min_precision": 1.0,
+          "min_coverage": 0.5
+        },
+        {
+          "field": "monarch",
+          "min_truth": 1,
+          "min_supported": 1,
+          "min_precision": 1.0,
+          "min_coverage": 0.5
+        },
+        {
+          "field": "reverse_design",
+          "min_truth": 1,
+          "min_supported": 1,
+          "min_precision": 1.0,
+          "min_coverage": 0.5
+        }
+      ]
+    },
+    "freeze": {
+      "manifest_sha256": "21bc2b6f908fe6e5a6877b69648e26e46954afcda53950a8c8109dfa12148dad",
+      "metadata_sha256": "2f3a991b4e047a2cd63bc98cf58c6cc02872ca59fcb62d03d6e9b45c6c11e9ab",
+      "policy_sha256": "b34465e5640f1b07a1be9e4cb404f7213db5e61eee284225ff0178374524593a",
+      "producer_ref": "synthetic-recorded-producer-v1"
+    },
+    "cases": [
+      {
+        "case_id": "synthetic-exact-date",
+        "coin_group_id": "synthetic-coin-exact-date",
+        "capture_group_id": "synthetic-capture-exact-date",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/exact-date.json",
+        "input_sha256": "e52c8d162c268363ffc7bffdb8310fe69d0de53148ae6397db294ccb29a30e55",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-partial-date",
+        "coin_group_id": "synthetic-coin-partial-date",
+        "capture_group_id": "synthetic-capture-partial-date",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/partial-date.json",
+        "input_sha256": "5b7ac66c7d2e5a560f5828762ad1bf841d6200f94ee9cfeacd4561791e3996ed",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-partial",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "200?"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-date-conflict",
+        "coin_group_id": "synthetic-coin-date-conflict",
+        "capture_group_id": "synthetic-capture-date-conflict",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/date-conflict.json",
+        "input_sha256": "11ddb18e7e442decfe75ad29fd348d0df0b0a23a4f243ed2c5a7f9d91e2e173b",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "CONFLICTING",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-date-a",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              },
+              {
+                "evidence_id": "synthetic-date-b",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2001"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-wrong-side",
+        "coin_group_id": "synthetic-coin-wrong-side",
+        "capture_group_id": "synthetic-capture-wrong-side",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/wrong-side.json",
+        "input_sha256": "776cba9d15dbcb26d87dcaac5d5d1ce519dfee37313a42fb4540f496e9381080",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-wrong-side",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-design-alternatives",
+        "coin_group_id": "synthetic-coin-design-alternatives",
+        "capture_group_id": "synthetic-capture-design-alternatives",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/design-alternatives.json",
+        "input_sha256": "0f12dd93b77c6d8a1fe0fc3ddbd569571c70150de535a082d263c41dc70932fd",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue",
+          "synthetic-standard-issue"
+        ],
+        "design_disposition": "UNRESOLVED",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "AMBIGUOUS",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "AMBIGUOUS",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-alt-a",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              },
+              {
+                "evidence_id": "synthetic-alt-b",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic standard"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-runtime-failure",
+        "coin_group_id": "synthetic-coin-runtime-failure",
+        "capture_group_id": "synthetic-capture-runtime-failure",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/runtime-failure.json",
+        "input_sha256": "f09c1c742bcb5ecf6b0ee8f65cfcc61092f10a624f3314ba0909828a4dc6a28c",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-malformed-output",
+        "coin_group_id": "synthetic-coin-malformed-output",
+        "capture_group_id": "synthetic-capture-malformed-output",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/malformed-output.json",
+        "input_sha256": "1fafdc6d843f3bed56242e831ecf666064ec67f2573cb0a7939525b67ded620c",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-unattempted",
+        "coin_group_id": "synthetic-coin-unattempted",
+        "capture_group_id": "synthetic-capture-unattempted",
+        "split": "HOLDOUT",
+        "input_ref": "synthetic/unattempted.json",
+        "input_sha256": "f8f5441d2a8569400acb4990c911955e0e64f65b51facd596cfec78e21e3822c",
+        "privacy": "SYNTHETIC",
+        "issue_ids": [
+          "synthetic-issue"
+        ],
+        "design_disposition": "ALTERNATE",
+        "fields": [
+          {
+            "field": "country",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "Canada",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "country",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "25c",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "denomination",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "2000",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "year",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "ELIZABETH_II",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "monarch",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "expected_state": "SUPPORTED",
+            "truth": {
+              "state": "VERIFIED",
+              "value": "synthetic alternate",
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "reverse_design",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "expected_state": "ABSTAIN",
+            "truth": {
+              "state": "VERIFIED",
+              "value": null,
+              "review": {
+                "state": "APPROVED",
+                "author": "synthetic-author",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-10-10T12:00:00Z",
+                "review_ref": "synthetic-review-only"
+              },
+              "source_refs": [
+                {
+                  "field": "variety",
+                  "source_id": "synthetic-source",
+                  "source_record": "synthetic-row",
+                  "locator": "synthetic-section"
+                }
+              ]
+            },
+            "required_evidence": []
+          }
+        ]
+      }
+    ]
+  },
+  "outcomes": {
+    "schema_version": "ca-phase1a-outcomes-v1",
+    "producer_ref": "synthetic-recorded-producer-v1",
+    "manifest_sha256": "21bc2b6f908fe6e5a6877b69648e26e46954afcda53950a8c8109dfa12148dad",
+    "cases": [
+      {
+        "case_id": "synthetic-exact-date",
+        "execution": "SUCCESS",
+        "fields": [
+          {
+            "field": "country",
+            "state": "SUPPORTED",
+            "value": "Canada",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "state": "SUPPORTED",
+            "value": "25c",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "state": "SUPPORTED",
+            "value": "2000",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "state": "SUPPORTED",
+            "value": "ELIZABETH_II",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "state": "SUPPORTED",
+            "value": "synthetic alternate",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-partial-date",
+        "execution": "SUCCESS",
+        "fields": [
+          {
+            "field": "country",
+            "state": "SUPPORTED",
+            "value": "Canada",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "state": "SUPPORTED",
+            "value": "25c",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-partial",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "200?"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "state": "SUPPORTED",
+            "value": "ELIZABETH_II",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "state": "SUPPORTED",
+            "value": "synthetic alternate",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-date-conflict",
+        "execution": "SUCCESS",
+        "fields": [
+          {
+            "field": "country",
+            "state": "SUPPORTED",
+            "value": "Canada",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "state": "SUPPORTED",
+            "value": "25c",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "state": "CONFLICTING",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-date-a",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              },
+              {
+                "evidence_id": "synthetic-date-b",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2001"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "state": "SUPPORTED",
+            "value": "ELIZABETH_II",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "state": "SUPPORTED",
+            "value": "synthetic alternate",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-reverse_design",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-wrong-side",
+        "execution": "SUCCESS",
+        "fields": [
+          {
+            "field": "country",
+            "state": "SUPPORTED",
+            "value": "Canada",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "state": "SUPPORTED",
+            "value": "25c",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "state": "SUPPORTED",
+            "value": "2000",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "state": "SUPPORTED",
+            "value": "ELIZABETH_II",
+            "candidate_ids": [
+              "synthetic-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-wrong-side",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-design-alternatives",
+        "execution": "SUCCESS",
+        "fields": [
+          {
+            "field": "country",
+            "state": "SUPPORTED",
+            "value": "Canada",
+            "candidate_ids": [
+              "synthetic-issue",
+              "synthetic-standard-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-country",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "Canada"
+              }
+            ]
+          },
+          {
+            "field": "denomination",
+            "state": "SUPPORTED",
+            "value": "25c",
+            "candidate_ids": [
+              "synthetic-issue",
+              "synthetic-standard-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-denomination",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "25c"
+              }
+            ]
+          },
+          {
+            "field": "year",
+            "state": "SUPPORTED",
+            "value": "2000",
+            "candidate_ids": [
+              "synthetic-issue",
+              "synthetic-standard-issue"
+            ],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-year",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "2000"
+              }
+            ]
+          },
+          {
+            "field": "monarch",
+            "state": "AMBIGUOUS",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-monarch",
+                "side": "OBVERSE",
+                "origin": "DIRECT",
+                "value": "ELIZABETH_II"
+              }
+            ]
+          },
+          {
+            "field": "reverse_design",
+            "state": "AMBIGUOUS",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": [
+              {
+                "evidence_id": "synthetic-alt-a",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic alternate"
+              },
+              {
+                "evidence_id": "synthetic-alt-b",
+                "side": "REVERSE",
+                "origin": "DIRECT",
+                "value": "synthetic standard"
+              }
+            ]
+          },
+          {
+            "field": "variety",
+            "state": "ABSTAIN",
+            "value": null,
+            "candidate_ids": [],
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "case_id": "synthetic-runtime-failure",
+        "execution": "RUNTIME_FAILURE",
+        "fields": []
+      },
+      {
+        "case_id": "synthetic-malformed-output",
+        "execution": "MALFORMED_OUTPUT",
+        "fields": []
+      },
+      {
+        "case_id": "synthetic-unattempted",
+        "execution": "UNATTEMPTED",
+        "fields": []
+      }
+    ]
+  }
+}
