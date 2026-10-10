@@ -11,6 +11,8 @@ import tkinter as tk
 from typing import Any
 from collector_work_queue_gui import WorkQueueWindow
 from collection_resume import collection_resume_rows
+from collection_shelf_gui import CollectionShelfWindow
+from copy import deepcopy
 from collector_work_queue import derive_work_queue, WorkQueueProjectionError
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
@@ -262,7 +264,7 @@ class SavedPhotoPreview(ttk.LabelFrame):
     def show_photo(self, photo):
         path = photo.path if photo else ""
         self.caption.set(
-            f"{CoinCollectionGUI.role_display_label(photo.role)} — {os.path.basename(path)}"
+            f"{CoinCollectionGUI.role_display_label(photo.role)} — {os.path.basename(photo.path)}"
             if photo else "No photos attached"
         )
         if path == self.path and self.has_photo == (photo is not None):
@@ -517,6 +519,7 @@ class CoinCollectionGUI:
         home_menu.add_command(label="Collector Home Dashboard", command=self.open_collector_home_dashboard)
         home_menu.add_command(label="Collector Workspace", command=self.open_collector_workspace)
         home_menu.add_command(label="Collector Home", command=self.open_collector_home)
+        home_menu.add_command(label="Visual Collection Shelf", command=self.open_collection_shelf)
         home_menu.add_command(label="Photo Inbox...", command=self.open_photo_inbox)
         home_menu.add_command(label="Daily Collector Summary", command=self.open_daily_collector_summary)
         home_menu.add_command(label="Collection Health Report", command=self.open_collection_health_report)
@@ -2482,7 +2485,7 @@ Total Unique Dates: {total_unique_dates}
         """Load normalized item photos, including legacy image_path-only records."""
         if not item:
             return []
-        return cls.normalized_photo_state(item.normalized_photos())
+        return cls.normalized_photo_state(deepcopy(item).normalized_photos())
 
     @classmethod
     def add_photo_paths_to_list(cls, photos, paths):
@@ -2576,11 +2579,12 @@ Total Unique Dates: {total_unique_dates}
         ]
 
     @classmethod
-    def item_details_text(cls, item):
+    def item_details_text(cls, item, *, metadata_only=False):
         """Build details text shared by the gallery window and tests."""
+        item = deepcopy(item)
         details = [
             f"ID: {item.id}",
-            f"Image: {item.primary_image_path}",
+            f"Image: {item.image_path if metadata_only else item.primary_image_path}",
             f"Country: {item.country}",
             f"Denomination: {item.denomination}",
             f"Year: {item.year}",
@@ -2628,6 +2632,9 @@ Total Unique Dates: {total_unique_dates}
             f"Auto Detected: {item.auto_detected}",
             f"Detection Confidence: {item.detection_confidence}",
         ])
+        if metadata_only:
+            details.extend(["", cls.recorded_photo_metadata_text(item)])
+            return "\n".join(details)
         rows = cls.photo_detail_rows(item.normalized_photos())
         details.extend(["", "--- Photos ---"])
         if rows:
@@ -2640,6 +2647,23 @@ Total Unique Dates: {total_unique_dates}
         else:
             details.append("No photos attached")
         return "\n".join(details)
+
+    @staticmethod
+    def recorded_photo_metadata_text(item):
+        """Describe detached recorded values; make no filesystem/integrity claims."""
+        item = deepcopy(item)
+        lines = ["Recorded photo metadata (read-only; images not loaded)",
+                 f"Legacy image reference: {item.image_path}"]
+        for photo in item.photos:
+            lines.extend([
+                f"Reference: {photo.path}", f"Role: {photo.role.value}",
+                f"Recorded order: {photo.display_order}", f"Primary: {photo.is_primary}",
+                f"Photo Notes: {photo.notes}",
+                f"Recorded provenance: {photo.capture_import_media}",
+            ])
+        if not item.photos:
+            lines.append("No photo entries recorded")
+        return "\n".join(lines)
 
     def sync_current_image_path_from_photos(self):
         """Keep legacy single-image consumers pointed at the primary photo."""
@@ -4970,8 +4994,9 @@ Total Unique Dates: {total_unique_dates}
         else:
             messagebox.showerror("Error", "Item not found")
 
-    def open_item_details_window(self, item):
+    def open_item_details_window(self, item, *, metadata_only=False):
         """Open a read-only item details window with a photo gallery."""
+        item = deepcopy(item)
         dialog = tk.Toplevel(self.root)
         dialog.title("Item Details")
         dialog.geometry("760x560")
@@ -4984,8 +5009,15 @@ Total Unique Dates: {total_unique_dates}
 
         details_text = tk.Text(content, width=42, wrap=tk.WORD)
         details_text.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W), padx=(0, 10))
-        details_text.insert(tk.END, self.item_details_text(item))
+        details_text.insert(tk.END, self.item_details_text(item, metadata_only=metadata_only))
         details_text.config(state=tk.DISABLED)
+
+        if metadata_only:
+            details_text.grid_configure(columnspan=2, padx=0, sticky=tk.NSEW)
+            content.columnconfigure(0, weight=1)
+            ttk.Button(content, text="Close", command=dialog.destroy).grid(
+                row=1, column=1, sticky=tk.E, pady=(10, 0))
+            return
 
         gallery = ttk.LabelFrame(content, text="Photos", padding="10")
         gallery.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.E, tk.W))
@@ -5091,6 +5123,33 @@ Total Unique Dates: {total_unique_dates}
         )
         return self._work_queue_window
 
+    def open_collection_shelf(self):
+        """Open or refresh a read-only shelf using exact runtime record references."""
+        existing = getattr(self, "_collection_shelf_window", None)
+        if existing is not None and existing.is_open():
+            existing.refresh()
+            existing.focus()
+            return existing
+
+        def clear_reference():
+            self._collection_shelf_window = None
+
+        def open_editor(item):
+            self.open_edit_item_window(item, on_saved=lambda _item_id: self._refresh_collection_shelf(),
+                                       metadata_only=True)
+
+        self._collection_shelf_window = CollectionShelfWindow(
+            self.root, lambda: self.app.collection,
+            lambda item: self.open_item_details_window(item, metadata_only=True),
+            open_editor, on_close=clear_reference,
+        )
+        return self._collection_shelf_window
+
+    def _refresh_collection_shelf(self):
+        shelf = getattr(self, "_collection_shelf_window", None)
+        if shelf is not None and shelf.is_open():
+            shelf.refresh()
+
     def _finish_successful_item_edit(self, dialog, item_id, on_saved=None):
         """Refresh successful edit surfaces and notify an optional caller."""
         self.refresh_collection_list()
@@ -5109,7 +5168,7 @@ Total Unique Dates: {total_unique_dates}
                 "Reopen or refresh the Work Queue to see the latest tasks.",
             )
 
-    def open_edit_item_window(self, item, on_saved=None):
+    def open_edit_item_window(self, item, on_saved=None, *, metadata_only=False):
         """Open a scoped edit dialog that includes item-owned photo metadata."""
         from collection_item_reference import CollectionItemReference
         try:
@@ -5123,14 +5182,15 @@ Total Unique Dates: {total_unique_dates}
         dialog.transient(self.root)
         dialog.grab_set()
 
-        edit_photos = {"photos": self.photos_from_item(item), "selected": 0}
+        edit_photos = {"photos": self.photos_from_item(item) if not metadata_only else [], "selected": 0}
 
         form = ttk.Frame(dialog, padding="10")
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
         form.rowconfigure(9, weight=1)
-        preview = SavedPhotoPreview(form)
-        preview.grid(row=0, column=2, rowspan=10, sticky=tk.NSEW, padx=(12, 0))
+        if not metadata_only:
+            preview = SavedPhotoPreview(form)
+            preview.grid(row=0, column=2, rowspan=10, sticky=tk.NSEW, padx=(12, 0))
 
         country_var = tk.StringVar(value=item.country)
         denomination_var = tk.StringVar(value=item.denomination)
@@ -5199,108 +5259,114 @@ Total Unique Dates: {total_unique_dates}
         photo_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         photo_frame.columnconfigure(0, weight=1)
 
-        edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
-        edit_tree.heading("primary", text="Primary")
-        edit_tree.heading("role", text="Role")
-        edit_tree.heading("file", text="File")
-        edit_tree.column("primary", width=65, anchor=tk.CENTER)
-        edit_tree.column("role", width=120, anchor=tk.W)
-        edit_tree.column("file", width=250, minwidth=60, anchor=tk.W)
-        edit_tree.grid(row=0, column=0, columnspan=6, sticky=(tk.W, tk.E))
+        if metadata_only:
+            recorded_photos = tk.Text(photo_frame, height=8, width=60, wrap=tk.WORD)
+            recorded_photos.grid(row=0, column=0, sticky=tk.EW)
+            recorded_photos.insert(tk.END, self.recorded_photo_metadata_text(item))
+            recorded_photos.configure(state=tk.DISABLED)
+        else:
+            edit_tree = ttk.Treeview(photo_frame, columns=("primary", "role", "file"), show="headings", height=6)
+            edit_tree.heading("primary", text="Primary")
+            edit_tree.heading("role", text="Role")
+            edit_tree.heading("file", text="File")
+            edit_tree.column("primary", width=65, anchor=tk.CENTER)
+            edit_tree.column("role", width=120, anchor=tk.W)
+            edit_tree.column("file", width=250, minwidth=60, anchor=tk.W)
+            edit_tree.grid(row=0, column=0, columnspan=6, sticky=(tk.W, tk.E))
 
-        def refresh_edit_tree():
-            edit_photos["photos"] = self.normalized_photo_state(edit_photos["photos"])
-            for row_id in edit_tree.get_children():
-                edit_tree.delete(row_id)
-            for index, row in enumerate(self.photo_detail_rows(edit_photos["photos"])):
-                edit_tree.insert("", tk.END, iid=str(index), values=(row["primary"], row["role"], row["file"] or row["path"]))
-            if edit_photos["photos"]:
-                edit_photos["selected"] = min(edit_photos["selected"], len(edit_photos["photos"]) - 1)
-                edit_tree.selection_set(str(edit_photos["selected"]))
-                selected_photo = edit_photos["photos"][edit_photos["selected"]]
-                role_var.set(selected_photo.role.value)
-                note_var.set(selected_photo.notes)
-                preview.show_photo(selected_photo)
-            else:
-                edit_photos["selected"] = None
-                role_var.set(PhotoRole.OTHER.value)
-                note_var.set("")
-                preview.show_photo(None)
+            def refresh_edit_tree():
+                edit_photos["photos"] = self.normalized_photo_state(edit_photos["photos"])
+                for row_id in edit_tree.get_children():
+                    edit_tree.delete(row_id)
+                for index, row in enumerate(self.photo_detail_rows(edit_photos["photos"])):
+                    edit_tree.insert("", tk.END, iid=str(index), values=(row["primary"], row["role"], row["file"] or row["path"]))
+                if edit_photos["photos"]:
+                    edit_photos["selected"] = min(edit_photos["selected"], len(edit_photos["photos"]) - 1)
+                    edit_tree.selection_set(str(edit_photos["selected"]))
+                    selected_photo = edit_photos["photos"][edit_photos["selected"]]
+                    role_var.set(selected_photo.role.value)
+                    note_var.set(selected_photo.notes)
+                    preview.show_photo(selected_photo)
+                else:
+                    edit_photos["selected"] = None
+                    role_var.set(PhotoRole.OTHER.value)
+                    note_var.set("")
+                    preview.show_photo(None)
 
-        def edit_selection_changed(event=None):
-            selection = edit_tree.selection()
-            if selection:
-                edit_photos["selected"] = int(selection[0])
-                selected_photo = edit_photos["photos"][edit_photos["selected"]]
-                role_var.set(selected_photo.role.value)
-                note_var.set(selected_photo.notes)
-                preview.show_photo(selected_photo)
+            def edit_selection_changed(event=None):
+                selection = edit_tree.selection()
+                if selection:
+                    edit_photos["selected"] = int(selection[0])
+                    selected_photo = edit_photos["photos"][edit_photos["selected"]]
+                    role_var.set(selected_photo.role.value)
+                    note_var.set(selected_photo.notes)
+                    preview.show_photo(selected_photo)
 
-        def add_edit_photos():
-            paths = filedialog.askopenfilenames(
-                title="Select Coin Photos",
-                filetypes=[
-                    ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
-                    ("All files", "*.*"),
-                ],
-            )
-            if not paths:
-                return
-            edit_photos["photos"], skipped = self.add_photo_paths_to_list(edit_photos["photos"], paths)
-            edit_photos["selected"] = len(edit_photos["photos"]) - 1 if edit_photos["photos"] else None
-            refresh_edit_tree()
-            if skipped:
-                messagebox.showwarning("Duplicate Photos", f"Skipped {len(skipped)} duplicate photo reference(s).")
+            def add_edit_photos():
+                paths = filedialog.askopenfilenames(
+                    title="Select Coin Photos",
+                    filetypes=[
+                        ("Image files", "*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff"),
+                        ("All files", "*.*"),
+                    ],
+                )
+                if not paths:
+                    return
+                edit_photos["photos"], skipped = self.add_photo_paths_to_list(edit_photos["photos"], paths)
+                edit_photos["selected"] = len(edit_photos["photos"]) - 1 if edit_photos["photos"] else None
+                refresh_edit_tree()
+                if skipped:
+                    messagebox.showwarning("Duplicate Photos", f"Skipped {len(skipped)} duplicate photo reference(s).")
 
-        def remove_edit_photo():
-            edit_photos["photos"] = self.remove_photo_at_index(edit_photos["photos"], edit_photos["selected"])
-            refresh_edit_tree()
+            def remove_edit_photo():
+                edit_photos["photos"] = self.remove_photo_at_index(edit_photos["photos"], edit_photos["selected"])
+                refresh_edit_tree()
 
-        def set_edit_primary():
-            edit_photos["photos"] = self.set_primary_photo_at_index(edit_photos["photos"], edit_photos["selected"])
-            refresh_edit_tree()
+            def set_edit_primary():
+                edit_photos["photos"] = self.set_primary_photo_at_index(edit_photos["photos"], edit_photos["selected"])
+                refresh_edit_tree()
 
-        def move_edit_photo(offset):
-            edit_photos["photos"], edit_photos["selected"] = self.move_photo_at_index(
-                edit_photos["photos"],
-                edit_photos["selected"],
-                offset,
-            )
-            refresh_edit_tree()
+            def move_edit_photo(offset):
+                edit_photos["photos"], edit_photos["selected"] = self.move_photo_at_index(
+                    edit_photos["photos"],
+                    edit_photos["selected"],
+                    offset,
+                )
+                refresh_edit_tree()
 
-        def update_edit_role(event=None):
-            edit_photos["photos"] = self.update_photo_role_at_index(
-                edit_photos["photos"],
-                edit_photos["selected"],
-                role_var.get(),
-            )
-            refresh_edit_tree()
+            def update_edit_role(event=None):
+                edit_photos["photos"] = self.update_photo_role_at_index(
+                    edit_photos["photos"],
+                    edit_photos["selected"],
+                    role_var.get(),
+                )
+                refresh_edit_tree()
 
-        def update_edit_notes(event=None):
-            edit_photos["photos"] = self.update_photo_notes_at_index(
-                edit_photos["photos"],
-                edit_photos["selected"],
-                note_var.get(),
-            )
-            refresh_edit_tree()
+            def update_edit_notes(event=None):
+                edit_photos["photos"] = self.update_photo_notes_at_index(
+                    edit_photos["photos"],
+                    edit_photos["selected"],
+                    note_var.get(),
+                )
+                refresh_edit_tree()
 
-        edit_tree.bind("<<TreeviewSelect>>", edit_selection_changed)
-        ttk.Button(photo_frame, text="Add Photos", command=add_edit_photos).grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
-        ttk.Button(photo_frame, text="Remove", command=remove_edit_photo).grid(row=1, column=1, sticky=tk.W, padx=(5, 0), pady=(8, 0))
-        ttk.Button(photo_frame, text="Set Primary", command=set_edit_primary).grid(row=1, column=2, sticky=tk.W, padx=(5, 0), pady=(8, 0))
-        ttk.Button(photo_frame, text="Move Up", command=lambda: move_edit_photo(-1)).grid(row=1, column=3, sticky=tk.W, padx=(5, 0), pady=(8, 0))
-        ttk.Button(photo_frame, text="Move Down", command=lambda: move_edit_photo(1)).grid(row=1, column=4, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+            edit_tree.bind("<<TreeviewSelect>>", edit_selection_changed)
+            ttk.Button(photo_frame, text="Add Photos", command=add_edit_photos).grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
+            ttk.Button(photo_frame, text="Remove", command=remove_edit_photo).grid(row=1, column=1, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+            ttk.Button(photo_frame, text="Set Primary", command=set_edit_primary).grid(row=1, column=2, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+            ttk.Button(photo_frame, text="Move Up", command=lambda: move_edit_photo(-1)).grid(row=1, column=3, sticky=tk.W, padx=(5, 0), pady=(8, 0))
+            ttk.Button(photo_frame, text="Move Down", command=lambda: move_edit_photo(1)).grid(row=1, column=4, sticky=tk.W, padx=(5, 0), pady=(8, 0))
 
-        ttk.Label(photo_frame, text="Role:").grid(row=2, column=0, sticky=tk.W, pady=(8, 0))
-        role_combo = ttk.Combobox(photo_frame, textvariable=role_var, values=self.get_photo_role_values())
-        role_combo.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=(8, 0), padx=(5, 0))
-        role_combo.bind("<<ComboboxSelected>>", update_edit_role)
-        role_combo.bind("<FocusOut>", update_edit_role)
-        ttk.Label(photo_frame, text="Notes:").grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
-        note_entry = ttk.Entry(photo_frame, textvariable=note_var)
-        note_entry.grid(row=3, column=1, columnspan=4, sticky=(tk.W, tk.E), pady=(5, 0), padx=(5, 0))
-        note_entry.bind("<FocusOut>", update_edit_notes)
-        note_entry.bind("<Return>", update_edit_notes)
+            ttk.Label(photo_frame, text="Role:").grid(row=2, column=0, sticky=tk.W, pady=(8, 0))
+            role_combo = ttk.Combobox(photo_frame, textvariable=role_var, values=self.get_photo_role_values())
+            role_combo.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=(8, 0), padx=(5, 0))
+            role_combo.bind("<<ComboboxSelected>>", update_edit_role)
+            role_combo.bind("<FocusOut>", update_edit_role)
+            ttk.Label(photo_frame, text="Notes:").grid(row=3, column=0, sticky=tk.W, pady=(5, 0))
+            note_entry = ttk.Entry(photo_frame, textvariable=note_var)
+            note_entry.grid(row=3, column=1, columnspan=4, sticky=(tk.W, tk.E), pady=(5, 0), padx=(5, 0))
+            note_entry.bind("<FocusOut>", update_edit_notes)
+            note_entry.bind("<Return>", update_edit_notes)
 
         button_frame = ttk.Frame(form)
         button_frame.grid(row=10, column=0, columnspan=2, sticky=tk.E, pady=(10, 0))
@@ -5311,8 +5377,8 @@ Total Unique Dates: {total_unique_dates}
             except ValueError as error:
                 messagebox.showwarning("Invalid Acquisition Details", str(error), parent=dialog)
                 return
-            photos = self.normalized_photo_state(edit_photos["photos"])
-            primary = next((photo for photo in photos if photo.is_primary), None)
+            photos = self.normalized_photo_state(edit_photos["photos"]) if not metadata_only else None
+            primary = next((photo for photo in photos if photo.is_primary), None) if photos else None
             updates = {
                 "country": country_var.get().strip(),
                 "denomination": denomination_var.get().strip(),
@@ -5320,12 +5386,13 @@ Total Unique Dates: {total_unique_dates}
                 "type_design": type_design_var.get().strip(),
                 "grade": grade_var.get().strip(),
                 "notes": notes_text.get("1.0", tk.END).strip(),
-                "photos": photos,
-                "image_path": primary.path if primary else "",
             }
+            if not metadata_only:
+                updates.update({"photos": photos, "image_path": primary.path if primary else ""})
             updates.update(acquisition)
             result = self.app.update_collection_item(
-                item.id, updates, photos, expected_reference=edit_reference
+                item.id, updates, photos, expected_reference=edit_reference,
+                **({"metadata_only": True} if metadata_only else {}),
             )
             if not result.success:
                 messagebox.showerror(
@@ -5338,7 +5405,8 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(button_frame, text="Save", command=save_edit).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
 
-        refresh_edit_tree()
+        if not metadata_only:
+            refresh_edit_tree()
     
     def delete_item(self):
         """Delete selected item."""

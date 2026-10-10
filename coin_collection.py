@@ -479,43 +479,46 @@ class CoinItem:
             or any(getattr(self, field_name) is not None for field_name in ACQUISITION_MONEY_FIELDS)
         )
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary."""
-        self.sync_image_path_from_primary()
+    def to_dict(self, *, preserve_photo_metadata: bool = False) -> Dict:
+        """Serialize a detached snapshot; ordinary output remains canonical."""
+        from copy import deepcopy
+        item = deepcopy(self)
+        if not preserve_photo_metadata:
+            item.sync_image_path_from_primary()
         data = {
-            "item_type": self._closed_enum(ItemType, self.item_type, "item_type").value,
-            "identification_status": self._closed_enum(IdentificationStatus, self.identification_status, "identification_status").value,
-            "id": self.id,
-            "image_path": self.image_path,
-            "country": self.country,
-            "denomination": self.denomination,
-            "year": self.year,
-            "type_design": self.type_design,
-            "grade": self.grade,
-            "notes": self.notes,
-            "date_added": self.date_added,
-            "auto_detected": self.auto_detected,
-            "detection_confidence": self.detection_confidence,
-            "issuer": self.issuer,
-            "currency": self.currency,
-            "face_value": self.face_value,
-            "reference": self.reference,
-            "numista_n": self.numista_n,
-            "title": self.title,
-            "quantity": self.quantity,
-            "estimate_cad": self.estimate_cad,
-            "comments": self.comments,
-            "from_numista": self.from_numista,
-            "photos": [photo.to_dict() for photo in self.normalized_photos()],
+            "item_type": item._closed_enum(ItemType, item.item_type, "item_type").value,
+            "identification_status": item._closed_enum(IdentificationStatus, item.identification_status, "identification_status").value,
+            "id": item.id,
+            "image_path": item.image_path,
+            "country": item.country,
+            "denomination": item.denomination,
+            "year": item.year,
+            "type_design": item.type_design,
+            "grade": item.grade,
+            "notes": item.notes,
+            "date_added": item.date_added,
+            "auto_detected": item.auto_detected,
+            "detection_confidence": item.detection_confidence,
+            "issuer": item.issuer,
+            "currency": item.currency,
+            "face_value": item.face_value,
+            "reference": item.reference,
+            "numista_n": item.numista_n,
+            "title": item.title,
+            "quantity": item.quantity,
+            "estimate_cad": item.estimate_cad,
+            "comments": item.comments,
+            "from_numista": item.from_numista,
+            "photos": [photo.to_dict() for photo in (item.photos if preserve_photo_metadata else item.normalized_photos())],
         }
         optional_acquisition = {
-            "acquisition_date": self.acquisition_date,
-            "purchase_price": serialize_money(self.purchase_price),
-            "purchase_currency": self.purchase_currency,
-            "purchase_source": self.purchase_source,
-            "shipping_cost": serialize_money(self.shipping_cost),
-            "buyers_premium": serialize_money(self.buyers_premium),
-            "tax": serialize_money(self.tax),
+            "acquisition_date": item.acquisition_date,
+            "purchase_price": serialize_money(item.purchase_price),
+            "purchase_currency": item.purchase_currency,
+            "purchase_source": item.purchase_source,
+            "shipping_cost": serialize_money(item.shipping_cost),
+            "buyers_premium": serialize_money(item.buyers_premium),
+            "tax": serialize_money(item.tax),
         }
         data.update({key: value for key, value in optional_acquisition.items() if value is not None})
         return data
@@ -738,7 +741,7 @@ class CoinCollection:
             self.load_error = ""
             print("No existing collection found, starting fresh")
 
-    def save_collection(self, *, import_lock=None) -> bool:
+    def save_collection(self, *, import_lock=None, preserve_photo_metadata: bool = False) -> bool:
         """Save only when storage still matches this instance's loaded baseline."""
         if self.load_state is CollectionLoadState.FAILED:
             self.last_save_error = (
@@ -784,7 +787,7 @@ class CoinCollection:
 
             receipt = write_json_atomically(
                 self.storage_path,
-                [item.to_dict() for item in self.items],
+                [item.to_dict(preserve_photo_metadata=preserve_photo_metadata) for item in self.items],
                 indent=2,
                 ensure_ascii=False,
             )
@@ -1057,7 +1060,7 @@ class CoinCollection:
         self.items = original_items
         return False
     
-    def update_item(self, item_id: str, updates: Dict) -> bool:
+    def update_item(self, item_id: str, updates: Dict, *, preserve_photo_metadata: bool = False) -> bool:
         """Update item in collection."""
         if sum(item.id == item_id for item in self.items) != 1:
             self.last_save_error = "The item ID is missing or ambiguous."
@@ -1100,7 +1103,9 @@ class CoinCollection:
                 for key, value in normalized_updates.items():
                     if hasattr(item, key):
                         setattr(item, key, value)
-                if self.save_collection():
+                # Serialization is detached for every record, so a failed write
+                # leaves only these requested fields to restore.
+                if self.save_collection(**({"preserve_photo_metadata": True} if preserve_photo_metadata else {})):
                     return True
                 for key, value in original_values.items():
                     setattr(item, key, value)
@@ -1686,21 +1691,30 @@ class CoinCollectionApp:
         photos: Optional[List[ItemPhoto]] = None,
         *,
         expected_reference,
+        metadata_only: bool = False,
     ) -> "CollectionItemUpdateResult":
         """Safely edit one current item and manage only newly selected media."""
 
+        requested_updates = dict(updates)
+        if metadata_only:
+            # An allowlist also blocks future photo-related fields by default.
+            metadata_fields = {
+                "id", "item_type", "identification_status", "country", "denomination",
+                "year", "type_design", "grade", "notes", "date_added", "auto_detected",
+                "detection_confidence", "issuer", "currency", "face_value", "reference",
+                "numista_n", "title", "quantity", "estimate_cad", "comments", "from_numista",
+                *ACQUISITION_FIELDS,
+            }
+            if photos is not None or requested_updates.keys() - metadata_fields:
+                error = "Metadata-only edit cannot change photo metadata or references."
+                self.collection.last_save_error = error
+                return CollectionItemUpdateResult(False, error)
         try:
             current = expected_reference.resolve(self.collection)
             if current.id != item_id:
                 raise ValueError("The requested ID does not match the deferred reference.")
         except (ValueError, AttributeError) as exc:
             return CollectionItemUpdateResult(False, str(exc))
-        from copy import deepcopy
-        from managed_media import OrdinaryEntryManagedMediaStore
-        store = OrdinaryEntryManagedMediaStore(self.collection.storage_path)
-        detached = deepcopy(current)
-
-        requested_updates = dict(updates)
         if "id" in requested_updates and requested_updates["id"] != current.id:
             error = "The stable item ID cannot be changed."
             self.collection.last_save_error = error
@@ -1721,6 +1735,25 @@ class CoinCollectionApp:
             return CollectionItemUpdateResult(False, error)
         requested_updates["item_type"] = current.item_type
 
+        if metadata_only:
+            try:
+                expected_reference.resolve(self.collection)
+                if not self.collection.update_item(
+                    current.id, requested_updates, preserve_photo_metadata=True
+                ):
+                    return CollectionItemUpdateResult(
+                        False, self.collection.last_save_error or "Collection update failed."
+                    )
+                return CollectionItemUpdateResult(True)
+            except Exception as exc:
+                error = str(exc) or type(exc).__name__
+                self.collection.last_save_error = error
+                return CollectionItemUpdateResult(False, error)
+
+        from copy import deepcopy
+        from managed_media import OrdinaryEntryManagedMediaStore
+        store = OrdinaryEntryManagedMediaStore(self.collection.storage_path)
+        detached = deepcopy(current)
         submitted = CoinItem._coerce_photos(
             detached.normalized_photos() if photos is None else deepcopy(photos)
         )
