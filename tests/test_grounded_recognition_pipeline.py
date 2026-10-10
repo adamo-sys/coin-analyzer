@@ -1,6 +1,11 @@
-from capture_import.catalogue_retrieval import CatalogueRetrievalResult
+import unittest
+from typing import cast
+
+from capture_import.catalogue_retrieval import CatalogueRetriever
 from capture_import.evidence_candidate_resolver import CatalogueCandidate
-from capture_import.grounded_recognition_pipeline import run_grounded_recognition_pipeline
+from capture_import.grounded_recognition_pipeline import (
+    run_grounded_recognition_pipeline,
+)
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 from capture_import.in_memory_catalogue_retriever import InMemoryCatalogueRetriever
 from capture_import.recognition_decision_gate import RecognitionDecision
@@ -105,7 +110,7 @@ def test_pipeline_abstains_before_retrieval_on_empty_evidence():
     assert result.retrieval is None
 
 
-def test_pipeline_one_side_evidence_cannot_identify():
+def test_pipeline_year_only_one_side_abstains_before_two_side_gate():
     result = run_grounded_recognition_pipeline(
         (
             GroundedVisualObservation(
@@ -118,7 +123,10 @@ def test_pipeline_one_side_evidence_cannot_identify():
     )
 
     assert result.decision.decision is RecognitionDecision.ABSTAIN
-    assert result.decision.reason == "two_side_support_required"
+    # Year-only evidence lost candidate-verification authority in df58ca2.
+    assert result.decision.reason == "none_verified"
+    assert result.verification is not None
+    assert not result.verification.rows[0].verified
 
 
 def test_pipeline_preserves_retriever_provenance():
@@ -146,7 +154,7 @@ def test_pipeline_rejects_invalid_retriever_result_type():
             return object()
 
     try:
-        run_grounded_recognition_pipeline(_sides(), BadRetriever())
+        run_grounded_recognition_pipeline(_sides(), cast(CatalogueRetriever, BadRetriever()))
     except TypeError as exc:
         assert "CatalogueRetrievalResult" in str(exc)
     else:
@@ -161,3 +169,35 @@ def test_pipeline_has_no_model_confidence_surface():
 
     assert not hasattr(result, "confidence")
     assert not hasattr(result.decision, "confidence")
+
+
+class DenominationEquivalencePipelineTests(unittest.TestCase):
+    def test_equivalence_reaches_retrieval_but_cannot_accept_without_independent_support(self):
+        result = run_grounded_recognition_pipeline((
+            GroundedVisualObservation(role="obverse", denomination_mark="25 CENT"),
+            GroundedVisualObservation(role="reverse", denomination_mark="25 cents"),
+        ), InMemoryCatalogueRetriever((_candidate(),)))
+        self.assertIsNotNone(result.retrieval)
+        self.assertEqual(result.decision.decision, RecognitionDecision.ABSTAIN)
+        self.assertEqual(result.decision.reason, "none_verified")
+        self.assertIsNone(result.decision.candidate_id)
+
+    def test_verified_denomination_on_only_one_side_still_abstains(self):
+        result = run_grounded_recognition_pipeline((
+            GroundedVisualObservation(role="obverse", denomination_mark="25 CENT",
+                                     visible_text=("CANADA",)),
+        ), InMemoryCatalogueRetriever((_candidate(),)))
+        assert result.verification is not None
+        self.assertTrue(result.verification.rows[0].verified)
+        self.assertEqual(result.decision.decision, RecognitionDecision.ABSTAIN)
+        self.assertEqual(result.decision.reason, "two_side_support_required")
+        self.assertIsNone(result.decision.candidate_id)
+
+    def test_different_amounts_still_abstain_before_retrieval(self):
+        result = run_grounded_recognition_pipeline((
+            GroundedVisualObservation(role="obverse", denomination_mark="25 CENT"),
+            GroundedVisualObservation(role="reverse", denomination_mark="10 cents"),
+        ), InMemoryCatalogueRetriever((_candidate(),)))
+        self.assertIsNone(result.retrieval)
+        self.assertEqual(result.decision.decision, RecognitionDecision.ABSTAIN)
+        self.assertIsNone(result.decision.candidate_id)
