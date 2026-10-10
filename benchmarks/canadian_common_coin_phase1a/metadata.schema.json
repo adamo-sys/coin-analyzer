@@ -1,0 +1,329 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_version",
+    "normalization_version",
+    "classification",
+    "sources",
+    "issues",
+    "coverage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ca-phase1a-metadata-v1"
+    },
+    "policy_version": {
+      "const": "ca-phase1a-policy-v1"
+    },
+    "normalization_version": {
+      "const": "ca-phase1a-normalization-v1"
+    },
+    "classification": {
+      "enum": [
+        "SYNTHETIC",
+        "REAL_METADATA"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/coverage"
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:coin-analyzer:ca-phase1a-metadata-v1",
+  "title": "Supplemental Canadian metadata; no identity authority",
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "\\S"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 1953,
+      "maximum": 9999
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "author",
+        "reviewer",
+        "reviewed_at",
+        "review_ref"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "REJECTED"
+          ]
+        },
+        "author": {
+          "$ref": "#/$defs/id"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/id"
+        },
+        "reviewed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "review_ref": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "kind",
+        "title",
+        "locator",
+        "edition",
+        "content_sha256",
+        "licence",
+        "attribution",
+        "retrieved_at",
+        "permission",
+        "review"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "SYNTHETIC",
+            "ROYAL_CANADIAN_MINT",
+            "AUTHORITATIVE_REFERENCE"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/text"
+        },
+        "locator": {
+          "$ref": "#/$defs/text"
+        },
+        "edition": {
+          "$ref": "#/$defs/text"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "licence": {
+          "$ref": "#/$defs/text"
+        },
+        "attribution": {
+          "$ref": "#/$defs/text"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "permission": {
+          "enum": [
+            "LOCAL_METADATA",
+            "UNRESOLVED",
+            "PROHIBITED"
+          ]
+        },
+        "review": {
+          "$ref": "#/$defs/review"
+        }
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "source_id",
+        "source_record",
+        "locator"
+      ],
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/id"
+        },
+        "source_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_record": {
+          "$ref": "#/$defs/text"
+        },
+        "locator": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "denomination": {
+      "enum": [
+        "1c",
+        "5c",
+        "10c",
+        "25c",
+        "$1",
+        "$2"
+      ]
+    },
+    "monarch": {
+      "enum": [
+        "ELIZABETH_II",
+        "CHARLES_III"
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "STANDARD",
+        "ALTERNATE",
+        "UNRESOLVED"
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_id",
+        "denomination",
+        "monarch",
+        "year_start",
+        "year_end",
+        "obverse_design",
+        "reverse_design",
+        "disposition",
+        "unsupported",
+        "review",
+        "source_refs"
+      ],
+      "properties": {
+        "issue_id": {
+          "$ref": "#/$defs/id"
+        },
+        "denomination": {
+          "$ref": "#/$defs/denomination"
+        },
+        "monarch": {
+          "$ref": "#/$defs/monarch"
+        },
+        "year_start": {
+          "$ref": "#/$defs/year"
+        },
+        "year_end": {
+          "$ref": "#/$defs/year"
+        },
+        "obverse_design": {
+          "$ref": "#/$defs/text"
+        },
+        "reverse_design": {
+          "$ref": "#/$defs/text"
+        },
+        "disposition": {
+          "$ref": "#/$defs/disposition"
+        },
+        "unsupported": {
+          "type": "boolean"
+        },
+        "review": {
+          "$ref": "#/$defs/review"
+        },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "denomination",
+        "monarch",
+        "year_start",
+        "year_end",
+        "disposition",
+        "state",
+        "issue_ids",
+        "rationale"
+      ],
+      "properties": {
+        "denomination": {
+          "$ref": "#/$defs/denomination"
+        },
+        "monarch": {
+          "$ref": "#/$defs/monarch"
+        },
+        "year_start": {
+          "$ref": "#/$defs/year"
+        },
+        "year_end": {
+          "$ref": "#/$defs/year"
+        },
+        "disposition": {
+          "$ref": "#/$defs/disposition"
+        },
+        "state": {
+          "enum": [
+            "COVERED",
+            "GAP",
+            "EXCLUDED"
+          ]
+        },
+        "issue_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "rationale": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    }
+  }
+}
