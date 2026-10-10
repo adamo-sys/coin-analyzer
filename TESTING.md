@@ -73,8 +73,31 @@ python -m unittest discover -s . -p "test_*.py"
 ```
 
 The workflow is defined in `.github/workflows/tests.yml`.
-The CI checkout excludes `test_coins/`, and CI does not upload separate raw-log
-or image artifacts.
+Every checkout in `.github/workflows/*.yml` and `*.yaml` uses non-cone sparse
+checkout to exclude all contents of `test_coins/` except `test_coins/README.md`,
+and disables credential persistence. This limits worktree materialization; it
+does not prove protected Git objects were never transferred. Gitleaks retains
+full-history scanning. Historical exposure requires a separate authorized review.
+
+The blocking Tests workflow uploads no artifacts. Quality Advisory permits only
+`pyright-report.json`; Mutmut Advisory permits only `artifacts/mutmut-results.txt`,
+`artifacts/mutmut-survivor-diffs.txt`, and `artifacts/mutmut-report.json`, generated
+by `tools/capture_mutmut_evidence.py`. These advisory reports can contain tool
+diagnostics and survivor diffs; directory-wide, image, and unrelated raw-log
+uploads are not allowed. CodeQL retains its existing security-analysis reporting.
+Checkout exclusions, Git object transfer, and artifact publication are separate
+boundaries; an upload path allowlist does not establish report-content provenance.
+
+Run the focused policy suite:
+
+```bash
+python -m unittest tests.test_repository_privacy_boundaries
+```
+
+It parses every workflow structurally, validates each checkout and artifact upload
+against job-specific policy, rejects malformed/duplicate/ambiguous YAML and unsafe
+options, and verifies root/nested image exclusions with a temporary synthetic Git
+repository. It never uses protected coin images for materialization checks.
 
 ## Adding Tests
 
