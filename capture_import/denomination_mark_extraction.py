@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from .grounded_visual_observation import GroundedVisualObservation
-
 
 _MAX_CANDIDATES = 8
 _SPACE = re.compile(r"\s+")
@@ -20,6 +19,14 @@ _UNIT_TOKEN = re.compile(
     flags=re.IGNORECASE,
 )
 _COMPOUND_DENOMINATION_MARKS = frozenset({"sixpence"})
+_EQUIVALENT_MARK = re.compile(r"([0-9]+) ([a-zö]+)")
+_EQUIVALENT_UNITS = {
+    "cent": "cent", "cents": "cent",
+    "ore": "ore", "öre": "ore",
+    "franc": "franc", "francs": "franc",
+    "rupee": "rupee", "rupees": "rupee",
+    "peso": "peso", "pesos": "peso",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +82,7 @@ def extract_denomination_marks(
             and (
                 not visible_marks
                 or any(
-                    _comparison_key(structured_mark) == _comparison_key(visible)
+                    _equivalence_key(structured_mark) == _equivalence_key(visible)
                     for visible in visible_marks
                 )
             )
@@ -102,7 +109,7 @@ def extract_denomination_marks(
                 ),
             )
 
-    values = {_comparison_key(item.value) for item in candidates}
+    values = {_equivalence_key(item.value) for item in candidates}
     conflict = len(values) > 1
     resolved_value = candidates[0].value if len(values) == 1 and candidates else None
     return DenominationMarkExtraction(
@@ -161,3 +168,17 @@ def _explicit_mark(text: str) -> str | None:
 def _comparison_key(value: str) -> str:
     # Comparison only: preserve the first literal spelling in resolved_value.
     return _SPACE.sub(" ", value.strip()).casefold()
+
+
+def _equivalence_key(value: str) -> tuple[str, ...]:
+    """Compare only controlled unit spellings with an unchanged integer amount.
+
+    Literal keys still own evidence retention/deduplication. Do not use the
+    general retrieval normalizer here: punctuation loss can conflate amounts,
+    and currency/jurisdiction aliases need context this extractor does not own.
+    """
+    literal = _comparison_key(value)
+    match = _EQUIVALENT_MARK.fullmatch(literal)
+    if match is not None and (unit := _EQUIVALENT_UNITS.get(match.group(2))) is not None:
+        return ("integer-unit", match.group(1), unit)
+    return ("literal", literal)

@@ -1,3 +1,5 @@
+import unittest
+
 import pytest
 
 from capture_import.grounded_visual_observation import GroundedVisualObservation
@@ -152,3 +154,23 @@ def test_envelope_has_no_identity_acceptance_or_confidence_fields():
     assert not hasattr(result, "accepted")
     assert not hasattr(result, "confidence")
     assert not hasattr(result, "candidate_id")
+
+
+class DenominationEquivalenceEnvelopeTests(unittest.TestCase):
+    def test_identical_equivalence_fixtures_are_retrieval_ready_without_rewriting_literals(self):
+        for left, right, normalized in (
+            ("25 CENT", "25 cents", "25 cents"), ("50 ÖRE", "50 ore", "50 ore"),
+            ("1 FRANC", "1 francs", "1 franc"), ("1 RUPEE", "1 rupees", "1 rupee"),
+            ("1 PESO", "1 pesos", "1 peso"),
+        ):
+            with self.subTest(left=left, right=right):
+                result = build_numeral_evidence_envelope((
+                    _observation("obverse", visible_text=(left,)),
+                    _observation("reverse", visible_text=(right,)),
+                ))
+                self.assertFalse(result.has_conflict)
+                self.assertTrue(result.retrieval_ready)
+                self.assertEqual(result.normalized.denomination, normalized)
+                self.assertEqual(result.normalized.visible_text, (left, right))
+                self.assertEqual([(e.value, e.role, e.source_field) for e in result.denomination.candidates],
+                                 [(left, "obverse", "visible_text"), (right, "reverse", "visible_text")])

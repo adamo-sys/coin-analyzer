@@ -1,7 +1,12 @@
+import unittest
+
 import pytest
 
 from capture_import.denomination_mark_extraction import extract_denomination_marks
-from capture_import.evidence_candidate_resolver import normalize_country, normalize_denomination
+from capture_import.evidence_candidate_resolver import (
+    normalize_country,
+    normalize_denomination,
+)
 from capture_import.grounded_visual_observation import GroundedVisualObservation
 
 
@@ -295,3 +300,55 @@ def test_centimos_does_not_become_global_cent_alias():
     cents = canonicalize_denomination("25 CENTS")
     assert cents.canonical_value is not None
     assert cents.canonical_value.unit_id == "cent"
+
+
+class DenominationEquivalenceTests(unittest.TestCase):
+    def test_equivalent_marks_resolve_and_preserve_each_side_literal(self):
+        for left, right in (("25 CENT", "25 cents"), ("50 ÖRE", "50 ore"),
+                            ("1 FRANC", "1 francs"), ("1 RUPEE", "1 rupees"),
+                            ("1 PESO", "1 pesos")):
+            with self.subTest(left=left, right=right):
+                result = extract_denomination_marks((
+                    _observation("obverse", denomination_mark=left),
+                    _observation("reverse", visible_text=(right,)),
+                ))
+                self.assertFalse(result.conflict)
+                self.assertFalse(result.unresolved)
+                self.assertEqual(result.resolved_value, left)
+                self.assertEqual([(e.value, e.role, e.source_field) for e in result.candidates],
+                                 [(left, "obverse", "denomination_mark"),
+                                  (right, "reverse", "visible_text")])
+
+    def test_equivalent_structured_and_visible_literals_keep_both_sources(self):
+        result = extract_denomination_marks((
+            _observation(denomination_mark="25 CENT", visible_text=("25 cents",)),
+        ))
+        self.assertFalse(result.conflict)
+        self.assertEqual(result.resolved_value, "25 CENT")
+        self.assertEqual([(e.value, e.role, e.source_field) for e in result.candidates],
+                         [("25 CENT", "obverse", "denomination_mark"),
+                          ("25 cents", "obverse", "visible_text")])
+
+    def test_different_amounts_units_and_unqualified_aliases_remain_conflicting(self):
+        for left, right in (("25 CENT", "10 cents"), ("100 cents", "1 dollar"),
+                            ("1 franc", "1 peso"), ("1.5 cents", "1/5 cents"),
+                            ("01 CENT", "1 cents"), ("1 PISO", "1 pesos"),
+                            ("25 CENTIMOS", "25 SENTIMOS"),
+                            ("25 CENT extra", "25 cents"), ("1/0 CENT", "1 cents")):
+            with self.subTest(left=left, right=right):
+                result = extract_denomination_marks((
+                    _observation("obverse", visible_text=(left,)),
+                    _observation("reverse", visible_text=(right,)),
+                ))
+                self.assertTrue(result.conflict)
+                self.assertTrue(result.unresolved)
+                self.assertIsNone(result.resolved_value)
+                self.assertEqual([e.value for e in result.candidates], [left, right])
+
+    def test_bare_uncertain_and_unsupported_marks_remain_unresolved(self):
+        for literal in ("25", "CENT", "25 Q", "2? CENT", "25 centimes"):
+            with self.subTest(literal=literal):
+                result = extract_denomination_marks((_observation(visible_text=(literal,)),))
+                self.assertEqual(result.candidates, ())
+                self.assertIsNone(result.resolved_value)
+                self.assertTrue(result.unresolved)
