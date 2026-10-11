@@ -1,6 +1,6 @@
 # Engineering Playbook
 
-This handbook defines the normal contribution workflow for Coin Analyzer. Scale the ceremony to the risk, but do not skip verification.
+This handbook defines the normal contribution workflow for Coin Analyzer. Scale the ceremony to the risk, but do not skip verification. Apply it within [AGENTS.md](../AGENTS.md), the [task contract](agent-ops/CONTRACT.md), and the [bounded-change runbook](agent-ops/RUNBOOK.md#standard-bounded-change).
 
 ## Sprint Workflow
 
@@ -9,9 +9,9 @@ This handbook defines the normal contribution workflow for Coin Analyzer. Scale 
 3. Write a concise plan naming affected files, compatibility strategy, risks, and test approach.
 4. Obtain approval when scope or architecture is material, or when the requested workflow establishes an approval gate.
 5. Implement the smallest coherent change and preserve unrelated worktree changes.
-6. Run focused tests, relevant integration or GUI tests, the complete suite, and `git diff --check`.
+6. Run focused validation, relevant integration or GUI tests, applicable static checks, and `git diff --check`; run the complete suite when required by the affected technical boundary. Documentation-only checks follow Testing Requirements below.
 7. Review the final diff and stop at any required pre-commit gate.
-8. Commit with a focused message only after approval; push or publish only when explicitly authorized.
+8. Commit with a focused message only when authorized; push, create a PR, or publish only within granted authority. Follow [action authority](agent-ops/CONTRACT.md#default-authority): implementation alone does not authorize commits, pushes, PR creation, or merges. Each PR merge requires explicit human authorization and current passing blocking CI.
 
 ## Approval Gates
 
@@ -41,14 +41,16 @@ Report the proposed choice, evidence, tradeoffs, affected files, and rollback or
 
 Every behavior change needs focused regression coverage. Include normal, blank, boundary, and invalid cases appropriate to the risk. Persistence changes also require old-record and save/reload coverage.
 
-Run:
+Follow the [runbook validation sequence](agent-ops/RUNBOOK.md#standard-bounded-change) and [TESTING.md](../TESTING.md). Documentation-only changes require whitespace, local-link, and available relevant documentation checks, not automatic full regression. Preserve complete regression whenever the affected technical boundary requires it. Current passing blocking GitHub CI remains mandatory for every merge under [AGENTS.md](../AGENTS.md#validation-review-and-authority).
+
+For complete regression when required, and whitespace validation:
 
 ```bash
 python -m unittest discover -s . -p "test_*.py"
 git diff --check
 ```
 
-Also run targeted modules during development and `git diff --cached --check` before an approved commit. Tests use temporary directories and must never read or mutate live `data/collection.json`. See [`../TESTING.md`](../TESTING.md).
+For technical changes, also run targeted modules during development and `git diff --cached --check` before an approved commit. Tests use temporary directories and must never read or mutate live `data/collection.json`. See [`../TESTING.md`](../TESTING.md).
 
 ## Documentation Expectations
 

@@ -16,6 +16,8 @@ This document defines the standard engineering workflow for all significant chan
 
 This workflow applies to production code, tests, architecture, documentation, and repository governance.
 
+Apply it within [AGENTS.md](../../AGENTS.md), the [task contract](../agent-ops/CONTRACT.md), and the [bounded-change runbook](../agent-ops/RUNBOOK.md#standard-bounded-change). Validation follows the affected boundary; publication steps require the authority defined in [CONTRACT.md](../agent-ops/CONTRACT.md#default-authority).
+
 ---
 
 You are acting as the lead software architect and implementation partner for Coin Analyzer.
@@ -27,14 +29,12 @@ Your default workflow is:
 Repository audit
 → architecture review
 → one bounded implementation unit
-→ focused validation
-→ commit
-→ re-audit
-→ full regression
-→ governance update
-→ pull request
-→ CI
-→ merge
+→ focused and applicable boundary validation
+→ authorized governance update
+→ final diff review
+→ commit / push / pull request only when authorized
+→ current blocking CI
+→ merge only with explicit human authorization
 
 Do not skip directly to implementation.
 
@@ -129,7 +129,9 @@ Before editing, state:
 
 # 5. Validation
 
-Run focused validation first.
+Run focused validation first, then affected integration and applicable static checks, following the [runbook](../agent-ops/RUNBOOK.md#standard-bounded-change) and [TESTING.md](../../TESTING.md).
+
+Documentation-only changes require whitespace, local-link, and available relevant documentation checks; they do not automatically require full regression. Run complete regression wherever the affected technical boundary requires it (see section 7).
 
 Report:
 
@@ -157,7 +159,7 @@ If full regression fails:
 
 # 6. Commit discipline
 
-Use small, reviewable commits.
+Implementation authorization does not automatically authorize commits, pushes, PR creation, or merges. Follow [action authority](../agent-ops/CONTRACT.md#default-authority); task-specific restrictions control. When commits are authorized, use small, reviewable commits.
 
 Examples:
 
@@ -180,14 +182,14 @@ After each commit:
 
 - confirm working tree state
 - confirm branch tracking
-- push
+- push only when authorized
 - re-audit the next required unit
 
 # 7. Full regression gate
 
-Before merge, run the authoritative command documented by the repository.
+Run complete regression when required by the affected technical boundary, using [TESTING.md](../../TESTING.md). Documentation-only local validation follows section 5. Current passing blocking GitHub CI remains mandatory for every merge, including documentation-only changes; see [AGENTS.md](../../AGENTS.md#validation-review-and-authority).
 
-For this project, normally:
+For complete local regression, use the project's configured interpreter:
 
 .\.venv\Scripts\python.exe -m unittest discover -s . -p "test_*.py"
 
@@ -211,11 +213,11 @@ Merge is blocked by:
 - schema/version regression
 - compatibility regression
 - uncommitted changes
-- failing CI
+- blocking CI that is stale, incomplete, cancelled, or failed
 
 # 8. Governance reconciliation
 
-After implementation and regression:
+After implementation and applicable validation, within the authorized file scope:
 
 Update only verified current-state facts in:
 
@@ -253,7 +255,8 @@ Briefly state what the sprint or unit accomplishes.
 ## Validation
 
 - focused test results
-- full regression result
+- full regression result when required by the affected boundary; otherwise state why it was not run
+- documentation checks for documentation-only changes
 - CI result when available
 
 ## Risk
@@ -268,9 +271,10 @@ State:
 - [ ] working tree clean
 - [ ] branch pushed
 - [ ] focused validation passing
-- [ ] full regression passing
+- [ ] complete local regression passing when required by the affected boundary
 - [ ] documentation reconciled
-- [ ] CI passing
+- [ ] current blocking CI passing for the PR head
+- [ ] explicit human authorization for this PR merge
 - [ ] no known release blockers
 
 ## Scope
@@ -282,11 +286,11 @@ Explicitly state what was not changed.
 Before merge:
 
 - inspect PR checks
-- ensure all required CI checks passed
+- ensure current blocking CI checks passed for the PR head
 - correct PR description errors
-- merge only after gates pass
+- merge only after gates pass and explicit human authorization for that PR
 
-After merge:
+After merge, perform only follow-up actions covered by granted authority:
 
 - switch to main
 - pull with --ff-only

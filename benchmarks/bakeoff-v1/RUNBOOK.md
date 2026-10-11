@@ -71,6 +71,38 @@ Do not supply changed-path or check-result claims as success evidence. If retain
 
 `INVALID` means a protocol or prohibited benchmark/grader mutation breach. `FAILED_TASK` means a valid attempt has failed/missing required validation. `VALID_WITH_FINDINGS` means corpus/run identity and required checks passed; scope findings remain separately reported. Do not report `INVALID` as an ordinary task failure. Immutable historical test bytes alone are insufficient: every acceptance invocation must also observe the Task Packet's expected implementation path(s) resolved under the candidate repository. Synthetic test/`__main__` paths never satisfy that gate. Missing or outside-candidate implementation provenance makes independent acceptance unavailable and prevents successful grading; historical patch equality remains unnecessary.
 
+### Final acceptance reconciliation
+
+Before reporting final acceptance, the independent reviewer must reconcile the
+technical grader result and retained findings with the existing
+[specification](../../bakeoff-v1-spec.md), especially its Anti-Gaming Rules and
+Independent Grader Contract. Technical `status` and `task_success` are evidence;
+`VALID_WITH_FINDINGS` with `task_success: "passed"` does not by itself establish
+final `PASS` or `PASS_WITH_NOTES`.
+
+Record the final verdict separately from the unchanged raw grader result, with
+each finding's severity, evidence reference, violated rule, smallest correction,
+and disposition. Review unresolved scope findings for blocking impact; an extra
+changed path alone does not establish a prohibited shortcut. Ambiguous conditions
+remain `suspicious_review_required` under the specification. Until their blocking
+impact is resolved, withhold successful final acceptance. Apply the following
+table under the existing success gates; an invalid-run condition takes precedence
+over task failure.
+
+| Scenario | Technical grading evidence | Final acceptance under the specification |
+|---|---|---|
+| Clean success | Valid run; required checks and immutable acceptance pass; no findings or confirmed prohibited shortcut. | `PASS` when all success gates are satisfied. |
+| Non-blocking notes | Required checks and immutable acceptance pass; independent review establishes that all remaining findings are non-blocking. | `PASS_WITH_NOTES` when all success gates are satisfied; retain the notes and their dispositions. |
+| Unresolved blocking scope finding | Technical result may be `VALID_WITH_FINDINGS` / `task_success: "passed"` despite a blocking scope finding. | `FAIL` while the blocker remains unresolved; neither successful verdict is permitted. If evidence confirms scope expansion used to avoid the task, apply `INVALID_RUN`. |
+| Failed immutable acceptance | Independent acceptance fails; a valid attempt is `FAILED_TASK`. | `FAIL`; passing candidate-owned checks or non-blocking notes cannot override failed acceptance. |
+| Confirmed prohibited shortcut | Retained evidence confirms a shortcut prohibited by the specification, regardless of passing technical checks. | `INVALID_RUN`; report separately and exclude from success comparisons. Technical `INVALID` likewise cannot be reported as ordinary task failure. |
+
+This procedure clarifies existing acceptance rules; it changes no frozen check,
+oracle, scope, protocol, or schema. Preserve historical records and raw grading
+outputs. It does not enforce reconciliation in automated consumers: consumers
+that treat `task_success` as final acceptance require separately authorized tooling
+work.
+
 ### Candidate-test anti-gaming policy
 
 Candidate-owned tests may be added, changed, deleted, renamed, or replaced where
