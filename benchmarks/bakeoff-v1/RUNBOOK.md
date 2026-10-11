@@ -128,3 +128,99 @@ Retain each run outside the contestant worktree, preferably under `benchmarks/ba
 V1 starts with one trial per contestant/task to validate the pipeline. A repeat is separately identified and never replaces a failure; do not average invalid or unlike trials. Comparative reliability claims require separately authorized repeated evaluation.
 
 The package is ready for freeze review only when corpus integrity validates, the two exact tasks and SHAs remain present, ledger/grader tests pass, this runbook is followed, the baseline and policies are declared, and the known-history limitation is acknowledged. This runbook does not declare `BAKE-OFF_V1_FROZEN` and never launches contestants.
+
+### Deterministic final-acceptance tool (GOV-01B)
+
+Automated consumers must use the separate `verdict` from this tool. Raw
+`task_success` is technical evidence and never establishes final acceptance.
+Existing downstream consumers have not been integrated.
+
+Supply three logical inputs: (1) the unchanged grading result, its retained
+`collect_grading_evidence()` object, and the exact frozen Task Packet used for
+that grading; (2) an independent-review record; (3) a separate operator attestation.
+Use retained evidence only; this tool does not execute checks, launch contestants,
+regrade runs, reconstruct provenance, or grant freeze authority. The operator
+must obtain the genuine technical input set from the authorized grading workflow;
+supplying a replacement Task Packet or fabricated evidence is not permitted.
+
+From the repository root, using operator-controlled files outside contestant
+control:
+
+```powershell
+python -B -m tools.bakeoff_v1_final_acceptance --grading-result <result.json> --grading-evidence <evidence.json> --task-packet <frozen-task.json> --review <review.json> --operator-attestation <attestation.json>
+```
+
+The API is `tools.bakeoff_v1_final_acceptance.evaluate_final_acceptance(result_bytes,
+evidence_bytes, task_packet_bytes, review_bytes, attestation_bytes)`. Inputs are
+UTF-8 JSON bytes with duplicate keys and nonfinite numbers rejected. SHA-256
+bindings cover the **exact file bytes**, including whitespace and final newlines;
+never reserialize a retained record after binding it. The existing evidence
+object's internal canonical checksum is also checked but is not authentication.
+The API returns a new object and never modifies the original inputs. The CLI
+writes only that object to stdout; preserve it separately. Exit code is 0 for
+`PASS` or `PASS_WITH_NOTES`, 1 for `FAIL` or `INVALID_RUN`; argument errors use 2.
+
+The review record has exactly `schema_version: "1"`, a nonempty `reviewer_id`,
+`bindings`, and a `findings` array. `bindings` has exactly:
+
+- `grading_result_sha256`, `grading_evidence_sha256`, `task_packet_sha256`:
+  lowercase SHA-256 digests of each complete supplied file.
+- `run_identity`: `task_id`, `run_id`, `starting_sha`, `corpus_manifest_sha256`
+  copied exactly from the retained grading evidence.
+- `candidate_identity`: `{"kind": "ending_sha", "value": "<full-commit-SHA>"}`
+  for Protocol v1.0, or `{"kind": "candidate_state_sha256", "value": "<SHA-256>"}`
+  for Protocol v1.1. These must match the technical input set.
+
+Each review finding has exactly `finding_id` (unique), `severity`,
+`evidence_reference`, `violated_rule`, `smallest_correction`, `disposition`, and
+`technical_finding_sha256`. The descriptive fields are nonempty strings.
+Dispositions are `nonblocking` (severity `info` or `note`), `blocking`, `ambiguous`,
+or `prohibited_shortcut` (the latter three require severity `blocking`). A
+resolved defect requires new grading/review of the corrected candidate, rather
+than marking a blocker resolved against stale evidence.
+
+For a retained technical finding, `technical_finding_sha256` identifies its JSON
+object using the grader's canonical encoding: UTF-8 `json.dumps(finding,
+sort_keys=True, separators=(",", ":"), ensure_ascii=True)`, then SHA-256.
+The same finding repeated in `scope.findings` and `anti_gaming.findings` gets one
+disposition. Every distinct retained finding requires exactly one disposition;
+missing, duplicate, unmatched, or contradictory dispositions fail closed.
+Additional independent findings use `technical_finding_sha256: null`. An extra
+changed path alone is not cheating; independent review must establish its
+blocking impact or confirm a prohibited shortcut with evidence.
+
+The attestation has exactly `schema_version: "1"`, nonempty `operator_id` and
+`workflow_reference`, `bindings` identical to the review bindings,
+`review_sha256` (SHA-256 of the exact review-record bytes), and these four literal
+JSON boolean confirmations, all `true`:
+
+```json
+{
+  "reviewer_independently_authorized": true,
+  "reviewer_not_contestant": true,
+  "operator_approved_review": true,
+  "operator_accepts_authority_responsibility": true
+}
+```
+
+The operator must establish these facts through an operator-controlled workflow
+**outside contestant-controlled evidence**. The attestation confirms the reviewer
+was independently authorized, was not acting as the contestant or supplying
+contestant-controlled self-review, that this is the operator-approved review
+record, and that the operator accepts responsibility for establishing authority.
+This is an external trust boundary, not cryptographic authentication by the tool.
+A structurally valid attestation is not proof of operator identity, reviewer
+authenticity, cryptographic authenticity, or historical custody. Identifiers,
+`independent: true`, `authority_verified: true`, digests, and file locations do
+not establish authority. Do not let contestants supply the attestation. Missing,
+false, incomplete, contradictory, or mismatched attestations prevent success.
+`authority_status: "externally_attested_structurally_valid"` reports only the
+structural check under that external policy.
+
+Verdict precedence: technical `INVALID` or an operator-approved independent
+finding confirming a prohibited shortcut yields `INVALID_RUN`, even when task
+checks fail. Otherwise rejected evidence, failed/unavailable required checks or
+immutable acceptance, or unresolved blocking/ambiguous findings yield `FAIL`.
+All success gates plus independently established nonblocking findings yield
+`PASS_WITH_NOTES`; all success gates with no findings yield `PASS`. The output
+retains reasons, exact bindings, and review findings separately from raw grading.
