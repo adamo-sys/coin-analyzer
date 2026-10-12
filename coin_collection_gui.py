@@ -13,6 +13,8 @@ from collector_work_queue_gui import WorkQueueWindow
 from collection_resume import collection_resume_rows
 from collection_shelf_gui import CollectionShelfWindow
 from copy import deepcopy
+from dataclasses import replace
+import weakref
 from collector_work_queue import derive_work_queue, WorkQueueProjectionError
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
@@ -1702,6 +1704,13 @@ Total Unique Dates: {total_unique_dates}
         )
         self.year_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         self.year_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('year', self.year_var.get()))
+
+        self.identity_origin_labels = {}
+        for row, field in enumerate(("country", "denomination", "year")):
+            label = ttk.Label(edit_frame, wraplength=160)
+            label.grid(row=row, column=2, sticky=tk.W, padx=(8, 0))
+            self.identity_origin_labels[field] = label
+        self.initialize_identity_handoff()
         
         ttk.Label(edit_frame, text="Grade:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.grade_var = tk.StringVar()
@@ -1740,6 +1749,13 @@ Total Unique Dates: {total_unique_dates}
         # Action buttons
         action_frame = ttk.Frame(edit_frame)
         action_frame.grid(row=7, column=0, columnspan=2, pady=(10, 0))
+
+        ttk.Label(
+            edit_frame,
+            text="Review and correct the fields above. Save to Collection confirms these values; "
+                 "OCR readings remain unverified. Manual edits are kept when applying suggestions.",
+            wraplength=450,
+        ).grid(row=8, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
         
         ttk.Button(action_frame, text="Use Detection Results", command=self.use_detection_results).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Save to Collection", command=self.save_to_collection).pack(side=tk.LEFT, padx=(0, 5))
@@ -2834,6 +2850,7 @@ Total Unique Dates: {total_unique_dates}
     
     def clear_image(self):
         """Clear current image and attached photo state."""
+        self.discard_identity_suggestions()
         self.current_image = None
         self.current_photo = None
         self.current_item_photos = []
@@ -2855,6 +2872,7 @@ Total Unique Dates: {total_unique_dates}
             return
         
         result = self.app.run_denomination_detector()
+        self.discard_identity_suggestions()
         self.detection_result = result
         
         if result['success']:
@@ -3039,30 +3057,71 @@ Total Unique Dates: {total_unique_dates}
         except Exception as e:
             messagebox.showerror("Error", f"Advanced identification failed: {str(e)}")
     
+    def initialize_identity_handoff(self):
+        """Track form edits without retaining Tk objects in callback cycles."""
+        if hasattr(self, "_identity_origins"):
+            return
+        self._identity_origins = {}
+        self._setting_identity = False
+        reference = weakref.ref(self)
+        for field in ("country", "denomination", "year"):
+            variable = getattr(self, field + "_var")
+            self._identity_origins[field] = "unknown" if variable.get() else "empty"
+
+            def changed(*_args, field=field, reference=reference):
+                gui = reference()
+                if gui is not None and not gui._setting_identity:
+                    gui._identity_origins[field] = "manual"
+                    gui.refresh_identity_origins()
+
+            variable.trace_add("write", changed)
+        self.refresh_identity_origins()
+
+    def identity_origin_text(self, field):
+        return {
+            "empty": "Not supplied",
+            "unknown": "Origin unknown / review",
+            "manual": "Manually entered / corrected",
+            "suggested": "Suggested / unconfirmed",
+        }[self._identity_origins[field]]
+
+    def refresh_identity_origins(self):
+        for field, label in getattr(self, "identity_origin_labels", {}).items():
+            label.config(text=self.identity_origin_text(field))
+
+    def set_identity_field(self, field, value, origin):
+        self._setting_identity = True
+        try:
+            getattr(self, field + "_var").set(value)
+            self._identity_origins[field] = origin
+        finally:
+            self._setting_identity = False
+        self.refresh_identity_origins()
+
+    def discard_identity_suggestions(self):
+        self.initialize_identity_handoff()
+        for field, origin in self._identity_origins.copy().items():
+            if origin == "suggested":
+                self.set_identity_field(field, "", "empty")
+
     def use_detection_results(self):
         """Use detection results to fill form as suggestions."""
         if not self.detection_result or not self.detection_result['success']:
             messagebox.showwarning("Warning", "No successful detection results available")
             return
         
-        # Store original values for comparison
-        original_country = self.country_var.get()
-        original_denomination = self.denomination_var.get()
-        original_year = self.year_var.get()
-        
-        # Pre-fill fields as suggestions only
-        self.country_var.set(self.detection_result['country'])
-        self.denomination_var.set(self.detection_result['denomination'])
-        year = complete_year(self.detection_result.get("year"))
-        if year is not None:
-            self.year_var.set(year)
+        self.initialize_identity_handoff()
+        years = {year for value in (self.detection_result.get("year_candidates") or [])
+                 if (year := complete_year(value)) is not None}
+        for field in ("country", "denomination", "year"):
+            value = self.detection_result.get(field)
+            if field == "year":
+                value = complete_year(value) if len(years) <= 1 else None
+            if (self._identity_origins[field] in {"empty", "suggested"}
+                    and isinstance(value, str) and value.strip()
+                    and value.strip().casefold() not in {"unknown", "unidentified", "unresolved", "none", "n/a"}):
+                self.set_identity_field(field, value.strip(), "suggested")
         self.refresh_entry_suggestions()
-        
-        # Show warning that these are suggestions
-        messagebox.showwarning("Experimental Suggestion", 
-                             "Detection results pre-filled as suggestions only.\n"
-                             "Please verify manually before saving.\n"
-                             "These are NOT guaranteed to be correct.")
     
     def log_detection(self, detection_result):
         """Log detection results to debug feedback CSV."""
@@ -3114,6 +3173,10 @@ Total Unique Dates: {total_unique_dates}
         year = self.year_var.get().strip()
         grade = self.grade_var.get().strip()
         notes = self.notes_text.get("1.0", tk.END).strip()
+
+        if not any((country, denomination, year, grade, notes, self.current_item_photos)):
+            messagebox.showwarning("Collection Entry", "Enter coin details or attach a photo before saving.")
+            return
         
 
         try:
@@ -3178,6 +3241,10 @@ Total Unique Dates: {total_unique_dates}
             application_version=APPLICATION_VERSION,
             photos=photos,
         )
+        # Source scores have no defensible confidence semantics at this handoff.
+        observation = replace(observation, evidence_snapshot={
+            "method": self.detection_result.get("method", "unknown"),
+        })
         result = self.confirmed_observation_store.append(observation)
         if not result.success:
             messagebox.showwarning(
@@ -3228,9 +3295,9 @@ Total Unique Dates: {total_unique_dates}
     
     def clear_form(self):
         """Clear form fields."""
-        self.country_var.set("")
-        self.denomination_var.set("")
-        self.year_var.set("")
+        self.initialize_identity_handoff()
+        for field in ("country", "denomination", "year"):
+            self.set_identity_field(field, "", "empty")
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
         if hasattr(self, "acquisition_controls"):
