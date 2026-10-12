@@ -3,6 +3,7 @@
 import sys
 import tkinter as tk
 import unittest
+import weakref
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -154,17 +155,23 @@ class IdentificationEvidenceSummaryTests(unittest.TestCase):
         except tk.TclError as error:
             self.skipTest(f"Tk display unavailable: {error}")
         root.withdraw()
-        try:
+
+        def exercise_labels():
             with TemporaryDirectory() as directory:
                 gui = self.detected_gui(directory, ["CANADA ONE CENT 1959"])
                 gui.detection_label = tk.Label(root, wraplength=250)
                 gui.confidence_label = tk.Label(root, wraplength=250)
                 # The real adapter result is replayed only to avoid running OCR twice.
-                gui.app.run_denomination_detector = lambda: gui.detection_result
+                gui.app.run_denomination_detector = lambda result=gui.detection_result: result
                 gui.run_detection()
                 root.update_idletasks()
                 self.assertIn("OCR readings", gui.detection_label.cget("text"))
                 self.assertIn("not verified", gui.detection_label.cget("text"))
+                return weakref.ref(gui)
+
+        try:
+            gui_reference = exercise_labels()
+            self.assertIsNone(gui_reference(), "Tk fixture must not survive for collection on a worker thread")
         finally:
             root.destroy()
 
