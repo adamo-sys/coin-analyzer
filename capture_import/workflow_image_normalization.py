@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import struct
 import warnings
 import zipfile
 from io import BytesIO
@@ -30,6 +31,18 @@ PREPARED_MANIFEST_NAME = "prepared-manifest.json"
 _NORMALIZED_SUBDIR = "normalized"
 _JPEG_QUALITY = 92
 _JPEG_MIME = "image/jpeg"
+
+# EXIF display transforms, including mirrored orientations. Identity (1)
+# and absent/unsupported values need no pixel operation.
+_EXIF_TRANSPOSE = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
 
 # Defensive: reject coin_id values that could escape the workspace or
 # create ambiguous paths.  The upstream manifest validator is expected
@@ -242,7 +255,7 @@ class ImageNormalizationStage:
         return payload
 
     def _normalize_image(self, payload: bytes) -> tuple[bytes, int, int]:
-        """Decode, resize, convert to sRGB, strip metadata, save as JPEG.
+        """Decode, orient pixels, resize, convert to RGB, strip EXIF, save as JPEG.
 
         Returns ``(jpeg_bytes, width, height)``.
 
@@ -268,6 +281,16 @@ class ImageNormalizationStage:
                 with Image.open(BytesIO(payload)) as image:
                     # Explicit load to catch decode errors early.
                     image.load()
+
+                    # Apply orientation while EXIF is still available. Do not
+                    # coerce malformed tag values into a display instruction.
+                    # Unsupported values retain the stored pixel layout; EXIF
+                    # decoding errors fail through StageExecutionError below.
+                    orientation = image.getexif().get(274)
+                    if type(orientation) is int:
+                        transpose = _EXIF_TRANSPOSE.get(orientation)
+                        if transpose is not None:
+                            image = image.transpose(transpose)
 
                     # Convert to RGB (sRGB).  Discard alpha and palette.
                     if image.mode != "RGB":
@@ -296,7 +319,13 @@ class ImageNormalizationStage:
                         optimize=False,
                     )
                     return output.getvalue(), width, height
-        except (OSError, ValueError, Image.DecompressionBombError) as exc:
+        except (
+            OSError,
+            ValueError,
+            SyntaxError,
+            struct.error,
+            Image.DecompressionBombError,
+        ) as exc:
             raise StageExecutionError(
                 self.stage_id,
                 exc,
