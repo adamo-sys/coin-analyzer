@@ -80,6 +80,7 @@ from multi_device_workspace import (
 )
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
+from legacy_coin_recognition_capability import complete_year
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
@@ -2858,7 +2859,29 @@ Total Unique Dates: {total_unique_dates}
         if result['success']:
             text = f"Suggested Country: {result['country']}\n"
             text += f"Suggested Denomination: {result['denomination']}\n"
-            text += f"Suggested Year: {result['year']}\n"
+            year = complete_year(result.get("year"))
+            if year is not None:
+                text += f"Suggested Year: {year}\n"
+            else:
+                text += "Date uncertain: OCR could not determine a complete year reliably.\n"
+                candidates = result.get("year_candidates")
+                years = sorted({
+                    year for value in (candidates if isinstance(candidates, list) else [])
+                    if (year := complete_year(value)) is not None
+                })
+                if years:
+                    text += "Plausible OCR years (suggestions only): " + ", ".join(years) + "\n"
+                if len(years) > 1:
+                    text += "Manual verification is required because of conflicting OCR readings.\n"
+                elif years:
+                    text += "OCR did not establish the date reliably; manual verification is required.\n"
+                else:
+                    text += "Partial or unreadable date evidence requires manual verification.\n"
+                text += (
+                    "The correct year may be different. Check the date on the coin manually "
+                    "and enter it in the Year field, or upload a clearer photo and run detection again.\n"
+                    "Use Detection Results will leave your Year field unchanged.\n"
+                )
 
             needs_review = self.recognition_result_needs_paired_review(result)
             pair = self.paired_visual_review_paths(self.current_item_photos)
@@ -2876,7 +2899,10 @@ Total Unique Dates: {total_unique_dates}
             self._set_visual_review_handoff_available(bool(needs_review and pair))
             
             confidence_text = f"Denomination Evidence Score: {result['confidence']:.2%}\n"
-            confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
+            if complete_year(result.get("year")) is not None:
+                confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
+            else:
+                confidence_text += "Year Evidence Score: unavailable (date unresolved).\n"
             confidence_text += "Source scores are not calibrated probabilities."
             self.confidence_label.config(text=confidence_text)
             
@@ -2985,7 +3011,9 @@ Total Unique Dates: {total_unique_dates}
         # Pre-fill fields as suggestions only
         self.country_var.set(self.detection_result['country'])
         self.denomination_var.set(self.detection_result['denomination'])
-        self.year_var.set(self.detection_result['year'])
+        year = complete_year(self.detection_result.get("year"))
+        if year is not None:
+            self.year_var.set(year)
         self.refresh_entry_suggestions()
         
         # Show warning that these are suggestions
@@ -3093,6 +3121,9 @@ Total Unique Dates: {total_unique_dates}
     def record_detection_observation_after_save(self, country, denomination, year, photos):
         """Persist a confirmed detection outcome after collection persistence succeeds."""
         if not self.detection_result or not self.detection_result.get("success"):
+            return None
+        # An incomplete manual save is allowed, but is not a confirmed date identity.
+        if complete_year(year) is None:
             return None
         observation = ConfirmedObservationRecord.for_detection_save(
             self.detection_result,

@@ -10,6 +10,16 @@ from legacy_recognition_orchestration import (
 )
 
 
+def complete_year(value: object) -> str | None:
+    """Accept a complete ASCII year without completing partial OCR digits."""
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        return None
+    text = str(value).strip()
+    if len(text) == 4 and text.isascii() and text.isdigit() and text[0] != "0":
+        return text
+    return None
+
+
 class LegacyCoinRecognitionCapability:
     name = LEGACY_COIN_RECOGNITION
 
@@ -81,6 +91,15 @@ class LegacyCoinRecognitionCapability:
             )
             if name in output
         }
+        if "year_candidates" in output:
+            # Only years cross this boundary; raw OCR, source labels and scores do not.
+            candidates = output.get("year_candidates")
+            metadata["year_candidates"] = sorted({
+                year
+                for candidate in (candidates if isinstance(candidates, list) else [])
+                if isinstance(candidate, Mapping)
+                if (year := complete_year(candidate.get("year"))) is not None
+            })
         return RecognitionCapabilityResult(
             capability=self.name,
             success=True,
@@ -105,7 +124,7 @@ def to_legacy_detector_result(
     """Restore the exact dictionary shape historically observed by the GUI."""
 
     if result.success:
-        return {
+        output = {
             "success": True,
             "country": result.findings.get("country", "Unknown"),
             "denomination": result.findings.get("denomination", "Unknown"),
@@ -114,6 +133,9 @@ def to_legacy_detector_result(
             "year_confidence": result.source_metadata.get("year_confidence", 0.0),
             "method": "coin_recognition",
         }
+        if "year_candidates" in result.source_metadata:
+            output["year_candidates"] = list(result.source_metadata["year_candidates"])
+        return output
     return {
         "success": False,
         "error": result.source_metadata.get("legacy_error", "Detection failed"),
