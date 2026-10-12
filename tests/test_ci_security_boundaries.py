@@ -1,18 +1,20 @@
 """Small static and synthetic guards for the inspected blocking CI boundary."""
 
 import copy
-from pathlib import Path
 import re
 import shlex
 import subprocess
 import tempfile
-import tomllib
 import unittest
+from pathlib import Path
 
+import tomllib
 import yaml
 
-from tests.test_repository_privacy_boundaries import WorkflowLoader, validate_workflow_privacy
-
+from tests.test_repository_privacy_boundaries import (
+    WorkflowLoader,
+    validate_workflow_privacy,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
@@ -81,9 +83,18 @@ def validate_tests_security(text):
         '"+$CI_SHA:refs/ci/security-event"',
         'unset auth CI_TOKEN',
         'test "$(git rev-parse --is-shallow-repository)" = false',
-        'git rev-list --objects --all --missing=print > "$RUNNER_TEMP/security-object-inventory.txt"',
+        'git rev-list --objects --all --missing=print --no-object-names > "$RUNNER_TEMP/security-object-inventory.txt"',
         "if grep -q '^?'",
         'exit 1',
+        'export GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0',
+        '"--missing=allow-promisor"',
+        '"--missing=print-info"',
+        '"--no-recurse-submodules", "--no-write-fetch-head", "--refmap="',
+        '"--stdin", "origin"',
+        'stderr=subprocess.DEVNULL',
+        'timeout=120',
+        'if blobs != missing:',
+        'if missing_ids(complete):',
     )
     if any(part not in objects["run"] for part in required):
         raise ValueError("Full-history object preparation and completeness gates required")
@@ -168,6 +179,18 @@ class TestsWorkflowSecurityTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assert_rejected(workflow)
 
+    def test_targeted_hydration_controls_cannot_be_removed(self):
+        for token in ('"--missing=allow-promisor"', '"--missing=print-info"',
+                      '"--stdin", "origin"', '"--no-recurse-submodules"',
+                      '"--no-write-fetch-head"', '"--refmap="',
+                      'if blobs != missing:', 'if missing_ids(complete):',
+                      'export GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0'):
+            workflow = copy.deepcopy(self.workflow)
+            step = workflow["jobs"]["gitleaks"]["steps"][1]
+            step["run"] = step["run"].replace(token, "")
+            with self.subTest(token=token):
+                self.assert_rejected(workflow)
+
     def test_permissions_privileged_events_and_scan_credentials_are_rejected(self):
         for permissions in (None, "write-all", {"contents": "write"},
                             {"contents": "read", "id-token": "write"}):
@@ -220,7 +243,7 @@ class TestsWorkflowSecurityTests(unittest.TestCase):
             commit("root-marker\nside-marker\n")
             git("checkout", "main")
             commit("root-marker\nmain-marker\n")
-            result = subprocess.run(["git", "merge", "--no-commit", "side"], cwd=root, capture_output=True)
+            result = subprocess.run(["git", "merge", "--no-commit", "side"], cwd=root, capture_output=True, check=False)
             self.assertNotEqual(result.returncode, 0)  # Synthetic conflict resolved only in merge.
             commit("root-marker\nmain-marker\nside-marker\nmerge-marker\n")
             (root / "fixture.txt").unlink()

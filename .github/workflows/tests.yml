@@ -149,6 +149,7 @@ jobs:
           git -c "http.extraheader=AUTHORIZATION: basic $auth" fetch --refetch --no-filter origin \
             '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' \
             "+$CI_SHA:refs/ci/security-event" >/dev/null 2>&1 || fetch_status=$?
+          export SECURITY_FETCH_AUTH="$auth"
           unset auth CI_TOKEN
           printf 'security-diagnostic fetch_exit=%s\n' "$fetch_status"
           test "$fetch_status" -eq 0
@@ -158,62 +159,82 @@ jobs:
           printf 'security-diagnostic shallow_exit=%s shallow=%s\n' "$shallow_status" "$shallow"
           test "$shallow_status" -eq 0
           { test "$(git rev-parse --is-shallow-repository)" = false; } 2>/dev/null
+          export GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
           inventory_status=0
-          git rev-list --objects --all --missing=print > "$RUNNER_TEMP/security-object-inventory.txt" 2>/dev/null || inventory_status=$?
+          git rev-list --objects --all --missing=print --no-object-names > "$RUNNER_TEMP/security-object-inventory.txt" 2>/dev/null || inventory_status=$?
           printf 'security-diagnostic inventory_exit=%s\n' "$inventory_status"
           test "$inventory_status" -eq 0
-          # Read metadata only; never hydrate objects or emit raw Git output.
-          GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0 python3 - <<'PY'
-          import collections
+          # Only promised, reachable blobs may be hydrated; never emit Git output.
+          python3 - <<'PY'
           import os
           import pathlib
           import re
-          import shlex
           import subprocess
 
-          def probe(label, *args):
+
+          def probe(*args):
               result = subprocess.run(["git", *args], stdout=subprocess.PIPE,
-                                      stderr=subprocess.DEVNULL, text=True)
-              print(f"security-diagnostic {label}_exit={result.returncode}")
-              return result
+                                      stderr=subprocess.DEVNULL, timeout=120, check=False)
+              if result.returncode:
+                  raise ValueError("Git metadata check failed")
+              return result.stdout.decode("utf-8", errors="strict")
 
           try:
-              version = probe("version", "--version")
-              match = re.fullmatch(r"git version ([0-9]+(?:\.[0-9]+){1,3})\s*", version.stdout)
-              print("security-diagnostic git_version=" + (match[1] if match else "UNKNOWN"))
-              for key, allowed in (
-                  ("extensions.partialclone", r"origin"),
-                  ("remote.origin.promisor", r"true|false"),
-                  ("remote.origin.partialclonefilter", r"blob:none|blob:limit:[0-9]+[kmg]?|tree:[0-9]+|object:type=(?:blob|tree|commit|tag)|auto"),
-              ):
-                  result = probe("config", "config", "--get", key)
-                  value = result.stdout.strip()
-                  safe = value if result.returncode == 0 and re.fullmatch(allowed, value) else (
-                      "UNSET" if result.returncode == 1 else "REDACTED")
-                  print(f"security-diagnostic {key}={safe}")
               inventory = pathlib.Path(os.environ["RUNNER_TEMP"], "security-object-inventory.txt")
-              missing = {line.split()[0][1:] for line in inventory.read_text().splitlines()
-                         if line.startswith("?")}
-              info = probe("classification", "rev-list", "--objects", "--all",
-                           "--missing=print-info", "--no-object-names")
-              classes = {}
-              if info.returncode == 0:
-                  for line in info.stdout.splitlines():
-                      if not line.startswith("?"):
-                          continue
-                      fields = shlex.split(line)
-                      types = [field[5:] for field in fields[1:] if field.startswith("type=")]
-                      kind = types[0] if len(types) == 1 and types[0] in (
-                          "blob", "tree", "commit", "tag") else "UNKNOWN"
-                      classes[fields[0][1:]] = kind
-              counts = collections.Counter(classes.get(oid, "UNKNOWN") for oid in missing)
-              for kind in ("blob", "tree", "commit", "tag", "UNKNOWN"):
-                  print(f"security-diagnostic missing_{kind}={counts[kind]}")
-              print(f"security-diagnostic missing_total={len(missing)}")
-          except Exception:
-              print("security-diagnostic diagnostics=UNAVAILABLE")
+              oid_pattern = r"[0-9a-f]{40}|[0-9a-f]{64}"
+              def missing_ids(text):
+                  missing = set()
+                  for line in text.splitlines():
+                      if line.startswith("?"):
+                          oid = line[1:]
+                          if not re.fullmatch(oid_pattern, oid):
+                              raise ValueError("Malformed inventory")
+                          missing.add(oid)
+                  return missing
+
+              missing = missing_ids(inventory.read_text())
+              # This traversal rejects missing non-promised objects before network I/O.
+              probe("rev-list", "--objects", "--all", "--missing=allow-promisor",
+                    "--no-object-names")
+              info = probe("rev-list", "--objects", "--all", "--missing=print-info",
+                           "--no-object-names")
+              blobs = set()
+              for line in info.splitlines():
+                  if not line.startswith("?"):
+                      continue
+                  oid = line.split(" ", 1)[0][1:]
+                  if not re.fullmatch(oid_pattern, oid) or not line.endswith(" type=blob"):
+                      raise ValueError("Only missing blobs are authorized")
+                  blobs.add(oid)
+              if blobs != missing:
+                  raise ValueError("Inconsistent inventory")
+              print(f"security-diagnostic hydration_requested={len(missing)}")
+              auth = os.environ.pop("SECURITY_FETCH_AUTH")
+              if missing:
+                  env = dict(os.environ)
+                  # Keep credentials out of argv; IDs use byte-oriented stdin.
+                  env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="http.extraheader",
+                             GIT_CONFIG_VALUE_0="AUTHORIZATION: basic " + auth)
+                  result = subprocess.run(
+                      ["git", "fetch", "--refetch", "--no-filter", "--no-tags",
+                       "--no-recurse-submodules", "--no-write-fetch-head", "--refmap=",
+                       "--stdin", "origin"],
+                      input=("\n".join(sorted(missing)) + "\n").encode("ascii"),
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                      env=env, timeout=120, check=False)
+                  if result.returncode:
+                      raise ValueError("Targeted fetch failed")
+              complete = probe("rev-list", "--objects", "--all", "--missing=print",
+                               "--no-object-names")
+              inventory.write_text(complete)
+              if missing_ids(complete):
+                  raise ValueError("Incomplete hydration")
+              print("security-diagnostic hydration_complete=true")
+          except Exception:  # noqa: BLE001 - Never disclose raw Git/OS exception metadata.
+              print("::error::Targeted security object hydration failed")
               raise SystemExit(1)
           PY
+          unset SECURITY_FETCH_AUTH
           if grep -q '^?' "$RUNNER_TEMP/security-object-inventory.txt"; then
             echo '::error::Full-history security scan requires complete Git objects'
             exit 1
