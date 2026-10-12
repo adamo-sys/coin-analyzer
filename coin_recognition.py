@@ -115,6 +115,17 @@ class CoinRecognizer:
             
             # Detect country with confidence (no default to Canada)
             country_result = self.detect_country(image_path, recognition_text)
+
+            # A phrase formed by joining different OCR jobs is an inference,
+            # not a phrase observed within one reading. Preserve legacy findings
+            # while deriving displayable denomination matches per OCR job.
+            denomination_matches = []
+            for reading in year_result.get('recognized_readings', []):
+                reading_result = self.identify_denomination(coin_segment, coin_info, ocr_text=reading)
+                denomination_matches.extend(
+                    item['matched_text'] for item in reading_result['candidates']
+                    if 'matched_text' in item
+                )
             
             return {
                 'success': True,
@@ -125,6 +136,16 @@ class CoinRecognizer:
                 'year_candidates': year_result['candidates'],
                 'country': country_result['country'],
                 'country_confidence': country_result['confidence'],
+                # Only matched identity phrases cross the desktop evidence boundary.
+                # Full transcripts and OCR diagnostics remain detector-local.
+                'identification_evidence': {
+                    'country_matches': country_result.get('matches', []),
+                    'country_candidates': country_result.get('candidates', []),
+                    'denomination_matches': denomination_matches,
+                    'denomination_candidates': [
+                        item['denomination'] for item in denomination_result.get('candidates', [])
+                    ],
+                },
                 'orientation': orientation,
                 'ocr_text_preview': year_result['all_ocr_text'][:500],  # First 500 chars for preview
                 'ocr_full_text': year_result['all_ocr_text'],
@@ -292,9 +313,10 @@ class CoinRecognizer:
                 # Binary exact-phrase evidence, not a calibrated probability.
                 "confidence": 1.0,
                 "source": "ocr_text",
+                "matched_text": match.group(0),
             }
             for pattern, denomination in patterns
-            if re.search(pattern, normalized)
+            if (match := re.search(pattern, normalized))
         ]
         if not candidates:
             return {
@@ -397,6 +419,7 @@ class CoinRecognizer:
                 "candidates": [],
                 "all_ocr_text": f"OCR unavailable: {error.__class__.__name__}",
                 "recognized_text": "",
+                "recognized_readings": [],
             }
 
         for source_name, region, config in ocr_jobs:
@@ -437,6 +460,7 @@ class CoinRecognizer:
             'candidates': year_candidates,
             'all_ocr_text': '\n'.join(all_ocr_text),
             'recognized_text': '\n'.join(recognized_text),
+            'recognized_readings': recognized_text,
         }
 
     def build_embossed_text_jobs(self, image_path: str, coin_info: Dict) -> List[tuple]:
@@ -855,10 +879,12 @@ class CoinRecognizer:
         
         # Score each country based on matches
         country_scores = {}
+        matches = []
         for country, patterns in country_patterns.items():
             score = 0
             for pattern in patterns:
                 if re.search(rf"\b{re.escape(pattern)}\b", text_lower):
+                    matches.append(pattern)
                     # Exact match gets higher score
                     if pattern == text_lower:
                         score += 1.0
@@ -877,15 +903,21 @@ class CoinRecognizer:
                 best_country = country
         
         # Return unknown if confidence is too low
+        evidence = {
+            'matches': sorted(set(matches)),
+            'candidates': sorted(country.capitalize() for country, score in country_scores.items() if score > 0),
+        }
         if best_score < 0.5:
             return {
                 'country': 'unknown',
-                'confidence': best_score
+                'confidence': best_score,
+                **evidence,
             }
         
         return {
             'country': best_country.capitalize(),
-            'confidence': best_score
+            'confidence': best_score,
+            **evidence,
         }
     
     def extract_ocr_support(self, image_path: str) -> str:
