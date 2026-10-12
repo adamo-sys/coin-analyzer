@@ -134,11 +134,52 @@ jobs:
             /test_coins/README.md
           sparse-checkout-cone-mode: false
 
-      - name: Scan repository history for secrets
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+      - name: Prepare complete Git objects for security scanning
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+          CI_TOKEN: ${{ github.token }}
+          CI_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Full-history scanning is authorized to transfer historical objects.
+          # Sparse checkout only limits worktree materialization.
+          auth=$(printf 'x-access-token:%s' "$CI_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.extraheader=AUTHORIZATION: basic $auth" fetch --refetch --no-filter origin \
+            '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' \
+            "+$CI_SHA:refs/ci/security-event"
+          unset auth CI_TOKEN
+          test "$(git rev-parse --is-shallow-repository)" = false
+          git rev-list --objects --all --missing=print > "$RUNNER_TEMP/security-object-inventory.txt"
+          if grep -q '^?' "$RUNNER_TEMP/security-object-inventory.txt"; then
+            echo '::error::Full-history security scan requires complete Git objects'
+            exit 1
+          fi
+          rm -- "$RUNNER_TEMP/security-object-inventory.txt"
+
+      - name: Prepare pinned Gitleaks binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          cd "$RUNNER_TEMP/gitleaks"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            --output gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          echo '9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  gitleaks.tar.gz' | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+
+      - name: Scan all available Git history for secrets
+        shell: bash
+        env:
+          GIT_NO_LAZY_FETCH: "1"
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          # No SARIF, artifact, comment, summary, or verbose finding output.
+          "$RUNNER_TEMP/gitleaks/gitleaks" git . --config=.gitleaks.toml \
+            --log-opts="--full-history --all --root -m --no-ext-diff --no-textconv" \
+            --redact=100 --exit-code=2 --log-level=info
 
   test:
     strategy:
@@ -183,6 +224,7 @@ jobs:
           tests.test_sprint19_ocr_review_package_boundaries
           tests.test_evaluation_case_contract
           tests.test_repository_privacy_boundaries
+          tests.test_ci_security_boundaries
           tests.test_legacy_recognition_orchestration
           tests.test_legacy_coin_recognition_capability
           tests.test_legacy_recognition_integration

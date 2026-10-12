@@ -76,10 +76,18 @@ The workflow is defined in `.github/workflows/tests.yml`.
 Every checkout in `.github/workflows/*.yml` and `*.yaml` uses non-cone sparse
 checkout to exclude all contents of `test_coins/` except `test_coins/README.md`,
 and disables credential persistence. This limits worktree materialization; it
-does not prove protected Git objects were never transferred. Gitleaks retains
-full-history scanning. Historical exposure requires a separate authorized review.
+does not prove protected Git objects were never transferred. The Gitleaks job
+explicitly refetches complete objects for all branch/tag refs and the event SHA,
+checks for shallow/missing objects, and scans fetched history with `--full-history
+--all --root -m`. This deliberately permits historical object transfer for the
+security scan; it is not a protected-object confidentiality guarantee. Historical
+exposure requires a separate authorized review.
 
-The blocking Tests workflow uploads no artifacts. Quality Advisory permits only
+The blocking Tests workflow uploads no artifacts. It invokes the checksum-pinned
+Gitleaks 8.24.3 binary directly, extends its built-in detection rules, and retains
+nonzero scanner exit codes as job failures. It writes no scanner report, comment,
+or summary. Redacted, non-verbose job logs show aggregate findings/errors; their
+absence is not proof of confidentiality. Quality Advisory permits only
 `pyright-report.json`; Mutmut Advisory permits only `artifacts/mutmut-results.txt`,
 `artifacts/mutmut-survivor-diffs.txt`, and `artifacts/mutmut-report.json`, generated
 by `tools/capture_mutmut_evidence.py`. These advisory reports can contain tool
@@ -91,13 +99,21 @@ boundaries; an upload path allowlist does not establish report-content provenanc
 Run the focused policy suite:
 
 ```bash
-python -m unittest tests.test_repository_privacy_boundaries
+python -m unittest tests.test_repository_privacy_boundaries tests.test_ci_security_boundaries
 ```
 
 It parses every workflow structurally, validates each checkout and artifact upload
 against job-specific policy, rejects malformed/duplicate/ambiguous YAML and unsafe
 options, and verifies root/nested image exclusions with a temporary synthetic Git
-repository. It never uses protected coin images for materialization checks.
+repository. It never uses protected coin images for materialization checks. The bounded CI
+security guards additionally reject artifact actions (including unreviewed embedded
+publishers), nonblocking/skipped security steps, loss of the inspected history
+options, shallow checkout, token-permission expansion, privileged PR triggers,
+and scan-step credentials. Synthetic Git history exercises root, deletion, side
+branch, unmerged branch, and merge-resolution selection. These are static recipe
+and synthetic selection checks, not a real scanner run or an exhaustive shell/
+workflow security analysis. See the [assessment](docs/agent-ops/ci-security-hardening-assessment.md)
+for evidence, historical-test authority, residual risks, and follow-ups.
 
 ## Adding Tests
 
