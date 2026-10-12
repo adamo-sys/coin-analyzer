@@ -145,12 +145,75 @@ jobs:
           # Sparse checkout only limits worktree materialization.
           auth=$(printf 'x-access-token:%s' "$CI_TOKEN" | base64 -w0)
           echo "::add-mask::$auth"
+          fetch_status=0
           git -c "http.extraheader=AUTHORIZATION: basic $auth" fetch --refetch --no-filter origin \
             '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' \
-            "+$CI_SHA:refs/ci/security-event"
+            "+$CI_SHA:refs/ci/security-event" >/dev/null 2>&1 || fetch_status=$?
           unset auth CI_TOKEN
-          test "$(git rev-parse --is-shallow-repository)" = false
-          git rev-list --objects --all --missing=print > "$RUNNER_TEMP/security-object-inventory.txt"
+          printf 'security-diagnostic fetch_exit=%s\n' "$fetch_status"
+          test "$fetch_status" -eq 0
+          shallow_status=0
+          shallow=$(git rev-parse --is-shallow-repository 2>/dev/null) || shallow_status=$?
+          case "$shallow" in true|false) ;; *) shallow=UNKNOWN ;; esac
+          printf 'security-diagnostic shallow_exit=%s shallow=%s\n' "$shallow_status" "$shallow"
+          test "$shallow_status" -eq 0
+          { test "$(git rev-parse --is-shallow-repository)" = false; } 2>/dev/null
+          inventory_status=0
+          git rev-list --objects --all --missing=print > "$RUNNER_TEMP/security-object-inventory.txt" 2>/dev/null || inventory_status=$?
+          printf 'security-diagnostic inventory_exit=%s\n' "$inventory_status"
+          test "$inventory_status" -eq 0
+          # Read metadata only; never hydrate objects or emit raw Git output.
+          GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0 python3 - <<'PY'
+          import collections
+          import os
+          import pathlib
+          import re
+          import shlex
+          import subprocess
+
+          def probe(label, *args):
+              result = subprocess.run(["git", *args], stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL, text=True)
+              print(f"security-diagnostic {label}_exit={result.returncode}")
+              return result
+
+          try:
+              version = probe("version", "--version")
+              match = re.fullmatch(r"git version ([0-9]+(?:\.[0-9]+){1,3})\s*", version.stdout)
+              print("security-diagnostic git_version=" + (match[1] if match else "UNKNOWN"))
+              for key, allowed in (
+                  ("extensions.partialclone", r"origin"),
+                  ("remote.origin.promisor", r"true|false"),
+                  ("remote.origin.partialclonefilter", r"blob:none|blob:limit:[0-9]+[kmg]?|tree:[0-9]+|object:type=(?:blob|tree|commit|tag)|auto"),
+              ):
+                  result = probe("config", "config", "--get", key)
+                  value = result.stdout.strip()
+                  safe = value if result.returncode == 0 and re.fullmatch(allowed, value) else (
+                      "UNSET" if result.returncode == 1 else "REDACTED")
+                  print(f"security-diagnostic {key}={safe}")
+              inventory = pathlib.Path(os.environ["RUNNER_TEMP"], "security-object-inventory.txt")
+              missing = {line.split()[0][1:] for line in inventory.read_text().splitlines()
+                         if line.startswith("?")}
+              info = probe("classification", "rev-list", "--objects", "--all",
+                           "--missing=print-info", "--no-object-names")
+              classes = {}
+              if info.returncode == 0:
+                  for line in info.stdout.splitlines():
+                      if not line.startswith("?"):
+                          continue
+                      fields = shlex.split(line)
+                      types = [field[5:] for field in fields[1:] if field.startswith("type=")]
+                      kind = types[0] if len(types) == 1 and types[0] in (
+                          "blob", "tree", "commit", "tag") else "UNKNOWN"
+                      classes[fields[0][1:]] = kind
+              counts = collections.Counter(classes.get(oid, "UNKNOWN") for oid in missing)
+              for kind in ("blob", "tree", "commit", "tag", "UNKNOWN"):
+                  print(f"security-diagnostic missing_{kind}={counts[kind]}")
+              print(f"security-diagnostic missing_total={len(missing)}")
+          except Exception:
+              print("security-diagnostic diagnostics=UNAVAILABLE")
+              raise SystemExit(1)
+          PY
           if grep -q '^?' "$RUNNER_TEMP/security-object-inventory.txt"; then
             echo '::error::Full-history security scan requires complete Git objects'
             exit 1
