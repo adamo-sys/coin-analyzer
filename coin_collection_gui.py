@@ -80,7 +80,7 @@ from multi_device_workspace import (
 )
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
-from legacy_coin_recognition_capability import complete_year
+from legacy_coin_recognition_capability import bounded_identification_evidence, complete_year
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
@@ -2857,7 +2857,8 @@ Total Unique Dates: {total_unique_dates}
         self.detection_result = result
         
         if result['success']:
-            text = f"Suggested Country: {result['country']}\n"
+            text = self.identification_evidence_summary(result)
+            text += f"\nIdentity suggestions\nSuggested Country: {result['country']}\n"
             text += f"Suggested Denomination: {result['denomination']}\n"
             year = complete_year(result.get("year"))
             if year is not None:
@@ -2898,13 +2899,9 @@ Total Unique Dates: {total_unique_dates}
             self.detection_label.config(text=text)
             self._set_visual_review_handoff_available(bool(needs_review and pair))
             
-            confidence_text = f"Denomination Evidence Score: {result['confidence']:.2%}\n"
-            if complete_year(result.get("year")) is not None:
-                confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
-            else:
-                confidence_text += "Year Evidence Score: unavailable (date unresolved).\n"
-            confidence_text += "Source scores are not calibrated probabilities."
-            self.confidence_label.config(text=confidence_text)
+            self.confidence_label.config(
+                text="Confidence: unavailable. Source scores are not calibrated probabilities."
+            )
             
             # Log detection for debugging
             self.log_detection(result)
@@ -2912,6 +2909,32 @@ Total Unique Dates: {total_unique_dates}
             self.detection_label.config(text=f"Detection failed: {result.get('error', 'Unknown error')}")
             self.confidence_label.config(text="")
             self._set_visual_review_handoff_available(False)
+
+    @staticmethod
+    def identification_evidence_summary(result):
+        """Describe bounded OCR support separately from the detector's identity findings."""
+        evidence = bounded_identification_evidence(result.get("identification_evidence")) or {}
+        candidates = result.get("year_candidates")
+        years = sorted({
+            year for value in (candidates if isinstance(candidates, list) else [])
+            if (year := complete_year(value)) is not None
+        })
+        lines = ["OCR readings (may be wrong; normalized matches)"]
+        for label, values in (
+            ("Country", evidence.get("country_matches", [])),
+            ("Denomination", evidence.get("denomination_matches", [])),
+            ("Date", years),
+        ):
+            lines.append(f"{label}: " + (", ".join(values) if values else "unavailable"))
+        lines.append("Other inscriptions: unavailable in this summary.")
+        for label, field in (("Country", "country"), ("Denomination", "denomination")):
+            choices = evidence.get(field + "_candidates", [])
+            if len(choices) > 1:
+                lines.append(f"{label} conflicting: " + ", ".join(choices) + ". Verify manually.")
+            elif str(result.get(field) or "").strip().casefold() in {"", "unknown", "none"}:
+                lines.append(f"{label} unresolved: verify manually.")
+        lines.append("Status: not verified. Manually verify Country, Denomination, Year before saving.")
+        return "\n".join(lines) + "\n"
 
     @staticmethod
     def recognition_result_needs_paired_review(result):

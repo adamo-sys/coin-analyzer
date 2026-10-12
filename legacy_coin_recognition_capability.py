@@ -20,6 +20,21 @@ def complete_year(value: object) -> str | None:
     return None
 
 
+def bounded_identification_evidence(value: object) -> dict[str, list[str]] | None:
+    """Allow only short match/candidate lists; never forward full OCR or diagnostics."""
+    if not isinstance(value, Mapping):
+        return None
+    evidence = {}
+    for name in ("country_matches", "country_candidates", "denomination_matches", "denomination_candidates"):
+        values = value.get(name)
+        evidence[name] = sorted({
+            " ".join(item.split())
+            for item in (values[:20] if isinstance(values, list) else [])
+            if isinstance(item, str) and 0 < len(item.strip()) <= 40 and item.isprintable()
+        })
+    return evidence
+
+
 class LegacyCoinRecognitionCapability:
     name = LEGACY_COIN_RECOGNITION
 
@@ -100,6 +115,9 @@ class LegacyCoinRecognitionCapability:
                 if isinstance(candidate, Mapping)
                 if (year := complete_year(candidate.get("year"))) is not None
             })
+        identification_evidence = bounded_identification_evidence(output.get("identification_evidence"))
+        if identification_evidence is not None:
+            metadata["identification_evidence"] = identification_evidence
         return RecognitionCapabilityResult(
             capability=self.name,
             success=True,
@@ -135,6 +153,9 @@ def to_legacy_detector_result(
         }
         if "year_candidates" in result.source_metadata:
             output["year_candidates"] = list(result.source_metadata["year_candidates"])
+        identification_evidence = bounded_identification_evidence(result.source_metadata.get("identification_evidence"))
+        if identification_evidence is not None:
+            output["identification_evidence"] = identification_evidence
         return output
     return {
         "success": False,
