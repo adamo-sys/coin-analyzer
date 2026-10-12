@@ -417,25 +417,19 @@ class CoinRecognizer:
 
         year_candidates.sort(key=lambda item: (-item['confidence'], item['year'], item['source']))
 
-        # Select only an unambiguous plurality. Conflicting OCR variants must
-        # not become an arbitrary year suggestion because of iteration order.
+        # Preprocessing variants are correlated, not independent votes. A
+        # repeated reading cannot resolve a different plausible complete year.
         best_year = None
         year_confidence = 0.0
-        counts = {}
-        for candidate in year_candidates:
-            counts[candidate['year']] = counts.get(candidate['year'], 0) + 1
-        if counts:
-            ordered_counts = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-            top_year, top_count = ordered_counts[0]
-            tied = len(ordered_counts) > 1 and ordered_counts[1][1] == top_count
-            if not tied:
-                best_year = top_year
-                best_source_score = max(
-                    item['confidence']
-                    for item in year_candidates
-                    if item['year'] == top_year
-                )
-                year_confidence = min(best_source_score + (0.1 if top_count > 1 else 0.0), 1.0)
+        distinct_years = {candidate['year'] for candidate in year_candidates}
+        if len(distinct_years) == 1:
+            best_year = next(iter(distinct_years))
+            best_source_score = max(item['confidence'] for item in year_candidates)
+            # Preserve the legacy source score for consistent successful reads;
+            # this heuristic is not a calibrated OCR probability.
+            year_confidence = min(
+                best_source_score + (0.1 if len(year_candidates) > 1 else 0.0), 1.0,
+            )
         
         return {
             'year': best_year,
@@ -519,10 +513,20 @@ class CoinRecognizer:
         """Return plausible four-digit years without repairing ambiguous glyphs."""
 
         current_year = datetime.now().year
-        # Tesseract sometimes inserts spaces between otherwise clear digits.
-        digit_joined = re.sub(r"(?<=\d)\s+(?=\d)", "", str(text))
-        matches = re.findall(r"(?<!\d)(18[5-9][0-9]|19[0-9]{2}|20[0-9]{2})(?!\d)", digit_joined)
-        return [year for year in matches if 1850 <= int(year) <= current_year]
+        # Consider consecutive horizontal digit tokens without crossing lines
+        # or splitting tokens. Keep spaced dates beside other complete dates.
+        matches = []
+        for group in re.finditer(r"[0-9]+(?:[ \t]+[0-9]+)*", str(text)):
+            tokens = re.split(r"[ \t]+", group.group())
+            for start in range(len(tokens)):
+                year = ""
+                for token in tokens[start:]:
+                    year += token
+                    if len(year) >= 4:
+                        if len(year) == 4 and 1850 <= int(year) <= current_year:
+                            matches.append(year)
+                        break
+        return matches
 
     @staticmethod
     def resize_for_ocr(image: np.ndarray, maximum_dimension: int = 1000) -> np.ndarray:
