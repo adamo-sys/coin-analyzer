@@ -81,6 +81,7 @@ from multi_device_workspace import (
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
 from legacy_coin_recognition_capability import bounded_identification_evidence, complete_year
+from identification_recapture_guidance import build_recapture_guidance
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
@@ -2880,9 +2881,27 @@ Total Unique Dates: {total_unique_dates}
                     text += "Partial or unreadable date evidence requires manual verification.\n"
                 text += (
                     "The correct year may be different. Check the date on the coin manually "
-                    "and enter it in the Year field, or upload a clearer photo and run detection again.\n"
+                    "and enter it in the Year field. A clearer photo may provide additional evidence.\n"
                     "Use Detection Results will leave your Year field unchanged.\n"
                 )
+
+            # Only explicit roles for every supplied input establish a missing
+            # reverse. Unlabelled photos or an unattached analysed image leave
+            # side coverage unknown; do not infer it from recognition output.
+            photos = self.normalized_photo_state(self.current_item_photos)
+            reverse_missing = bool(
+                photos
+                and all(photo.role == PhotoRole.FRONT for photo in photos)
+                and any(
+                    os.path.normcase(os.path.abspath(photo.path))
+                    == os.path.normcase(os.path.abspath(self.app.current_image_path))
+                    for photo in photos
+                )
+            )
+            guidance = build_recapture_guidance(result, reverse_missing=reverse_missing)
+            if guidance:
+                text += "\nPhoto suggestions (optional; not identity evidence)\n"
+                text += "\n".join(guidance) + "\n"
 
             needs_review = self.recognition_result_needs_paired_review(result)
             pair = self.paired_visual_review_paths(self.current_item_photos)
