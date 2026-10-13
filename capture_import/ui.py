@@ -41,7 +41,11 @@ from .terminal_persistence import (
     Schema3TerminalPersistenceService,
     TerminalPersistenceService,
 )
-from .transaction import Schema3PackageImportTransactionService
+from .transaction import (
+    PackageImportExecutionResult,
+    Schema3PackageImportTransactionService,
+    Schema3TransactionGenesisResult,
+)
 from .workflow_execution import (
     ImportWorkflow,
     PipelineOutcome,
@@ -235,11 +239,11 @@ class CapturePackageImportDialog:
         self.content.grid(row=1, column=0, sticky="nsew")
         self.content.columnconfigure(0, weight=1)
         self.content.rowconfigure(0, weight=1)
-        self.progress = ttk.Progressbar(self.content, mode="indeterminate")
-        self.progress.grid(row=0, column=0, sticky="ew", pady=30)
+        self.progress = ttk.Progressbar(self.window, mode="indeterminate")
+        self.progress.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
         self.progress.start(12)
         self.buttons = ttk.Frame(self.window, padding=12)
-        self.buttons.grid(row=2, column=0, sticky="ew")
+        self.buttons.grid(row=3, column=0, sticky="ew")
         self.cancel_button = ttk.Button(
             self.buttons, text="Cancel", command=self.cancel
         )
@@ -390,7 +394,7 @@ class CapturePackageImportDialog:
         if handoff is None:
             raise RuntimeError("OCR review handoff is unavailable.")
         self.progress.stop()
-        self.progress.destroy()
+        self.progress.grid_remove()
         self.status.set(
             "OCR analysis is ready for review. "
             "No collection changes will be saved."
@@ -407,7 +411,7 @@ class CapturePackageImportDialog:
     def _render_preview(self) -> None:
         assert self._prepared is not None
         self.progress.stop()
-        self.progress.destroy()
+        self.progress.grid_remove()
         preview = self._prepared.preview
         self.status.set(
             f"{preview.session_name} — {len(preview.proposals)} coin(s); "
@@ -497,7 +501,12 @@ class CapturePackageImportDialog:
         self._committing = True
         self.import_button.configure(state=tk.DISABLED)
         self.cancel_button.configure(state=tk.DISABLED)
-        self.status.set("Importing collection records and managed images…")
+        self.status.set(
+            "Importing collection records and managed images…\n"
+            "Please wait. Cancel is unavailable until import finishes."
+        )
+        self.progress.grid()
+        self.progress.start(12)
         request = self._request_id
 
         def worker() -> None:
@@ -525,15 +534,27 @@ class CapturePackageImportDialog:
         self.window.destroy()
         self._notify_close_once()
 
-    def _finish_success(self, result) -> None:
+    def _finish_success(
+        self, result: PackageImportExecutionResult | Schema3TransactionGenesisResult
+    ) -> None:
+        if isinstance(result, Schema3TransactionGenesisResult):
+            imported_count = result.journal.imported_count
+            skipped_count = result.journal.skipped_count
+            image_count = len(result.journal.verified_image_inventory)
+        else:
+            imported_count = result.imported_count
+            skipped_count = result.skipped_count
+            image_count = result.image_count
+        self.progress.stop()
+        self.progress.grid_remove()
         self._collection.load_collection()
         self._on_success()
         messagebox.showinfo(
             "Capture Package Imported",
             "Imported successfully\n\n"
-            f"✓ {result.imported_count} coin(s)\n"
-            f"✓ {result.image_count} image(s)\n"
-            f"✓ {result.skipped_count} skipped\n"
+            f"✓ {imported_count} coin(s)\n"
+            f"✓ {image_count} image(s)\n"
+            f"✓ {skipped_count} skipped\n"
             "✓ Metadata committed",
         )
         self._closed = True
@@ -543,6 +564,8 @@ class CapturePackageImportDialog:
 
     def _show_error(self, error: Exception) -> None:
         self._committing = False
+        self.progress.stop()
+        self.progress.grid_remove()
         self._preserve_for_recovery = isinstance(
             error, (RecoveryRequired, RollbackFailed)
         )
