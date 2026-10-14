@@ -67,10 +67,28 @@ class IdentificationEvidenceSummaryTests(unittest.TestCase):
             for phrase in ("canada, usa", "five cents, one cent", "1959, 1969", "Country conflicting",
                            "Denomination conflicting", "Date uncertain", "not verified"):
                 self.assertIn(phrase, text)
-            self.assertEqual("Canada", gui.detection_result["country"])  # Legacy selection is retained.
+            self.assertEqual("Canada", gui.detection_result["country"])  # Detector evidence stays unchanged.
+            self.assertNotIn("Suggested Country: Canada", text)
+            self.assertIn("Country suggestion withheld", text)
             self.assertEqual("unknown", gui.detection_result["denomination"])
             self.assertIsNone(gui.detection_result["year"])
             self.assertEqual([], gui.app.collection.items)
+
+    def test_equivalent_country_candidates_do_not_display_a_conflict(self):
+        for country, candidates in (
+            ("United States", ["USA", "United States", "U.S.A.", "united states of america"]),
+            ("Canada", ["Canada", "CANADA", " Canada ", "CA", "CAN"]),
+            ("Switzerland", ["Helvetia", "Switzerland"]),
+        ):
+            with self.subTest(candidates=candidates), TemporaryDirectory() as directory:
+                output = self.fixture.output("1959")
+                output.update(country=country, identification_evidence={"country_candidates": candidates})
+                gui = self.fixture.gui(directory, output)
+                gui.run_detection()
+                text = self.displayed(gui)
+                self.assertNotIn("Country conflicting", text)
+                self.assertIn("Suggested Country: " + country, text)
+                self.assertIn("not verified", text)
 
     def test_partial_and_missing_evidence_do_not_become_inscriptions_or_identity(self):
         for readings in (["CANADA 19?9"], ["unreadable"]):

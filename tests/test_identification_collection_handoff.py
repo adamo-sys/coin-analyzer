@@ -3,6 +3,7 @@
 import unittest
 import tkinter as tk
 import weakref
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
@@ -72,6 +73,62 @@ class IdentificationCollectionHandoffTests(unittest.TestCase):
             self.assertEqual(("", "", ""), tuple(
                 getattr(gui, name + "_var").get() for name in ("country", "denomination", "year")))
             self.assertEqual([], gui.confirmed_observation_store.load().records)
+
+    def test_country_evidence_handoff_is_advisory_and_idempotent(self):
+        cases = (
+            ("conflict", "Canada", {"country_candidates": ["Canada", "USA"]}, "", ""),
+            ("manual conflict", "Canada", {"country_candidates": ["Canada", "USA"]}, "France", "France"),
+            ("US aliases", "United States", {"country_candidates": ["USA", "U.S.A.", "United States", "united states of america"]}, "", "United States"),
+            ("Canada aliases", "Canada", {"country_candidates": ["Canada", "CANADA", "CA", "CAN"]}, "", "Canada"),
+            ("single", "Canada", {"country_candidates": ["Canada"]}, "", "Canada"),
+            ("legacy", "Canada", None, "", "Canada"),
+            ("missing candidates", "Canada", {}, "", "Canada"),
+            ("malformed evidence", "Canada", "invalid", "", "Canada"),
+            ("malformed candidates", "Canada", {"country_candidates": [None, {}, 5]}, "", "Canada"),
+            ("no selected country", "unknown", {"country_candidates": ["Canada"]}, "", ""),
+            ("no evidence or selection", "unknown", None, "", ""),
+        )
+        for name, selected, evidence, manual, expected in cases:
+            with self.subTest(case=name), TemporaryDirectory() as directory:
+                output = self.fixture.output("1959")
+                output.update(country=selected, identification_evidence=evidence)
+                gui = self.fixture.gui(directory, output)
+                gui.run_detection()
+                if manual:
+                    gui.country_var.set(manual)
+                before = {p.name: p.read_bytes() for p in Path(directory).iterdir() if p.is_file()}
+                for _ in range(2):
+                    gui.use_detection_results()
+                    self.assertEqual((expected, "penny", "1959"), tuple(
+                        getattr(gui, field + "_var").get() for field in ("country", "denomination", "year")))
+                    self.assertEqual([], gui.app.collection.items)
+                    self.assertEqual([], gui.confirmed_observation_store.load().records)
+                    self.assertEqual(before, {p.name: p.read_bytes() for p in Path(directory).iterdir() if p.is_file()})
+                if manual:
+                    self.assertEqual("Manually entered / corrected", gui.identity_origin_text("country"))
+                if name in {"legacy", "missing candidates", "malformed evidence", "malformed candidates", "no evidence or selection"}:
+                    text = gui.detection_label.config.call_args.kwargs["text"]
+                    self.assertIn("Country: unavailable", text)
+                    self.assertIn("not verified", text)
+
+    def test_manual_country_after_conflict_saves_and_reopens_exact_values(self):
+        with TemporaryDirectory() as directory:
+            output = self.fixture.output("1959")
+            output["identification_evidence"] = {"country_candidates": ["Canada", "USA"]}
+            gui = self.fixture.gui(directory, output)
+            gui.run_detection()
+            gui.use_detection_results()
+            self.assertEqual("", gui.country_var.get())
+            self.assertEqual([], gui.app.collection.items)
+            self.assertEqual([], gui.confirmed_observation_store.load().records)
+            gui.country_var.set("France")
+            with patch("coin_collection_gui.messagebox.showinfo"):
+                gui.save_to_collection()
+            item = CoinCollection(gui.app.collection.storage_path).items[0]
+            self.assertEqual(("France", "penny", "1959"), (item.country, item.denomination, item.year))
+            records = gui.confirmed_observation_store.load().records
+            self.assertEqual(1, len(records))
+            self.assertEqual("France", records[0].confirmed_values["country"])
 
     def test_repeated_apply_and_save_do_not_duplicate_record(self):
         with TemporaryDirectory() as directory:
