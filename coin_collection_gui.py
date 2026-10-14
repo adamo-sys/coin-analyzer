@@ -100,7 +100,8 @@ from collection_dashboard import CollectionDashboard
 from collector_companion_readiness import CollectorCompanionReadinessAuditor
 from collector_home_dashboard import CollectorHomeDashboard
 from collector_workspace import CollectorWorkspace
-from canadian_reference_provider import ReferenceFilters, ReferenceQuery
+from canadian_reference_provider import ReferenceFilters, ReferenceQuery, normalize_country as normalize_reference_country
+from capture_import.evidence_candidate_resolver import normalize_country as normalize_evidence_country
 from collection_integrity import CollectionIntegrityAudit
 from denomination_label_audit import (
     DenominationAuditRecord,
@@ -2877,7 +2878,11 @@ Total Unique Dates: {total_unique_dates}
         
         if result['success']:
             text = self.identification_evidence_summary(result)
-            text += f"\nIdentity suggestions\nSuggested Country: {result['country']}\n"
+            text += "\nIdentity suggestions\n"
+            if self.identification_country_conflicts(result):
+                text += "Country suggestion withheld: conflicting OCR evidence. Verify manually.\n"
+            else:
+                text += f"Suggested Country: {result['country']}\n"
             text += f"Suggested Denomination: {result['denomination']}\n"
             year = complete_year(result.get("year"))
             if year is not None:
@@ -2948,6 +2953,16 @@ Total Unique Dates: {total_unique_dates}
             self._set_visual_review_handoff_available(False)
 
     @staticmethod
+    def identification_country_conflicts(result):
+        """Compare bounded candidates using existing aliases; absence proves nothing."""
+        evidence = bounded_identification_evidence(result.get("identification_evidence")) or {}
+        countries = {
+            normalize_reference_country(normalize_evidence_country(value))
+            for value in evidence.get("country_candidates", [])
+        }
+        return len(countries) > 1
+
+    @staticmethod
     def identification_evidence_summary(result):
         """Describe bounded OCR support separately from the detector's identity findings."""
         evidence = bounded_identification_evidence(result.get("identification_evidence")) or {}
@@ -2966,7 +2981,9 @@ Total Unique Dates: {total_unique_dates}
         lines.append("Other inscriptions: unavailable in this summary.")
         for label, field in (("Country", "country"), ("Denomination", "denomination")):
             choices = evidence.get(field + "_candidates", [])
-            if len(choices) > 1:
+            conflicting = (CoinCollectionGUI.identification_country_conflicts(result)
+                           if field == "country" else len(choices) > 1)
+            if conflicting:
                 lines.append(f"{label} conflicting: " + ", ".join(choices) + ". Verify manually.")
             elif str(result.get(field) or "").strip().casefold() in {"", "unknown", "none"}:
                 lines.append(f"{label} unresolved: verify manually.")
@@ -3114,6 +3131,8 @@ Total Unique Dates: {total_unique_dates}
         years = {year for value in (self.detection_result.get("year_candidates") or [])
                  if (year := complete_year(value)) is not None}
         for field in ("country", "denomination", "year"):
+            if field == "country" and self.identification_country_conflicts(self.detection_result):
+                continue
             value = self.detection_result.get(field)
             if field == "year":
                 value = complete_year(value) if len(years) <= 1 else None
