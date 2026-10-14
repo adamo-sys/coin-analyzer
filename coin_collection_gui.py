@@ -422,6 +422,7 @@ class CoinCollectionGUI:
         self.pending_inbox_refresh_callback = None
         self.pending_inbox_completion_done = False
         self.detection_result = None
+        self._observed_source_revision = self.app.image_source_revision
 
         self.capture_import_ready = False
         self.capture_import_recovery_message = RecoveryRequired().safe_message
@@ -2690,6 +2691,7 @@ Total Unique Dates: {total_unique_dates}
         self.current_item_photos = photos
         primary = next((photo for photo in photos if photo.is_primary), None)
         self.app.current_image_path = primary.path if primary else None
+        self.reconcile_source_results()
 
     def upload_image(self):
         """Attach one or more coin photos."""
@@ -2849,9 +2851,32 @@ Total Unique Dates: {total_unique_dates}
         )
         self.refresh_photo_list()
     
+    def reconcile_source_results(self):
+        """Reconcile advice with the GUI's own last-observed primary source."""
+        revision = getattr(self.app, "image_source_revision", 0)
+        previous = getattr(self, "_observed_source_revision", None)
+        self._observed_source_revision = revision
+        if previous is not None and previous != revision:
+            self.invalidate_source_results()
+        return revision
+
+    def invalidate_source_results(self):
+        """Discard source-owned advice without changing manual fields or storage."""
+        self._observed_source_revision = getattr(self.app, "image_source_revision", 0)
+        self.discard_identity_suggestions()
+        self.detection_result = None
+        self.app.current_detection_result = None
+        if hasattr(self, "detection_label"):
+            self.detection_label.config(text="No detection results")
+        if hasattr(self, "confidence_label"):
+            self.confidence_label.config(text="")
+        if hasattr(self, "advanced_id_label"):
+            self.advanced_id_label.config(text="")
+        self._set_visual_review_handoff_available(False)
+        self.refresh_entry_suggestions()
+
     def clear_image(self):
         """Clear current image and attached photo state."""
-        self.discard_identity_suggestions()
         self.current_image = None
         self.current_photo = None
         self.current_item_photos = []
@@ -2859,11 +2884,7 @@ Total Unique Dates: {total_unique_dates}
         if hasattr(self, "image_label"):
             self.image_label.config(image="", text="No photos selected")
         self.app.current_image_path = None
-        self.detection_result = None
-        if hasattr(self, "detection_label"):
-            self.detection_label.config(text="No detection results")
-        if hasattr(self, "confidence_label"):
-            self.confidence_label.config(text="")
+        self.invalidate_source_results()
         self.refresh_photo_list()
     
     def run_detection(self):
@@ -2872,7 +2893,11 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showwarning("Warning", "Please upload an image first")
             return
         
+        source_revision = self.reconcile_source_results()
         result = self.app.run_denomination_detector()
+        if source_revision != self.reconcile_source_results():
+            return
+        self._detection_source_revision = source_revision
         self.discard_identity_suggestions()
         self.detection_result = result
         
@@ -3061,8 +3086,11 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showwarning("Warning", "Please upload an image first")
             return
         
+        source_revision = self.reconcile_source_results()
         try:
             result = self.identifier.identify_coin(self.app.current_image_path)
+            if source_revision != self.reconcile_source_results():
+                return
             
             if result['success']:
                 text = f"Year: {result['year']}\n"
@@ -3072,6 +3100,8 @@ Total Unique Dates: {total_unique_dates}
             else:
                 self.advanced_id_label.config(text=f"Identification failed: {result.get('error', 'Unknown error')}")
         except Exception as e:
+            if source_revision != self.reconcile_source_results():
+                return
             messagebox.showerror("Error", f"Advanced identification failed: {str(e)}")
     
     def initialize_identity_handoff(self):
@@ -3123,6 +3153,7 @@ Total Unique Dates: {total_unique_dates}
 
     def use_detection_results(self):
         """Use detection results to fill form as suggestions."""
+        self.reconcile_source_results()
         if not self.detection_result or not self.detection_result['success']:
             messagebox.showwarning("Warning", "No successful detection results available")
             return
