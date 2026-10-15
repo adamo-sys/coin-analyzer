@@ -1,5 +1,6 @@
 """Synthetic source transitions through the real app and GUI entry state."""
 
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -259,14 +260,19 @@ class StaleDetectionInvalidationTests(unittest.TestCase):
     def test_same_path_nested_newer_results_survive_obsolete_outer_completions(self):
         self.gui.use_identifier = True
         original_run = self.gui.app._recognition_orchestrator.run
-        for operation in ("detection", "advanced", "advanced_error"):
+        for index, operation in enumerate(("detection", "advanced", "advanced_error")):
             with self.subTest(operation=operation):
                 self.detect_and_apply()
                 nested = {}
 
-                def complete_new_source(_path, operation=operation, nested=nested):
-                    Image.new("RGB", (23 + len(operation), 17), "green").save(self.front)
-                    _ = self.gui.app.image_source_revision
+                def complete_new_source(_path, operation=operation, nested=nested, index=index):
+                    previous_stat = self.front.stat()
+                    previous_revision = self.gui.app.image_source_revision
+                    Image.new("RGB", (32 + 16 * index, 17 + 16 * index), "green").save(self.front)
+                    # Exercise replacements without relying on filesystem clock resolution.
+                    os.utime(self.front, ns=(previous_stat.st_atime_ns, previous_stat.st_mtime_ns))
+                    self.assertNotEqual(previous_stat.st_size, self.front.stat().st_size)
+                    self.assertGreater(self.gui.app.image_source_revision, previous_revision)
                     with patch.object(self.gui.app._recognition_orchestrator, "run",
                                       wraps=original_run):
                         self.gui.run_detection()
