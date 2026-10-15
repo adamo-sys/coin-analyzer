@@ -1533,10 +1533,39 @@ class CoinCollectionApp:
     def __init__(self, collection: Optional[CoinCollection] = None,
                  recognition_orchestrator=None):
         self.collection = collection if collection is not None else CoinCollection()
-        self.current_image_path = None
+        self._current_image_path = None
+        self._image_source_signature = None
+        self._image_source_revision = 0
         self.current_detection_result = None
         self.last_added_item_id = ""
         self._recognition_orchestrator = recognition_orchestrator
+
+    @property
+    def current_image_path(self):
+        return self._current_image_path
+
+    @current_image_path.setter
+    def current_image_path(self, path):
+        signature = None
+        if path:
+            normalized = os.path.normcase(os.path.abspath(path))
+            try:
+                stat = os.stat(normalized)
+                metadata = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+            except OSError:
+                metadata = None
+            signature = (normalized, metadata)
+        if signature != self._image_source_signature:
+            self._image_source_signature = signature
+            self._image_source_revision += 1
+            self.current_detection_result = None
+        self._current_image_path = path
+
+    @property
+    def image_source_revision(self):
+        """Refresh cheap source metadata before accepting an analysis result."""
+        self.current_image_path = self.current_image_path
+        return self._image_source_revision
 
     def set_recognition_orchestrator(self, orchestrator) -> None:
         """Inject the runtime-only shell used by the legacy detector path."""
@@ -1576,11 +1605,13 @@ class CoinCollectionApp:
         if not self.current_image_path:
             return {'success': False, 'error': 'No image uploaded'}
         
+        source_revision = self.image_source_revision
+        source_path = self.current_image_path
         try:
             from legacy_coin_recognition_capability import to_legacy_detector_result
             from legacy_recognition_orchestration import LEGACY_COIN_RECOGNITION
 
-            state = self._get_recognition_orchestrator().run(self.current_image_path)
+            state = self._get_recognition_orchestrator().run(source_path)
             result = next(
                 (
                     item
@@ -1591,11 +1622,10 @@ class CoinCollectionApp:
             )
             if result is None:
                 raise RuntimeError("Recognition did not return the legacy detector result.")
-            self.current_detection_result = to_legacy_detector_result(result)
-            return self.current_detection_result
+            detection_result = to_legacy_detector_result(result)
             
         except Exception as e:
-            self.current_detection_result = {
+            detection_result = {
                 'success': False,
                 'error': str(e),
                 'country': 'Unknown',
@@ -1604,7 +1634,9 @@ class CoinCollectionApp:
                 'confidence': 0.0,
                 'method': 'coin_recognition'
             }
-            return self.current_detection_result
+        if source_revision == self.image_source_revision:
+            self.current_detection_result = detection_result
+        return detection_result
     
     def add_to_collection(self, country: str, denomination: str, year: str,
                          grade: str, notes: str, use_detection: bool = False,
