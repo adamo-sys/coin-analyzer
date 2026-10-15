@@ -1363,7 +1363,7 @@ class CoinCollection:
                     # Create items (one per quantity)
                     for i in range(quantity):
                         # Generate unique ID
-                        item_id = f"csv_import_{len(self.items)}_{i}"
+                        item_id = self.generate_item_id()
                         
                         # Create CoinItem
                         item = CoinItem(
