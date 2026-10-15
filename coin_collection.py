@@ -1652,6 +1652,26 @@ class CoinCollectionApp:
         """Add current coin to collection."""
         item_id = self.collection.generate_item_id()
         
+        structured_photos = CoinItem._coerce_photos(photos or [])
+        if structured_photos:
+            structured_photos = CoinItem(
+                id="",
+                image_path=self.current_image_path or "",
+                country="",
+                denomination="",
+                year="",
+                grade="",
+                notes="",
+                date_added="",
+                photos=structured_photos,
+            ).normalized_photos()
+            primary_photo = next((photo for photo in structured_photos if photo.is_primary), structured_photos[0])
+            self.current_image_path = primary_photo.path
+
+        if use_detection:
+            # Recheck the final primary source before consuming cached advice.
+            _ = self.image_source_revision
+
         if use_detection and self.current_detection_result:
             detected_country = self.current_detection_result.get('country')
             if isinstance(detected_country, str):
@@ -1671,22 +1691,6 @@ class CoinCollectionApp:
             confidence = 0.0
             auto_detected = False
         
-        structured_photos = CoinItem._coerce_photos(photos or [])
-        if structured_photos:
-            structured_photos = CoinItem(
-                id="",
-                image_path=self.current_image_path or "",
-                country="",
-                denomination="",
-                year="",
-                grade="",
-                notes="",
-                date_added="",
-                photos=structured_photos,
-            ).normalized_photos()
-            primary_photo = next((photo for photo in structured_photos if photo.is_primary), structured_photos[0])
-            self.current_image_path = primary_photo.path
-
         item = CoinItem(
             id=item_id,
             image_path=self.current_image_path or "",

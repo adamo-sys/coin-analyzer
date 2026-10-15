@@ -80,6 +80,61 @@ class StaleDetectionInvalidationTests(unittest.TestCase):
             self.assertEqual(before, {str(p.relative_to(self.directory)): p.read_bytes() if p.is_file() else None
                   for p in self.directory.rglob("*")})
 
+    def test_detection_backed_save_rechecks_replaced_or_missing_source(self):
+        for transition in ("replace", "delete"):
+            with self.subTest(transition=transition):
+                Image.new("RGB", (8, 8), "red").save(self.front)
+                self.gui.app.current_image_path = str(self.front)
+                self.gui.app.run_denomination_detector()
+                if transition == "replace":
+                    Image.new("RGB", (17, 17), "green").save(self.front)
+                else:
+                    self.front.unlink()
+
+                self.assertTrue(self.gui.app.add_to_collection(
+                    "France", "centime", "1949", "VF-20", "manual notes",
+                    use_detection=True,
+                ))
+                item = self.gui.app.collection.items[-1]
+                self.assertEqual("France", item.country)
+                self.assertEqual("centime", item.denomination)
+                self.assertEqual("1949", item.year)
+                self.assertEqual("VF-20", item.grade)
+                self.assertEqual("manual notes", item.notes)
+                self.assertFalse(item.auto_detected)
+                self.assertEqual(0.0, item.detection_confidence)
+                self.assertIsNone(self.gui.app.current_detection_result)
+
+    def test_detection_backed_save_resolves_final_primary_before_using_advice(self):
+        self.gui.app.run_denomination_detector()
+        self.assertTrue(self.gui.app.add_to_collection(
+            "France", "centime", "1949", "VF-20", "manual notes",
+            use_detection=True,
+            photos=[ItemPhoto(str(self.front)), ItemPhoto(str(self.back), is_primary=True)],
+        ))
+        item = self.gui.app.collection.items[-1]
+        self.assertEqual(str(self.back), item.image_path)
+        self.assertEqual("France", item.country)
+        self.assertEqual("centime", item.denomination)
+        self.assertFalse(item.auto_detected)
+        self.assertEqual(0.0, item.detection_confidence)
+        self.assertIsNone(self.gui.app.current_detection_result)
+
+    def test_detection_backed_save_keeps_valid_advice_for_unchanged_primary(self):
+        self.gui.app.run_denomination_detector()
+        self.assertTrue(self.gui.app.add_to_collection(
+            "France", "centime", "1949", "VF-20", "manual notes",
+            use_detection=True,
+            photos=[ItemPhoto(str(self.back)), ItemPhoto(str(self.front), is_primary=True)],
+        ))
+        item = self.gui.app.collection.items[-1]
+        self.assertEqual(str(self.front), item.image_path)
+        self.assertEqual("Canada", item.country)
+        self.assertEqual("penny", item.denomination)
+        self.assertEqual("1949", item.year)
+        self.assertTrue(item.auto_detected)
+        self.assertEqual(1.0, item.detection_confidence)
+
     def test_current_advanced_identification_still_renders(self):
         self.gui.use_identifier = True
         self.gui.identifier = SimpleNamespace(identify_coin=lambda _: {
