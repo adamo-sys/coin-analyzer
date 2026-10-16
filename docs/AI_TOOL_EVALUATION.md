@@ -245,3 +245,66 @@ For bounded Coin Analyzer changes, prefer:
 5. Revisit Goose specifically for controlled MCP/tool orchestration rather than duplicating OpenCode's reviewer role.
 6. Defer larger local-model reviewer experiments until hardware changes or a smaller, demonstrably stronger model becomes available.
 7. Later benchmark autonomous agents on a small set of historical bounded tasks using task success, test pass rate, scope compliance, human intervention, time, and cost.
+
+### Deferred candidate — Sakana AI MASS
+
+**Disposition: DEFERRED, BOUNDED RESEARCH CANDIDATE — Coin Analyzer / Command Center workflow evaluation only.**
+
+- **Source and scope:** [Sakana AI MASS: Recursive Self-Improvement through
+  Multi-Agent Self-Supervision](https://pub.sakana.ai/mass/) and its
+  [reference repository](https://github.com/SakanaAI/mass). MASS combines
+  multi-agent workflow optimization with model training. This candidate considers
+  only a MASS-inspired workflow comparison with fixed model weights; it is not
+  a reproduction of the training loop or evidence of benefit in this repository.
+- **Hypothesis:** a bounded multi-agent workflow may improve completed-task
+  correctness over the current single-agent Codex baseline enough to justify
+  its additional cost, time, resources and operator burden, without increasing
+  unsafe acceptance or weakening provenance and evidence custody.
+- **Dependencies / entry trigger:** retain existing experiment priorities and
+  authorized filesystem work without interruption or reprioritization. Before
+  designing a run, verify completion of the applicable existing dependencies,
+  including the T10 and Hy3/Hy4 prerequisites tracked in the
+  [research backlog's execution order](roadmap/RESEARCH_EVALUATION_BACKLOG.md#recommended-execution-order-and-reconciliation).
+  Do not infer their completion from historical plans. Once satisfied, a
+  separately authorized bounded design task must freeze the protocol, budgets
+  and independent deterministic acceptance gates before execution is considered.
+- **Controlled comparison to design later:** select 10–20 representative,
+  provenance-backed tasks spanning Coin Analyzer / Command Center correctness,
+  filesystem boundaries, recovery, and evidence handling. Freeze task IDs,
+  exact starting revisions, sanitized fixtures, expected results and executable
+  acceptance criteria before either arm runs. Use the same tasks and starting
+  state in isolated disposable environments for the current single-agent Codex
+  baseline and a fixed MASS-inspired multi-agent workflow. Pin model/version,
+  prompts, permissions, tools and environment; predeclare agent count, rounds,
+  retries, run order/repetitions and total resource caps. Keep any workflow
+  development on separate tasks; no tuning on this frozen evaluation set.
+- **Measurements:** report per-task results and paired aggregate counts with
+  denominators for completed-task correctness; false ACCEPT (an arm declares
+  acceptance but independent gates reject it) and unsafe outcomes; provenance
+  and evidence-custody violations; total input/output tokens and tool calls
+  across every agent, retry and review; wall time and compute/resource use
+  (CPU/GPU time where observable, peak RAM and storage); and operator
+  interventions by count, reason and time. Include failures, timeouts,
+  abstentions and setup/orchestration overhead. Unobservable provider compute
+  is unavailable, not zero; distinguish it from measured local resources.
+- **Independent acceptance / explicit threats:** an evaluator outside both
+  arms runs frozen deterministic correctness, safety, provenance and custody
+  checks against retained outputs and immutable input/output manifests/hashes.
+  Participating agents must not edit gates, expected results or the evidence
+  ledger. Agent votes, self-scores and shared-model reviewers cannot grant
+  ACCEPT. Treat correlated agent errors and self-evaluation bias as explicit
+  threats: inspect paired/shared failure patterns and retain disagreements and
+  unsupported claims rather than treating consensus as independent evidence.
+  Missing or tampered evidence cannot pass; tasks without defensible ground
+  truth or deterministic acceptance remain ineligible pending protocol review.
+- **Decision / stop conditions:** preregister correctness and resource decision
+  rules before execution. Any false ACCEPT, unsafe outcome, provenance or
+  evidence-custody violation blocks promotion and requires review. Stop for
+  budget overruns, configuration drift, task leakage, protected-data exposure
+  or unresolved acceptance evidence. Report ties and inconclusive results;
+  10–20 tasks do not establish general safety or authorize adoption.
+- **Authority / production dependency impact:** queue record only; research
+  and evaluation remain deferred. No new workstream, dependency installation,
+  model-weight modification, training/distillation, production change or
+  interruption of authorized filesystem work. This entry authorizes neither
+  implementation nor experiment execution, commit, publication or adoption.
