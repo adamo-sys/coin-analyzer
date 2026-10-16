@@ -469,8 +469,13 @@ class BackupManager:
             included_files=[],
             excluded_files=[],
             missing_files=[],
-            warnings=[],
+            warnings=[
+                "Photograph file contents are not included in this backup. "
+                "Collection and Photo Vault records preserve photo references/metadata only. "
+                "Back up the photograph files separately.",
+            ],
             restore_notes=[
+                "Restore does not restore photograph file contents; recover them from a separate photograph backup.",
                 "Validate backup before restore.",
                 "Restore creates a pre-restore backup before overwriting files.",
                 "Collection workbook is not modified by restore.",
