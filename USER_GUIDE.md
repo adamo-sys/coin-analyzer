@@ -41,7 +41,7 @@ Core Python dependencies are installed from `requirements.txt`. Optional OCR sup
 If you use Git, clone the repository:
 
 ```powershell
-git clone <repository>
+git clone https://github.com/adamo-sys/coin-analyzer.git
 cd coin-analyzer
 ```
 
@@ -115,69 +115,20 @@ Run_Tests.bat
 
 The manual terminal commands below remain useful fallbacks if a launcher does not work on your system.
 
-### Method 1: PowerShell
+### Terminal launch
 
-Open the project folder in File Explorer.
-
-In the address bar, type:
-
-```powershell
-powershell
-```
-
-Press Enter.
-
-Then run:
+Open PowerShell or a terminal in the project folder after completing Installation.
+Use the same virtual environment where you installed the dependencies:
 
 ```powershell
-python coin_collection_gui.py
+.\.venv\Scripts\python.exe coin_collection_gui.py
 ```
 
-If that fails, try:
-
-```powershell
-py coin_collection_gui.py
-```
-
-### Method 2: VS Code Terminal
-
-Open the project folder in Visual Studio Code.
-
-Open the integrated terminal.
-
-Run:
-
-```powershell
-python coin_collection_gui.py
-```
-
-If needed, use:
-
-```powershell
-py coin_collection_gui.py
-```
-
-### Method 3: Windows Terminal
-
-Open Windows Terminal.
-
-Change to the project folder:
-
-```powershell
-cd path\to\coin-analyzer
-```
-
-Run:
-
-```powershell
-python coin_collection_gui.py
-```
-
-or:
-
-```powershell
-py coin_collection_gui.py
-```
+Keep starting from this same project folder when you return to your collection.
+The ordinary desktop route uses `data/collection.json` relative to that folder;
+starting from another folder or another copy of the project can show a different
+collection. The Windows launcher sets its working folder to its own project folder
+and runs the startup readiness checks before opening the GUI.
 
 ## 5. First-Time Setup
 
@@ -193,16 +144,102 @@ Important files and folders:
 - `requirements-ocr.txt`: optional OCR-related dependencies.
 - `requirements-ai.txt`: optional Ask My Collection provider dependency.
 
-Recommended first-time steps:
+### Your first coin: add, save, find, and reopen
 
-1. Confirm that `data/collection.json` exists.
-2. Keep source workbooks or imports in `collection_data/imports/` or `collection_data/master_collection/`.
-3. Place unsorted photos in `coin_photos/raw/`.
-4. Store owned-coin photos under `coin_photos/collection/`.
-5. Store active purchase candidate photos under `coin_photos/candidates/active/`.
-6. Use the application's backup and data-safety tools before major imports, restores, or collection cleanup work.
+Use the main desktop window for this walkthrough. No recognition, OCR, template
+matching, cloud account, or API key is required. The optional phone-entry review
+route has different controls; it is not part of these steps.
 
-Future packaged releases may remove some of these manual setup steps. For now, keeping the folders organized makes the application easier to use and easier to back up.
+A fresh installation can start without `data/collection.json`. The first successful
+save creates it; you do not need to create an empty JSON file yourself. If you
+expected an existing collection but see no records, check that you launched from
+the correct project folder before adding anything.
+
+#### 1. Prepare and attach photographs
+
+Place the photographs you want to keep in a permanent folder first, for example
+`coin_photos/collection/`. In the main window's **Photos** area, click **Add Photos**.
+Choose one or more files in **Select Coin Photos**. The chooser lists JPEG, PNG,
+WebP, BMP, and TIFF images. Select a photo row to see its preview.
+
+For an obverse/front photo, choose **FRONT** in **Role:**; choose **BACK** for the
+reverse. Click **Set Primary** on the photo you want as the main image. You can
+use **Move Up** and **Move Down** to arrange the photo list. Photo roles are your
+labels, not recognition results.
+
+**Photos attached successfully** means the photos are attached to the current
+form. It does not mean a collection record has been saved. You may also save
+manual details without a photograph and add photographs later through **Edit Item**.
+
+#### 2. Enter what you know
+
+In **Coin Details**, type **Country**, **Denomination**, **Year**, **Grade**, and
+**Notes** as appropriate. The dropdowns accept typed values; you do not need to
+find a matching suggestion. For example, a coin you have identified yourself
+might be entered as Canada / 25 cents / 1968. Use your own coin's information,
+leave unknown fields blank, and record uncertainty in **Notes** rather than guessing.
+
+**Acquisition Details** expands optional purchase information. You can leave it
+closed for this first record. Leave **Run Experimental Detector**, **Run Advanced ID**,
+and **Use Detection Results** unused for manual entry.
+
+#### 3. Save the new record explicitly
+
+Review the fields and attached photos, then click **Save to Collection**. A completely
+empty form cannot be saved. Wait for **Coin added to collection** and dismiss the
+message. After success, the entry form clears and the record appears in **Collection**.
+The **ID** column identifies that saved record; keep it if you need to distinguish
+similar coins.
+
+If an error appears, do not assume the coin was saved. Check the collection list
+before attempting another save. Selecting photos, typing fields, or closing the
+window is not a substitute for **Save to Collection**.
+
+#### 4. Find the record and open metadata and photos
+
+In the **Collection** area's **Search:** box, type a country, year, distinctive
+note, or the saved **ID**. The list filters as you type. Try one cue at a time;
+search matches a text fragment, not separate advanced filters. The **Clear** button
+beside **Search:** restores the full list.
+
+Select the saved row, then click **View Details**. **Item Details** shows the saved
+metadata and a **Photos** list. Select each photo row to see its preview, stored
+path, and photo notes. Merely selecting a row in the main collection list does
+not open the details window. Use **Close** to return.
+
+To correct the saved record, select its row and click **Edit Item**. Change the
+fields or attached photos there, then click **Save** and wait for **Item updated**.
+**Cancel** leaves those draft edits unsaved. Use this editor for an existing coin;
+**Save to Collection** in the main form creates a new record.
+
+#### 5. Return to the coin later
+
+Once saving has succeeded, close Coin Analyzer. Start it again from the same
+project folder using the launcher or terminal command in section 4. Search for
+the record again, select it, and click **View Details**. Check the metadata and
+select each attached photograph, if any. If no row appears, clear the search and confirm you
+opened the same project copy and collection location.
+
+#### Keep the source photos and independent backups
+
+Ordinary initial **Add Photos** / **Save to Collection** entry retains the selected
+source paths. It does not guarantee a managed copy that survives moving, renaming,
+or deleting those source files. Keep the originals at those paths, including
+photos outside `coin_photos/`. If a preview is unavailable, check the path shown
+in **Item Details** and restore the source file from your separate photo backup.
+
+Back up `data/collection.json` and the actual photograph files independently,
+with a copy outside the project folder. A repository clone is not a backup of
+your live collection. **Tools -> Session & Data -> Create Backup Package** preserves collection and
+Photo Vault references/metadata, but **does not include photograph file contents**.
+Package verification checks archive integrity, not complete photo protection;
+restoring a package does not restore the photographs. See [Backup and recovery](docs/BACKUP.md).
+
+This walkthrough is checked against current source and the existing
+[first-coin lifecycle evidence](docs/agent-ops/first-coin-workflow-2026-10-15.md).
+That evidence uses synthetic images and real Tk callbacks with a stubbed native
+file chooser. Native selection, packaged startup, physical input, OS process
+restart, and novice usability acceptance remain unverified by that evidence.
 
 ## 6. Workspace Overview
 
@@ -383,7 +420,7 @@ Photograph
 
 ↓
 
-OCR / Identify
+Manual entry (optional OCR / Identify)
 
 ↓
 
@@ -534,7 +571,7 @@ At minimum, keep copies of:
 - `coin_photos/`
 - `backups/`
 
-Use Tools -> Create Backup Package when available, and keep at least one backup outside the repository folder.
+Use Tools -> Session & Data -> Create Backup Package for metadata, and keep at least one backup outside the repository folder. Photograph file contents are excluded from these packages; copy the actual photo files separately, including any outside `coin_photos/`. See [Backup and recovery](docs/BACKUP.md).
 
 ## 12. Product Philosophy
 
