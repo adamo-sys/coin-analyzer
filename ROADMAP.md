@@ -69,6 +69,7 @@ Direction is locked in [`docs/recognition30-selective-recognition-direction.md`]
 - Ask My Collection capability expansion only after MVP evaluation
 - Market Intelligence improvements
 - Portfolio surface consolidation
+- [Sakana AI MASS — deferred, bounded Coin Analyzer / Command Center research candidate](docs/AI_TOOL_EVALUATION.md#deferred-candidate--sakana-ai-mass), within the existing tool experiment queue; dependency-gated design only, with no execution or implementation authorization.
 
 Candidates are not approved scope. Each requires repository inspection, explicit acceptance criteria, and a reviewed implementation plan.
 
