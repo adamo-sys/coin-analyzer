@@ -184,6 +184,33 @@ After dependencies are installed, `Launch_Coin_Analyzer.bat` is also available a
 
 A fresh installation begins with an empty collection. Back up `data/collection.json` independently; cloning or backing up the repository does not preserve live collection data. See [Backup and recovery](docs/BACKUP.md).
 
+### Add your first coin manually
+
+Recognition is optional. After starting the desktop app, you can enter and save
+what you know without running a detector or configuring AI:
+
+1. Put your photographs in a permanent folder before selecting them. Click
+   **Add Photos** to attach one or more images; selecting photos does not save a record.
+2. Type the **Country**, **Denomination**, **Year**, **Grade**, and **Notes** you
+   know in **Coin Details**. Leave unknown information blank.
+3. Click **Save to Collection**. Wait for **Coin added to collection**, then
+   dismiss the message. The form clears and the saved row appears in **Collection**.
+4. Type a year, country, or saved ID in **Search:**. Select the matching row and
+   click **View Details** to reopen its metadata and photographs. Select each
+   photo row in **Item Details** to see its preview.
+5. After closing the app, start it again from the same project folder and repeat
+   the search. Use **Edit Item** and its **Save** button to change an existing record.
+
+Ordinary first entry stores references to the selected source photographs; keep
+those files at their original paths. Back up the files separately as well as
+`data/collection.json`. **Backup packages contain photo references and metadata,
+not photograph file contents.** Restoring a package does not restore the photos.
+
+See [Your first coin: add, save, find, and reopen](USER_GUIDE.md#your-first-coin-add-save-find-and-reopen)
+for the full walkthrough and [Backup and recovery](docs/BACKUP.md) for coverage.
+These instructions describe the current source-supported workflow; they do not
+claim completed native, packaged, or novice acceptance.
+
 ## Optional Ask My Collection setup
 
 Core collection management does not require an API key or AI dependency.
