@@ -143,3 +143,89 @@ Change this contract through normal repository review.
 
 Agent behavior should adapt to this file; this file should not be silently
 rewritten to accommodate agent behavior.
+
+**Package 0 — single historical checkpoint acceptance amendment**
+
+**1. Effect and authority**
+
+This amendment is ineffective until explicitly approved by the owner and adopted through CONTRACT.md’s normal repository-review process. Draft preparation, the earlier append authorization, and the owner’s reported execution do not constitute adoption.
+
+This is a narrowly scoped qualification of Core Principle 3 solely for the historical evidence requirements identified below. It changes the acceptance basis for one historical checkpoint append. It does not certify compliance with the original procedure, retroactively authorize an execution context, or relax operational safeguards for future work.
+
+**2. Exact scope**
+
+This amendment applies only to:
+
+- Worktree: `C:\Users\adamo\.codex\worktrees\first-save-filesystem-phase1\coin-analyzer`
+- Branch: `feature/first-save-filesystem-phase1`
+- HEAD/base: `8a2258614ac774e4578d1b75046fe0bc0c6a3f11`
+- Target: `docs/agent-ops/checkpoint-first-save-filesystem-phase1.md`
+- Evidence root: `C:\CoinAnalyzerPhase1Temp\package0-checkpoint-20261017-01a14841`
+- Reviewed `checkpoint-write-packet.md`, SHA-256 `FD921C4B24D39544DDB74067809C0D1B392148386DA3392E57A6570BB9E5040B`.
+
+**3. Acceptance clauses being amended**
+
+For acceptance of this historical event only, the alternative criteria below supersede the requirement to establish complete historical compliance with:
+
+- Write-packet pre-write steps 3–4, lines 35–36: contemporaneous raw-index capture, index fingerprint, and historical safeguard checks.
+- Pre-write step 5, line 50: complete writer receipt, including argv, timestamps, writer identity, approval reference, and measured hashes.
+- Write/post-write requirements, lines 54 and 58: proof of the prescribed execution and paired preservation comparisons.
+- Independent verification requirement, line 60: verification of the complete write receipt and actual authorized writer scope.
+- The retained owner authorization of `2026-10-17T12:16:57.363Z`, execution requirements 2, 6, and 7 and its final requirement that every mandatory acceptance condition be satisfied, solely insofar as they require the missing historical proof.
+
+These original requirements and their unmet status remain preserved. No historical packet, approval, receipt, or review verdict shall be rewritten.
+
+**4. Permanent historical evidence limitations**
+
+The acceptance record shall permanently state **UNAVAILABLE HISTORICAL EVIDENCE — ORIGINAL REQUIREMENT NOT SATISFIED** for:
+
+1. A complete actual writer execution receipt.
+2. A contemporaneous pre-write raw-index identity, size, and hash capture.
+3. A paired writer pre-write/post-write raw-index comparison.
+4. Independent corroboration of the actual sanctioned, ordinary non-elevated writer context.
+5. Proof that every required safeguard executed successfully.
+
+“Unavailable” describes the authorized retained record; it is not proof that no record exists anywhere. Neither this amendment nor new observations may be presented as supplying those historical observations.
+
+**5. Alternative acceptance criteria**
+
+Acceptance under this amendment requires one bounded independent verification confirming:
+
+a. The exact identity above and preservation of the scoped repository state against retained evidence.
+
+b. The following checkpoint relationship, using raw bytes:
+
+- Retained rollback image: 104,367 bytes; SHA-256 `D84CFCA591D31CAF634D1E5BE5B5B17D423D37B86C25EE7C22DB2455C7F7C8D1`.
+- Reviewed payload: 8,455 bytes; SHA-256 `9189D54981A099D134A433BC3392CB31EEA4614271DCC0A5FDB8C6949444D568`.
+- Resulting checkpoint: 112,822 bytes; SHA-256 `03DC6D882818D819DEF9966F816ABF28C0F8E9B8A1F59FAAB33AD34F876A76AD`.
+- The checkpoint equals the entire retained rollback image followed by exactly the reviewed payload, without additional or changed bytes.
+
+c. Integrity and accurate characterization of the retained approval, owner execution report, command-history excerpt, rollback image, and independent post-write findings.
+
+d. Current semantic index emptiness and current raw-index/protected-file comparisons against the retained observations. These establish current consistency only; they shall not be described as historical pre-write preservation.
+
+e. Continued applicability of the other Package 0 requirements and retained dispositions, without repeating selector, cleanup, or checkpoint-chain investigations. The historical `5EB442…4347B` assertion remains UNVERIFIED and NON-AUTHORITATIVE.
+
+f. Explicit owner acceptance of the residual uncertainty in section 6.
+
+**6. Accepted uncertainty**
+
+Matching resulting bytes do not establish the actual writer process, execution context, complete command sequence, or execution of every safeguard. They cannot exclude transient index changes later restored, an unrecorded failed attempt, another execution context, or omitted checks. These are unresolved possibilities, not findings that such events occurred.
+
+**7. Independent review and finite exit**
+
+The reviewer must be separate from the writer and amendment preparer, remain read-only, and assess the exact approved amendment, its governing authority, named retained evidence, current scoped state, and alternative criteria.
+
+The review shall return PASS, PASS WITH NOTES containing only non-blocking findings, or FAIL. It shall identify the reviewer, exact snapshot, findings, evidence, and limitations. The original FAIL-for-closure verdict remains intact.
+
+The owner shall explicitly approve or reject this amendment, including whether approval conditionally authorizes the disposition “Package 0 ACCEPTED UNDER AMENDED CRITERIA — PERMANENT HISTORICAL EVIDENCE GAPS.”
+
+Rejection ends this proposal with Package 0 BLOCKED. Approval permits only the agreed bounded verification after valid adoption. Missing authority, a discrepancy, denied access, or a blocking finding ends verification with Package 0 BLOCKED. No automatic recovery or re-review campaign follows.
+
+Only valid adoption, explicit conditional disposition authority, satisfaction of all alternative and unchanged requirements, and the required independent verdict permit that labelled disposition. It shall never be shortened to a claim that the original historical requirements were satisfied.
+
+**8. Exclusions**
+
+This amendment authorizes no checkpoint append, rollback, index/repository mutation, permission change, test, CI action, commit, publication, Package 1 work, or Phase 2 work. Any separately required adoption action needs its own authority.
+
+Phase 1 remains NO-GO and Phase 2 HOLD until their applicable gates are independently satisfied and the required owner authorization is given.
