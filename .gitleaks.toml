@@ -1,9 +1,18 @@
-[allowlist]
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+# Limit the fixture exception to this exact extracted value in these two files.
+[[rules.allowlists]]
 description = "Known non-secret processed-artifact fixture identifiers"
+condition = "AND"
+regexTarget = "secret"
 regexes = [
-  '''normalized-coin-1-front'''
+  '''^normalized-coin-1-front$'''
 ]
 paths = [
-  '''tests/test_processed_artifact_snapshot\.py''',
-  '''tests/test_workflow_execution\.py'''
+  '''^tests[\\/]test_processed_artifact_snapshot\.py$''',
+  '''^tests[\\/]test_workflow_execution\.py$'''
 ]
