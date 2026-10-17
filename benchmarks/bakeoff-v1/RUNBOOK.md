@@ -67,6 +67,41 @@ Run authoritative grading separately from the contestant through `tools.bakeoff_
 
 For Protocol v1.1, retain the trusted pre-run materialization manifest and the post-termination candidate-state freeze. The public grader independently recomputes the state and grades a separate trusted worktree copy; it never needs a contestant completion commit or a protected historical image blob.
 
+#### Exact grading-evidence handoff (GOV-01C)
+
+Supply the optional keyword-only `retain_evidence` callback to `grade_run()`
+to retain the exact evidence used by authoritative grading. The grader collects
+once, grades that internally collected object, then invokes the callback once
+with a deep detached copy, including the unchanged canonical `evidence_sha256`.
+Nested callback mutations cannot change the internal evidence or returned
+grading result. Omitting the callback preserves the existing API and result
+shape for both Protocol v1.0 and v1.1; no new authoritative entry point exists.
+
+The callback contract is `Callable[[dict[str, object]], None]`: return normally
+only after the intended persistence succeeds, and raise on serialization,
+write, or durability failure. Callback exceptions (including failure after a
+partial write) raise `GradingEvidenceRetentionError` with the original exception
+as its cause; no grading result is returned from that call and retention must
+not be reported as successful. A collection failure retains the existing
+`INVALID` result and never invokes the callback or fabricates replacement
+evidence. Successfully collected evidence is offered even if grading rejects it.
+
+Persistence, atomic writes, durability, destinations, and duplicate handling
+remain caller-controlled. There is no automatic retry: a repeated `grade_run()`
+call collects anew and attempts retention anew. The grader cannot verify a
+callback's persistence claim or undo partial external writes. Preserve the
+received object; editing its detached copy invalidates its identity checksum.
+
+For the GOV-01B handoff, serialize this retained object and the raw grading
+result to operator-controlled UTF-8 JSON files outside contestant control.
+**Finalize byte-level serialization before binding retained evidence to review
+and attestation records.** Their SHA-256 bindings cover exact bytes, including
+whitespace and newlines; the internal canonical evidence checksum is a separate
+identity check and is not authentication. Never recollect evidence to stand in
+for the object used by a previous grading call. Independent review and a
+separate operator attestation remain required for final acceptance; raw
+`task_success` never supplies that authority.
+
 Do not supply changed-path or check-result claims as success evidence. If retained claims are supplied for comparison, they are marked unverified and cannot override Git or independently executed check evidence. Retain the evidence object, its output digests, and the grader result outside the candidate worktree.
 
 `INVALID` means a protocol or prohibited benchmark/grader mutation breach. `FAILED_TASK` means a valid attempt has failed/missing required validation. `VALID_WITH_FINDINGS` means corpus/run identity and required checks passed; scope findings remain separately reported. Do not report `INVALID` as an ordinary task failure. Immutable historical test bytes alone are insufficient: every acceptance invocation must also observe the Task Packet's expected implementation path(s) resolved under the candidate repository. Synthetic test/`__main__` paths never satisfy that gate. Missing or outside-candidate implementation provenance makes independent acceptance unavailable and prevents successful grading; historical patch equality remains unnecessary.
@@ -135,8 +170,8 @@ Automated consumers must use the separate `verdict` from this tool. Raw
 `task_success` is technical evidence and never establishes final acceptance.
 Existing downstream consumers have not been integrated.
 
-Supply three logical inputs: (1) the unchanged grading result, its retained
-`collect_grading_evidence()` object, and the exact frozen Task Packet used for
+Supply three logical inputs: (1) the unchanged grading result, its exact evidence
+retained through `grade_run(retain_evidence=...)`, and the exact frozen Task Packet used for
 that grading; (2) an independent-review record; (3) a separate operator attestation.
 Use retained evidence only; this tool does not execute checks, launch contestants,
 regrade runs, reconstruct provenance, or grant freeze authority. The operator
