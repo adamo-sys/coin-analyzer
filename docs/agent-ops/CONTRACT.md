@@ -229,3 +229,207 @@ Only valid adoption, explicit conditional disposition authority, satisfaction of
 This amendment authorizes no checkpoint append, rollback, index/repository mutation, permission change, test, CI action, commit, publication, Package 1 work, or Phase 2 work. Any separately required adoption action needs its own authority.
 
 Phase 1 remains NO-GO and Phase 2 HOLD until their applicable gates are independently satisfied and the required owner authorization is given.
+
+**Package 0 — prospective exception for one known governance-file preservation discrepancy**
+
+**1. Effect, authority, and limited purpose**
+
+This supplemental amendment is ineffective until explicitly approved by the
+owner and adopted through CONTRACT.md’s normal repository-review process.
+Preparation, implementation, publication, or the presence of amendment text in
+the protected checkout does not establish adoption or Package 0 acceptance.
+
+This is an additional, narrowly scoped qualification of Core Principle 3 and
+of the preceding “Package 0 — single historical checkpoint acceptance
+amendment.” It permits prospective consideration of acceptance despite the
+single governance-file preservation discrepancy identified below. It does
+not establish compliance with the original preservation requirements,
+retrospective propagation authorization, or permission for any further
+protected-checkout change.
+
+The checkpoint packet’s independent restrictions require the additional
+explicit owner decision in section 4. Upstream adoption alone does not
+satisfy that requirement.
+
+**2. Exact protected scope and attributed fingerprints**
+
+This exception applies only to:
+
+- Repository: adamo-sys/coin-analyzer.
+- Protected worktree:
+  C:\Users\adamo\.codex\worktrees\first-save-filesystem-phase1\coin-analyzer
+- Protected branch: feature/first-save-filesystem-phase1.
+- Protected HEAD/base: 8a2258614ac774e4578d1b75046fe0bc0c6a3f11.
+- Governance file: docs/agent-ops/CONTRACT.md.
+- Historical checkpoint target:
+  docs/agent-ops/checkpoint-first-save-filesystem-phase1.md.
+- Retained checkpoint packet:
+  C:\CoinAnalyzerPhase1Temp\package0-checkpoint-20261017-01a14841\checkpoint-write-packet.md
+- Packet SHA-256:
+  FD921C4B24D39544DDB74067809C0D1B392148386DA3392E57A6570BB9E5040B.
+
+The owner supplied these raw-byte fingerprints:
+
+- Historical protected CONTRACT.md: 5,923 bytes; SHA-256
+  D0CCA7E9C77A8B4D72B2E8375B3409A0AE6E4969BE5D3657CBFDD8B5C7AE3A07.
+- Current retained protected CONTRACT.md: 12,602 bytes; SHA-256
+  CE2F03D374585FDAFFBF0A80BC9CDEECBC3001E44DC9E13C60863E6C25F8141C.
+- Upstream CONTRACT.md merged through PR #415 at commit
+  f76a22405c4e0f4c77a1d3576e02ecec8ec7af86: SHA-256
+  5832001C38C06C1835B388A05E87D5EBE7EC53804CB8A5331146AC69E8A8D71A.
+
+The owner reports that the original 5,923-byte prefix remains intact, that
+the current protected file contains the appended amendment, and that removing
+146 CR bytes in memory produces the 12,456-byte merged amendment version.
+
+These are attributed findings until independently verified within separately
+authorized scope. Content correspondence does not establish raw-byte
+preservation or historical propagation authorization. No normalization,
+replacement, or restoration of the protected file is authorized.
+
+The current fingerprint identifies the exact retained discrepancy. It does
+not replace the historical fingerprint or become evidence that the original
+preservation requirement was satisfied.
+
+**3. Permanent disclosure and exact acceptance qualification**
+
+Every acceptance record relying on this exception shall permanently include:
+
+KNOWN GOVERNANCE PRESERVATION DISCREPANCY — ORIGINAL REQUIREMENT NOT SATISFIED; HISTORICAL PROPAGATION AUTHORIZATION UNVERIFIED.
+
+The historical and current raw-byte fingerprints differ. Original
+CONTRACT.md preservation was not satisfied. Retention of the current bytes
+does not authorize their historical propagation or establish who propagated
+them, when, or under what authority.
+
+For this exact discrepancy only, this supplement qualifies the prospective
+acceptance application of:
+
+- The preceding amendment’s section 1 limitation to the previously enumerated
+  historical evidence requirements and section 3 enumeration of those
+  requirements.
+- Its section 5(a) scoped-state preservation requirement, section 5(d)
+  protected-file comparisons, and section 5(e) continued Package 0
+  requirements.
+- Its section 7 discrepancy-stop consequence, independent verification,
+  owner acceptance, and labelled disposition requirements.
+- The checkpoint packet’s line 29 sole-change restriction; line 36 unchanged
+  governance hashes; line 58 governance-hash equality and checkpoint-only
+  difference; line 60 preservation verification; and lines 64–66 discrepancy
+  stop consequences, solely as acceptance barriers arising from this one
+  identified CONTRACT.md difference.
+
+This qualification changes only whether future acceptance may proceed under
+express amended criteria. It does not alter the original writer scope,
+convert the governance change into an authorized historical operation, or
+erase any original violation, stop condition, or review finding.
+
+Every other acceptance requirement remains applicable, including the
+preceding amendment’s exact checkpoint byte relationship, retained evidence
+integrity, index requirements, all other protected-file and governance-file
+comparisons, independence requirements, and permanent historical evidence
+limitations. No unrelated discrepancy is excused.
+
+**4. Independent checkpoint-packet restriction**
+
+The retained packet is a separate governing constraint. This CONTRACT.md
+amendment shall not be treated as automatically overriding it.
+
+Before this exception may be used, the owner must separately and explicitly
+approve a prospective qualification of the acceptance consequences of the
+packet provisions identified in section 3, limited to the exact historical
+and current CONTRACT.md fingerprints in section 2.
+
+That decision must identify the packet by path and SHA-256, identify the
+adopted upstream revision containing this supplement, and expressly
+acknowledge both that original preservation was not satisfied and that
+historical propagation authorization remains unverified.
+
+The decision must be retained in a separately authorized adoption or
+acceptance record outside the protected checkout and original evidence
+artifacts. The packet itself, historical approvals, receipts, fingerprints,
+and review verdicts shall remain unchanged.
+
+Approval to prepare or implement this supplement does not constitute that
+packet decision. Without the explicit packet decision, Package 0 remains
+BLOCKED.
+
+**5. Upstream application without protected-checkout mutation**
+
+The adopted upstream contract may govern a later, separately authorized
+Package 0 assessment by explicit owner designation of its exact adopted
+revision and applicability to the protected identity in section 2.
+
+That designation applies governing criteria to the retained snapshot. It
+does not require or authorize checkout, cherry-pick, pull, copying,
+normalization, or any other propagation into the protected checkout.
+
+The protected CONTRACT.md shall retain the current raw bytes identified in
+section 2. The assessment must cite the adopted upstream revision and the
+owner’s applicability and packet decisions separately from the protected
+file’s fingerprint. Local presence of amendment text is not proof of valid
+adoption.
+
+**6. Independent verification and owner acceptance prerequisites**
+
+Before any acceptance under this exception:
+
+1. A read-only reviewer separate from the historical checkpoint writer and
+   amendment preparer must verify the exact adopted amendment, its authority,
+   the explicit packet qualification, and the owner’s applicability decision.
+
+2. Within separately authorized access, the reviewer must independently check
+   the protected identity, exact current raw-byte fingerprint, and reported
+   prefix and content correspondence. New observations must be dated and
+   distinguished from historical evidence. In-memory comparisons do not
+   authorize on-disk normalization.
+
+3. The reviewer must assess every alternative and unchanged requirement of
+   the preceding amendment. This supplement supplies no missing historical
+   writer receipt, index capture, safeguard proof, or propagation authority.
+   The original FAIL-for-closure verdict and the historical
+   5EB442…4347B assertion’s UNVERIFIED and NON-AUTHORITATIVE status remain
+   intact.
+
+4. The reviewer must return PASS, PASS WITH NOTES containing only
+   non-blocking findings, or FAIL, identifying the reviewer, exact reviewed
+   revisions and snapshot, evidence, findings, and limitations. Requested or
+   pending review does not satisfy this gate.
+
+5. The owner must explicitly accept the residual historical uncertainty and
+   this known governance preservation discrepancy, and separately authorize
+   any resulting acceptance disposition.
+
+If eventually authorized and supported by all required evidence, the
+preceding amendment’s disposition label shall be extended to:
+
+Package 0 ACCEPTED UNDER AMENDED CRITERIA — PERMANENT HISTORICAL EVIDENCE GAPS — KNOWN GOVERNANCE PRESERVATION DISCREPANCY.
+
+That label must accompany the permanent disclosure in section 3. It shall
+never be shortened into a claim of original compliance or historical
+propagation authorization.
+
+Missing authority, denied access, a different fingerprint, any additional
+discrepancy, or a blocking finding leaves Package 0 BLOCKED. The preceding
+amendment’s finite-exit rule remains applicable; no automatic repair,
+restoration, investigation expansion, or re-review campaign is authorized.
+
+**7. Exclusions and retained status**
+
+This supplement grants no filesystem or repository mutation, checkpoint
+append, restoration, index change, permission change, test, CI execution,
+branch creation, commit, push, PR, merge, publication, Package 1 work, or
+phase advancement authority. Each separately required implementation,
+adoption, verification, recording, or publication action needs its own
+applicable authorization.
+
+Proposal, implementation, adoption, and review do not themselves certify
+acceptance or grant execution permission.
+
+Until separately authorized acceptance and phase decisions satisfy their
+applicable requirements:
+
+- Package 0: BLOCKED.
+- Phase 1: NO-GO.
+- Phase 2: HOLD.
+- Execution allowlist: EMPTY.
