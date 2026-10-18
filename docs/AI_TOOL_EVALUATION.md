@@ -308,3 +308,50 @@ For bounded Coin Analyzer changes, prefer:
   model-weight modification, training/distillation, production change or
   interruption of authorized filesystem work. This entry authorizes neither
   implementation nor experiment execution, commit, publication or adoption.
+
+### Deferred candidate — Microsoft AI Engineering Coach
+
+**Status: DEFERRED — UNAPPROVED evaluation candidate.**
+
+- **Source / classification:** [Microsoft AI Engineering Coach](https://github.com/microsoft/ai-engineering-coach);
+  developer productivity / agentic engineering / workflow diagnostics.
+  Upstream feature claims remain unverified until independently confirmed.
+- **Queue / dependency:** append to the existing post-foundation developer-tool /
+  agent-workflow evaluation queue, preserving existing candidates and priorities,
+  including Anti Slop, ColGrep-Agent, jgrep, and other approved experiments.
+  Phase 1 filesystem/provenance work and applicable governance gates must be
+  resolved before separately authorized evaluation execution. This entry creates
+  no new workstream and does not interrupt or reprioritize authorized Phase 1 work.
+- **Questions:** can it detect inefficient agent workflows, repeated investigations,
+  prompt/context-management problems, and actionable session-level feedback?
+  Can it identify reusable skills and automation opportunities, and reduce
+  unnecessary tool calls, tokens, and engineering time?
+- **Frozen comparison:** use 10–20 representative tasks at a fixed repository
+  revision, with identical sanitized inputs, success criteria, budgets, and stop
+  conditions. Control: existing Codex workflow without the Coach. Treatment: the
+  same workflow with permitted, isolated Coach analysis or recommendations.
+  Freeze configurations and run order/repetitions before either arm runs; use
+  reproducible isolated environments and provenance-backed expected results.
+- **Measurements:** completed-task correctness; actionable diagnostic findings;
+  false positives and misleading recommendations; token consumption and tool-call
+  counts; wall-clock completion time; repeated or unnecessary investigations;
+  setup and maintenance overhead; and security, privacy, and governance
+  compatibility. Include analysis overhead, failures, and timeouts; report
+  unavailable measurements explicitly.
+- **Evidence / acceptance:** assess diagnostic quality separately from demonstrated
+  workflow improvement. Use independent checks of frozen task success criteria.
+  Claim savings only from controlled evidence including overhead, without degraded
+  correctness or governance compatibility. Inconclusive results do not authorize
+  adoption; tasks without defensible acceptance evidence remain ineligible.
+- **Pre-execution gates:** verify upstream source, license, dependencies, and release
+  provenance; test compatibility with the actual Codex session format; review
+  session-log collection, sensitive-data exposure, and external transmission;
+  confirm analysis cannot modify protected workspaces; obtain explicit approval
+  for network access, executable installation, and agent permissions; and establish
+  reproducible isolated testing before any installation or execution.
+- **Privacy / authority / stops:** no telemetry, credentials, session logs, repository
+  content, or other sensitive information may be transmitted externally without
+  authorization. Stop for unresolved gates, protected-data exposure, protected
+  workspace mutation, configuration drift, budget overruns, or unreliable
+  acceptance evidence. This queue entry authorizes no installation, execution,
+  integration, publication, adoption, or Phase 1 changes.
