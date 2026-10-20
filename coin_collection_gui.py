@@ -4895,24 +4895,29 @@ Total Unique Dates: {total_unique_dates}
         grade_combo.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Asking Price
+        monetary_entries = {}
         ttk.Label(form_frame, text="Asking Price ($):").grid(row=6, column=0, sticky=tk.W, pady=5)
         asking_price_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=asking_price_var).grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Asking price"] = ttk.Entry(form_frame, textvariable=asking_price_var)
+        monetary_entries["Asking price"].grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Shipping
         ttk.Label(form_frame, text="Shipping ($):").grid(row=7, column=0, sticky=tk.W, pady=5)
         shipping_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=shipping_var).grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Shipping"] = ttk.Entry(form_frame, textvariable=shipping_var)
+        monetary_entries["Shipping"].grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Tax/Fees
         ttk.Label(form_frame, text="Tax/Fees ($):").grid(row=8, column=0, sticky=tk.W, pady=5)
         tax_fees_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=tax_fees_var).grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Tax/fees"] = ttk.Entry(form_frame, textvariable=tax_fees_var)
+        monetary_entries["Tax/fees"].grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Estimated Market Value
         ttk.Label(form_frame, text="Est. Market Value ($):").grid(row=9, column=0, sticky=tk.W, pady=5)
         estimated_value_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=estimated_value_var).grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Estimated value"] = ttk.Entry(form_frame, textvariable=estimated_value_var)
+        monetary_entries["Estimated value"].grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
 
         if staged_want_list_intents:
             want_list_status = f"Using shared WANT_LIST context: {len(staged_want_list_intents)} active intent(s)."
@@ -4949,26 +4954,33 @@ Total Unique Dates: {total_unique_dates}
                 )
         
         def get_advice():
+            from math import isfinite
             from buy_advisor import BuyAdvisor
+
+            amounts = []
+            for label, variable in (
+                ("Asking price", asking_price_var),
+                ("Shipping", shipping_var),
+                ("Tax/fees", tax_fees_var),
+                ("Estimated value", estimated_value_var),
+            ):
+                raw = variable.get()
+                try:
+                    amount = float(raw) if raw else 0.0
+                    if not isfinite(amount):
+                        raise ValueError("Non-finite amount")
+                except ValueError:
+                    messagebox.showerror(
+                        "Invalid Amount",
+                        f"{label}: please enter a finite number or leave the field empty.",
+                        parent=dialog,
+                    )
+                    monetary_entries[label].focus_set()
+                    return
+                amounts.append(amount)
+            asking_price, shipping, tax_fees, estimated_market_value = amounts
+
             advisor = BuyAdvisor(self.app.collection, staged_want_list_intents=staged_want_list_intents)
-            
-            # Parse asking price inputs
-            try:
-                asking_price = float(asking_price_var.get()) if asking_price_var.get() else 0.0
-            except ValueError:
-                asking_price = 0.0
-            try:
-                shipping = float(shipping_var.get()) if shipping_var.get() else 0.0
-            except ValueError:
-                shipping = 0.0
-            try:
-                tax_fees = float(tax_fees_var.get()) if tax_fees_var.get() else 0.0
-            except ValueError:
-                tax_fees = 0.0
-            try:
-                estimated_market_value = float(estimated_value_var.get()) if estimated_value_var.get() else 0.0
-            except ValueError:
-                estimated_market_value = 0.0
             
             rec = advisor.advise(
                 country_var.get(),
