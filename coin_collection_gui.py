@@ -5403,22 +5403,42 @@ Total Unique Dates: {total_unique_dates}
         role_var = tk.StringVar(value=PhotoRole.OTHER.value)
         note_var = tk.StringVar()
 
+        def edit_suggestions(field):
+            return self.app.collection.get_field_suggestions(
+                field,
+                country=country_var.get() if field in ("denomination", "year") else "",
+                denomination=denomination_var.get() if field == "year" else "",
+            )
+
         fields = [
-            ("Country:", country_var, self.get_entry_suggestions("country")),
-            ("Denomination:", denomination_var, self.get_entry_suggestions("denomination")),
-            ("Year:", year_var, self.get_entry_suggestions("year")),
+            ("Country:", country_var, edit_suggestions("country")),
+            ("Denomination:", denomination_var, edit_suggestions("denomination")),
+            ("Year:", year_var, edit_suggestions("year")),
             ("Grade:", grade_var, GRADE_SUGGESTIONS),
             ("Type / design:", type_design_var, ()),
         ]
+        edit_combos = {}
         for row_index, (label, variable, values) in enumerate(fields):
             ttk.Label(form, text=label).grid(row=row_index, column=0, sticky=tk.W, pady=4)
-            ttk.Combobox(form, textvariable=variable, values=values).grid(
+            combo = ttk.Combobox(form, textvariable=variable, values=values)
+            edit_combos[label] = combo
+            combo.grid(
                 row=row_index,
                 column=1,
                 sticky=(tk.W, tk.E),
                 pady=4,
                 padx=(5, 0),
             )
+
+        def refresh_edit_years(*_args):
+            edit_combos["Year:"]["values"] = edit_suggestions("year")
+
+        def refresh_edit_dependents(*_args):
+            edit_combos["Denomination:"]["values"] = edit_suggestions("denomination")
+            refresh_edit_years()
+
+        country_var.trace_add("write", refresh_edit_dependents)
+        denomination_var.trace_add("write", refresh_edit_years)
 
         ttk.Label(form, text="Notes:").grid(row=5, column=0, sticky=tk.NW, pady=4)
         notes_text = tk.Text(form, height=4, width=36)
