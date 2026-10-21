@@ -1780,12 +1780,7 @@ Total Unique Dates: {total_unique_dates}
         search_frame = ttk.Frame(collection_frame)
         search_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
-        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        search_entry.bind('<KeyRelease>', self.on_search)
-        ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT)
+        self.create_collection_search_controls(search_frame)
 
         # Collection buttons
         collection_buttons = ttk.Frame(collection_frame)
@@ -3394,6 +3389,20 @@ Total Unique Dates: {total_unique_dates}
             self.collection_tree.insert("", tk.END, iid=row_id,
                                         values=(row.reference.item_id, row.label, row.status, row.recorded_date))
             self._collection_resume_rows[row_id] = row
+
+    def create_collection_search_controls(self, parent):
+        """Build native search controls and keep Clear available only for query text."""
+        ttk.Label(parent, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        self.search_entry = ttk.Entry(parent, textvariable=self.search_var)
+        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.search_entry.bind('<KeyRelease>', self.on_search)
+        self.clear_search_button = ttk.Button(parent, text="Clear", command=self.clear_search, state=tk.DISABLED)
+        self.clear_search_button.pack(side=tk.LEFT)
+        self.search_var.trace_add("write", self._update_clear_search_state)
+
+    def _update_clear_search_state(self, *_args):
+        self.clear_search_button.configure(state=tk.NORMAL if self.search_var.get() else tk.DISABLED)
 
     def on_search(self, event):
         """Handle search input."""

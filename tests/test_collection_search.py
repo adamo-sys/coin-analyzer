@@ -9,6 +9,7 @@ from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from coin_collection import CollectionLoadState, CoinCollection, CoinItem, IdentificationStatus, ItemPhoto
 from coin_collection_gui import CoinCollectionGUI
@@ -230,6 +231,59 @@ class CollectionSearchFeedbackTests(unittest.TestCase):
             gui.on_search(None)
             self.assert_feedback(gui, text, ids)
 
+    def test_clear_preserves_unsaved_entry_and_records_without_saving(self):
+        from tests.test_collector_work_queue_gui import Var
+
+        self.collection.items = [make_item("a", country="Canada", notes="saved note")]
+        original_items = self.collection.items
+        before = deepcopy([vars(item) for item in original_items])
+        gui = self.gui()
+        fields = {"country_var": "France", "denomination_var": "draft denomination",
+                  "year_var": "1901", "grade_var": "draft grade", "type_design_var": "draft design"}
+        for name, value in fields.items():
+            setattr(gui, name, Var(value))
+        gui.notes_text = Mock()
+        gui.notes_text.get.return_value = "unsaved note"
+        gui.acquisition_controls = {"variables": {"purchase_source": Var("draft seller")}}
+        gui.save_to_collection = Mock(side_effect=AssertionError("Search must not save"))
+        with patch.object(self.collection, "save_collection", side_effect=AssertionError("Search must not persist")) as save:
+            for query in ("Canada", "missing", "Canada"):
+                gui.search_var.set(query)
+                gui.on_search(None)
+                gui.clear_search()
+                self.assert_feedback(gui, "1 collection record", ["a"])
+            save.assert_not_called()
+        gui.save_to_collection.assert_not_called()
+        self.assertEqual(fields, {name: getattr(gui, name).get() for name in fields})
+        gui.notes_text.delete.assert_not_called()
+        gui.notes_text.insert.assert_not_called()
+        self.assertEqual("draft seller", gui.acquisition_controls["variables"]["purchase_source"].get())
+        self.assertIs(original_items, self.collection.items)
+        self.assertEqual(before, [vars(item) for item in self.collection.items])
+        self.assertFalse(self.storage_path.exists())
+
+    def test_clear_keeps_existing_selection_reset_semantics(self):
+        self.collection.items = [make_item("a", country="Canada"), make_item("b", country="France")]
+        gui = self.gui()
+        gui.search_var.set("Canada")
+        gui.on_search(None)
+        gui.collection_tree.selected = ("collection-record-0",)
+        gui.on_collection_select()
+        gui.clear_search()
+        self.assert_feedback(gui, "2 collection records", ["a", "b"])
+        self.assertEqual((), gui.collection_tree.selection())
+        self.assertIsNone(gui._selected_collection_task)
+        self.assertEqual("Select a collection record.", gui.collection_task_var.get())
+        self.assertEqual("disabled", gui.show_collection_task_button.options["state"])
+
+    def test_clear_empty_collection_keeps_empty_feedback(self):
+        gui = self.gui()
+        gui.search_var.set("missing")
+        gui.on_search(None)
+        gui.clear_search()
+        self.assertEqual("", gui.search_var.get())
+        self.assert_feedback(gui, "0 collection records (empty collection)", [])
+
     @unittest.skipUnless(os.environ.get("RUN_WORK_QUEUE_NATIVE") == "1", "Opt-in native Tk acceptance")
     def test_native_tk_search_transitions(self):
         root = tk.Tk()
@@ -251,6 +305,97 @@ class CollectionSearchFeedbackTests(unittest.TestCase):
         gui.clear_search()
         root.update()
         self.assert_feedback(gui, "2 collection records", ["a", "b"])
+
+
+class CollectionSearchControlTests(unittest.TestCase):
+    """Exercise the production control wiring without requiring a display."""
+
+    setUp = CollectionSearchTests.setUp
+    gui = CollectionSearchFeedbackTests.gui
+    assert_feedback = CollectionSearchFeedbackTests.assert_feedback
+
+    def controls(self):
+        from tests.test_collector_work_queue_gui import Var, Button
+
+        class TracedVar(Var):
+            def trace_add(self, mode, callback):
+                self.callback = callback
+
+            def set(self, value):
+                super().set(value)
+                self.callback()
+
+        class Control(Button):
+            def __init__(self, parent, **options):
+                super().__init__()
+                self.configure(**options)
+                self.bindings = {}
+
+            def pack(self, **options):
+                pass
+
+            def bind(self, event, callback):
+                self.bindings[event] = callback
+
+            def invoke(self):
+                if self.options.get("state") != "disabled":
+                    self.options["command"]()
+
+        gui = self.gui()
+        with patch("coin_collection_gui.tk.StringVar", TracedVar), \
+                patch("coin_collection_gui.ttk.Label", Control), \
+                patch("coin_collection_gui.ttk.Entry", Control), \
+                patch("coin_collection_gui.ttk.Button", Control):
+            gui.create_collection_search_controls(None)
+        return gui
+
+    def test_clear_button_tracks_query_and_invokes_existing_clear(self):
+        self.collection.items = [make_item("a", country="Canada"), make_item("b", country="France")]
+        gui = self.controls()
+        self.assertEqual("disabled", gui.clear_search_button.options["state"])
+        for query in ("Canada", "missing", " ", "France"):
+            gui.search_var.set(query)
+            self.assertEqual("normal", gui.clear_search_button.options["state"])
+            gui.search_entry.bindings["<KeyRelease>"](None)
+            gui.clear_search_button.invoke()
+            self.assertEqual("", gui.search_var.get())
+            self.assertEqual("disabled", gui.clear_search_button.options["state"])
+            self.assert_feedback(gui, "2 collection records", ["a", "b"])
+        gui.search_var.set("Canada")
+        gui.search_var.set("")  # Deleting the query also disables Clear.
+        self.assertEqual("disabled", gui.clear_search_button.options["state"])
+
+    @unittest.skipUnless(os.environ.get("RUN_WORK_QUEUE_NATIVE") == "1", "Opt-in native Tk acceptance")
+    def test_native_search_keyboard_focus_and_disabled_traversal(self):
+        root = tk.Tk()
+        self.addCleanup(root.destroy)
+        gui = self.gui(root)
+        frame = ttk.Frame(root)
+        frame.pack()
+        gui.create_collection_search_controls(frame)
+        after = ttk.Button(frame, text="Next")
+        after.pack()
+        root.update()
+        gui.search_entry.focus_force()
+        root.update()
+        self.assertEqual(gui.search_entry, root.focus_get())
+        self.assertEqual(str(after), str(gui.search_entry.tk_focusNext()))
+        gui.search_entry.insert(0, "missing")
+        gui.search_entry.event_generate("<KeyRelease>", keysym="g")
+        root.update()
+        self.assert_feedback(gui, "0 collection records (empty collection)", [])
+        self.assertFalse(gui.clear_search_button.instate(["disabled"]))
+        self.assertEqual(str(gui.clear_search_button), str(gui.search_entry.tk_focusNext()))
+        gui.clear_search_button.focus_set()
+        gui.clear_search_button.event_generate("<KeyPress-space>")
+        gui.clear_search_button.event_generate("<KeyRelease-space>")
+        root.update()
+        self.assertEqual("", gui.search_var.get())
+        self.assertTrue(gui.clear_search_button.instate(["disabled"]))
+        gui.search_entry.focus_set()
+        root.update()
+        gui.clear_search()
+        self.assertEqual(gui.search_entry, root.focus_get())
 
 
 if __name__ == "__main__":
