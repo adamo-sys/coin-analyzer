@@ -129,8 +129,33 @@ photo ingestion, or provenance policy was changed.
   foundations. Four native Tk cases are in the new ten-test module.
 - An in-memory probe of the exact base Details callback reproduced the native
   numeric-ID failure. No production file was changed by that probe.
-- Whitespace checks passed. Full regression and independent exact-commit review
-  remain pending at report preparation; finalize before publication.
+- One capped full regression completed successfully: process exit 0, 1043.001s
+  wall time; unittest reported `Ran 6357 tests in 1027.907s` and
+  `OK (skipped=30)`. This is the observed local run, not a repository-wide test
+  inventory or hosted CI result. The runner emitted an aggregate skip count;
+  individual skip reasons were not retained by its default output.
+  The production fix was unchanged throughout. This run began before the final
+  invalid-acquisition test and test-only typing/assertion cleanup; the final
+  test module was separately rerun afterward: **10 passed**, no skips, in
+  1.810s, with Ruff and Pyright passing. The unchanged full command was not rerun.
+- Whitespace checks passed. Local Gitleaks scan of the implementation commit
+  (`base..57c65e80a05b169ae65a97c546fb033a2204d1e8`) found no leaks; hosted
+  full-history Gitleaks remains a separate CI gate.
+- Independent reviewer `/root/collection_exact_review`: **PASS WITH NOTES**, no
+  blocking findings, for base `db55dba46d5fbb27595ba85660948cecadbff3e5` to
+  implementation commit `57c65e80a05b169ae65a97c546fb033a2204d1e8`.
+  Coverage: the complete three-file diff, retained reference construction and
+  resolution, editor Save authority, ordinary deletion/rollback, and report
+  claims. Its own test execution had 6 passes and 4 native skips because Tcl
+  initialization was unavailable in the sandbox; an escalated retry awaited
+  approval and was aborted. It did not independently rerun the parent's native,
+  focused, static, Gitleaks, full-regression, or historical reproduction evidence.
+  No severity/file-line corrective findings were returned. This documentation-only
+  evidence successor requires final exact-head confirmation in the PR/task record
+  before publication; no review/merge authority is inferred from a pending request.
+- The primary checkout's tracked paths and aggregate diff fingerprint still
+  matched the initial observation after validation. No protected worktree was
+  mutated or requalified.
 
 ## Remaining acceptance and prioritized backlog
 
