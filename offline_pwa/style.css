@@ -1,0 +1,9 @@
+:root { color-scheme: light; font: 17px/1.55 system-ui,sans-serif; color: #172b30; background: #f4f1e9; }
+body { margin: 0; } main { max-width: 46rem; padding: 2rem 1.2rem 4rem; margin: auto; }
+h1 { font-size: clamp(2rem,6vw,3rem); line-height: 1.12; } h2 { font-size: 1.4rem; }
+.eyebrow { letter-spacing: .12em; font-size: .75rem; } section { border-top: 1px solid #a4aca6; padding: 1.1rem 0; }
+label { display: block; margin: 1rem 0 .3rem; } input,select,button { font: inherit; max-width: 100%; box-sizing: border-box; }
+input,select { width: 100%; padding: .65rem; background: #fff; border: 1px solid #61726b; border-radius: .3rem; }
+button { margin: .8rem .4rem .3rem 0; padding: .65rem 1rem; color: white; background: #264e50; border: 2px solid transparent; border-radius: .3rem; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; } :focus-visible { outline: 3px solid #a15a00; outline-offset: 3px; }
+li { padding: .7rem 0; } #readiness { font-weight: 650; } [role=status] { overflow-wrap: anywhere; }

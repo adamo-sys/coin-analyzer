@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#172b30">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; form-action 'none'; base-uri 'none'">
+  <link rel="manifest" href="/offline-coin-show/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/offline-coin-show/icon-192.png">
+  <link rel="stylesheet" href="/offline-coin-show/style.css">
+  <title>Coin show · Local workspace</title>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">COIN ANALYZER · OFFLINE FOUNDATION</p>
+    <h1>Local coin workspace</h1>
+    <p id="connection" role="status"></p>
+    <section aria-labelledby="storage-heading">
+      <h2 id="storage-heading">On this phone</h2>
+      <p id="status" role="status">Opening local storage…</p>
+      <p id="readiness">Foundation only — device/security acceptance pending. Not ready for coin-show use.</p>
+      <p>Origin storage is not a backup. Clearing website data, app removal, eviction or device loss may remove entries and photos. Recovery bundle export/restore is not available in this slice. Use synthetic practice data only.</p>
+      <button id="persistent" type="button">Request persistent storage</button>
+      <p id="storage-status" role="status">Persistent storage: checking…</p>
+    </section>
+    <section aria-labelledby="entry-heading">
+      <h2 id="entry-heading">Retain a local draft</h2>
+      <form id="entry-form">
+        <label for="label">Coin description (up to 160 characters)</label>
+        <input id="label" maxlength="160" required autocomplete="off">
+        <label for="photos">Photos (JPEG or PNG, optional; up to 8 per entry)</label>
+        <input id="photos" type="file" accept="image/jpeg,image/png" multiple>
+        <label for="role">Role for these selected photos</label>
+        <select id="role"><option value="unassigned">Unassigned</option><option value="obverse">Obverse</option><option value="reverse">Reverse</option><option value="detail">Detail</option></select>
+        <button id="retain" disabled>Retain on this phone</button>
+        <button id="new" type="button">New draft</button>
+      </form>
+      <p id="write-status" role="status">No uncommitted changes.</p>
+      <p>These drafts are local evidence. They do not add anything to the desktop collection. Photos are normalized to PNG without resizing and embedded metadata is removed; original upload bytes are not retained.</p>
+      <ul id="entries" aria-label="Retained local drafts"></ul>
+    </section>
+    <section aria-labelledby="shell-heading">
+      <h2 id="shell-heading">Offline application shell</h2>
+      <p id="shell-status" role="status">Checking installed shell…</p>
+      <button id="prepare" type="button">Prepare / check shell update</button>
+      <p>First setup requires an approved private HTTPS host and owner pairing. This foundation includes no provisioning service. Online access is needed only for an explicit shell preparation or update. Updates wait until all app windows close.</p>
+    </section>
+    <noscript>JavaScript is required for local storage. No entry has been retained.</noscript>
+  </main>
+  <script type="module" src="/offline-coin-show/app.js"></script>
+</body>
+</html>
