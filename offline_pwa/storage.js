@@ -63,26 +63,56 @@ export async function openStore(name='coin-show-local') {
   let db;
   try {
     db=await new Promise((ok,no)=>{
-      let settled=false;
+      let settled=false,upgrade;
       const r=indexedDB.open(name,2);
       const reject=e=>{if(!settled){settled=true;clearTimeout(timer);no(e);}};
-      const timer=setTimeout(()=>reject(new LocalStoreError('blocked','Local database open timed out. Close other windows, preserve data and reopen.')),5000);
+      const timer=setTimeout(()=>{
+        if(settled)return;
+        // Reject only when cancellation can still prevent the schema commit.
+        // A native commit can precede delivery of the open-success event.
+        if(upgrade){try{upgrade.abort();}catch{return;}}
+        reject(new LocalStoreError('blocked','Local database open timed out. Close other windows, preserve data and reopen.'));
+      },5000);
       r.onblocked=()=>reject(new LocalStoreError('blocked','Database upgrade blocked. Close other app windows and reopen; no reset.'));
       r.onerror=()=>reject(r.error);
       r.onupgradeneeded=event=>{
         if(settled){r.transaction.abort();return;}
         const d=r.result,t=r.transaction;
+        upgrade=t;
+        t.oncomplete=()=>clearTimeout(timer);
         if(event.oldVersion===0) {
           d.createObjectStore('entries',{keyPath:'id'});d.createObjectStore('photos',{keyPath:'id'});
         }
         if(event.oldVersion===1) {
-          // v1 has identical entry/photo shapes except the entry state field.
-          // Cursor failures abort the entire upgrade, retaining the v1 database.
+          // Validate a snapshot inside the exclusive upgrade before publishing
+          // state/meta. Hashing awaits non-IDB work: retain a pending request
+          // until it finishes, then write only from an active request callback.
           if(!d.objectStoreNames.contains('entries') || !d.objectStoreNames.contains('photos')) {t.abort();return;}
-          const cursor=t.objectStore('entries').openCursor();
-          cursor.onsuccess=()=>{const c=cursor.result;if(c){const e={...c.value,state:'draft'};if(Object.hasOwn(c.value,'state') || !entryShape(e)){t.abort();return;}c.update(e);c.continue();}};
+          const entries=t.objectStore('entries'),photos=t.objectStore('photos');
+          let active=true,validated;
+          t.addEventListener('abort',()=>{active=false;});
+          const abort=e=>{if(!active)return;active=false;try{t.abort();}catch{}reject(e);};
+          Promise.all([request(entries.getAll()),request(photos.getAll())]).then(async ([old,media])=>{
+            if(old.some(e=>Object.hasOwn(e,'state')))fail('recovery-required','Legacy entry state is incompatible. Preserve data for recovery.');
+            const data={entries:old.map(e=>({...e,state:'draft'})),photos:media,schema:{key:'schema',value:2}};
+            await validate(data);
+            if(active && !settled)validated=data;
+          }).catch(abort);
+          const pump=()=>{
+            if(!active || settled)return;
+            const pending=entries.get(0);
+            pending.onsuccess=()=>{
+              if(!active || settled)return;
+              if(!validated){pump();return;}
+              try {
+                for(const e of validated.entries)entries.put(e);
+                d.createObjectStore('meta',{keyPath:'key'}).put(validated.schema);
+              }catch(e){abort(e);}
+            };
+          };
+          pump();
         }
-        if(event.oldVersion<2) d.createObjectStore('meta',{keyPath:'key'}).put({key:'schema',value:2});
+        if(event.oldVersion===0) d.createObjectStore('meta',{keyPath:'key'}).put({key:'schema',value:2});
       };
       r.onsuccess=()=>{if(settled){r.result.close();return;}settled=true;clearTimeout(timer);ok(r.result);};
     });

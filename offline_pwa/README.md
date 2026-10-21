@@ -90,6 +90,12 @@ retaining a previous shell. No photo or entry is evicted to recover quota.
 
 Blocked/closed/newer/incompatible/corrupt databases stop writes and report recovery
 requirements. Failed upgrades abort; no delete/reset/downgrade is implemented.
+The v1 upgrade validates the complete entry/photo snapshot, including references,
+ownership, limits, byte lengths and hashes, within the exclusive upgrade transaction
+before adding draft states and schema metadata. Pending IDB requests keep that
+transaction alive during asynchronous hashing. The five-second open deadline aborts
+an unfinished upgrade; a deadline delivered after native commit defers to the open
+result instead of reporting a cancelled migration that actually committed.
 Readback failure after commit is **outcome uncertain**, requiring inspection of
 the same draft before retry. Compatible read-only salvage/export tooling and
 private verified recovery bundles are deferred; the UI does not claim they exist.
@@ -116,6 +122,12 @@ resources. The fixture is **not** production pairing/session security evidence.
 Default repository unittest discovers the Python build test. Browser tests are
 explicit and require the separate Node development dependency/browser; existing
 CI configuration is unchanged and does not run this browser suite.
+
+Migration regressions compare the database version, store names, complete legacy
+records and photo bytes after missing/duplicate references, wrong ownership,
+orphaned/corrupt photos, timeout during hashing or after writes, explicit abort,
+and page termination. Clean retry, delayed hashing, a deadline after native commit,
+and post-commit readback uncertainty are exercised separately.
 
 ## Remaining acceptance gates
 

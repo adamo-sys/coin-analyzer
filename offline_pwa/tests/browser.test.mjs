@@ -208,3 +208,175 @@ test('shell version count is bounded without deleting previous caches during ins
     assert.equal((await p.evaluate(()=>caches.keys())).length,3);
   }finally{await ctx.close();}
 });
+
+// Faults run against real IDB transactions. Removing cancellation, precommit
+// validation, or the async-validation lifetime guard must fail these cases.
+async function migrationScenario(p, fault) {
+  return p.evaluate(async fault => {
+    const {openStore}=await import('./storage.js');
+    const {normalizePhoto}=await import('./media.js');
+    const canvas=document.createElement('canvas');canvas.width=4;canvas.height=4;
+    const blob=await new Promise(ok=>canvas.toBlob(ok,'image/png'));
+    const entries=Array.from({length:10},(_,i)=>({id:crypto.randomUUID(),revision:1,label:`Legacy ${i}`,photoIds:[]}));
+    const photo={...await normalizePhoto(blob,'unassigned'),entryId:entries[0].id};
+    entries[0].photoIds=[photo.id];
+    const photos=[photo];
+    if(fault==='missing-reference')photos.length=0;
+    if(fault==='wrong-owner')photo.entryId=entries[1].id;
+    if(fault==='orphan')entries[0].photoIds=[];
+    if(fault==='corrupt-size')photo.size++;
+    if(fault==='corrupt-hash')photo.sha256='0'.repeat(64);
+    if(fault==='duplicate-reference')entries[1].photoIds=[photo.id];
+    if(fault==='invalid-revision')entries[0].revision=0;
+    const name='atomic-migration';
+    await new Promise((ok,no)=>{
+      const r=indexedDB.open(name,1);
+      r.onupgradeneeded=()=>{
+        const e=r.result.createObjectStore('entries',{keyPath:'id'}),m=r.result.createObjectStore('photos',{keyPath:'id'});
+        for(const v of entries)e.put(v);for(const v of photos)m.put(v);
+      };
+      r.onsuccess=()=>{r.result.close();ok();};r.onerror=()=>no(r.error);
+    });
+    async function snapshot() {
+      const d=await new Promise((ok,no)=>{const r=indexedDB.open(name);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+      const t=d.transaction(['entries','photos']),get=s=>new Promise((ok,no)=>{const r=t.objectStore(s).getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+      const [entries,photos]=await Promise.all([get('entries'),get('photos')]);
+      const result={version:d.version,stores:[...d.objectStoreNames],entries,photos:await Promise.all(photos.map(async p=>({...p,blob:[...new Uint8Array(await p.blob.arrayBuffer())]})))};
+      d.close();return result;
+    }
+    const before=await snapshot();
+    const nativeTimeout=window.setTimeout,nativeOpen=IDBFactory.prototype.open;
+    const nativePut=IDBObjectStore.prototype.put,nativeUpdate=IDBCursor.prototype.update;
+    const nativeDigest=crypto.subtle.digest;
+    let deadline,triggered=false,upgrade,delayed=false,completed=false;
+    window.setTimeout=(fn,ms,...args)=>{if(ms===5000)deadline=fn;return nativeTimeout(fn,ms,...args);};
+    IDBFactory.prototype.open=function(...args){
+      const r=nativeOpen.apply(this,args);
+      if(args[0]===name && args[1]===2)r.addEventListener('upgradeneeded',()=>{
+        upgrade=r.transaction;
+        // A queued deadline may run after native commit but before open success.
+        upgrade.addEventListener('complete',()=>{completed=true;if(fault==='completed-deadline'){triggered=true;deadline();}});
+      });
+      return r;
+    };
+    function afterWrite() {
+      if(triggered || !['timeout-after-write','interrupt'].includes(fault))return;
+      triggered=true;
+      if(fault==='interrupt')upgrade.abort();else deadline();
+    }
+    IDBObjectStore.prototype.put=function(...args){const r=nativePut.apply(this,args);if(this.name==='entries' && this.transaction===upgrade)afterWrite();return r;};
+    IDBCursor.prototype.update=function(...args){const r=nativeUpdate.apply(this,args);if(this.source.name==='entries' && this.source.transaction===upgrade)afterWrite();return r;};
+    crypto.subtle.digest=async function(...args){
+      if(fault==='page-close') {
+        window.migrationBefore=before;window.migrationHeld=true;
+        await new Promise(()=>{}); // Page termination must abort this upgrade.
+      }
+      if(!delayed && ['delayed-validation','timeout-during-validation'].includes(fault)) {
+        delayed=true;
+        // Cross several event-loop tasks while IDB would otherwise auto-commit.
+        for(let i=0;i<3;i++)await new Promise(ok=>nativeTimeout(ok,0));
+        if(fault==='timeout-during-validation'){triggered=true;deadline();}
+      }
+      return nativeDigest.apply(this,args);
+    };
+    let code;
+    try {const d=await openStore(name);d.close();}
+    catch(e){code=e.code;}
+    finally {
+      window.setTimeout=nativeTimeout;IDBFactory.prototype.open=nativeOpen;
+      IDBObjectStore.prototype.put=nativePut;IDBCursor.prototype.update=nativeUpdate;
+      crypto.subtle.digest=nativeDigest;
+    }
+    // Queued behind the original open: this snapshot also detects a late commit.
+    const after=await snapshot();
+    let recovered;
+    if(['timeout-after-write','timeout-during-validation','interrupt'].includes(fault)) {
+      const d=await openStore(name);const data=await d.list();d.close();
+      recovered={entries:data.entries,hash:data.photos[0].sha256};
+    }
+    return {code,before,after,recovered,triggered,delayed,completed};
+  },fault);
+}
+
+test('closing the page during migration preserves v1 evidence and permits recovery', async()=>{
+  const ctx=await context();try {
+    const p=await page(ctx);
+    const interrupted=migrationScenario(p,'page-close').then(()=>false,()=>p.isClosed());
+    await p.waitForFunction(()=>window.migrationHeld);
+    const before=await p.evaluate(()=>window.migrationBefore);
+    await p.close();assert.equal(await interrupted,true);
+    const next=await page(ctx);
+    const result=await next.evaluate(async()=>{
+      const d=await new Promise((ok,no)=>{const r=indexedDB.open('atomic-migration');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+      const t=d.transaction(['entries','photos']),get=s=>new Promise(ok=>{const r=t.objectStore(s).getAll();r.onsuccess=()=>ok(r.result);});
+      const [entries,photos]=await Promise.all([get('entries'),get('photos')]);
+      const before={version:d.version,stores:[...d.objectStoreNames],entries,photos:await Promise.all(photos.map(async p=>({...p,blob:[...new Uint8Array(await p.blob.arrayBuffer())]})))};
+      d.close();const recovered=await (await import('./storage.js')).openStore('atomic-migration');
+      const data=await recovered.list();recovered.close();return {before,entries:data.entries,hash:data.photos[0].sha256};
+    });
+    assert.deepEqual(result.before,before);
+    assert.deepEqual(result.entries,before.entries.map(e=>({...e,state:'draft'})));
+    assert.equal(result.hash,before.photos[0].sha256);
+  }finally{await ctx.close();}
+});
+
+for(const fault of ['missing-reference','wrong-owner','orphan','corrupt-size','corrupt-hash','duplicate-reference','invalid-revision']) {
+  test(`v1 ${fault} rejects before commit and preserves exact legacy evidence`, async()=>{
+    const ctx=await context();try {
+      const result=await migrationScenario(await page(ctx),fault);
+      assert.equal(result.code,'recovery-required');
+      assert.deepEqual(result.after,result.before);
+      assert.equal(result.completed,false);
+    }finally{await ctx.close();}
+  });
+}
+
+for(const fault of ['timeout-after-write','timeout-during-validation','interrupt']) {
+  test(`v1 ${fault} aborts schema and partial writes; a clean retry recovers`, async()=>{
+    const ctx=await context();try {
+      const result=await migrationScenario(await page(ctx),fault);
+      assert.equal(result.triggered,true);
+      assert.equal(result.code,fault==='interrupt'?'recovery-required':'blocked');
+      assert.deepEqual(result.after,result.before);
+      assert.equal(result.completed,false);
+      assert.deepEqual(result.recovered.entries,result.before.entries.map(e=>({...e,state:'draft'})));
+      assert.equal(result.recovered.hash,result.before.photos[0].sha256);
+    }finally{await ctx.close();}
+  });
+}
+
+for(const fault of ['delayed-validation','completed-deadline']) {
+  test(`v1 ${fault} acknowledges only a valid completed migration`, async()=>{
+    const ctx=await context();try {
+      const result=await migrationScenario(await page(ctx),fault);
+      assert.equal(result.code,undefined);
+      assert.equal(result[fault==='delayed-validation'?'delayed':'triggered'],true);
+      assert.equal(result.completed,true);
+      assert.equal(result.after.version,2);
+      assert.deepEqual(result.after.entries,result.before.entries.map(e=>({...e,state:'draft'})));
+      assert.deepEqual(result.after.photos,result.before.photos);
+    }finally{await ctx.close();}
+  });
+}
+
+test('post-commit readback failure reports uncertainty; reopen finds the committed draft', async()=>{
+  const ctx=await context();try {
+    const p=await page(ctx);
+    const result=await p.evaluate(async()=>{
+      const {openStore}=await import('./storage.js');const d=await openStore();
+      const native=IDBDatabase.prototype.transaction;let written=false,code,guard;
+      IDBDatabase.prototype.transaction=function(...args){
+        if(written && args[1]==='readonly')throw new DOMException('synthetic readback failure','UnknownError');
+        const t=native.apply(this,args);if(args[1]==='readwrite')t.addEventListener('complete',()=>{written=true;});return t;
+      };
+      const id=crypto.randomUUID();
+      try{await d.commit({id,expectedRevision:0,label:'Uncertain draft'});}catch(e){code=e.code;}
+      finally{IDBDatabase.prototype.transaction=native;}
+      try{await d.commit({id,expectedRevision:0,label:'Unsafe retry'});}catch(e){guard=e.code;}
+      d.close();const reopened=await openStore();const data=await reopened.list();reopened.close();
+      return {code,guard,entries:data.entries,id};
+    });
+    assert.equal(result.code,'outcome-uncertain');assert.equal(result.guard,'recovery-required');
+    assert.deepEqual(result.entries,[{id:result.id,revision:1,label:'Uncertain draft',state:'draft',photoIds:[]}]);
+  }finally{await ctx.close();}
+});
