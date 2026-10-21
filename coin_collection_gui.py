@@ -5199,20 +5199,30 @@ Total Unique Dates: {total_unique_dates}
             self.refresh_collection_list()
             self.collection_task_var.set("This task changed. Select a current record after refresh.")
 
-    def view_item_details(self):
-        """View selected item details."""
+    def _selected_collection_reference(self):
+        """Keep list actions bound to the exact record displayed before selection."""
         selection = self.collection_tree.selection()
         if not selection:
             messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
-        if item:
-            self.open_item_details_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
+            return None
+        row = getattr(self, "_collection_resume_rows", {}).get(selection[0])
+        try:
+            if row is None:
+                raise ValueError("The selected row is unavailable.")
+            row.reference.resolve(self.app.collection)
+        except ValueError:
+            self.refresh_collection_list()
+            messagebox.showwarning(
+                "Item unavailable", "This record changed. Select a current record after refresh.",
+            )
+            return None
+        return row.reference
+
+    def view_item_details(self):
+        """View details only for the exact current record retained by the list."""
+        reference = self._selected_collection_reference()
+        if reference is not None:
+            self.open_item_details_window(reference.resolve(self.app.collection))
 
     def open_item_details_window(self, item, *, metadata_only=False):
         """Open a read-only item details window with a photo gallery."""
@@ -5307,19 +5317,10 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(content, text="Close", command=dialog.destroy).grid(row=1, column=1, sticky=tk.E, pady=(10, 0))
     
     def edit_item(self):
-        """Edit selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
-        if item:
-            self.open_edit_item_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
+        """Edit only the exact current record retained by the list."""
+        reference = self._selected_collection_reference()
+        if reference is not None:
+            self.open_edit_item_window(reference.resolve(self.app.collection))
 
     def open_work_queue(self):
         """Open or refresh the first-class Collector Work Queue window."""
@@ -5655,21 +5656,25 @@ Total Unique Dates: {total_unique_dates}
             initial_photo_refresh()
     
     def delete_item(self):
-        """Delete selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
+        """Delete one explicitly confirmed, still-current displayed record."""
+        reference = self._selected_collection_reference()
+        if reference is None:
             return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this item?"):
-            if self.app.collection.delete_item(item_id):
+            try:
+                item = reference.resolve(self.app.collection)
+            except ValueError:
+                self.refresh_collection_list()
+                messagebox.showwarning(
+                    "Item unavailable", "This record changed. Select a current record after refresh.",
+                )
+                return
+            if self.app.collection.delete_item(item.id):
                 self.refresh_collection_list()
                 messagebox.showinfo("Success", "Item deleted")
             else:
                 messagebox.showerror("Error", "Failed to delete item")
-    
+
     def export_csv(self):
         """Export collection to CSV."""
         file_path = filedialog.asksaveasfilename(
