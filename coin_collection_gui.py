@@ -3375,9 +3375,18 @@ Total Unique Dates: {total_unique_dates}
             self.collection_resume_state_var.set("No collection is available yet.")
             return
         count = len(rows)
-        self.collection_resume_state_var.set(f"{count} collection record{'s' if count != 1 else ''}")
         search_query = self.search_var.get().strip()
         matching = {id(item) for item in collection.search_items(search_query)} if search_query else None
+        total_text = f"{count} collection record{'s' if count != 1 else ''}"
+        if count == 0:
+            summary = f"{total_text} (empty collection)"
+        elif matching is not None:
+            match_count = sum(id(row.reference.item) in matching for row in rows)
+            summary = (f"{match_count} of {total_text}" if match_count
+                       else f"No matching collection records (0 of {count})")
+        else:
+            summary = total_text
+        self.collection_resume_state_var.set(summary)
         for index, row in enumerate(rows):
             if matching is not None and id(row.reference.item) not in matching:
                 continue

@@ -1,13 +1,16 @@
 """Synthetic regression coverage for the shared collection substring search."""
 
+import os
 import tempfile
+import tkinter as tk
+from tkinter import ttk
 import unittest
 from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
-from coin_collection import CoinCollection, CoinItem, IdentificationStatus, ItemPhoto
+from coin_collection import CollectionLoadState, CoinCollection, CoinItem, IdentificationStatus, ItemPhoto
 from coin_collection_gui import CoinCollectionGUI
 
 
@@ -135,6 +138,119 @@ class CollectionSearchTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual("Select a collection item first.", result["error"])
         self.assertFalse(self.storage_path.exists())
+
+
+class CollectionSearchFeedbackTests(unittest.TestCase):
+    setUp = CollectionSearchTests.setUp
+
+    def gui(self, native_root=None):
+        from tests.test_collector_work_queue_gui import Var, Tree, Button
+
+        gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
+        gui.app = SimpleNamespace(collection=self.collection)
+        self.collection.load_state = CollectionLoadState.LOADED
+        if native_root is None:
+            gui.collection_tree = Tree()
+            gui.search_var = Var()
+            gui.collection_resume_state_var = Var()
+            gui.collection_task_var = Var()
+            gui.show_collection_task_button = Button()
+        else:
+            gui.collection_tree = ttk.Treeview(native_root, columns=("id", "label", "status", "date"))
+            gui.search_var = tk.StringVar(native_root)
+            gui.collection_resume_state_var = tk.StringVar(native_root)
+            gui.collection_task_var = tk.StringVar(native_root)
+            gui.show_collection_task_button = ttk.Button(native_root)
+        return gui
+
+    def assert_feedback(self, gui, text, ids):
+        self.assertEqual(text, gui.collection_resume_state_var.get())
+        self.assertEqual(ids, [row.reference.item_id for row in gui._collection_resume_rows.values()])
+        self.assertEqual(len(ids), len(gui.collection_tree.get_children()))
+
+    def test_unfiltered_counts_use_records_not_quantity_and_preserve_order(self):
+        self.collection.items = [make_item("z", quantity=99), make_item("a")]
+        before = deepcopy([vars(item) for item in self.collection.items])
+        gui = self.gui()
+        for query in ("", "  \t"):
+            gui.search_var.set(query)
+            gui.refresh_collection_list()
+            self.assert_feedback(gui, "2 collection records", ["a", "z"])
+        self.assertEqual(before, [vars(item) for item in self.collection.items])
+        self.assertFalse(self.storage_path.exists())
+
+    def test_filtered_matching_counts_and_no_match(self):
+        self.collection.items = [make_item("z", notes="Canada"), make_item("a", country="Canada"),
+                                 make_item("other", country="France")]
+        before = deepcopy([vars(item) for item in self.collection.items])
+        gui = self.gui()
+        for query, text, ids in (
+            (" cAnAdA ", "2 of 3 collection records", ["a", "z"]),
+            ("missing", "No matching collection records (0 of 3)", []),
+        ):
+            gui.search_var.set(query)
+            gui.on_search(None)
+            self.assert_feedback(gui, text, ids)
+            self.assertIsNone(gui._selected_collection_task)
+            self.assertEqual("disabled", gui.show_collection_task_button.options["state"])
+        self.assertEqual(before, [vars(item) for item in self.collection.items])
+        self.assertFalse(self.storage_path.exists())
+
+    def test_empty_collection_is_distinct_from_no_matches_with_or_without_search(self):
+        gui = self.gui()
+        for query in ("", "missing"):
+            gui.search_var.set(query)
+            gui.refresh_collection_list()
+            self.assert_feedback(gui, "0 collection records (empty collection)", [])
+
+    def test_updating_and_clearing_search_replaces_rows_and_feedback(self):
+        self.collection.items = [make_item("a", country="Canada"), make_item("b", country="France")]
+        gui = self.gui()
+        for query, text, ids in (
+            ("missing", "No matching collection records (0 of 2)", []),
+            ("Canada", "1 of 2 collection records", ["a"]),
+            ("France", "1 of 2 collection records", ["b"]),
+        ):
+            gui.search_var.set(query)
+            gui.on_search(None)
+            self.assert_feedback(gui, text, ids)
+        gui.clear_search()
+        self.assertEqual("", gui.search_var.get())
+        self.assert_feedback(gui, "2 collection records", ["a", "b"])
+
+    def test_singular_and_plural_formatting(self):
+        self.collection.items = [make_item("a", country="Canada")]
+        gui = self.gui()
+        for query, text, ids in (
+            ("", "1 collection record", ["a"]),
+            ("Canada", "1 of 1 collection record", ["a"]),
+            ("missing", "No matching collection records (0 of 1)", []),
+        ):
+            gui.search_var.set(query)
+            gui.on_search(None)
+            self.assert_feedback(gui, text, ids)
+
+    @unittest.skipUnless(os.environ.get("RUN_WORK_QUEUE_NATIVE") == "1", "Opt-in native Tk acceptance")
+    def test_native_tk_search_transitions(self):
+        root = tk.Tk()
+        self.addCleanup(root.destroy)
+        self.collection.items = [make_item("a", country="Canada"), make_item("b", country="France")]
+        gui = self.gui(root)
+        for query, text, ids in (
+            ("", "2 collection records", ["a", "b"]),
+            ("Canada", "1 of 2 collection records", ["a"]),
+            ("missing", "No matching collection records (0 of 2)", []),
+            ("France", "1 of 2 collection records", ["b"]),
+        ):
+            gui.search_var.set(query)
+            gui.on_search(None)
+            root.update()
+            self.assert_feedback(gui, text, ids)
+            self.assertEqual(ids, [gui.collection_tree.item(row, "values")[0]
+                                   for row in gui.collection_tree.get_children()])
+        gui.clear_search()
+        root.update()
+        self.assert_feedback(gui, "2 collection records", ["a", "b"])
 
 
 if __name__ == "__main__":
