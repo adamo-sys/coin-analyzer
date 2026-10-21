@@ -1,0 +1,10 @@
+{
+  "name": "coin-show-offline-foundation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/browser.test.mjs",
+    "check": "node --check app.js && node --check storage.js && node --check media.js && node --check worker.js"
+  },
+  "devDependencies": { "playwright": "1.58.2" }
+}
