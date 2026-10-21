@@ -109,7 +109,7 @@ python -m unittest tests.test_offline_pwa_build -v
 python -m ruff check tools/build_offline_pwa.py tests/test_offline_pwa_build.py
 cd offline_pwa
 npm ci --ignore-scripts --no-audit --no-fund
-npx playwright install chromium
+node node_modules/playwright/cli.js install chromium
 npm run check
 npm test
 ```
@@ -119,9 +119,10 @@ installed Edge instead of downloaded Chromium. The browser tests build a fresh
 artifact in a temporary directory, bind only to `127.0.0.1`, use synthetic photos
 and a synthetic request-denial fixture, and close/delete their own temporary
 resources. The fixture is **not** production pairing/session security evidence.
-Default repository unittest discovers the Python build test. Browser tests are
-explicit and require the separate Node development dependency/browser; existing
-CI configuration is unchanged and does not run this browser suite.
+Default repository unittest discovers the Python build test. Browser tests require
+the separate Node development dependency/browser. The existing Tests workflow now
+runs them in its `offline-pwa-browser` job on push, pull request and manual dispatch.
+See [CI commands and failure behavior](../TESTING.md#offline-pwa-browser-ci).
 
 Migration regressions compare the database version, store names, complete legacy
 records and photo bytes after missing/duplicate references, wrong ownership,

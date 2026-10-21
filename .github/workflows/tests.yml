@@ -13,6 +13,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  offline-pwa-browser:
+    name: Offline PWA browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: offline_pwa
+    env:
+      PWA_PYTHON: python
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /*
+            !/test_coins/*
+            /test_coins/README.md
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python for the synthetic shell builder
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12.10"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.18.0"
+          package-manager-cache: false
+
+      - name: Install locked browser-test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install matching Chromium and Linux dependencies
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Check JavaScript syntax
+        run: npm run check
+
+      - name: Run offline PWA browser tests
+        run: npm test
+
   ruff:
     runs-on: ubuntu-latest
     timeout-minutes: 10

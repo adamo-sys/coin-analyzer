@@ -99,6 +99,61 @@ against job-specific policy, rejects malformed/duplicate/ambiguous YAML and unsa
 options, and verifies root/nested image exclusions with a temporary synthetic Git
 repository. It never uses protected coin images for materialization checks.
 
+## Offline PWA browser CI
+
+The Tests workflow includes the independent `offline-pwa-browser` job, displayed
+as **Offline PWA browser**, on every push, pull request and manual dispatch.
+Existing Windows/Ubuntu unittest, Ruff, bounded Pyright, security and regression
+jobs retain their behavior. Requiring the new check in branch protection is a
+separate owner-authorized repository-settings decision.
+
+The job uses Ubuntu 24.04, Node **24.18.0** (including its bundled npm), Python
+**3.12.10**, and SHA-pinned checkout/setup actions. `offline_pwa/package-lock.json`
+locks Playwright **1.58.2** and its transitive package integrity hashes; `npm ci`
+rejects package/lock disagreement. The installed Playwright CLI selects its matching
+Chromium revision; it cannot fall back to downloading a different npm CLI package.
+No browser-channel override or browser/dependency cache is configured. The hosted
+runner image and Ubuntu system packages receive updates, so this is a versioned
+runtime/browser setup, not a byte-identical operating-system image.
+
+Exact CI commands, each a separate required step from `offline_pwa/`:
+
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+node node_modules/playwright/cli.js install --with-deps chromium
+npm run check
+npm test
+```
+
+The job sets `PWA_PYTHON=python` to use the setup action's interpreter. The builder
+uses only Python's standard library; no application Python packages are needed in
+this job. Local Windows/macOS runs omit `--with-deps` from the browser installation
+and may select the configured project interpreter through `PWA_PYTHON` as described
+in [the PWA README](offline_pwa/README.md#tests-and-static-checks).
+
+Expected: every command exits zero, JavaScript syntax checks succeed, and Node's
+test summary reports all browser cases passing with zero failures, cancellations
+or skips. `npm test` runs the existing `node --test --test-concurrency=1
+tests/browser.test.mjs` script without filtering or retries. A test assertion,
+missing npm package/browser/Python, failed dependency download, syntax error or
+execution error makes its step and job fail. There is no `continue-on-error`,
+conditional skip or success fallback. A hung setup/test is bounded by the
+15-minute job timeout; cancellation is not a pass.
+
+Dependency acquisition uses the normal Node/Python/npm/Playwright/Ubuntu download
+sources. Test execution uses only an ephemeral `127.0.0.1` fixture server, a fresh
+temporary shell build, isolated browser contexts and generated synthetic images.
+It needs no production services, credentials, devices or real collection data.
+The existing suite closes its browser/listener and removes its temporary build
+in teardown; a cancelled/timed-out hosted job relies on disposable-runner cleanup.
+Checkout retains the protected-image exclusions and disabled credential
+persistence. The job inherits `contents: read`, references no secrets, and uploads
+no artifacts, screenshots, traces, profiles or raw logs.
+
+Local validation does not establish GitHub-hosted success for the committed head.
+P1 does not change PR #429's acceptance classifications or qualify production
+authentication, physical devices, recovery, real data or coin-show operation.
+
 ## Adding Tests
 
 When adding tests:
