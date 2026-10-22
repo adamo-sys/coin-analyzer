@@ -355,3 +355,154 @@ For bounded Coin Analyzer changes, prefer:
   workspace mutation, configuration drift, budget overruns, or unreliable
   acceptance evidence. This queue entry authorizes no installation, execution,
   integration, publication, adoption, or Phase 1 changes.
+
+### Deferred candidate — Matt Pocock's Skills
+
+**Status: DEFERRED / NOT APPROVED FOR EXECUTION.**
+
+- **Source / pin / research date:** [Matt Pocock's Skills](https://github.com/mattpocock/skills);
+  `5beb35b040e3de97e54fa9e386d7e42d15c295c2`; 2026-10-21.
+- **Hypothesis / baseline:** selective manual adaptation of TDD guidance and review
+  rubrics might improve bounded task quality. Compare against existing AGENTS.md
+  authority and Superpowers TDD/review practices, including their current overhead.
+  No wholesale skill import; automatic commit/publish instructions are unacceptable.
+- **Evidence limitations:** previously researched candidate, recorded from the owner
+  handoff; upstream contents and licensing were not independently revalidated in
+  this documentation task. Coin Analyzer incremental benefits: **NOT MEASURED**.
+- **Concerns (needs_validation):** executable instructions can conflict with local
+  authority or induce unauthorized actions; examples/prompts could expose private
+  material. Verify the pinned license and adaptation/attribution rights, upstream
+  maintenance and revision drift, and ongoing manual-review cost. No confirmed
+  vulnerability or license compatibility is asserted.
+- **Smallest future bounded comparison:** after separate approval, manually compare
+  one selected TDD/review excerpt with the existing rubric on one sanitized fixed
+  historical diff and its existing acceptance criteria. Record useful findings,
+  false positives, missed known defects, review time and adaptation overhead;
+  no imported skills, automatic commands, commits or publication.
+- **Owner authorization gates:** approve the exact excerpt, license review, task,
+  sanitized inputs, reviewer, time cap and preregistered decision thresholds before
+  comparison. Any later adaptation needs separate owner approval; AGENTS.md retains
+  authority. This record grants no installation, execution, integration or adoption.
+- **Success / rejection:** consider a later manual adaptation only for at least one
+  independently confirmed useful finding missed by baseline, no missed baseline
+  acceptance requirement, zero authority violations, and total time within the
+  approved cap. Reject conflicting or automatic commit/publish directions; defer
+  ties, duplicated guidance or inconclusive benefit. One comparison cannot establish
+  repeated-task adoption value.
+- **Reconsideration trigger:** an owner-identified gap in current TDD/review practice
+  and explicit authorization for the bounded comparison; no active queue promotion.
+
+### Deferred candidate — context-mode
+
+**Status: DEFERRED / NOT APPROVED FOR EXECUTION.**
+
+- **Source / pin / research date:** [context-mode](https://github.com/mksglu/context-mode);
+  `a92cf6a77ac02971fb5fafe2155e5ee229491884`; 2026-10-21.
+- **Hypothesis / baseline:** possible tool-output reduction versus current bounded
+  commands, targeted reads/searches and manual output limits, while retaining exact
+  evidence needed for decisions. Upstream reduction claims do not establish local
+  savings. Coin Analyzer incremental benefits: **NOT MEASURED**.
+- **Evidence limitations:** owner-supplied prior research disposition and pin only;
+  no independent upstream, security, license or performance verification in this
+  task. Summaries may omit decisive output; token savings alone are insufficient.
+- **Concerns (needs_validation):** review hooks, MCP trust boundaries, routing,
+  process execution and environment exposure; retained/indexed output, SQLite
+  storage, deletion and teardown; prompt injection and sensitive-data leakage.
+  Verify pinned license/dependency rights, maintenance/update provenance and drift,
+  and compatibility with evidence custody and AGENTS.md. These are review questions,
+  not confirmed vulnerabilities.
+- **Smallest future bounded comparison:** only after separate execution approval,
+  use an isolated disposable environment and one fixed synthetic tool-output packet;
+  compare current output handling with candidate reduction under identical evidence
+  questions. Measure retained required facts/exact references, unsupported claims,
+  output tokens, latency and setup/teardown overhead; no real repository/session data.
+- **Owner authorization gates:** first approve source/license and dependency review,
+  isolation design, retention/deletion and teardown review, sanitized inputs, resource
+  caps and numeric decision thresholds. Hooks, MCP, SQLite installation, routing
+  overrides, process execution and environment exposure are each unauthorized now;
+  no such permission is implied by a future comparison proposal. Obtain explicit
+  permission for any required capability before execution; integration is separate.
+- **Success / rejection:** require 100% recovery of preregistered required facts and
+  references, zero unsupported evidence claims or unauthorized exposure, verified
+  teardown, and net token reduction after overhead within approved latency/storage
+  caps. Reject evidence loss, leakage, routing/authority violations or failed teardown;
+  defer no net savings or inconclusive results. Success grants no adoption authority.
+- **Reconsideration trigger:** measured output-volume pressure under the existing
+  workflow plus owner-approved isolation and retention/teardown plan; remains deferred.
+
+### Deferred candidate — diagram-design
+
+**Status: DEFERRED / NOT APPROVED FOR EXECUTION.**
+
+- **Source / pin / research date:** [diagram-design](https://github.com/cathrynlavery/diagram-design);
+  `7a12007b5a4246894f342a2e52e78facbc62eca3`; 2026-10-21.
+- **Hypothesis / baseline:** publication-specific static diagrams might communicate
+  a reviewed flow more clearly than the existing Mermaid baseline. Mermaid remains
+  baseline; no application feature, diagram runtime or publishing workflow is adopted.
+  Coin Analyzer incremental benefits: **NOT MEASURED**.
+- **Evidence limitations:** owner-supplied prior research disposition and pin;
+  upstream behavior, license and local benefit were not independently revalidated
+  in this documentation task. A polished diagram is not implementation evidence.
+- **Concerns (needs_validation):** verify pinned license, asset/font redistribution
+  rights, dependencies, maintenance/update drift and export reproducibility. Review
+  rendering inputs and external requests for privacy or script execution. No external
+  fonts or scripts without authorization. Require source-backed labels distinguishing
+  implemented PWA flows from proposed HTTPS/authentication and recovery; preserve
+  offline PWA gates and the historical [4 PASS / 2 FAIL / 18 UNVERIFIED
+  assessment](OFFLINE_PWA_POST_MERGE_ACCEPTANCE_2026-10-21.md#5-acceptance-matrix-and-physical-device-checklist).
+- **Smallest future bounded comparison:** after separate approval, compare one
+  sanitized static publication figure with the equivalent Mermaid figure using the
+  same reviewed flow and a fixed set of reader questions. Record factual errors,
+  correct reader answers, accessibility/readability, authoring time and export cost.
+- **Owner authorization gates:** approve the publication need, exact source/labels,
+  licensing/assets, rendering method, offline inputs, reviewer, time cap and success
+  thresholds first. Any tool execution, external assets, publication or integration
+  requires separate explicit authority. No physical-device acceptance, real-data
+  readiness or coin-show readiness may be inferred from the figure.
+- **Success / rejection:** require zero incorrect implementation/acceptance labels,
+  no omitted safety boundary, all preregistered reader questions answered correctly,
+  and a recorded readability benefit within the approved effort cap. Reject misleading
+  proposed-as-implemented flows, unauthorized external assets or licensing blockers;
+  retain Mermaid for ties or inconclusive benefit. Comparison success is advisory.
+- **Reconsideration trigger:** a concrete owner-approved static publication need that
+  Mermaid demonstrably cannot meet adequately; no active queue promotion now.
+
+### Deferred candidate — billion-context
+
+**Status: DEFERRED / NOT APPROVED FOR EXECUTION — lowest priority of these four.**
+
+- **Source / pin / research date:** [billion-context](https://github.com/ranxianglei/billion-context);
+  `c87185a05a44ecccc225f96f92089e8f309fb1d9`; 2026-10-21.
+- **Hypothesis / baseline:** possible long-session context reduction versus existing
+  bounded tasks, targeted reads, checkpoints and thread rotation. The researched
+  TLS-intercepting Codex launcher design requires independent review; its advertised
+  capacity is not evidence of fidelity, safety or Coin Analyzer value.
+- **Evidence limitations:** owner-supplied prior research disposition and pin only;
+  no independent source/security/license audit or local experiment in this task.
+  Coin Analyzer incremental benefits: **NOT MEASURED**.
+- **Concerns (needs_validation):** independently review TLS interception, certificate
+  trust, credential handling, traffic/log retention and deletion, compression fidelity,
+  update provenance/supply chain, pinned licensing and redistribution rights, and
+  maintenance burden. Check authority/evidence preservation under compression.
+  No confirmed exploit or license compatibility is asserted.
+- **Smallest future bounded comparison:** source/design and license review first;
+  only under a separately approved protocol, compare compression of one synthetic
+  offline transcript with current manual checkpointing on fixed evidence questions.
+  Measure exact constraint/reference retention, unsupported claims, size reduction,
+  time and review overhead. If offline evaluation requires interception or real
+  traffic, stop and redesign or retain deferral; do not expand permission implicitly.
+- **Owner authorization gates:** independent security/privacy/license and maintenance
+  review must precede any execution decision. Owner must separately approve exact
+  inputs, isolation, retention/teardown, resource caps, fidelity thresholds and any
+  executable capability. No proxy, certificate, interception or real Codex traffic
+  is authorized. Credentials, live sessions and private records are excluded;
+  integration/adoption would require a further explicit decision.
+- **Success / rejection:** require 100% retention of preregistered constraints and
+  exact evidence references, zero unsupported claims or sensitive-data exposure,
+  verified deletion, and net reduction after review overhead within approved caps.
+  Reject fidelity loss, unresolved trust/license/credential risks or dependence on
+  unauthorized interception; defer ties and unmeasured benefit. No result bypasses
+  AGENTS.md context thresholds or grants adoption authority.
+- **Reconsideration trigger:** a documented unmet need after existing checkpoint/
+  rotation practices and lower-risk candidates, plus completed independent review
+  and explicit owner approval; keep lowest priority and outside the active queue.
