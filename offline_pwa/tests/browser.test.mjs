@@ -355,7 +355,9 @@ async function migrationScenario(p, fault) {
     async function snapshot() {
       const d=await new Promise((ok,no)=>{const r=indexedDB.open(name);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
       const t=d.transaction(['entries','photos']),get=s=>new Promise((ok,no)=>{const r=t.objectStore(s).getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
-      const [entries,photos]=await Promise.all([get('entries'),get('photos')]);
+      // Request success precedes transaction completion; close must not race the next upgrade.
+      const done=new Promise((ok,no)=>{t.oncomplete=ok;t.onabort=()=>no(t.error || new Error('Snapshot transaction aborted'));});
+      const [entries,photos]=await Promise.all([get('entries'),get('photos'),done]);
       const result={version:d.version,stores:[...d.objectStoreNames],entries,photos:await Promise.all(photos.map(async p=>({...p,blob:[...new Uint8Array(await p.blob.arrayBuffer())]})))};
       d.close();return result;
     }
