@@ -118,6 +118,33 @@ newer selection. Foreground reopen revalidates local evidence before display.
 This browser-tested viewer does not establish physical-iPhone acceptance;
 SEC-003 remains OPEN and independent of this slice.
 
+### Unretained edits and leaving the form
+
+Retain remains explicit; form edits are not automatically saved. A changed coin
+description (after trimming surrounding whitespace) or selected new photos count
+as unretained edits. Reverting the description and clearing selected photos
+removes that warning; changing the role without selected photos or reviewing
+retained photos does not create an unsaved edit. Acknowledged Retain success
+sets the new baseline and clears the photo selection.
+
+Choosing another draft or **New draft** asks before discarding unretained edits.
+Cancel preserves the description, selected photos, role and current photo view.
+Navigation is blocked during a write. Failed writes keep unretained input;
+an uncertain post-commit outcome keeps departure protection and recovery guidance,
+including after a failed retry. Reopen and inspect the same draft before retrying;
+a warning does not mean that an uncertain write rolled back. Explicitly discarding
+the form never deletes retained evidence.
+
+While meaningful edits or an unacknowledged write remain, a `beforeunload` handler
+requests the browser's native warning on reload, closure or document departure.
+The handler is removed when no longer needed. Browsers control whether the prompt
+appears and its wording, and generally require prior user interaction. This cannot
+guarantee protection against forced mobile browser termination. No unload-time
+persistence is attempted. Foreground reopening still validates retained evidence
+without saving or clearing the current form; shell updates remain deferred while
+edits or unacknowledged writes require protection. Physical-iPhone acceptance
+remains **UNVERIFIED**.
+
 ```text
 python -m unittest tests.test_offline_pwa_build -v
 python -m ruff check tools/build_offline_pwa.py tests/test_offline_pwa_build.py

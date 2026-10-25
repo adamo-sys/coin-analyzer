@@ -2,6 +2,7 @@ import {openStore} from './storage.js';
 import {normalizePhoto} from './media.js';
 const el=id=>document.getElementById(id);
 let store,current={id:crypto.randomUUID(),revision:0},dirty=false,busy=false;
+let baselineLabel='',unacknowledged=false;
 let photoUrl,viewVersion=0,openVersion=0,renderVersion=0,retainedPhotos=[],photoIndex=0;
 function clearPhoto(message='Select a retained draft to review its photos.') {
   ++viewVersion;retainedPhotos=[];photoIndex=0;
@@ -41,7 +42,23 @@ addEventListener('pagehide',()=>clearPhoto());
 const connection=()=>{el('connection').textContent=navigator.onLine?'Network available; drafts remain local.':'Offline · drafts use local storage.';};
 connection();addEventListener('online',connection);addEventListener('offline',connection);
 function error(e) {el('write-status').textContent=e.message || 'Local data unavailable. Preserve this origin and reopen for recovery.';}
-function changed(){dirty=true;el('write-status').textContent='Not retained: uncommitted changes.';}
+function beforeDeparture(event) {event.preventDefault();event.returnValue=true;}
+function refreshProtection() {
+  dirty=el('label').value.trim()!==baselineLabel || el('photos').files.length>0;
+  if(dirty || unacknowledged)addEventListener('beforeunload',beforeDeparture);
+  else removeEventListener('beforeunload',beforeDeparture);
+}
+function resetBaseline(label='') {
+  baselineLabel=label.trim();unacknowledged=false;refreshProtection();
+}
+function changed(){
+  refreshProtection();
+  if(!unacknowledged)el('write-status').textContent=dirty?'Not retained: uncommitted changes.':'No uncommitted changes.';
+}
+function mayDiscard() {
+  if(busy)return false;
+  return !(dirty || unacknowledged) || confirm('Discard uncommitted form changes? Retained drafts will be preserved.');
+}
 el('label').addEventListener('input',changed);el('photos').addEventListener('change',changed);el('role').addEventListener('change',changed);
 async function storageStatus(request=false) {
   try {
@@ -60,8 +77,8 @@ async function render() {
     const li=document.createElement('li'),text=document.createElement('span'),button=document.createElement('button');
     text.textContent=`${entry.label} · revision ${entry.revision} · ${entry.photoIds.length} photos · local draft${entry.photoIds.length?'':' (media missing)'}`;
     button.type='button';button.textContent='Review / add photos';button.onclick=()=>{
-      if(busy || (dirty && !confirm('Discard these uncommitted form changes? Retained drafts will be preserved.')))return;
-      current={id:entry.id,revision:entry.revision};el('label').value=entry.label;el('photos').value='';dirty=false;el('write-status').textContent='Reviewing retained draft. New changes need an explicit retain action.';
+      if(!mayDiscard())return;
+      current={id:entry.id,revision:entry.revision};el('label').value=entry.label;el('photos').value='';resetBaseline(entry.label);el('write-status').textContent='Reviewing retained draft. New changes need an explicit retain action.';
       loadPhotos();
     };
     li.append(text,button);el('entries').append(li);
@@ -85,20 +102,22 @@ async function reopen() {
 }
 el('entry-form').onsubmit=async event=>{
   event.preventDefault();if(busy || !store)return;busy=true;el('retain').disabled=true;
+  const previouslyUnacknowledged=unacknowledged;
+  unacknowledged=true;refreshProtection();
   for(const control of el('entry-form').elements)control.disabled=true;
   el('write-status').textContent='Writing… not yet retained.';
   try {
     const selected=[...el('photos').files];if(selected.length>8)throw new Error('Select no more than 8 photos. Nothing was retained.');
     const photos=[];for(const file of selected)photos.push(await normalizePhoto(file,el('role').value));
     const entry=await store.commit({id:current.id,expectedRevision:current.revision,label:el('label').value,photos});
-    current={id:entry.id,revision:entry.revision};dirty=false;el('photos').value='';
+    current={id:entry.id,revision:entry.revision};el('photos').value='';resetBaseline(entry.label);
     await render();el('write-status').textContent='Retained on this phone. Local evidence only; no recovery copy verified.';
-  } catch(e){error(e);}
+  } catch(e){unacknowledged=previouslyUnacknowledged || e.code==='outcome-uncertain';refreshProtection();error(e);}
   finally {busy=false;for(const control of el('entry-form').elements)control.disabled=false;el('retain').disabled=!store;await storageStatus();}
 };
 el('new').onclick=()=>{
-  if(busy || (dirty && !confirm('Discard uncommitted form changes? Retained drafts will be preserved.')))return;
-  current={id:crypto.randomUUID(),revision:0};el('entry-form').reset();dirty=false;el('write-status').textContent='New draft; nothing retained yet.';
+  if(!mayDiscard())return;
+  current={id:crypto.randomUUID(),revision:0};el('entry-form').reset();resetBaseline();el('write-status').textContent='New draft; nothing retained yet.';
   clearPhoto();
 };
 function workerMessage(worker) {
@@ -114,7 +133,7 @@ async function shellStatus() {
   el('shell-status').textContent=worker && await workerMessage(worker)?'Complete cached shell controls this window. Device/security acceptance remains pending.':'No verified controlling shell. First setup is required; offline startup is not established.';
 }
 el('prepare').onclick=async()=>{
-  if(dirty || busy){el('shell-status').textContent='Update deferred: retain or discard uncommitted changes first.';return;}
+  if(dirty || busy || unacknowledged){el('shell-status').textContent='Update deferred: retain or discard uncommitted changes first.';return;}
   el('prepare').disabled=true;el('shell-status').textContent='Preparing shell using authorized foreground requests…';
   try {
     if(!isSecureContext || !('serviceWorker' in navigator))throw new Error('Trusted secure origin required');
