@@ -118,6 +118,7 @@ test('retained viewer navigates in reference order, releases URLs and preserves 
     assert.equal(await p.evaluate(url=>viewerUrls.has(url),first),false);
     await p.locator('#photo-previous').click();await photoVisible(p,4);
     await review(p,'Empty');
+    await p.locator('#photo-status').filter({hasText:/no retained photos/i}).waitFor({timeout:5000});
     assert.match(await p.locator('#photo-status').innerText(),/no retained photos/i);
     assert.equal(await p.locator('#retained-photo').getAttribute('src'),null);
     assert.equal(await p.locator('#photo-next').isDisabled(),true);
