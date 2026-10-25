@@ -2,6 +2,42 @@ import {openStore} from './storage.js';
 import {normalizePhoto} from './media.js';
 const el=id=>document.getElementById(id);
 let store,current={id:crypto.randomUUID(),revision:0},dirty=false,busy=false;
+let photoUrl,viewVersion=0,openVersion=0,renderVersion=0,retainedPhotos=[],photoIndex=0;
+function clearPhoto(message='Select a retained draft to review its photos.') {
+  ++viewVersion;retainedPhotos=[];photoIndex=0;
+  el('retained-photo').hidden=true;el('retained-photo').removeAttribute('src');
+  if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=undefined;}
+  el('photo-status').textContent=message;
+  el('photo-previous').disabled=true;el('photo-next').disabled=true;
+}
+function showPhoto(index) {
+  const photos=retainedPhotos;
+  clearPhoto();retainedPhotos=photos;photoIndex=index;
+  const photo=photos[index];
+  if(!photo){el('photo-status').textContent='This draft has no retained photos.';return;}
+  photoUrl=URL.createObjectURL(photo.blob);
+  el('retained-photo').alt=`Retained photo ${index+1} of ${photos.length}: ${photo.role}`;
+  el('retained-photo').src=photoUrl;el('retained-photo').hidden=false;
+  el('photo-status').textContent=`Photo ${index+1} of ${photos.length} · ${photo.role}`;
+  el('photo-previous').disabled=index===0;el('photo-next').disabled=index===photos.length-1;
+}
+async function loadPhotos() {
+  clearPhoto('Loading retained photos…');
+  const version=viewVersion,id=current.id,source=store;
+  try {
+    const data=await source.list();
+    if(version!==viewVersion || source!==store || id!==current.id)return;
+    const entry=data.entries.find(entry=>entry.id===id);
+    if(!entry){clearPhoto('Selected draft is unavailable. Reopen and review local storage.');return;}
+    const photos=new Map(data.photos.map(photo=>[photo.id,photo]));
+    retainedPhotos=entry.photoIds.map(id=>photos.get(id));showPhoto(0);
+  } catch {
+    if(version===viewVersion)clearPhoto('Retained photos unavailable. Preserve local data and reopen for recovery.');
+  }
+}
+el('photo-previous').onclick=()=>showPhoto(Math.max(0,photoIndex-1));
+el('photo-next').onclick=()=>showPhoto(Math.min(retainedPhotos.length-1,photoIndex+1));
+addEventListener('pagehide',()=>clearPhoto());
 const connection=()=>{el('connection').textContent=navigator.onLine?'Network available; drafts remain local.':'Offline · drafts use local storage.';};
 connection();addEventListener('online',connection);addEventListener('offline',connection);
 function error(e) {el('write-status').textContent=e.message || 'Local data unavailable. Preserve this origin and reopen for recovery.';}
@@ -17,23 +53,34 @@ async function storageStatus(request=false) {
 }
 el('persistent').onclick=()=>storageStatus(true);
 async function render() {
-  const data=await store.list();el('entries').replaceChildren();
+  const version=++renderVersion,source=store,data=await source.list();
+  if(version!==renderVersion || source!==store)return;
+  el('entries').replaceChildren();
   for(const entry of data.entries) {
     const li=document.createElement('li'),text=document.createElement('span'),button=document.createElement('button');
     text.textContent=`${entry.label} · revision ${entry.revision} · ${entry.photoIds.length} photos · local draft${entry.photoIds.length?'':' (media missing)'}`;
     button.type='button';button.textContent='Review / add photos';button.onclick=()=>{
       if(busy || (dirty && !confirm('Discard these uncommitted form changes? Retained drafts will be preserved.')))return;
       current={id:entry.id,revision:entry.revision};el('label').value=entry.label;el('photos').value='';dirty=false;el('write-status').textContent='Reviewing retained draft. New changes need an explicit retain action.';
+      loadPhotos();
     };
     li.append(text,button);el('entries').append(li);
   }
   el('status').textContent=`Local workspace open · ${data.entries.length} retained drafts. ${data.entries.length?'':'Local data unavailable/new installation; this may also mean prior data was lost. Missing counts are unknown.'}`;
+  if(current.revision>0)await loadPhotos();
 }
 async function reopen() {
   if(busy)return;
+  const version=++openVersion;clearPhoto();
   el('retain').disabled=true;store?.close();store=undefined;
-  try {store=await openStore();await render();el('retain').disabled=false;navigator.serviceWorker?.controller?.postMessage({type:'ACCEPT_LOCAL_SCHEMA',version:2});}
-  catch(e){el('status').textContent='Local data requires recovery. No database reset was performed. Compatible read-only salvage/export tooling is required.';error(e);}
+  try {
+    const opened=await openStore();
+    if(version!==openVersion){opened.close();return;}
+    store=opened;await render();
+    if(version!==openVersion)return;
+    el('retain').disabled=false;navigator.serviceWorker?.controller?.postMessage({type:'ACCEPT_LOCAL_SCHEMA',version:2});
+  }
+  catch(e){if(version!==openVersion)return;clearPhoto('Retained photos unavailable. Preserve local data and reopen for recovery.');el('status').textContent='Local data requires recovery. No database reset was performed. Compatible read-only salvage/export tooling is required.';error(e);}
   await storageStatus();
 }
 el('entry-form').onsubmit=async event=>{
@@ -52,6 +99,7 @@ el('entry-form').onsubmit=async event=>{
 el('new').onclick=()=>{
   if(busy || (dirty && !confirm('Discard uncommitted form changes? Retained drafts will be preserved.')))return;
   current={id:crypto.randomUUID(),revision:0};el('entry-form').reset();dirty=false;el('write-status').textContent='New draft; nothing retained yet.';
+  clearPhoto();
 };
 function workerMessage(worker) {
   return new Promise(resolve=>{

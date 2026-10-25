@@ -104,6 +104,20 @@ or know how many records are missing. Origin storage is not a backup.
 
 ## Tests and static checks
 
+### Review retained photos offline
+
+After preparing the complete shell, reopen this origin offline and choose
+**Review / add photos** on a retained draft. The viewer shows one saved photo,
+its retained role and position. Use **Previous photo** and **Next photo** to
+inspect the saved order; a draft without photos reports that explicitly.
+Choosing a draft or **New draft** still asks before discarding dirty form edits.
+Review does not retain edits or change draft IDs, revisions, photo references,
+roles, order, Blobs, hashes or the database schema. Temporary display URLs are
+released when the photo, draft or view changes. A late read cannot replace a
+newer selection. Foreground reopen revalidates local evidence before display.
+This browser-tested viewer does not establish physical-iPhone acceptance;
+SEC-003 remains OPEN and independent of this slice.
+
 ```text
 python -m unittest tests.test_offline_pwa_build -v
 python -m ruff check tools/build_offline_pwa.py tests/test_offline_pwa_build.py
