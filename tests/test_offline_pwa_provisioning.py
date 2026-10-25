@@ -443,6 +443,7 @@ class CaddyRuntimeTests(unittest.TestCase):
                     raise AssertionError("Caddy exited during startup")
                 if root_ca.exists():
                     cls.tls = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    cls.tls.minimum_version = ssl.TLSVersion.TLSv1_2
                     cls.tls.load_verify_locations(cafile=str(root_ca))
                     try:
                         if cls.request("GET", "/offline-coin-show/", None)[0] == 401:
