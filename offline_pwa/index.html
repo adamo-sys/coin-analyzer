@@ -39,6 +39,15 @@
       <p id="write-status" role="status">No uncommitted changes.</p>
       <p>These drafts are local evidence. They do not add anything to the desktop collection. Photos are normalized to PNG without resizing and embedded metadata is removed; original upload bytes are not retained.</p>
       <ul id="entries" aria-label="Retained local drafts"></ul>
+      <div aria-labelledby="photo-heading">
+        <h3 id="photo-heading">Retained photos</h3>
+        <p id="photo-status" role="status">Select a retained draft to review its photos.</p>
+        <img id="retained-photo" hidden alt="Retained draft photo">
+        <div>
+          <button id="photo-previous" type="button" disabled>Previous photo</button>
+          <button id="photo-next" type="button" disabled>Next photo</button>
+        </div>
+      </div>
     </section>
     <section aria-labelledby="shell-heading">
       <h2 id="shell-heading">Offline application shell</h2>

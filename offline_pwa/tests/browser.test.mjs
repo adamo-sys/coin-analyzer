@@ -66,6 +66,121 @@ async function draft(p, label='Synthetic coin') {
   },label);
 }
 
+// Catch wrong ordering/roles, leaked URLs, stale async selection and accidental writes.
+async function viewerSnapshot(p) {
+  return p.evaluate(async()=>{
+    const db=await (await import('./storage.js')).openStore();
+    try {const data=await db.list();return {...data,photos:await Promise.all(data.photos.map(async photo=>({...photo,blob:[...new Uint8Array(await photo.blob.arrayBuffer())]})))};}
+    finally {db.close();}
+  });
+}
+async function viewerFixtures(p) {
+  await draft(p,'Multi');
+  await p.evaluate(async()=>{
+    const db=await (await import('./storage.js')).openStore();
+    try {
+      const data=await db.list(),entry=data.entries[0];
+      const canvas=document.createElement('canvas');canvas.width=7;canvas.height=3;
+      canvas.getContext('2d').fillRect(0,0,7,3);
+      const blob=await new Promise(ok=>canvas.toBlob(ok));
+      const photo=await (await import('./media.js')).normalizePhoto(blob,'reverse');
+      await db.commit({id:entry.id,expectedRevision:1,label:'Multi',photos:[photo]});
+      await db.commit({id:crypto.randomUUID(),expectedRevision:0,label:'Empty'});
+    } finally {db.close();}
+  });
+  await p.reload();await p.locator('#entries li').filter({hasText:'Empty'}).waitFor();
+}
+const review=(p,label)=>p.locator('#entries li').filter({hasText:label}).getByRole('button').click();
+async function photoVisible(p,width) {
+  await p.waitForFunction(width=>{
+    const img=document.getElementById('retained-photo');
+    return img && !img.hidden && img.complete && img.naturalWidth===width;
+  },width);
+}
+async function trackViewerUrls(p) {
+  await p.evaluate(()=>{
+    const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);
+    window.viewerUrls=new Set();
+    URL.createObjectURL=blob=>{const url=create(blob);viewerUrls.add(url);return url;};
+    URL.revokeObjectURL=url=>{viewerUrls.delete(url);revoke(url);};
+  });
+}
+test('retained viewer navigates in reference order, releases URLs and preserves exact data',async()=>{
+  const ctx=await context();try {
+    const p=await page(ctx);await viewerFixtures(p);const before=await viewerSnapshot(p);
+    await trackViewerUrls(p);await review(p,'Multi');await photoVisible(p,4);
+    assert.match(await p.locator('#photo-status').innerText(),/1 of 2.*unassigned/i);
+    assert.equal(await p.locator('#photo-previous').isDisabled(),true);
+    const first=await p.locator('#retained-photo').getAttribute('src');
+    await p.locator('#photo-next').click();await photoVisible(p,7);
+    assert.match(await p.locator('#photo-status').innerText(),/2 of 2.*reverse/i);
+    assert.equal(await p.locator('#photo-next').isDisabled(),true);
+    assert.equal(await p.evaluate(url=>viewerUrls.has(url),first),false);
+    await p.locator('#photo-previous').click();await photoVisible(p,4);
+    await review(p,'Empty');
+    await p.locator('#photo-status').filter({hasText:/no retained photos/i}).waitFor({timeout:5000});
+    assert.match(await p.locator('#photo-status').innerText(),/no retained photos/i);
+    assert.equal(await p.locator('#retained-photo').getAttribute('src'),null);
+    assert.equal(await p.locator('#photo-next').isDisabled(),true);
+    assert.equal(await p.locator('#photo-previous').isDisabled(),true);
+    assert.equal(await p.evaluate(()=>viewerUrls.size),0);
+    await review(p,'Multi');await photoVisible(p,4);
+    await p.locator('#label').fill('Uncommitted');
+    p.once('dialog',d=>d.dismiss());await review(p,'Empty');await photoVisible(p,4);
+    p.once('dialog',d=>d.dismiss());await p.locator('#new').click();await photoVisible(p,4);
+    assert.equal(await p.locator('#label').inputValue(),'Uncommitted');
+    p.once('dialog',d=>d.accept());await p.locator('#new').click();
+    assert.equal(await p.evaluate(()=>viewerUrls.size),0);
+    assert.equal(await p.locator('#retained-photo').getAttribute('src'),null);
+    await review(p,'Multi');await photoVisible(p,4);
+    await p.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+    await photoVisible(p,4);assert.equal(await p.evaluate(()=>viewerUrls.size),1);
+    assert.deepEqual(await viewerSnapshot(p),before);
+  } finally {await ctx.close();}
+});
+test('retained viewer reopens multiple photos offline without a session or writes',async()=>{
+  const ctx=await context();try {
+    const p=await page(ctx);await viewerFixtures(p);await install(p);
+    const before=await viewerSnapshot(p);await p.close();
+    await ctx.clearCookies();await ctx.setOffline(true);requests=[];
+    const cold=await page(ctx);await review(cold,'Multi');await photoVisible(cold,4);
+    await cold.locator('#photo-next').click();await photoVisible(cold,7);
+    assert.deepEqual(await viewerSnapshot(cold),before);assert.deepEqual(requests,[]);
+  } finally {await ctx.close();}
+});
+test('delayed draft selection cannot replace a newer selection or New mode',async()=>{
+  const ctx=await context();try {
+    const p=await page(ctx);await viewerFixtures(p);await trackViewerUrls(p);
+    // Hold the real validated read at its hash boundary, keeping IDB reads real.
+    await p.evaluate(()=>{
+      const digest=crypto.subtle.digest.bind(crypto.subtle);
+      window.heldReads=[];window.finishedViewerReads=0;
+      crypto.subtle.digest=async(...args)=>{
+        if(window.holdViewerReads)await new Promise(ok=>heldReads.push(ok));
+        const result=await digest(...args);++window.finishedViewerReads;return result;
+      };
+      window.holdViewerReads=true;
+    });
+    await review(p,'Multi');await p.waitForFunction(()=>heldReads.length===1);
+    await p.evaluate(()=>{window.holdViewerReads=false;});
+    await review(p,'Empty');
+    await p.locator('#photo-status').filter({hasText:/no retained photos/i}).waitFor();
+    await p.evaluate(()=>heldReads.splice(0).forEach(ok=>ok()));
+    await p.waitForFunction(()=>finishedViewerReads>=4);
+    await p.evaluate(()=>new Promise(requestAnimationFrame));
+    assert.equal(await p.locator('#retained-photo').getAttribute('src'),null);
+    assert.match(await p.locator('#photo-status').innerText(),/no retained photos/i);
+    assert.equal(await p.evaluate(()=>viewerUrls.size),0);
+    await p.evaluate(()=>{window.holdViewerReads=true;window.finishedViewerReads=0;});await review(p,'Multi');
+    await p.waitForFunction(()=>heldReads.length===1);await p.locator('#new').click();
+    await p.evaluate(()=>{window.holdViewerReads=false;heldReads.splice(0).forEach(ok=>ok());});
+    await p.waitForFunction(()=>finishedViewerReads===2);
+    await p.evaluate(()=>new Promise(requestAnimationFrame));
+    assert.equal(await p.locator('#retained-photo').getAttribute('src'),null);
+    assert.equal(await p.evaluate(()=>viewerUrls.size),0);
+  } finally {await ctx.close();}
+});
+
 test('cached cold deep-link starts without network or session; committed photos survive', async () => {
   const ctx=await context(); try {
     const p=await page(ctx); await install(p); const entry=await draft(p); await p.close();
@@ -240,7 +355,9 @@ async function migrationScenario(p, fault) {
     async function snapshot() {
       const d=await new Promise((ok,no)=>{const r=indexedDB.open(name);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
       const t=d.transaction(['entries','photos']),get=s=>new Promise((ok,no)=>{const r=t.objectStore(s).getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
-      const [entries,photos]=await Promise.all([get('entries'),get('photos')]);
+      // Request success precedes transaction completion; close must not race the next upgrade.
+      const done=new Promise((ok,no)=>{t.oncomplete=ok;t.onabort=()=>no(t.error || new Error('Snapshot transaction aborted'));});
+      const [entries,photos]=await Promise.all([get('entries'),get('photos'),done]);
       const result={version:d.version,stores:[...d.objectStoreNames],entries,photos:await Promise.all(photos.map(async p=>({...p,blob:[...new Uint8Array(await p.blob.arrayBuffer())]})))};
       d.close();return result;
     }
