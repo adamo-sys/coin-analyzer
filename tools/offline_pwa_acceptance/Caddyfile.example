@@ -1,0 +1,139 @@
+# SYNTHETIC ONLY. Tokens must be filled by the validated preparation CLI.
+# Do not run this template or substitute environment variables manually.
+{
+    admin off
+    persist_config off
+    auto_https disable_redirects
+    skip_install_trust
+    storage file_system {
+        root "@@STATE@@"
+    }
+    servers {
+        protocols h1
+        strict_sni_host on
+    }
+}
+
+(safety_headers) {
+    header {
+        Cache-Control "no-store"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; worker-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+}
+
+@@ORIGIN@@ {
+    bind @@BIND@@
+    tls internal
+    route {
+        import safety_headers
+        # route preserves this order. Every handler below follows built-in auth.
+        basic_auth bcrypt synthetic-only {
+            synthetic @@PASSWORD_HASH@@
+        }
+        @wrong_authority expression `{http.request.hostport} != "@@AUTHORITY@@"`
+        respond @wrong_authority "Denied" 421
+        @wrong_method not method GET HEAD
+        header @wrong_method Allow "GET, HEAD"
+        respond @wrong_method "Denied" 405
+        @asset0 expression `{http.request.orig_uri} == "/offline-coin-show/index.html" || {http.request.orig_uri} == "/offline-coin-show/"`
+        handle @asset0 {
+            header Content-Type "text/html"
+            rewrite * /index.html
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset1 expression `{http.request.orig_uri} == "/offline-coin-show/app.js"`
+        handle @asset1 {
+            header Content-Type "text/javascript"
+            rewrite * /app.js
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset2 expression `{http.request.orig_uri} == "/offline-coin-show/storage.js"`
+        handle @asset2 {
+            header Content-Type "text/javascript"
+            rewrite * /storage.js
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset3 expression `{http.request.orig_uri} == "/offline-coin-show/media.js"`
+        handle @asset3 {
+            header Content-Type "text/javascript"
+            rewrite * /media.js
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset4 expression `{http.request.orig_uri} == "/offline-coin-show/style.css"`
+        handle @asset4 {
+            header Content-Type "text/css"
+            rewrite * /style.css
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset5 expression `{http.request.orig_uri} == "/offline-coin-show/manifest.webmanifest"`
+        handle @asset5 {
+            header Content-Type "application/manifest+json"
+            rewrite * /manifest.webmanifest
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset6 expression `{http.request.orig_uri} == "/offline-coin-show/icon-192.png"`
+        handle @asset6 {
+            header Content-Type "image/png"
+            rewrite * /icon-192.png
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset7 expression `{http.request.orig_uri} == "/offline-coin-show/icon-512.png"`
+        handle @asset7 {
+            header Content-Type "image/png"
+            rewrite * /icon-512.png
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset8 expression `{http.request.orig_uri} == "/offline-coin-show/sw.js"`
+        handle @asset8 {
+            header Content-Type "text/javascript"
+            rewrite * /sw.js
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        @asset9 expression `{http.request.orig_uri} == "/offline-coin-show/shell.json"`
+        handle @asset9 {
+            header Content-Type "application/json"
+            rewrite * /shell.json
+            file_server {
+                root "@@ROOT@@"
+                disable_canonical_uris
+            }
+        }
+        respond "Denied" 404
+    }
+    handle_errors {
+        import safety_headers
+        header Content-Type "text/plain; charset=utf-8"
+        respond "Denied" {err.status_code}
+    }
+}
