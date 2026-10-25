@@ -105,6 +105,169 @@ async function trackViewerUrls(p) {
     URL.revokeObjectURL=url=>{viewerUrls.delete(url);revoke(url);};
   });
 }
+
+// Observe listener lifetime and cancellation without depending on mobile prompt UI.
+async function protectedPage(ctx) {
+  await ctx.addInitScript(()=>{
+    const add=window.addEventListener,remove=window.removeEventListener,listeners=new Set();
+    window.addEventListener=function(type,handler,...args){if(type==='beforeunload')listeners.add(handler);return add.call(this,type,handler,...args);};
+    window.removeEventListener=function(type,handler,...args){if(type==='beforeunload')listeners.delete(handler);return remove.call(this,type,handler,...args);};
+    window.departureState=()=>{
+      const event=new Event('beforeunload',{cancelable:true});
+      window.dispatchEvent(event);
+      return {listeners:listeners.size,prevented:event.defaultPrevented};
+    };
+  });
+  return page(ctx);
+}
+async function protection(p,expected) {
+  assert.deepEqual(await p.evaluate(()=>departureState()),{listeners:expected?1:0,prevented:expected});
+}
+async function selectPhoto(p) {
+  const bytes=await p.evaluate(async()=>{
+    const c=document.createElement('canvas');c.width=3;c.height=2;
+    const blob=await new Promise(ok=>c.toBlob(ok,'image/png'));
+    return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+  await p.locator('#photos').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from(bytes)});
+}
+async function formSnapshot(p) {
+  return p.evaluate(()=>({label:document.getElementById('label').value,role:document.getElementById('role').value,
+    files:[...document.getElementById('photos').files].map(f=>({name:f.name,size:f.size,lastModified:f.lastModified})),
+    src:document.getElementById('retained-photo').getAttribute('src'),status:document.getElementById('photo-status').textContent}));
+}
+
+test('unsaved protection follows normalized labels and selected photos, not role or viewing',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await protection(p,false);
+    await viewerFixtures(p);await review(p,'Multi');await photoVisible(p,4);await protection(p,false);
+    await p.locator('#photo-next').click();await photoVisible(p,7);await protection(p,false);
+    await p.locator('#role').selectOption('reverse');await protection(p,false);
+    await p.locator('#label').fill('Changed');await protection(p,true);
+    await p.locator('#label').fill('  Multi  ');await protection(p,false);
+    await selectPhoto(p);await protection(p,true);
+    await p.locator('#photos').setInputFiles([]);await protection(p,false);
+    await p.locator('#new').click();await protection(p,false);
+    await p.locator('#label').fill('   ');await protection(p,false);
+  } finally {await ctx.close();}
+});
+
+test('discard guard preserves complete form and viewer on cancellation and accepts navigation',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await viewerFixtures(p);await review(p,'Multi');await photoVisible(p,4);
+    const evidence=await viewerSnapshot(p);
+    await p.locator('#label').fill('Unretained');await selectPhoto(p);await p.locator('#role').selectOption('detail');
+    const before=await formSnapshot(p);
+    p.once('dialog',d=>d.dismiss());await review(p,'Empty');
+    assert.deepEqual(await formSnapshot(p),before);await protection(p,true);
+    p.once('dialog',d=>d.dismiss());await p.locator('#new').click();
+    assert.deepEqual(await formSnapshot(p),before);await protection(p,true);
+    p.once('dialog',d=>d.accept());await review(p,'Empty');
+    assert.equal(await p.locator('#label').inputValue(),'Empty');
+    assert.equal(await p.locator('#photos').evaluate(e=>e.files.length),0);await protection(p,false);
+    await p.locator('#label').fill('Discard me');
+    p.once('dialog',d=>d.accept());await p.locator('#new').click();
+    assert.equal(await p.locator('#label').inputValue(),'');await protection(p,false);
+    assert.deepEqual(await viewerSnapshot(p),evidence);
+  } finally {await ctx.close();}
+});
+
+test('acknowledged retain resets normalized baseline and clears selected-photo protection',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await p.locator('#label').fill('  Saved label  ');await selectPhoto(p);
+    await protection(p,true);await p.locator('#retain').click();
+    await p.locator('#write-status').filter({hasText:'Retained on this phone'}).waitFor();await protection(p,false);
+    assert.equal(await p.locator('#photos').evaluate(e=>e.files.length),0);
+    await p.locator('#label').fill('Changed');await protection(p,true);
+    await p.locator('#label').fill('Saved label');await protection(p,false);
+    const data=await viewerSnapshot(p);assert.equal(data.entries[0].label,'Saved label');assert.equal(data.photos.length,1);
+    await p.reload();await review(p,'Saved label');await photoVisible(p,3);await protection(p,false);
+  } finally {await ctx.close();}
+});
+
+test('failed UI write retains edits and departure protection without changing evidence',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await viewerFixtures(p);await review(p,'Multi');await photoVisible(p,4);
+    const before=await viewerSnapshot(p);await p.locator('#label').fill('Failed edit');await selectPhoto(p);
+    await p.evaluate(()=>{
+      const put=IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put=function(...args){if(this.name==='photos')throw new DOMException('synthetic quota','QuotaExceededError');return put.apply(this,args);};
+    });
+    await p.locator('#retain').click();await p.locator('#write-status').filter({hasText:/quota exhausted/}).waitFor();
+    await protection(p,true);assert.equal(await p.locator('#label').inputValue(),'Failed edit');
+    assert.equal(await p.locator('#photos').evaluate(e=>e.files.length),1);
+    assert.deepEqual(await viewerSnapshot(p),before);
+  } finally {await ctx.close();}
+});
+
+test('uncertain UI write preserves recovery guidance and protection until explicit discard',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await viewerFixtures(p);await review(p,'Multi');await photoVisible(p,4);
+    await p.locator('#label').fill('Uncertain');
+    await p.evaluate(()=>{
+      const native=IDBDatabase.prototype.transaction;let written=false;
+      window.restoreTransactions=()=>{IDBDatabase.prototype.transaction=native;};
+      IDBDatabase.prototype.transaction=function(...args){
+        if(written && args[1]==='readonly')throw new DOMException('synthetic readback failure','UnknownError');
+        const tx=native.apply(this,args);if(args[1]==='readwrite')tx.addEventListener('complete',()=>{written=true;});return tx;
+      };
+    });
+    await p.locator('#retain').click();
+    await p.locator('#write-status').filter({hasText:/may have committed.*readback failed/}).waitFor();await protection(p,true);
+    await p.evaluate(()=>restoreTransactions());
+    await p.locator('#label').fill('Multi');await protection(p,true);
+    assert.match(await p.locator('#write-status').innerText(),/may have committed.*readback failed/);
+    await p.locator('#prepare').click();assert.match(await p.locator('#shell-status').innerText(),/deferred/);
+    const data=await viewerSnapshot(p);assert.equal(data.entries.length,2);assert.ok(data.entries.some(e=>e.label==='Uncertain'));
+    await p.locator('#retain').click();
+    await p.locator('#write-status').filter({hasText:/Connection closed or recovery required/}).waitFor();
+    await protection(p,true);
+    p.once('dialog',d=>d.dismiss());await p.locator('#new').click();await protection(p,true);
+    p.once('dialog',d=>d.accept());await p.locator('#new').click();await protection(p,false);
+    assert.deepEqual(await viewerSnapshot(p),data);
+  } finally {await ctx.close();}
+});
+
+test('active write protects an unchanged form and blocks conflicting internal navigation',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await viewerFixtures(p);await review(p,'Multi');await photoVisible(p,4);
+    await protection(p,false);
+    await p.evaluate(()=>{
+      const digest=crypto.subtle.digest.bind(crypto.subtle);
+      window.releaseWrite=undefined;let held=false;
+      crypto.subtle.digest=async(...args)=>{
+        if(!held){held=true;await new Promise(ok=>{window.releaseWrite=ok;});}
+        return digest(...args);
+      };
+    });
+    await p.locator('#retain').click();await p.waitForFunction(()=>typeof releaseWrite==='function');await protection(p,true);
+    const before=await formSnapshot(p);
+    await review(p,'Empty');
+    // New is disabled, but its handler must also reject conflicting navigation.
+    await p.evaluate(()=>document.getElementById('new').onclick());
+    assert.deepEqual(await formSnapshot(p),before);
+    await p.locator('#prepare').click();assert.match(await p.locator('#shell-status').innerText(),/deferred/);
+    await p.evaluate(()=>releaseWrite());
+    await p.locator('#write-status').filter({hasText:'Retained on this phone'}).waitFor();await protection(p,false);
+  } finally {await ctx.close();}
+});
+
+test('offline foreground reopen preserves unsaved form and exact retained evidence',async()=>{
+  const ctx=await context();try {
+    const p=await protectedPage(ctx);await viewerFixtures(p);await install(p);await review(p,'Multi');await photoVisible(p,4);
+    const evidence=await viewerSnapshot(p);await ctx.clearCookies();await ctx.setOffline(true);requests=[];
+    await p.locator('#label').fill('Offline edit');await selectPhoto(p);await p.locator('#role').selectOption('obverse');
+    await p.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+    await photoVisible(p,4);await protection(p,true);
+    assert.equal(await p.locator('#label').inputValue(),'Offline edit');
+    assert.equal(await p.locator('#photos').evaluate(e=>e.files.length),1);
+    assert.equal(await p.locator('#role').inputValue(),'obverse');
+    assert.deepEqual(await viewerSnapshot(p),evidence);assert.deepEqual(requests,[]);
+    p.once('dialog',d=>d.accept());await p.locator('#new').click();await protection(p,false);
+    await p.reload();await review(p,'Multi');await photoVisible(p,4);
+    assert.deepEqual(await viewerSnapshot(p),evidence);assert.deepEqual(requests,[]);
+  } finally {await ctx.close();}
+});
 test('retained viewer navigates in reference order, releases URLs and preserves exact data',async()=>{
   const ctx=await context();try {
     const p=await page(ctx);await viewerFixtures(p);const before=await viewerSnapshot(p);
