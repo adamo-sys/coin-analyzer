@@ -265,6 +265,107 @@ class FirstCoinWorkflowTests(unittest.TestCase):
         self.assertEqual((second.country, second.year, second.image_path),
                          ("France", "1970", str(self.second)))
 
+    def save_receipt_coin(self, gui, country="Canada"):
+        gui.country_var.set(country)
+        gui.notes_text.insert("1.0", "Synthetic receipt coin")
+        with patch("coin_collection_gui.messagebox.showinfo"):
+            self.button(gui.root, "Save to Collection").invoke()
+        return gui.app.last_added_item_id
+
+    def test_receipt_opens_hidden_saved_coin_without_changing_search_or_next_draft(self):
+        gui, errors = self.open_gui()
+        gui.search_var.set("nonmatching query")
+        with patch("coin_collection_gui.filedialog.askopenfilenames",
+                   return_value=(str(self.front), str(self.back))):
+            with patch("coin_collection_gui.messagebox.showinfo"):
+                self.button(gui.root, "Add Photos").invoke()
+        item_id = self.save_receipt_coin(gui)
+        self.assertEqual(gui.collection_tree.get_children(), ())
+        self.assertTrue(hasattr(gui, "saved_coin_receipt_var"), "Successful save must expose a receipt")
+        self.assertIn(item_id, gui.saved_coin_receipt_var.get())
+        gui.country_var.set("France")
+        gui.notes_text.insert("1.0", "Next unsaved draft")
+        gui.current_item_photos = [ItemPhoto(str(self.second), PhotoRole.FRONT, True)]
+        before = self.storage.read_bytes()
+        self.button(gui.root, "View saved coin").invoke()
+        dialog = next(w for w in gui.root.winfo_children()
+                      if isinstance(w, tk.Toplevel) and w.title() == "Item Details")
+        text = next(w for w in self.widgets(dialog) if isinstance(w, tk.Text)).get("1.0", tk.END)
+        self.assertIn(f"ID: {item_id}", text)
+        self.assertIn("Country: Canada", text)
+        self.assertIn(str(self.front), text)
+        photo_tree = next(w for w in self.widgets(dialog) if isinstance(w, ttk.Treeview))
+        self.assertEqual(len(photo_tree.get_children()), 2)
+        self.assertEqual(gui.search_var.get(), "nonmatching query")
+        self.assertEqual(gui.country_var.get(), "France")
+        self.assertEqual(gui.notes_text.get("1.0", tk.END).strip(), "Next unsaved draft")
+        self.assertEqual([p.path for p in gui.current_item_photos], [str(self.second)])
+        self.assertEqual(self.storage.read_bytes(), before)
+        self.assertFalse(errors, errors)
+
+    def test_latest_success_replaces_receipt_and_restart_has_none(self):
+        gui, errors = self.open_gui()
+        first_id = self.save_receipt_coin(gui)
+        second_id = self.save_receipt_coin(gui, "France")
+        self.assertNotEqual(first_id, second_id)
+        self.assertIn(second_id, gui.saved_coin_receipt_var.get())
+        self.assertNotIn(first_id, gui.saved_coin_receipt_var.get())
+        self.button(gui.root, "View saved coin").invoke()
+        dialog = next(w for w in gui.root.winfo_children()
+                      if isinstance(w, tk.Toplevel) and w.title() == "Item Details")
+        text = next(w for w in self.widgets(dialog) if isinstance(w, tk.Text)).get("1.0", tk.END)
+        self.assertIn(f"ID: {second_id}", text)
+        self.assertIn("Country: France", text)
+        gui.root.destroy()
+        reopened, reopened_errors = self.open_gui()
+        self.assertEqual(reopened.saved_coin_receipt_var.get(), "")
+        self.assertEqual(str(self.button(reopened.root, "View saved coin").cget("state")), "disabled")
+        self.assertFalse(errors + reopened_errors)
+
+    def test_failed_and_uncertain_saves_never_replace_successful_receipt(self):
+        gui, errors = self.open_gui()
+        # Persistence failure exercises the real service's rollback, not just a UI stub.
+        gui.country_var.set("Canada")
+        with patch.object(gui.app.collection, "save_collection", return_value=False):
+            with patch("coin_collection_gui.messagebox.showerror"):
+                self.button(gui.root, "Save to Collection").invoke()
+        self.assertEqual(gui.saved_coin_receipt_var.get(), "")
+        self.assertEqual(gui.app.collection.items, [])
+        first_id = self.save_receipt_coin(gui)
+        before = self.storage.read_bytes()
+        for outcome in (False, None, "uncertain"):
+            with self.subTest(outcome=outcome):
+                gui.country_var.set("France")
+                with patch.object(gui.app, "add_to_collection", return_value=outcome):
+                    with patch("coin_collection_gui.messagebox.showerror"):
+                        self.button(gui.root, "Save to Collection").invoke()
+                self.assertIn(first_id, gui.saved_coin_receipt_var.get())
+                self.assertIn("earlier successful save", gui.saved_coin_receipt_var.get())
+                self.assertEqual(gui.country_var.get(), "France")
+                self.assertEqual(self.storage.read_bytes(), before)
+        self.assertFalse(errors, errors)
+
+    def test_receipt_refuses_removed_replaced_and_reloaded_records(self):
+        for change in ("removed", "replaced", "reloaded"):
+            with self.subTest(change=change):
+                gui, errors = self.open_gui()
+                item_id = self.save_receipt_coin(gui)
+                if change == "removed":
+                    gui.app.collection.items = []
+                elif change == "replaced":
+                    from copy import deepcopy
+                    gui.app.collection.items = [deepcopy(gui.app.collection.get_item(item_id))]
+                else:
+                    gui.app.collection = CoinCollection(str(self.storage))
+                before = self.storage.read_bytes()
+                with patch("coin_collection_gui.messagebox.showwarning") as warning:
+                    self.button(gui.root, "View saved coin").invoke()
+                warning.assert_called_once()
+                self.assertFalse(any(isinstance(w, tk.Toplevel) for w in gui.root.winfo_children()))
+                self.assertEqual(self.storage.read_bytes(), before)
+                self.assertFalse(errors, errors)
+                gui.root.destroy()
+
 
 if __name__ == "__main__":
     unittest.main()
