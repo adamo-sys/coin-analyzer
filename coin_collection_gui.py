@@ -1762,6 +1762,16 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(action_frame, text="Use Detection Results", command=self.use_detection_results).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Save to Collection", command=self.save_to_collection).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Clear Form", command=self.clear_form).pack(side=tk.LEFT)
+
+        self._saved_coin_reference = None
+        self.saved_coin_receipt_var = tk.StringVar(value="")
+        receipt_frame = ttk.Frame(edit_frame)
+        receipt_frame.grid(row=9, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
+        ttk.Label(receipt_frame, textvariable=self.saved_coin_receipt_var).pack(side=tk.LEFT)
+        self.saved_coin_receipt_button = ttk.Button(
+            receipt_frame, text="View saved coin", command=self.view_saved_coin, state=tk.DISABLED,
+        )
+        self.saved_coin_receipt_button.pack(side=tk.LEFT)
         
         # Collection list
         collection_frame = ttk.LabelFrame(right_panel, text="Collection", padding="10")
@@ -3211,6 +3221,11 @@ Total Unique Dates: {total_unique_dates}
     
     def save_to_collection(self):
         """Save current coin to collection."""
+        previous_receipt = getattr(self, "_saved_coin_reference", None)
+        if previous_receipt is not None:
+            self.saved_coin_receipt_var.set(
+                f"Saved coin: {previous_receipt.item_id} (earlier successful save) — "
+            )
         self.sync_current_image_path_from_photos()
         
         country = self.country_var.get().strip()
@@ -3242,7 +3257,7 @@ Total Unique Dates: {total_unique_dates}
         add_kwargs: dict[str, Any] = {"photos": photos}
         if hasattr(self, "acquisition_controls"):
             add_kwargs.update(acquisition)
-        if self.app.add_to_collection(
+        saved = self.app.add_to_collection(
             country,
             denomination,
             year,
@@ -3250,7 +3265,21 @@ Total Unique Dates: {total_unique_dates}
             notes,
             use_detection,
             **add_kwargs,
-        ):
+        )
+        if saved is True:
+            if hasattr(self, "saved_coin_receipt_var"):
+                from collection_item_reference import CollectionItemReference
+                try:
+                    item = self.app.collection.get_item(self.app.last_added_item_id)
+                    reference = CollectionItemReference.capture(self.app.collection, item)
+                except ValueError:
+                    messagebox.showwarning(
+                        "Item unavailable", "The saved record is unavailable. Refresh the collection before opening it.",
+                    )
+                else:
+                    self._saved_coin_reference = reference
+                    self.saved_coin_receipt_var.set(f"Saved coin: {reference.item_id} — ")
+                    self.saved_coin_receipt_button.configure(state=tk.NORMAL)
             if self.pending_inbox_manager and self.pending_inbox_photo_set_id:
                 if not self.complete_pending_inbox_create(getattr(self.app, "last_added_item_id", "")):
                     messagebox.showwarning(
@@ -3267,6 +3296,21 @@ Total Unique Dates: {total_unique_dates}
             self.refresh_collection_list()
         else:
             messagebox.showerror("Error", "Failed to add coin to collection")
+
+    def view_saved_coin(self):
+        """Open the latest session receipt only while its exact record is current."""
+        reference = self._saved_coin_reference
+        if reference is None:
+            return
+        try:
+            item = reference.resolve(self.app.collection)
+        except ValueError:
+            self.saved_coin_receipt_button.configure(state=tk.DISABLED)
+            messagebox.showwarning(
+                "Item unavailable", "This record changed. Select a current record after refresh.",
+            )
+            return
+        self.open_item_details_window(item)
 
     def record_detection_observation_after_save(self, country, denomination, year, photos):
         """Persist a confirmed detection outcome after collection persistence succeeds."""

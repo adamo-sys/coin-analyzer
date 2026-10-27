@@ -191,6 +191,15 @@ message. After success, the entry form clears and the record appears in **Collec
 The **ID** column identifies that saved record; keep it if you need to distinguish
 similar coins.
 
+After a successful manual save, **Saved coin: [ID] — View saved coin** provides a
+shortcut to that exact record's details and photos, even if the current search
+hides it. Opening it leaves your search and any next unsaved entry untouched.
+Only the latest successful receipt is kept, for this application session. After
+another Save attempt, a retained receipt is labelled **earlier successful save**
+until a new save succeeds; it does not confirm the later attempt. If its record
+was removed or replaced, the shortcut refuses to open it. Use the collection list
+to select a current record. Restarting the application clears the receipt.
+
 If an error appears, do not assume the coin was saved. Check the collection list
 before attempting another save. Selecting photos, typing fields, or closing the
 window is not a substitute for **Save to Collection**.
