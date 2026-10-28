@@ -757,3 +757,132 @@ outstanding. None of these actions begins automatically.
 **Preserved status: SEC-003 OPEN; Stage 1B NO-GO; R2 UNCHANGED;
 Windows protected-runtime recovery BLOCKED/PARKED;
 Tier 1 pilot HOLD / NOT AUTHORIZED.**
+
+## SEC-003 Tier 1 Linux provisioning: prospective adoption record
+
+### Owner disposition and exact prospective scope
+
+The owner's 2026-10-28 "Owner Authorization — SEC003-T1 Adoption
+Documentation" records **SEC003-T1-LINUX-PROVISIONING-DRAFT-01: ADOPTED**
+as a prospective governing contract. This record identifies the accepted
+preserved representation below and carries forward its complete Sections 1–12,
+subject to the narrow Section 8 disposition below. It does not authenticate
+historical original bytes or convert documentation adoption into execution
+permission. This documentation package remains uncommitted and unpublished;
+publication requires a separate owner decision after final-diff review.
+
+The authorized documentation baseline is branch `docs/sec003-t1-adoption`,
+worktree `C:/Projects/coin-analyzer/build/worktrees/sec003-t1-adoption-docs`,
+HEAD `9ebb14973646170e385e0cc95b6b2b33d2cfbfae`. The incorporated governance
+baseline remains `27672e6820c3c92e2fc5a5036fcc815bde9b338f`.
+
+The adopted scope is ordinary trusted Tier 1 Linux interpreter and tool
+provisioning criteria only. The failed Windows-supervised WSL operation is not
+reclassified, repaired or authorized. R2 remains unchanged wherever applicable,
+including complete C1–C12, all 30 C12 cases and native platform qualification.
+Tier 2 containment and Tier 3 qualification cannot be inferred from this adoption.
+The preceding Package 0 amendments and their separate restrictions are unchanged.
+
+### Preserved snapshot identity and provenance limitations
+
+The owner accepts the eight-file preservation remedy with its documented
+provenance and durability limitations. The snapshot is
+`SEC003-T1-LINUX-PROVISIONING-DRAFT-01-local-preservation`, under
+[`docs/security/sec-003/t1-linux-provisioning-draft-01/`](../security/sec-003/t1-linux-provisioning-draft-01/).
+The exact adopted prospective contract representation is
+[`draft.md`](../security/sec-003/t1-linux-provisioning-draft-01/draft.md).
+The separate
+[`preservation-manifest.json`](../security/sec-003/t1-linux-provisioning-draft-01/preservation-manifest.json)
+identifies seven content files; its own identity is recorded externally here.
+All identities below cover complete preserved raw bytes using SHA-256:
+
+| Preserved file | Bytes | SHA-256 |
+|---|---:|---|
+| README.md | 1,043 | `3EB993E996E78ADCB385A43E8E3D97F02B3BF6EA6AD96BCA7BA2CCF699516FF5` |
+| draft.md | 17,974 | `8FC0714B5A8C624861609CC9A7A6B707D264ED667733AF476199DA950D785ADD` |
+| edr-report.md | 8,391 | `A9689584A0DCDD63E68B9927A1EA2FEB6A4FBEEF4FD9F82AA014B4136F781124` |
+| evidence-matrix.md | 1,703 | `F727165D791216026E290666D18E83E96D18D25B2ABBAAAB76CCF5CA7B9782D0` |
+| manifest.json | 1,308 | `EDD98EE87347E2B806D3C5745EE4441F1BC05BD087430DFDCC9E20E6DDBFBE72` |
+| owner-disposition-supplement.md | 821 | `BE97DF92DB57D2C02DDC59162EF8E56B4D8E677E17B8F7FAA636EC7D69971C3C` |
+| preservation-manifest.json | 5,583 | `9197F04A84F53B3E193738CDCF40C8E515A875D1D2E55DDDE256CBC02CCDC2AF` |
+| section-8-static-verification.md | 9,811 | `AA7512E9181BACA2FD0939FAA04F0FD3C314AE63E50426F94F0713605A6EED82` |
+
+The logical reviewed draft and this serialized preservation snapshot remain
+distinct. The original logical draft has no authenticated whole-packet digest.
+The recovery transcriptions are not certified original Codex file bytes. Current
+byte correspondence establishes preservation relative to these identified files,
+not retrospective authorship, complete approval provenance or historical fidelity.
+The unchanged `manifest.json` is the recovery-candidate manifest; it is not
+independent provenance authentication. No recursive or whole-packet digest is
+claimed. Flush/readback observations do not establish physical durability,
+power-loss persistence or resistance to privileged tampering.
+
+The preserved files remain immutable. Their `PROPOSED / NOT ADOPTED` and similar
+labels describe the retained earlier dispositions. The current owner's ADOPTED
+disposition supersedes those labels only for prospective contract status. It does
+not rewrite the reports, alter their review coverage, certify missing history or
+supersede any execution, qualification, security or budget hold. Evidence and
+review reports remain evidence records, not additional execution authority.
+
+### Section 8: narrow static-interface condition satisfied
+
+The owner accepts
+[`section-8-static-verification.md`](../security/sec-003/t1-linux-provisioning-draft-01/section-8-static-verification.md)
+as satisfying only the before-adoption requirement concerning selected-version
+flags, exit semantics and machine-readable report schemas for uv 0.13.5,
+pip 26.2.2 and pip-audit 2.10.1. The separate
+[`owner-disposition-supplement.md`](../security/sec-003/t1-linux-provisioning-draft-01/owner-disposition-supplement.md)
+records that narrow acceptance and remains a newly supplied decision, not a
+recovered historical message. This adoption record does not independently repeat
+or extend the static verification. The report's documented interface limits
+remain controlling inputs to any later implementation design.
+
+That acceptance does not qualify tool artifacts, complete dependency closures,
+bundled/vendored components, bootstrap trust, native dependencies, actual flags
+or schemas at runtime, reproducibility, installation, inventories, audits or
+failure handling. The reported prior independent EDR PASS applies to prospective
+contract design only; it is not a fidelity verdict on this preservation snapshot,
+a runtime verdict or the final-diff EDR of this adoption documentation package.
+
+### Outstanding gates and retained governing status
+
+Adoption discharges only the prospective contract-adoption decision. All other
+applicable prerequisites remain open, including:
+
+- Exact approved platform/image/TCB, storage paths, privilege and credential
+  controls, source/egress policy, independent verifier and complete admission
+  schedule, finite limits, evidence retention and cancellation authority.
+- Independent artifact authentication and custody; reviewed extraction
+  implementation and native qualification; sealed-tree integrity and separate
+  authority for interpreter execution. Retained artifact selections and archive
+  policy are unchanged; neither the failed partial tree nor alternative builds
+  are approved.
+- Complete independent bootstrap/resolver/scanner qualification under Section 8,
+  including closures, metadata, reviewed staged wheels, reproducibility/replay,
+  inventories, strict complete audits and finite clean/negative controls before
+  application solving. Static-interface acceptance is not tool qualification.
+- Conservative cumulative budget reconciliation, certified finite headroom and
+  separately authorized allocations. The 36,000-machine-second ceiling and all
+  counters remain unchanged; exhausted allowances are not revived or transferred.
+  Pilot maxima are not available allowance and their scheduling issue remains.
+- Separate implementation, acquisition, installation, interpreter/tool execution,
+  pilot and later application-work authorizations. Adoption grants none of them.
+  All eight outputs, complete metadata closure, L = I = A, audits, replay,
+  synthetic feature evidence and the full approved native matrix remain required
+  for global SEC-003-1 acceptance and later consumer migration.
+- Mandatory Windows 11 24H2 x64 qualification across the approved interpreter
+  builds, profiles and applicable aliases; Linux, WSL or hosted Windows results
+  do not substitute. SEC-003-2/3 ordering and local-first/privacy rules remain.
+- **Pillow 12.3.0: UNQUALIFIED pending independent security/advisory reassessment.**
+  No historical retention preference, static verification, EDR or adoption accepts it.
+
+This package requires its own independent final-diff EDR covering scope,
+provenance, internal consistency, security boundaries and byte/diff integrity.
+Prior EDRs do not satisfy that gate. Review status must be reported against the
+exact reviewed snapshot; this record supplies no new historical review receipt.
+No commit, push, PR, merge, workflow change or publication is authorized here.
+
+**Current governing status: prospective T1 contract ADOPTED; SEC-003 OPEN;
+Stage 1B NO-GO; R2 UNCHANGED; Pillow 12.3.0 UNQUALIFIED;
+Tier 1 pilot HOLD / NOT AUTHORIZED; implementation, provisioning and
+qualification NOT AUTHORIZED.**
