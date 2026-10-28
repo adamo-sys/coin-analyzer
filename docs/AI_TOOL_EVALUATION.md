@@ -27,6 +27,70 @@ For each tool or configuration, record:
 - approximate completion time;
 - decision: adopt, optional, retry later, or reject.
 
+### Pairing Matters — deferred agent-skills evaluation methodology
+
+**Status: METHODOLOGY ONLY / LOCAL EVALUATION NOT RUN.**
+
+- **Source / evidence status:** Zhao, Poskitt and Lo,
+  [Pairing Matters: Performance, Failures, and Efficiency in Lightweight Coding
+  Agents](https://arxiv.org/abs/2610.32131v1), preprint v1, 2026-10-23;
+  abstract consulted 2026-10-28. The authors report six harnesses paired with
+  three models on 100 SWE-bench Verified tasks (1,800 graded runs), with up to
+  44 percentage points difference in resolution rates for the same model across
+  harnesses, changing harness rankings across models, pairing-dependent failure
+  patterns, and over 20-fold variation in charged tokens per resolved task among
+  model-directed loop harnesses. These are **author-reported preprint findings**,
+  not independently reproduced evidence from this task or measured Coin Analyzer
+  benefits. No full artifact audit or benchmark reproduction was performed.
+- **Evaluation unit / retained baseline:** compare complete model–harness–
+  configuration pairings. Retain **Ponytail as the owner-designated baseline**
+  alongside **Superpowers, Agent Skills and Anthropic Skills** in the deferred
+  comparison set; this records no adoption or qualification. Before evaluation,
+  resolve each name to an exact source/revision and permitted configuration;
+  Ponytail's implementation identity is not established by this entry. Record
+  model/provider/version and settings, harness/version, skill revisions, prompts,
+  context policy, tools, permissions, orchestration, retries and environment.
+  Attribute results to the complete pairing; isolate a component change in a
+  controlled comparison before claiming that component caused an improvement.
+- **Frozen protocol / reproducibility:** preregister task IDs, exact starting
+  revisions, sanitized inputs with privacy classifications, provenance-backed
+  expected results, independent acceptance gates, run order, repetitions,
+  resource caps and stop conditions. Use identical starting states in isolated
+  environments; keep tuning tasks separate. Retain configuration and evidence
+  identities, per-run outcomes, run-to-run variability and replay limitations.
+  A single run cannot establish variability; missing measurements are unavailable.
+- **Success / failure modes:** record independently checked task success with
+  denominators, defects, false acceptance, scope violations, interventions,
+  timeouts and abstentions. Retain failure trajectories within approved privacy
+  and retention boundaries, including disagreements and unsupported claims;
+  agent consensus or self-scores cannot grant acceptance.
+- **Token consumption / cost / latency:** record input/output tokens and tool
+  calls across setup, all agents, retries and review; total tokens and tokens per
+  accepted task where defined; wall-clock latency; software/API cost with pricing
+  date, currency and accounting assumptions; and operator/review overhead.
+  Include failed runs and orchestration overhead. Report per-run measurements and
+  aggregate variation; zero accepted tasks leaves tokens per accepted task
+  undefined. Disclose unavailable usage/cost data rather than treating it as zero.
+- **Security / provenance / licensing / Codex compatibility:** before execution,
+  independently review pinned sources, release/dependency provenance, applicable
+  licenses and adaptation/redistribution rights, maintenance and revision drift.
+  Review prompt injection, credentials, filesystem/network access, retention and
+  external transmission. Verify compatibility with the actual Codex version,
+  skill format, tools, hooks and permission model under a separately authorized
+  protocol; do not infer compatibility or safety from the preprint. Use sanitized
+  fixtures; exclude private records, live sessions and local-only coin photos.
+- **Governance / decision:** assess authority, privacy, provenance, evidence
+  custody and governance compliance separately from task success. Efficiency
+  cannot excuse violations, weakened gates or missing acceptance evidence.
+  Stop for drift, exposure, budget overruns or unreliable evidence; retain
+  failures and report ties/inconclusive results without promoting a candidate.
+
+Preserve execution order: **SEC-003 → Offline PWA validation → deferred
+agent-skills research**. Existing candidate prerequisites remain applicable.
+This entry preserves all existing research records and grants no installation,
+benchmark execution, permission change, integration, adoption or publication
+authority. Future execution requires a separately approved bounded protocol.
+
 ## Developer-tool version record
 
 Current status correction (2026-09-08): `atomic_json.py` joined the blocking
