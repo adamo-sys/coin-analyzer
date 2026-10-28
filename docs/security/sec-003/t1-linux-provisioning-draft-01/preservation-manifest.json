@@ -1,0 +1,93 @@
+{
+  "snapshot_id": "SEC003-T1-LINUX-PROVISIONING-DRAFT-01-local-preservation",
+  "status": "PRESERVATION SNAPSHOT ONLY; PROPOSED / NOT ADOPTED; NO EXECUTION AUTHORIZED",
+  "created_at_utc": "2026-10-28T03:56:41.6869258Z",
+  "source_location": "C:\\Users\\adamo\\Downloads\\SEC003_complete_source_recovery_candidate",
+  "destination": "docs/security/sec-003/t1-linux-provisioning-draft-01/",
+  "capture_method": "All six source files read as raw byte arrays, SHA-256 checked against the owner-supplied previously observed baseline before writing, and serialized without content edits using exclusive CreateNew writes. Supplement separately serialized from the new owner decision.",
+  "baseline_attribution": "Owner supplied six previously recorded hashes from the preceding read-only source inspection in this same thread. These are correspondence observations, not independent historical provenance authentication.",
+  "governance": {
+    "repository": "adamo-sys/coin-analyzer",
+    "pinned_commit": "27672e6820c3c92e2fc5a5036fcc815bde9b338f",
+    "verification": "Read-only GitHub inspection of pinned AGENTS.md and docs/agent-ops/CONTRACT.md, RUNBOOK.md, STANDARDS.md before writing; applicable local guidance also inspected"
+  },
+  "checkout": {
+    "worktree": "C:\\Projects\\coin-analyzer",
+    "branch": "docs/deferred-mass-research-candidate",
+    "head_and_task_authorized_base": "2f2fc58c59cef8df8ba63b671facc049e6161932"
+  },
+  "serialization": {
+    "copied_six_files": "Original candidate bytes preserved unchanged; no encoding or line-ending conversion",
+    "supplement": "UTF-8 without BOM, LF line endings, one final LF",
+    "preservation_manifest": "UTF-8 without BOM, LF line endings, one final LF",
+    "hash_algorithm": "SHA-256 over complete on-disk file bytes"
+  },
+  "manifest_distinction": "manifest.json is the unchanged original recovery-candidate manifest; preservation-manifest.json is this newly generated seven-content-file inventory. The original manifest is not independent provenance authentication.",
+  "provenance_limitations": [
+    "The reviewed logical draft SEC003-T1-LINUX-PROVISIONING-DRAFT-01 is distinct from this newly serialized local preservation snapshot.",
+    "The original reviewed logical draft has no authenticated whole-packet digest.",
+    "The recovery candidate describes conversation-derived transcriptions, not authenticated original Codex file bytes.",
+    "Current source-copy fidelity does not establish historical original-byte fidelity. No historical independent fidelity PASS is claimed.",
+    "The recovered EDR report records a reported independent PASS for prospective contract design only; it is not a verdict on this preservation snapshot or toolchain qualification.",
+    "The newly supplied owner-disposition supplement separately dispositions the narrow section-8 before-adoption interface condition; it neither retroactively changes the recovered reports nor qualifies complete toolchains.",
+    "This manifest lists seven content files only and intentionally contains neither its own hash nor any recursive or self-referential packet hash."
+  ],
+  "preserved_disposition": {
+    "contract": "PROPOSED / NOT ADOPTED",
+    "sec_003": "OPEN",
+    "stage_1b": "NO-GO",
+    "tier_1_execution": "NOT AUTHORIZED",
+    "r2": "UNCHANGED",
+    "pillow_12_3_0": "UNQUALIFIED"
+  },
+  "files": [
+    {
+      "name": "draft.md",
+      "bytes": 17974,
+      "sha256": "8FC0714B5A8C624861609CC9A7A6B707D264ED667733AF476199DA950D785ADD",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "8FC0714B5A8C624861609CC9A7A6B707D264ED667733AF476199DA950D785ADD"
+    },
+    {
+      "name": "evidence-matrix.md",
+      "bytes": 1703,
+      "sha256": "F727165D791216026E290666D18E83E96D18D25B2ABBAAAB76CCF5CA7B9782D0",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "F727165D791216026E290666D18E83E96D18D25B2ABBAAAB76CCF5CA7B9782D0"
+    },
+    {
+      "name": "edr-report.md",
+      "bytes": 8391,
+      "sha256": "A9689584A0DCDD63E68B9927A1EA2FEB6A4FBEEF4FD9F82AA014B4136F781124",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "A9689584A0DCDD63E68B9927A1EA2FEB6A4FBEEF4FD9F82AA014B4136F781124"
+    },
+    {
+      "name": "section-8-static-verification.md",
+      "bytes": 9811,
+      "sha256": "AA7512E9181BACA2FD0939FAA04F0FD3C314AE63E50426F94F0713605A6EED82",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "AA7512E9181BACA2FD0939FAA04F0FD3C314AE63E50426F94F0713605A6EED82"
+    },
+    {
+      "name": "manifest.json",
+      "bytes": 1308,
+      "sha256": "EDD98EE87347E2B806D3C5745EE4441F1BC05BD087430DFDCC9E20E6DDBFBE72",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "EDD98EE87347E2B806D3C5745EE4441F1BC05BD087430DFDCC9E20E6DDBFBE72"
+    },
+    {
+      "name": "README.md",
+      "bytes": 1043,
+      "sha256": "3EB993E996E78ADCB385A43E8E3D97F02B3BF6EA6AD96BCA7BA2CCF699516FF5",
+      "origin": "existing recovery candidate; copied as raw bytes",
+      "previously_recorded_sha256": "3EB993E996E78ADCB385A43E8E3D97F02B3BF6EA6AD96BCA7BA2CCF699516FF5"
+    },
+    {
+      "name": "owner-disposition-supplement.md",
+      "bytes": 821,
+      "sha256": "BE97DF92DB57D2C02DDC59162EF8E56B4D8E677E17B8F7FAA636EC7D69971C3C",
+      "origin": "new owner decision supplied in this preservation authorization; not a recovered historical message"
+    }
+  ]
+}
