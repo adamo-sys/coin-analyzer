@@ -1,0 +1,29 @@
+{
+  "status": "SOURCE RECOVERY CANDIDATE \u2014 NOT FIDELITY CERTIFIED; NOT ADOPTED",
+  "governance_commit": "27672e6820c3c92e2fc5a5036fcc815bde9b338f",
+  "source_notes": {
+    "draft.md": "Transcription from ChatGPT consolidated contract message, not authenticated original Codex draft",
+    "evidence-matrix.md": "Transcription from ChatGPT consolidated contract message",
+    "edr-report.md": "Transcription of full user-pasted EDR report in this conversation, not original Codex file bytes",
+    "section-8-static-verification.md": "Transcription of full user-pasted static verification report in this conversation, not original Codex file bytes"
+  },
+  "serialization": "UTF-8, LF, no BOM; newly serialized, not original bytes",
+  "files": {
+    "draft.md": {
+      "bytes": 17974,
+      "sha256": "8FC0714B5A8C624861609CC9A7A6B707D264ED667733AF476199DA950D785ADD"
+    },
+    "evidence-matrix.md": {
+      "bytes": 1703,
+      "sha256": "F727165D791216026E290666D18E83E96D18D25B2ABBAAAB76CCF5CA7B9782D0"
+    },
+    "edr-report.md": {
+      "bytes": 8391,
+      "sha256": "A9689584A0DCDD63E68B9927A1EA2FEB6A4FBEEF4FD9F82AA014B4136F781124"
+    },
+    "section-8-static-verification.md": {
+      "bytes": 9811,
+      "sha256": "AA7512E9181BACA2FD0939FAA04F0FD3C314AE63E50426F94F0713605A6EED82"
+    }
+  }
+}
