@@ -460,7 +460,7 @@ The entire pre-amendment target contract is retained as an unchanged LF prefix:
 22,435 bytes, SHA-256
 `483E76F88B293437C1F9BAC2F114275CBFCE727EA9CEBBECC6269961B76FFCEB`.
 
-The substantive source is the independently reviewed amendment at commit
+The substantive source is the amendment at commit
 `2f2fc58c59cef8df8ba63b671facc049e6161932`, whose complete committed LF
 CONTRACT.md blob is 30,155 bytes, SHA-256
 `F8F7B6CC26A4B825A55CF414EA2E078B8023874FF0B6507E00AFC25940B24845`.
@@ -531,7 +531,7 @@ Classification follows the operation and threat model, not convenience. A suspic
 
 ### Explicit prerequisite amendment and limits
 
-The reviewed source identified the following SEC-003 provisions for supersession.
+The source amendment identified the following SEC-003 provisions for supersession.
 Upon valid target-main adoption, only these limited sequencing/applicability
 changes apply. They do not supersede unrelated governance or either Package 0
 amendment and its scoped exceptions. Historical authorizations are not revived
@@ -638,7 +638,7 @@ These are proposed maxima, **not available allowance**. They require reconciled 
 
 ### Priority CI/audit consistency findings
 
-These priority remediation candidates preserve the reviewed source's static
+These priority remediation candidates preserve the source amendment's static
 consistency findings. The target-specific pandas/Flask facts below are based on
 the pinned target-main manifests and locks, not a dependency execution or audit.
 Runtime consequences and exploitability remain `needs_validation`.
@@ -652,11 +652,11 @@ This amendment authorizes no investigation or correction:
 | Target-main pandas mismatch | At pinned target main, core requires pandas `3.0.6`; runtime, development and AI locks pin `3.0.5` | Complete target-specific closure and actual installation/audit consequences |
 | AI floor mismatch | AI manifest requires OpenAI `>=3.13.0`; AI lock pins `3.8.0` | Current runtime/audit consequences |
 | Incomplete independent reporting | Audit steps are sequential; a preceding failure can prevent later steps. Workflow does not request strict collection or prove closure | Selected scanner behavior and retained results under failures |
-| Broader consumer drift | The reviewed source's inspected advisory workflows add tools after manifest installation, including unpinned hypothesis | Current target-specific consumer inventories and audit coverage; no refreshed broad consumer assessment is claimed |
+| Broader consumer drift | The source amendment's inspected advisory workflows add tools after manifest installation, including unpinned hypothesis | Current target-specific consumer inventories and audit coverage; no refreshed broad consumer assessment is claimed |
 
 These are **consistency findings**, not confirmed exploitability findings or approved remediation decisions.
 
-Baseline distinction matters: the reviewed source's historical assessment core
+Baseline distinction matters: the source amendment's historical assessment core
 declared pandas **3.0.5** and Flask `>=3.1,<4`; its warning against asserting
 the historical pandas mismatch described that source baseline only. The retained
 reconciliation profile declares pandas **3.0.6** and Flask `>=3.1.3,<4`.
@@ -730,20 +730,23 @@ total-token consumption were unavailable. Unused allowance cannot transfer to
 runtime execution.
 
 **Review statuses are distinct.** The design **PASS WITH NOTES** above applies
-only to `SEC003-EDR-DOC-20261027-01`. The owner handoff identifies source
-commit `2f2fc58c59cef8df8ba63b671facc049e6161932` as independently reviewed.
-The committed source's "Independent final-diff EDR: NOT PERFORMED" and
-"uncommitted and unpublished" statements describe its drafting-time state;
-they are retained here as historical observations, not current source status.
-The source is now a committed reference. No later original-final-diff reviewer
-identity, verdict or review-report identity is supplied in this drafting handoff;
-none is invented here. Source review does not cover this adapted integrated diff.
+only to `SEC003-EDR-DOC-20261027-01`. The last authenticated historical
+original-final-diff EDR status is **NOT PERFORMED**, recorded in
+`docs/agent-ops/CONTRACT.md` at source commit
+`2f2fc58c59cef8df8ba63b671facc049e6161932`. A bounded read-only local
+evidence reconciliation on 2026-10-28 did not authenticate a later
+original-final-diff reviewer, verdict or retained review record. The owner
+handoff's independent-source-review attribution remains unsupported and does
+not supersede that status. This is an unresolved evidence gap, not proof
+that no later review exists. The source's committed status supplies no
+independent-review evidence. No original-final-diff review is credited to
+this adapted integrated diff.
 
 **Independent integrated-diff EDR: NOT PERFORMED / NOT AUTHORIZED in this
 package.** No additional review resources are established for this integrated
 file diff. This target-main draft remains uncommitted and unpublished pending
 separately authorized integrated-diff review and owner disposition. Neither
-prior design review nor original source review satisfies that pending gate.
+prior design review nor unverified source-review attribution satisfies that gate.
 No automatic review retry, investigation or correction cycle is authorized.
 
 Remaining owner decisions are separate bounded authorization/resources for
