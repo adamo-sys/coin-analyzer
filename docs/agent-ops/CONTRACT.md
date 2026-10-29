@@ -889,3 +889,95 @@ No commit, push, PR, merge, workflow change or publication is authorized here.
 Stage 1B NO-GO; R2 UNCHANGED; Pillow 12.3.0 UNQUALIFIED;
 Tier 1 pilot HOLD / NOT AUTHORIZED; implementation, provisioning and
 qualification NOT AUTHORIZED.**
+
+## CA-OPS-EFF-001 — Evidence reuse and bounded Codex work
+
+Status: PROPOSED / NOT ADOPTED. Requirements below become operative only
+after explicit owner adoption through applicable review/change control.
+This section grants no execution, publication, resource or follow-on authority.
+
+1. Evidence-first blocker handling. Before reporting BLOCKED for missing
+   context, consult the current task, applicable authorized handoff,
+   governing contracts and their exact relevant source references. Use a
+   bounded lookup: named location, governing locator and directly linked
+   original only. Classify each dependency as:
+   (a) not supplied in this conversation;
+   (b) available in an authorized local source;
+   (c) present but unauthenticated for the claim;
+   (d) unavailable at its recorded location; or
+   (e) genuinely missing or inaccessible within authorized scope.
+
+   These distinguish conversation availability, source availability and
+   authentication; they may coexist. Record exact path/section, observation
+   and claim affected. Conversation absence alone is not a blocker when
+   sufficient authenticated local evidence exists. An unauthorized source
+   remains inaccessible; a summary never replaces an original required by
+   the governing contract. Stop only the dependent work and report the
+   smallest authorized resolution; preserve stricter task/global stop
+   rules. No speculative recursive search, historical-session recovery or
+   automatic new investigation.
+
+2. Reusable preservation baseline. Use an owner-designated versioned
+   baseline containing repository identity, worktree, branch, exact
+   HEAD/task-authorized base, raw index length/SHA-256, staged/unstaged
+   expectations, exact protected paths and raw working-tree lengths/SHA-256,
+   source attribution and freshness. Authenticate the baseline to its
+   authorized source and compare current observations at entry, exit and
+   governing checkpoints.
+
+   Hash correspondence is not independent proof of provenance, approval or
+   security. Reuse available baseline values; request only unresolved
+   missing values or owner disposition of a discrepancy. Never reset,
+   repair, silently refresh or overwrite a mismatched baseline. A legitimate
+   authorized state transition requires a separately recorded successor
+   with reason, authority, predecessor and applicable checks; it cannot
+   erase earlier evidence. Adoption-related edits/staging also require the
+   correct successor rather than reusing a stale index baseline.
+
+3. Proportionate reasoning. Recommended effort: Low for mechanical checks
+   and simple lookups; Medium for ordinary planning, documentation and
+   bounded analysis; High for complex security, architecture and adversarial
+   EDR. Explicit owner effort and mandatory review requirements prevail.
+   Recommendations are not enforced settings or token/cost guarantees;
+   disclose unavailable setting evidence. They never reduce scope,
+   controls, independence, acceptance predicates, context-budget discipline
+   or accounting obligations.
+
+4. Minimal sufficient reporting. Reference prior evidence by source,
+   revision or digest, claim, coverage and freshness. For unchanged
+   conditions report the baseline ID, current verification performed,
+   match/delta and blockers. Reuse prior results only while identity,
+   environment, scope and freshness predicates remain applicable.
+   Changed/advisory-sensitive predicates require their governing refresh,
+   not repeated unrelated checks.
+
+   Preserve full original evidence and complete reporting whenever required.
+   Concision cannot omit failures, uncertainty, missing coverage, authority
+   limits or mandatory final evidence.
+
+5. Bounded blocker resolution. Report the exact prerequisite, observed
+   condition, why it prevents the named next action and smallest owner
+   decision or authorized action needed. Separate unavailable evidence,
+   failed evidence, unqualified evidence and missing authority. Do not rerun
+   failed work, recover sessions, provision resources or commission
+   follow-on investigations under this rule. Continue independent work
+   only if the task permits and no broader stop condition applies.
+
+6. Security and governance invariants. Efficiency does not weaken SEC-003
+   OPEN / Stage 1B NO-GO, complete R2 requirements and original applicability,
+   dependency-integrity qualification, independent EDR/final-snapshot review,
+   preservation, source provenance/auditability, owner approval or execution
+   admission.
+
+   Pillow 12.3.0 remains UNQUALIFIED pending independent security/advisory
+   reassessment; Pillow 13.0.0 remains UNQUALIFIED. Full-program execution
+   admission remains BLOCKED. Existing explicit tier applicability/sequencing
+   amendments remain limited to their exact terms; efficiency supplies no
+   new waiver.
+
+   No tests, scans, installation, provisioning, WSL, CI, execution, resource
+   admission, accounting change/reset/refund, commit, push, PR or merge is
+   authorized by this rule. Existing context thresholds, protected-data
+   rules and historical failures remain controlling. The SEC003_HANDOFF.md
+   packet is a locator and preservation record, never an independent source
+   of execution authority.
