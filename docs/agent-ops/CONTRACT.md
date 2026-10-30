@@ -981,3 +981,95 @@ This section grants no execution, publication, resource or follow-on authority.
    rules and historical failures remain controlling. The SEC003_HANDOFF.md
    packet is a locator and preservation record, never an independent source
    of execution authority.
+
+## SEC003-SINGLE-VM-ADOPTION-01 — Prospective Tier 1 architecture amendment
+
+**Status: PROPOSED / NOT ADOPTED.** This amendment becomes operative only
+after explicit owner adoption through applicable repository review/change
+control. Preparation and an EDR PASS do not adopt or publish it.
+
+### Scope, precedence and planning attribution
+
+On adoption, this amendment expressly supersedes the previously accepted
+two-VM Azure architecture solely for ordinary trusted Tier 1 Linux
+interpreter/tool provisioning. The preferred prospective architecture is
+**one disposable Azure Ubuntu 24.04 x86-64 VM with protected C/V/W/S roles**.
+
+The owner's planning context is SEC003-PREFLIGHT-SCHEDULE-01,
+SEC003-PLATFORM-01-R1, SEC003-AZURE-DESIGN-R1/R1A,
+SEC003-ASSURANCE-PROPORTIONALITY-01, SEC003-SIMPLIFICATION-01 and
+SEC003-SINGLE-VM-DISPOSITION-01-S1. The owner reports that the latest successor
+proposal received independent EDR PASS WITH NOTES. These are owner-attributed
+planning inputs, not independently authenticated repository artifacts or a
+review receipt for this amendment.
+
+The [adopted prospective provisioning contract](../security/sec-003/t1-linux-provisioning-draft-01/draft.md),
+Sections 1–12, and its adoption record above remain controlling except for
+the exact architecture replacement and prospective §11 custody provision
+below. Its preserved snapshot and historical reports remain immutable.
+This amendment changes no other applicability, sequencing or acceptance rule.
+
+### Protected roles and retained assurance
+
+The single VM remains trusted infrastructure. The approved host/image,
+kernel, privileged platform services and authorized control/verifier stack
+remain within the trusted computing base. Same-host privileged compromise
+is outside the assurance claim. Ordinary Tier 1 provisioning does not claim
+containment of deliberately hostile execution or Tier 2/3 qualification.
+
+C/V/W/S SHALL be separately identified, protected roles. Before admission,
+the owner-approved §3 schedule SHALL bind their responsibilities, principals,
+privileges, storage roots, access and measurement boundaries. The design
+SHALL preserve §5 namespaces and write restrictions, §9 credential/configuration
+and network restrictions, and §11 independent evidence requirements.
+Role labels, process/account separation or sharing one VM do not by themselves
+establish those properties. Enforcement mechanisms require implementation
+review and their applicable authorized qualification; none is qualified here.
+
+All mandatory Tier 1 C1–C12 predicates remain unchanged. The independent
+verifier SHALL obtain policy and expected inputs outside producer control,
+directly check required identities and measurements, and check the complete
+retained evidence namespace. A producer-controlled second process is
+insufficient. Preserve bounded capture, complete capture/flush/close/readback
+lifecycle, explicit unavailable observations, failures and independent final
+evidence review. Job exit, producer assertions or architecture adoption cannot
+substitute for that evidence.
+
+### Sole prospective §11 custody provision
+
+A future task MAY submit for separate explicit owner approval a sanitized,
+enumerated evidence envelope for transfer. That approval SHALL identify the
+exact source and destination, files and identities, permitted content,
+sanitization and provenance, access, finite bounds, retention/disposal and
+custody verification. Sanitized derivatives SHALL be identified as derivatives;
+they do not replace complete original evidence retained under §11 or waive
+independent verification.
+
+**Adoption alone grants no evidence-transfer authority.** No transfer is
+approved here. This provision supplies no bulk evidence-tree, environment,
+cache, interpreter-archive, protected-data or raw application-log upload
+authority. All other §11 requirements and protected-data exclusions remain.
+
+### Unchanged gates, accounting and status
+
+The exact interpreter selection and archive policy (§§4–7), tool selections
+and complete qualification (§8), finite controls (§12), full approved native
+matrix, all eight outputs, Windows requirements and SEC-003-2/3 ordering
+remain unchanged. Complete R2 C1–C12, all 30 C12 cases and native qualification
+remain mandatory wherever R2 originally applies; no operation is reclassified.
+
+The 36,000-machine-second ceiling, historical consumption, counters and
+exhausted/non-reusable allowances are unchanged. Consolidation onto one VM
+does not reset, refund, transfer or reclassify accounting, certify headroom,
+or create an allocation. Existing reconciliation and admission gates remain.
+
+Adoption authorizes no implementation, Azure provisioning, acquisition or
+package download, installation, interpreter/tool execution, qualification,
+pilot, CI, spending, evidence transfer, migration or publication. Each action
+requires its own applicable authority and gates. No commit, push, PR or merge
+is authorized by this amendment.
+
+**SEC-003 OPEN. Stage 1B NO-GO. R2 UNCHANGED.**
+**Pillow 12.3.0: UNQUALIFIED pending independent security/advisory reassessment.**
+**Pillow 13.0.0: UNQUALIFIED. Tier 1 pilot HOLD / NOT AUTHORIZED.**
+**No operational authority.**
