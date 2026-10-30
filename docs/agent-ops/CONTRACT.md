@@ -1073,3 +1073,13 @@ is authorized by this amendment.
 **Pillow 12.3.0: UNQUALIFIED pending independent security/advisory reassessment.**
 **Pillow 13.0.0: UNQUALIFIED. Tier 1 pilot HOLD / NOT AUTHORIZED.**
 **No operational authority.**
+
+Owner adoption clarification — SEC003-SINGLE-VM-ADOPTION-01
+
+The owner approves prospective adoption of SEC003-SINGLE-VM-ADOPTION-01, identifying the exact amendment published through PR #447 at ce61ef30608fc2ceccedd92ca5cf87a0170ae2b6. This supplies owner approval; PR #447 supplies publication evidence. This clarification becomes operative only after completion of applicable repository review/change control and any separately authorized recording/application required by that process. Until then, the amendment remains PROPOSED / NOT ADOPTED. Once operative, this clarification supersedes that label for prospective governing status only and authorizes no operation retrospectively. Its effect is limited to the amendment’s stated scope, including its unchanged bounded prospective §11 custody provision.
+
+SEC003-SINGLE-VM-ADMISSION-01/S1 is approved separately as a documentation-only planning baseline, including its independent EDR PASS WITH NOTES. Its proposed values and UNBOUND entries do not constitute operational approval or admission. All mandatory security predicates, qualification and independent-review gates, original R2 applicability, native Windows/full-matrix requirements and protected-data rules remain unchanged.
+
+The 36,000-machine-second ceiling, historical consumption and uncertainty, counters and exhausted/non-reusable allowances remain unchanged. S1’s 7,200-machine-second envelope remains proposed and unallocated; no headroom is certified.
+
+This decision authorizes no implementation, provisioning, acquisition, installation, execution, qualification, spending, evidence transfer or repository/publication action. SEC-003 OPEN; Stage 1B NO-GO; R2 UNCHANGED; Pillow 12.3.0 UNQUALIFIED pending independent security/advisory reassessment; Pillow 13.0.0 UNQUALIFIED; Tier 1 pilot HOLD / NOT AUTHORIZED.
