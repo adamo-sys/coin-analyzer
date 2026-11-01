@@ -24,6 +24,14 @@
 
 ## Checkpoint and thread rotation
 
+When a task requires a **current-state handoff locator**, that locator must record
+UTC observation time, repository identity, exact verified revision, observed
+branch/worktree and authorized base (or unavailable status), original source
+locators, claims actually verified, freshness/invalidation conditions, blockers
+and owner decisions. This does not require a new locator for every routine
+checkpoint. Preserve original historical evidence; a digest or summary alone
+does not qualify primary bytes.
+
 As context usage approaches rotation, apply the
 [root budget rules](../../AGENTS.md#codex-context-budget), using their accounting
 fallback when needed. Update the checkpoint below before recommending a fresh

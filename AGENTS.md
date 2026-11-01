@@ -16,6 +16,12 @@
 - Use [RUNBOOK.md](docs/agent-ops/RUNBOOK.md) for checkpoints and independent review;
   consult [STANDARDS.md](docs/agent-ops/STANDARDS.md) for detailed standards.
 
+Task-specific context packs and clause indices are navigation aids only. They do not
+change the applicability of governing contracts, mandatory checks, protected
+boundaries, or the context-budget thresholds below. Use
+`docs/CODEX_WORKFLOW.md` for available preflight and
+`docs/agent-ops/RUNBOOK.md` for checkpoint procedures.
+
 ## Codex context budget
 
 These are repository operating thresholds, not model capacity claims. K = 1,000
