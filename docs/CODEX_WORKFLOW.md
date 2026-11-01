@@ -18,6 +18,12 @@ selection, quota prediction, scheduling, automatic worktree creation, Git
 mutation, and provider/API calls are deferred. The tool never installs anything,
 fetches, runs tests, writes state, or makes a trust exception for a repository.
 
+Context packs (DOC, DEV, SEC, EDR, BROWSER) are nonbinding retrieval guides.
+They do not narrow applicable governance or mandatory full-source reviews.
+Preflight does not execute tests, persist handoffs, select models or grant authority.
+Model-effort routing, caching, MCP activation and savings claims remain unqualified
+until separately measured and explicitly approved.
+
 ## Environment and dependency maintenance
 
 Use an existing Python 3.12+ development interpreter with Git and PyYAML installed.
