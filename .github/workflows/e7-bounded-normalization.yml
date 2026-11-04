@@ -1,34 +1,102 @@
-name: E7 bounded normalization
-
+name: SEC003 Linux12 synthetic qualification
+run-name: SEC003-LINUX12-RUN-01 ${{ inputs.expected_sha }}
 on:
-  pull_request:
-    paths:
-      - "capture_import/recognition30_e7_gallery_audit.py"
-      - "tests/test_recognition30_e7_gallery_audit.py"
-      - ".github/workflows/e7-bounded-normalization.yml"
   workflow_dispatch:
-
-permissions:
-  contents: read
-
+    inputs:
+      expected_sha:
+        description: Exact separately authorized qualification commit SHA
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: sec003-linux12-one-shot
+  cancel-in-progress: false
 jobs:
-  focused-tests:
-    runs-on: ubuntu-latest
+  sec003-linux12-qualification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - name: Install repository test dependencies
+      - name: Admit exact owner-controlled synthetic snapshot
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+          ACTUAL_REF: ${{ github.ref }}
+          ACTUAL_REPOSITORY: ${{ github.repository }}
+          ACTUAL_EVENT: ${{ github.event_name }}
+          ACTUAL_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-      - run: python -m pytest tests/test_recognition30_e7_gallery_audit.py -q
+          python3 -I -S - <<'PY'
+          import json,os,re
+          e=os.environ
+          assert re.fullmatch('[0-9a-f]{40}',e['EXPECTED_SHA'])
+          assert e['EXPECTED_SHA']==e['ACTUAL_SHA']
+          assert e['ACTUAL_REF']=='refs/heads/codex/sec003-gitleaks-linux-12'
+          assert e['ACTUAL_REPOSITORY']=='adamo-sys/coin-analyzer'
+          assert e['ACTUAL_EVENT']=='workflow_dispatch' and e['ACTUAL_ATTEMPT']=='1'
+          print(json.dumps({k:e.get(k) for k in ('ACTUAL_SHA','ACTUAL_REF','ImageOS','ImageVersion')}))
+          PY
+      - name: Read only pinned public qualification files
+        env:
+          QUALIFICATION_SHA: ${{ github.sha }}
+        timeout-minutes: 2
+        run: |
+          qual_root="$(mktemp -d "$RUNNER_TEMP/sec003-linux12.XXXXXX")"
+          export QUAL_ROOT="$qual_root"
+          echo "QUAL_ROOT=$qual_root" >> "$GITHUB_ENV"
+          timeout --signal=TERM --kill-after=5s 90s python3 -I -S - <<'PY'
+          import hashlib,json,os,pathlib,urllib.request
+          root=pathlib.Path(os.environ['QUAL_ROOT'])
+          payload_hashes={'pins.json': 'f5dba5865ed252f63a4643fdea1abd819280870b9f44681519205584ea74071a', 'qualify.py': 'ca550fe0f97148fc290ac70b66d6ec1bb407207608163431e9b5c6d337c5bd36', 'source/controller.py': '97b8f279fd19a949e1a39e992cb659040480e2e7adc1f6765762b8c1ac95a2c0', 'source/occurrence_verifier.py': '675ee801e6ea12d943f0a39101c5d37370b2c99b73c368d7115ce84c9ace5e5d', 'source/trusted_boundary.py': 'ef756290d7a256e9cab7afc12cc3844622728156ce5147cc44a1afbc2c296d51', 'tests/test_controller.py': 'c7e2e51a5ae64a7d847698f8d1020eab5f080119df11027fdcdeb4960c0f8183', 'tests/test_gitleaks_occurrence_verifier.py': '7b33fc8245ff2f8e4347d263affcf7d2c063481f8b10c8c47865bb9e4c3f3bd0', 'tests/test_trusted_boundary.py': 'cf8b5d2b3dcfdaa83a05275641bceb77b22a390b1dd2fd4ed3280385c9fe8024'}
+          for name,digest in payload_hashes.items():
+              url=('https://raw.githubusercontent.com/adamo-sys/coin-analyzer/'
+                   +os.environ['QUALIFICATION_SHA']+'/qualification/sec003-linux12/'+name)
+              with urllib.request.urlopen(url,timeout=15) as response:
+                  raw=response.read(262145)
+              assert len(raw)<=262144 and hashlib.sha256(raw).hexdigest()==digest
+              dest=root/name
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              with dest.open('xb') as stream:stream.write(raw)
+          print(json.dumps({'payload_sha256':payload_hashes},sort_keys=True))
+          PY
+      - name: Acquire and verify only approved Gitleaks Linux artifact
+        timeout-minutes: 2
+        run: |
+          mkdir "$QUAL_ROOT/bin" "$QUAL_ROOT/tmp"
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            --connect-timeout 15 --max-time 90 --retry 0 --max-filesize 8000000 \
+            --output "$QUAL_ROOT/gitleaks.tar.gz" \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          python3 -I -S - <<'PY'
+          import hashlib,io,json,os,pathlib,platform,sys,tarfile
+          root=pathlib.Path(os.environ['QUAL_ROOT'])
+          raw=(root/'gitleaks.tar.gz').read_bytes()
+          pin='9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c'
+          assert len(raw)==5796002 and hashlib.sha256(raw).hexdigest()==pin
+          assert sys.version_info[:2]==(3,12) and platform.machine()=='x86_64'
+          release=dict(line.split('=',1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() if '=' in line)
+          assert release['ID'].strip('"')=='ubuntu' and release['VERSION_ID'].strip('"')=='24.04'
+          with tarfile.open(fileobj=io.BytesIO(raw),mode='r:gz') as archive:
+              members=[m for m in archive.getmembers() if m.name=='gitleaks']
+              assert len(members)==1
+              member=members[0]
+              assert member.isfile() and not member.issym() and not member.islnk() and 0<member.size<=67108864
+              binary=archive.extractfile(member).read()
+          assert len(binary)==member.size and binary[:5]==b'\x7fELF\x02'
+          member_sha256=hashlib.sha256(binary).hexdigest()
+          path=root/'bin/gitleaks'
+          with path.open('xb') as stream:stream.write(binary)
+          assert hashlib.sha256(path.read_bytes()).hexdigest()==member_sha256
+          path.chmod(0o500)
+          with open(os.environ['GITHUB_ENV'],'a') as stream:stream.write('SEC003_LINUX_SCANNER_SHA256='+member_sha256+'\n')
+          print(json.dumps({'archive_sha256':pin,'member_sha256':member_sha256,'member_bytes':len(binary),'os_release':release}))
+          PY
+      - name: Run exact synthetic suites and native fault controls once
+        timeout-minutes: 11
+        run: |
+          env -i PATH="$QUAL_ROOT/bin:/usr/bin:/bin" TMPDIR="$QUAL_ROOT/tmp" \
+            SEC003_LINUX_SCANNER_SHA256="$SEC003_LINUX_SCANNER_SHA256" \
+            timeout --signal=TERM --kill-after=5s 600s \
+            /usr/bin/python3 -I -S "$QUAL_ROOT/qualify.py"

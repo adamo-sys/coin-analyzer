@@ -1,0 +1,11 @@
+{
+  "scope": "SYNTHETIC LINUX QUALIFICATION ONLY",
+  "files": {
+    "source/controller.py": "97b8f279fd19a949e1a39e992cb659040480e2e7adc1f6765762b8c1ac95a2c0",
+    "source/trusted_boundary.py": "ef756290d7a256e9cab7afc12cc3844622728156ce5147cc44a1afbc2c296d51",
+    "source/occurrence_verifier.py": "675ee801e6ea12d943f0a39101c5d37370b2c99b73c368d7115ce84c9ace5e5d",
+    "tests/test_controller.py": "c7e2e51a5ae64a7d847698f8d1020eab5f080119df11027fdcdeb4960c0f8183",
+    "tests/test_trusted_boundary.py": "cf8b5d2b3dcfdaa83a05275641bceb77b22a390b1dd2fd4ed3280385c9fe8024",
+    "tests/test_gitleaks_occurrence_verifier.py": "7b33fc8245ff2f8e4347d263affcf7d2c063481f8b10c8c47865bb9e4c3f3bd0"
+  }
+}
