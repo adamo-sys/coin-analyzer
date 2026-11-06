@@ -164,7 +164,7 @@ jobs:
         run: python -m unittest tests.test_openai_sdk_transport_compatibility -v
 
   gitleaks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -179,15 +179,29 @@ jobs:
             /test_coins/README.md
           sparse-checkout-cone-mode: false
 
-      - name: Scan repository history for secrets
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
-          # Disable the pinned action's embedded report publication channels.
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
-          GITLEAKS_ENABLE_SUMMARY: "false"
-          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Set up scanner wrapper Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install checksum-pinned Gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          mkdir -m 700 "$RUNNER_TEMP/sec003-gitleaks"
+          cd "$RUNNER_TEMP/sec003-gitleaks"
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            --output scanner.tar.gz
+          echo '9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  scanner.tar.gz' | sha256sum --check --status
+          tar -xzf scanner.tar.gz --no-same-owner --no-same-permissions gitleaks
+          chmod 700 gitleaks
+
+      - name: Scan all available Git history
+        shell: bash
+        run: |
+          python -B tools/gitleaks_history.py "$RUNNER_TEMP/sec003-gitleaks/gitleaks"
 
   test:
     strategy:

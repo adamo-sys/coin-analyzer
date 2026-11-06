@@ -5,6 +5,10 @@ PRs #451/#452 HOLD.** This is the consolidated current blocker index. Existing
 contracts, historical evidence and rejected attempts retain their authority and
 identities; this index does not replace them or grant execution authority.
 
+The initial assessment below preserves the `f91be78` checkpoint. The
+[continuation receipt](#continuation-history-wrapper-and-native-preparation)
+supersedes its current PR status and history-wrapper implementation status only.
+
 This first bounded package reconciles the supplied starting state, closes the
 verified obsolete draft, and corrects embedded scanner-report publication.
 It is **not Outcome A or Outcome B**: further authorized engineering work remains,
@@ -437,3 +441,104 @@ Context accounting: exact session-wide count unavailable; tool/discovery volume
 approached the repository warning threshold. Complete this bounded reviewable
 package, checkpoint exact final state, and rotate before beginning the next
 substantive work package. Compaction does not reset that rule.
+
+## Continuation: history wrapper and native preparation
+
+Owner authority: the SEC-003 ENDGAME continuation explicitly authorizes #460's
+SHA-pinned merge with passing blocking gates, #461 reconciliation, implementation,
+offline validation, isolated worktrees and coherent draft PRs. Restricted native
+qualification, suppression-policy/R2 changes, #461/subsequent merges and closure
+remain prohibited. This is a new source-preparation package, not a reuse of any
+exhausted historical correction or execution allowance.
+
+Entry: original checkout branch/HEAD and five modified-file/raw-index hashes
+match the preservation baseline above. Checkpoint worktree is tracked-clean at
+`f91be78cd9006cc93672306742c0a7a5abd62d11`. Writable isolated package worktree:
+`C:/Projects/coin-analyzer/build/worktrees/sec003-history-driver-20261106`, branch
+`sec003/history-driver-remediation`, authorized base the same exact checkpoint.
+The native worktree tool also created an unused detached checkout at
+`C:/Users/adamo/.codex/worktrees/sec003-history-driver/coin-analyzer`; it was not
+edited because its location is outside this task's writable roots.
+
+PR reconciliation:
+
+- #460 merged by the normal merge API, pinned to authorized head
+  `fbd945079b5db5643aa74d286d45828d47ddac8a`, after all five active-ruleset
+  required contexts passed, no unresolved threads and CLEAN/MERGEABLE status.
+  All 20 returned check runs succeeded. Resulting remote main commit:
+  `fdf2f9ffb0ac50b5ac0487ff00a8980bf55e28a3`.
+- #461 retargeted to main; draft/open/unmerged, head remains
+  `f91be78cd9006cc93672306742c0a7a5abd62d11`. Its exact reviewed three-file diff
+  is unchanged: Git hash-object of both old-base and new-main diffs is
+  `a29de7d61ec7f7da7caeda8418a2e2d16c6d32f8`. All 18 returned checks passed,
+  including both Windows/Ubuntu regression runs. No failed check was ignored.
+  Runs [42245991853](https://github.com/adamo-sys/coin-analyzer/actions/runs/42245991853)
+  and [42245897953](https://github.com/adamo-sys/coin-analyzer/actions/runs/42245897953)
+  are ordinary CI evidence only. No #461 merge authority exists.
+
+Implementation boundary: `.github/workflows/tests.yml`,
+`tools/gitleaks_history.py`, `tools/c07_native.py`, their two focused test modules
+and this ledger. The suppression config, existing catalogs, R2 and old evidence
+are unchanged. The wrapper replaces the event-dependent action with explicit
+Gitleaks 8.24.3 acquisition and invocation. Official release checksum asset ID
+245568489 binds Linux x64 archive SHA-256
+`9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c`.
+This is publisher-origin checksum evidence, not independent publisher provenance,
+binary/default-rule qualification or authorization to acquire/run tools locally.
+
+History options are `--all --full-history --root --diff-merges=first-parent
+--no-renames --no-ext-diff --no-textconv`. The merge option selects a patch
+against the first parent; it does not truncate parent traversal. Real local Git
+patch tests cover every P09 definition in both paths and a merged side commit
+whose branch ref has been removed. Negative comparisons demonstrate omission by
+the old no-merges/first-parent traversal. Actual scanner parsing/detection and
+multiplicity remain subject to separately authorized native verification.
+
+The fixed wrapper rejects shallow/missing history, grafts and alternates;
+drops ambient Git/scanner/credential overrides; uses an explicit empty ignore
+file and disables inline allow directives without changing the suppression
+configuration. Reports are redacted, locally temporary and never printed or
+uploaded. Exit 0 requires a complete empty list; detection exit 2 requires valid
+nonempty records; other exits/malformed/missing reports/timeouts fail the job.
+Ordinary direct-child timeout is not R2 descendant cessation or hard-deadline
+evidence. Workflow validation rejects altered acquisition/invocation, skips and
+swallowed errors. Public upstream 8.24.3 command/report sources were inspected;
+no local scanner binary was downloaded or executed.
+
+Native preparation now provides fresh catalog-bound Git materialization,
+actual working-tree content/topology checking, exact JSON field translation
+preserving columns/multiplicity, bounded fixed-point resource arithmetic and a
+deterministic manifest for 157 P01-P10 definitions. The manifest explicitly says
+NOT_ADMITTED and lists missing external bindings. Its resource checker validates
+supplied arithmetic/reference shape only: it does not authenticate accounting,
+certify available headroom, reset counters or allocate time. Its raw adapter
+accepts only an exact set of predeclared inert values and rejects redaction;
+coordinate semantics/predeclared columns still require independent native proof.
+
+Engineering validation first demonstrated missing wrapper/driver components,
+then negative graft/alternate cases. Independent review identified and reproduced
+precision-dependent over-allocation and string-container substring acceptance;
+both received failing regression tests before correction. Final focused results,
+review verdict, exact source hashes and publication identities are recorded in
+the package PR receipt. No full local regression or restricted qualification is
+claimed; exact-new-head GitHub checks govern merge readiness.
+
+Remaining engineering: native P11/P12/P14 fault drivers and integrated B/C
+execution/receipt orchestration; qualified native process backend; concrete
+R2 S/W/C/E/Ports/finalizer source preparation against the retained approved
+interfaces. These are not external-only blockers. Start the next separately
+bounded source package after the required context/work-package rotation.
+Genuine external prerequisites remain authenticated F-01-F-04/G-02/historical
+C07 packets or qualified missing-evidence disposition; exact platform/binary/
+default-rule identities and native coordinate/detection evidence; independent
+human/custody roles and approved retention; complete historical accounting and
+counter reconciliation; exact new finite execution authorization and final
+acceptance. No current total/remainder or prospective exception approval exists.
+
+Checkpoint: retain this package's worktree/branch and the original index; no
+reset/clean/force-push. Publication is draft only, stacked on #461. No new owner
+permission is needed to continue routine source engineering within the standing
+scope. The smallest external owner decision is to designate the attributable
+historical packets or commission their qualified missing-evidence disposition;
+native execution remains a later separate exact admission decision. SEC-003
+OPEN; Stage 1B NO-GO; R2 UNCHANGED; #451/#452 HOLD.
