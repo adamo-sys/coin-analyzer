@@ -184,6 +184,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Acquire complete history objects
+        shell: bash
+        run: |
+          python -B tools/gitleaks_history.py --hydrate
+
       - name: Install checksum-pinned Gitleaks
         shell: bash
         run: |

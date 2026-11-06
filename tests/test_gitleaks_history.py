@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import yaml
 
@@ -22,6 +23,94 @@ except ImportError:
 class HistoryWrapperTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(wrapper, "explicit full-history wrapper is missing")
+
+    def test_filtered_clone_requires_explicit_acquisition_without_materialization(self):
+        # Catches scanning promised-but-missing blobs or relying on lazy network access.
+        self.assertTrue(callable(getattr(wrapper, "hydrate_history", None)),
+                        "explicit object acquisition is missing")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = wrapper.scan_environment(temp)
+            env["GIT_ALLOW_PROTOCOL"] = "file"
+            source, repo = root / "source", root / "clone"
+            def git(*args):
+                return subprocess.run(["git", *map(str, args)], env=env, capture_output=True,
+                                      check=True, timeout=15).stdout
+            git("init", "-b", "main", source)
+            git("-C", source, "config", "uploadpack.allowFilter", "true")
+            for text in ("OLD-INERT-CONTENT\n", "CURRENT-INERT-CONTENT\n"):
+                (source / "visible.txt").write_text(text)
+                git("-C", source, "add", "--", "visible.txt")
+                git("-C", source, "-c", "user.name=Inert", "-c",
+                    "user.email=inert@example.invalid", "-c", "commit.gpgsign=false",
+                    "commit", "-m", "inert")
+            (source / "excluded").mkdir()
+            (source / "excluded/inert.txt").write_text("EXCLUDED-INERT-CONTENT\n")
+            git("-C", source, "add", "--", "excluded")
+            git("-C", source, "-c", "user.name=Inert", "-c",
+                "user.email=inert@example.invalid", "-c", "commit.gpgsign=false",
+                "commit", "-m", "excluded inert")
+            git("clone", "--no-checkout", "--filter=blob:none", source.as_uri(), repo)
+            git("-C", repo, "sparse-checkout", "set", "--no-cone", "/visible.txt")
+            env["GIT_NO_LAZY_FETCH"] = "0"
+            git("-C", repo, "checkout", "main")
+            env["GIT_NO_LAZY_FETCH"] = "1"
+            missing = git("-C", repo, "rev-list", "--objects", "--all", "--missing=print")
+            self.assertIn(b"?", missing)
+            refs = git("-C", repo, "show-ref")
+            index = (repo / ".git/index").read_bytes()
+            config = root / "config.toml"
+            config.write_text("[extend]\nuseDefault = true\n")
+            fake = root / "fake.py"
+            marker = root / "invoked"
+            fake.write_text("import sys, pathlib\n"
+                            f"pathlib.Path({str(marker)!r}).touch()\n"
+                            "if sys.argv[1:] == ['version']:\n"
+                            " print('8.24.3'); sys.exit(0)\n"
+                            "p = next(a.split('=',1)[1] for a in sys.argv if a.startswith('--report-path='))\n"
+                            "pathlib.Path(p).write_text('[]')\n")
+            stages = []
+            self.assertEqual(wrapper.run_scan((sys.executable, str(fake)), repo, config,
+                                             timeout=5, diagnostics=stages), 1)
+            self.assertEqual(stages, ["history-objects"])
+            self.assertFalse(marker.exists())
+            with patch.object(wrapper, "acquisition_environment", return_value=env):
+                stages = []
+                self.assertEqual(wrapper.hydrate_history(repo, (root / "absent").as_uri(),
+                                                         timeout=5, diagnostics=stages), 1)
+                self.assertEqual(stages, ["object-acquisition"])
+                self.assertFalse(marker.exists())
+                self.assertEqual(wrapper.hydrate_history(repo, source.as_uri(), timeout=10), 0)
+            self.assertEqual(git("-C", repo, "show-ref"), refs)
+            self.assertEqual((repo / ".git/index").read_bytes(), index)
+            self.assertFalse((repo / "excluded/inert.txt").exists())
+            self.assertEqual(wrapper.run_scan((sys.executable, str(fake)), repo, config,
+                                             timeout=5), 0)
+            self.assertTrue(marker.exists())
+            # Complete acquisition is idempotent even when the source is unavailable.
+            self.assertEqual(wrapper.hydrate_history(repo, (root / "absent").as_uri()), 0)
+
+    def test_acquisition_failure_and_diagnostics_are_closed_and_sanitized(self):
+        self.assertTrue(callable(getattr(wrapper, "hydrate_history", None)),
+                        "explicit object acquisition is missing")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = wrapper.scan_environment(temp)
+            def git(*args):
+                return subprocess.run(["git", "-C", temp, *args], env=env,
+                                      capture_output=True, check=True, timeout=10)
+            git("init", "-b", "main")
+            stages = []
+            self.assertEqual(wrapper.hydrate_history(root, "https://invalid.example/SECRET",
+                                                     diagnostics=stages, timeout=1), 1)
+            self.assertEqual(stages, ["history-head"])
+            git("-c", "user.name=Inert", "-c", "user.email=inert@example.invalid",
+                "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "inert")
+            (root / ".git/shallow").write_bytes(git("rev-parse", "HEAD").stdout)
+            stages = []
+            self.assertEqual(wrapper.hydrate_history(root, "https://invalid.example/SECRET",
+                                                     diagnostics=stages, timeout=1), 1)
+            self.assertEqual(stages, ["history-shape"])
 
     def test_real_git_patches_include_root_deleted_unmerged_and_merge_only(self):
         from tools.c07_native import materialize
@@ -78,6 +167,10 @@ class HistoryWrapperTests(unittest.TestCase):
         self.assertNotIn("GITHUB_TOKEN", env)
         self.assertNotIn("GITLEAKS_CONFIG_TOML", env)
         self.assertEqual(env["GIT_NO_REPLACE_OBJECTS"], "1")
+        acquisition = wrapper.acquisition_environment("empty-home")
+        self.assertEqual(acquisition["GIT_ALLOW_PROTOCOL"], "https")
+        self.assertEqual(env["GIT_ALLOW_PROTOCOL"], "")
+        self.assertNotIn("GITHUB_TOKEN", acquisition)
 
     def test_workflow_rejects_skips_event_action_and_swallowed_errors(self):
         root = Path(__file__).resolve().parents[1]
@@ -90,6 +183,8 @@ class HistoryWrapperTests(unittest.TestCase):
             lambda j: j["steps"][-1].update({"continue-on-error": True}),
             lambda j: j["steps"][-1].update({"run": j["steps"][-1]["run"] + " || true"}),
             lambda j: j["steps"][0]["with"].update({"fetch-depth": 1}),
+            lambda j: j["steps"][2].update({"continue-on-error": True}),
+            lambda j: j["steps"][2].update({"run": j["steps"][2]["run"] + " || true"}),
             lambda j: j["steps"][-1].update({"uses": "gitleaks/gitleaks-action@v3"}),
             lambda j: j.update({"env": {"GIT_CONFIG_COUNT": "1"}}),
         ]

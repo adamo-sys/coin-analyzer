@@ -31,6 +31,8 @@ tar -xzf scanner.tar.gz --no-same-owner --no-same-permissions gitleaks
 chmod 700 gitleaks
 '''
 SCAN_SCRIPT = 'python -B tools/gitleaks_history.py "$RUNNER_TEMP/sec003-gitleaks/gitleaks"'
+HYDRATE_SCRIPT = 'python -B tools/gitleaks_history.py --hydrate'
+HYDRATION_SOURCE = "https://github.com/adamo-sys/coin-analyzer"
 
 
 def scan_environment(empty_home):
@@ -45,6 +47,72 @@ def scan_environment(empty_home):
                GIT_ALLOW_PROTOCOL="", GIT_PAGER="", GIT_NO_REPLACE_OBJECTS="1",
                LC_ALL="C", NO_COLOR="1")
     return env
+
+
+def acquisition_environment(empty_home):
+    """Explicit public-object acquisition only; scanner environment stays offline."""
+    env = scan_environment(empty_home)
+    env["GIT_ALLOW_PROTOCOL"] = "https"
+    return env
+
+
+class HistoryError(ValueError):
+    """Fixed stage identifier only, never child output or repository content."""
+
+
+def _git(repo, env, timeout, *args, data=None):
+    return subprocess.run(["git", "-C", str(repo), *args], env=env, input=data,
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          timeout=timeout, check=True).stdout.strip()
+
+
+def _history_shape(repo, env, timeout):
+    stage = "history-shape"
+    try:
+        if _git(repo, env, timeout, "rev-parse", "--is-shallow-repository") != b"false":
+            raise ValueError()
+        for relative in ("info/grafts", "objects/info/alternates"):
+            location = Path(os.fsdecode(_git(repo, env, timeout, "rev-parse", "--git-path", relative)))
+            location = location if location.is_absolute() else repo / location
+            if location.exists() or location.is_symlink():
+                raise ValueError()
+        stage = "history-head"
+        _git(repo, env, timeout, "rev-parse", "--verify", "HEAD")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        raise HistoryError(stage) from None
+
+
+def hydrate_history(repo, source=HYDRATION_SOURCE, *, timeout=180, diagnostics=None):
+    """Acquire missing reachable objects, without checkout, ref updates or scanning.
+
+    The CLI uses a fixed public HTTPS source and no credentials. Missing objects
+    and every acquisition/completeness error fail closed. This is ordinary CI
+    preparation, never native qualification, R2 containment or provenance proof.
+    """
+    stage = "history-shape"
+    try:
+        repo = Path(repo).resolve()
+        with tempfile.TemporaryDirectory(prefix="gitleaks-acquisition-") as temp:
+            env = acquisition_environment(temp)
+            _history_shape(repo, env, timeout)
+            stage = "history-objects"
+            objects = _git(repo, env, timeout, "rev-list", "--objects", "--all",
+                           "--missing=print", "--no-object-names").splitlines()
+            missing = [line[1:] for line in objects if line.startswith(b"?")]
+            if any(re.fullmatch(b"[0-9a-f]{40}", oid) is None for oid in missing):
+                raise ValueError()
+            if missing:
+                stage = "object-acquisition"
+                _git(repo, env, timeout, "fetch", "--no-tags", "--no-write-fetch-head",
+                     "--no-recurse-submodules", "--no-auto-maintenance", "--no-filter",
+                     "--stdin", source, data=b"\n".join(missing) + b"\n")
+            stage = "history-objects"
+            _git(repo, scan_environment(temp), timeout, "rev-list", "--objects", "--all", "--missing=error")
+        return 0
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        if diagnostics is not None:
+            diagnostics.append(str(error) if isinstance(error, HistoryError) else stage)
+        return 1
 
 
 def scan_command(tool, repo, config, report, ignore):
@@ -100,47 +168,42 @@ def check_report(data, exit_code):
     return exit_code
 
 
-def run_scan(tool, repo, config, *, timeout=480):
+def run_scan(tool, repo, config, *, timeout=480, diagnostics=None):
     """Execute a fixed CI scan, returning 0 clean, 2 detection, 1 failure.
 
     Direct-child timeout is ordinary CI behavior, never proof of descendant
     cessation, native qualification or R2's strict deadline conjunction.
     """
-    repo, config = Path(repo).resolve(), Path(config).resolve()
+    stage = "scanner-config"
     try:
+        repo, config = Path(repo).resolve(), Path(config).resolve()
         if not config.is_file() or config.is_symlink():
-            return 1
+            raise ValueError()
         with tempfile.TemporaryDirectory(prefix="gitleaks-history-") as temp:
             env = scan_environment(temp)
-            def git(*args, output=False):
-                result = subprocess.run(["git", "-C", str(repo), *args], env=env,
-                                        stdout=subprocess.PIPE if output else subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL, timeout=timeout, check=True)
-                return result.stdout.strip() if output else None
-            if git("rev-parse", "--is-shallow-repository", output=True) != b"false":
-                return 1
-            for relative in ("info/grafts", "objects/info/alternates"):
-                location = Path(os.fsdecode(git("rev-parse", "--git-path", relative, output=True)))
-                location = location if location.is_absolute() else repo / location
-                if location.exists() or location.is_symlink():
-                    return 1
-            git("rev-parse", "--verify", "HEAD")
-            git("rev-list", "--objects", "--all", "--missing=error")
+            _history_shape(repo, env, timeout)
+            stage = "history-objects"
+            _git(repo, env, timeout, "rev-list", "--objects", "--all", "--missing=error")
+            stage = "scanner-version"
             version = subprocess.run([*tool, "version"], env=env, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, timeout=timeout, check=True)
             if version.stdout.strip() != VERSION.encode():
-                return 1
+                raise ValueError()
             ignore = Path(temp) / ".gitleaksignore"
             ignore.write_bytes(b"")
             report = Path(temp) / "report.json"
+            stage = "scanner-execution"
             result = subprocess.run(scan_command(tool, repo, config, report, ignore),
                                     cwd=temp, env=env, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, timeout=timeout, check=False)
             if result.returncode not in (0, 2) or report.is_symlink():
-                return 1
+                raise ValueError()
+            stage = "scanner-report"
             with report.open("rb") as stream:
                 return check_report(stream.read(64 * 1024 * 1024 + 1), result.returncode)
-    except (OSError, ValueError, subprocess.SubprocessError):
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        if diagnostics is not None:
+            diagnostics.append(str(error) if isinstance(error, HistoryError) else stage)
         return 1
 
 
@@ -150,9 +213,9 @@ def validate_workflow(workflow):
     if set(job) != {"runs-on", "timeout-minutes", "steps"} or job["runs-on"] != "ubuntu-24.04" or job["timeout-minutes"] != 10:
         raise ValueError("unexpected scanner job controls")
     steps = job["steps"]
-    if type(steps) is not list or len(steps) != 4:
+    if type(steps) is not list or len(steps) != 5:
         raise ValueError("unexpected scanner steps")
-    checkout, setup, install, scan = steps
+    checkout, setup, hydrate, install, scan = steps
     if set(checkout) != {"name", "uses", "with"} or checkout["uses"] != "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1":
         raise ValueError("unexpected scanner checkout")
     expected = {"fetch-depth": 0, "persist-credentials": False,
@@ -162,6 +225,8 @@ def validate_workflow(workflow):
         raise ValueError("scanner requires full history and protected exclusions")
     if setup != {"name": "Set up scanner wrapper Python", "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}}:
         raise ValueError("unexpected scanner runtime")
+    if hydrate != {"name": "Acquire complete history objects", "shell": "bash", "run": HYDRATE_SCRIPT + "\n"}:
+        raise ValueError("unexpected history acquisition")
     if install != {"name": "Install checksum-pinned Gitleaks", "shell": "bash", "run": INSTALL_SCRIPT}:
         raise ValueError("unexpected scanner acquisition")
     if scan != {"name": "Scan all available Git history", "shell": "bash", "run": SCAN_SCRIPT + "\n"}:
@@ -172,9 +237,16 @@ def main():
     if len(sys.argv) != 2:
         return 1
     root = Path(__file__).resolve().parents[1]
-    code = run_scan((str(Path(sys.argv[1]).resolve()),), root, root / ".gitleaks.toml")
-    print({0: "History scan completed cleanly.", 2: "History scan detected findings.",
-           1: "History scan failed; no clean result."}[code])
+    diagnostics = []
+    if sys.argv[1] == "--hydrate":
+        code = hydrate_history(root, diagnostics=diagnostics)
+        print("History object acquisition completed." if code == 0 else
+              "History object acquisition failed at " + diagnostics[0] + "; no clean result.")
+    else:
+        code = run_scan((str(Path(sys.argv[1]).resolve()),), root, root / ".gitleaks.toml",
+                        diagnostics=diagnostics)
+        print({0: "History scan completed cleanly.", 2: "History scan detected findings."}.get(
+            code, "History scan failed at " + (diagnostics or ["unknown"])[0] + "; no clean result."))
     return code
 
 
