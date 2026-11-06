@@ -1,26 +1,49 @@
 # Agent Engineering Runbook
 
+**PROPOSED / NOT ADOPTED.** Procedure draft for owner review; the authorized
+baseline and independently applicable adopted rules govern until explicit adoption.
+See the [authority and equivalence assessment](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md).
+
 ## Standard bounded change
 
-1. Before substantive work, record and compare actual branch, exact HEAD, and
-   intended task-authorized base/ref against task expectations and the handoff.
-   Stop on mismatch or unresolved base expectations. Do not fetch or mutate the
-   checkout merely to satisfy this gate without authority.
-2. Verify tracked state and the dedicated non-default branch. Inspect only relevant
-   guidance/source; preserve unrelated, protected, and in-progress local work.
-3. State the [six-field contract](CONTRACT.md#bounded-task-contract) and proposed
-   file boundary before editing. Check for conflicting relevant guidance.
-4. Implement only the bounded objective. Apply the budget actions in
-   [AGENTS.md](../../AGENTS.md#codex-context-budget) before substantive new steps.
-5. Run the smallest meaningful checks, then applicable gates from
-   [TESTING.md](../../TESTING.md). Docs-only work: whitespace, local links, and
-   available relevant documentation checks; no full regression solely for docs.
-6. Review the final diff and exact proposed commit set. Report passing, failing,
-   and unrun checks separately. Use independent review for significant closure
-   when practical; disclose when it was unavailable.
-7. Commit, push, and open a PR only within granted authority. GitHub CI for the
-   exact current head is authoritative for merge gates. Merge only with explicit
-   human authorization for that PR and passing current blocking gates.
+1. **Establish once.** Verify repository/worktree, branch, exact HEAD, task-authorized
+   base and relevant tracked state against expectations. Use
+   `git status --short --untracked-files=no`; inspect only intended new paths
+   separately. Stop on mismatch/unresolved base. Record the six-field contract and
+   paths once, reusing complete owner instructions. Identify applicable adopted
+   rules and [engineering risk tier](CONTRACT.md#engineering-risk-tiers).
+2. **Execute within authority.** Use relevant sources and valid prior evidence;
+   implement only the bounded objective. Recheck affected entry facts when state
+   or assumptions change, and apply root context-budget actions before substantive
+   new steps. Preserve unrelated work. Any specialized checkpoint or preservation
+   requirement remains mandatory; generic reuse is not a substitute.
+3. **Validate proportionately.** Tier 1: relevant focused checks and self-review.
+   Tier 2: acceptance tests, affected integration/static checks and independent
+   technical review when practical. Tier 3: explicit risk assessment, applicable
+   security controls/gates and appropriate independent verification, including
+   qualified human review where required. More specific rules always control.
+   Docs-only: whitespace, relevant links and available relevant doc checks; no
+   full regression solely for docs. Follow [TESTING.md](../../TESTING.md).
+4. **Resolve findings finitely.** Record failures, uncertainty and missing evidence.
+   Resolve in scope, rerun affected checks and obtain required independent
+   confirmation of blocking findings on the final snapshot. Otherwise write one
+   [blocker-to-action record](CONTRACT.md#finite-investigation-and-blocker-handling)
+   and stop dependent activity. No automatic investigation/review loop.
+5. **Close once.** Inspect final diff, exact file set and scope/preservation.
+   Report scope/files, exact checks/results and unrun checks, CI head/status,
+   reviewer/verdict/findings/limits, risks/deferred work, commit/PR state and
+   remaining manual acceptance. Reuse this same record as a handoff if needed.
+   Do not assert a fixed repository test total or claim prepared commands ran.
+6. **Publish only if authorized.** Revalidate state needed for that action.
+   Branches, staging, commits, pushes, PRs, comments and CI changes stay within
+   granted authority. Current blocking GitHub CI for the exact PR head is
+   authoritative; every merge requires explicit human authorization and passing
+   current gates. A review verdict supplies no new authority.
+
+A current-state claim needs current evidence. A valid unchanged entry observation
+need not be recollected at every procedural step. If a specific source requires
+entry/exit hashes, full-source review, final-snapshot review or native evidence,
+perform it; the general workflow cannot waive it.
 
 ## Checkpoint and thread rotation
 
@@ -32,58 +55,63 @@ and owner decisions. This does not require a new locator for every routine
 checkpoint. Preserve original historical evidence; a digest or summary alone
 does not qualify primary bytes.
 
-As context usage approaches rotation, apply the
-[root budget rules](../../AGENTS.md#codex-context-budget), using their accounting
-fallback when needed. Update the checkpoint below before recommending a fresh
-thread; then follow the root stop and subtask rules. Keep one compact
-checkpoint in a task-authorized, non-sensitive Markdown path (for example
-`docs/agent-ops/checkpoint-<task>.md`); name the path before writing. Do not modify
-an unrelated existing checkpoint. A checkpoint is not automatically publishable
-or part of the commit set. If writing it is not authorized, provide the complete
-handoff in the task and report that repository persistence remains pending.
+Apply the unchanged [root context-budget rules](../../AGENTS.md#codex-context-budget)
+at task start, work-package boundaries and before substantive new steps. The
+50K/65K/75K/100K thresholds, boundary rotation and narrow finish exception remain.
+Compaction does not reset the budget. Prefer earlier checkpointing when uncertain.
+
+Reuse one compact closure/decision record as the checkpoint. Persist only to a
+named task-authorized non-sensitive Markdown path; never overwrite an unrelated
+checkpoint or commit merely to checkpoint. If storage is unauthorized, provide the
+complete handoff in-task and disclose that durable storage is pending. A checkpoint
+grants neither extra editing nor publication authority.
 
 ```text
-TASK / GOAL: One sentence; six-field contract or its durable reference.
-STATE: Branch, worktree, exact HEAD/base, exact modified paths, proposed commit set.
-PUBLICATION: Commit, push, and PR status.
-DONE / EVIDENCE: Verified results with commands, outcomes, relevant CI head/run.
-REMAINING: Ordered next steps; identify the next authorized action.
-BOUNDARIES / BLOCKERS: Unresolved blockers, relevant stop conditions, exclusions, protected data, approvals needed.
-CONTEXT: Relevant files/sections and decisions with brief reasons; no rediscovery log.
-BUDGET: Reported/estimated usage or unavailable; triggered threshold; exception/exit if any.
+TASK / GOAL: Objective and six-field contract or durable reference.
+STATE: Repository/worktree, branch, exact HEAD and authorized base, modified paths,
+       exact proposed file set, staged/unstaged expectations.
+PUBLICATION: Commit, push and PR status.
+DONE / EVIDENCE: Exact checks, results, relevant CI head/run and review snapshot.
+REMAINING: Next authorized action, ordered remaining work and manual acceptance.
+BOUNDARIES / BLOCKERS: Dependencies, stops, exclusions and approvals still needed.
+CONTEXT: Governing sources/revisions, decisions and material evidence limits.
+BUDGET: Observed/estimated use, triggered threshold, any narrow exception/exit.
 ```
 
-Preserve uncommitted work; never commit merely to checkpoint. Include enough of
-the contract to resume without the old chat. Do not copy secrets, private data,
-raw logs, or large diffs into the handoff. In the new task, verify only the recorded
-state and next-step prerequisites; do not repeat completed checks unless evidence
-is stale, changes occurred, or a finding warrants it. Compaction within the same
-thread is not rotation and does not reset the budget.
+Retain original evidence and protected state without copying private material or
+raw logs into the handoff. The next chat verifies recorded state, source authority
+and next-action prerequisites; repeat other checks only when changed predicates,
+staleness or findings justify it. Any independently binding complete receipt remains.
 
 ## Independent verifier / adversarial review
 
-- For significant feature/sprint closure, use a reviewer separate from the
-  implementer when practical. Supply only the bounded contract, relevant frozen
-  specification/invariants, exact diff/base/head (or uncommitted snapshot), and
-  validation evidence. Exclude private material and unrelated history.
-- Reviewer remains read-only and does not silently broaden scope. Challenge the
-  implementation: seek counterexamples, unsafe transitions, fail-open behavior,
-  unsupported claims, privacy/provenance/licensing violations, and missing tests.
-  Check whether validation proves acceptance and whether churn is necessary.
-- Return **PASS**, **PASS WITH NOTES** (non-blocking only), or **FAIL** (blocking).
-  Each finding names severity, file/line, evidence or reproduction, violated
-  contract/invariant, and smallest correction. Disclose unverified areas.
-- Implementer resolves findings only within scope, reruns affected checks, and
-  requests re-review of blocking findings against the updated snapshot. Before
-  closure, the independent reviewer must confirm resolution against that snapshot.
-  Requested or pending re-review does not satisfy the gate; unresolved or
-  unconfirmed blocking findings remain blocking. Review does not replace CI or
-  grant merge authority.
-- Record reviewer identity/role, reviewed revision or snapshot, verdict, findings,
-  and remaining limits. Self-review must not be labeled independent review.
+Use the [review requirements](CONTRACT.md#independent-technical-review). Supply a
+read-only reviewer the bounded contract, applicable frozen/security requirements,
+relevant actual source, exact base/head/diff or fixed uncommitted snapshot, and
+validation evidence. A separate same-model session can qualify for technical
+independence appropriate to risk; identify the model and separation actually used.
+Do not supply protected material without specific access/transfer authority.
+
+The reviewer challenges assumptions, unsafe transitions, fail-open behavior,
+unsupported evidence/assurance claims, privacy/provenance/licensing violations,
+missing tests and unnecessary churn. Identify actual coverage and omissions.
+
+Return **PASS**, **PASS WITH NOTES** (nonblocking only), **FAIL** (blocking), or
+**BLOCKED** (required evidence/access unavailable). Each finding records severity,
+file/line, evidence or reproduction, violated requirement and smallest correction.
+A BLOCKED verdict cannot satisfy acceptance; unavailable evidence is not a proven
+failed behavior. Record reviewer/model, separation, snapshot, verdict and limits.
+
+Resolve in scope, rerun affected validation and obtain independent confirmation
+against the revised snapshot for blocking findings before acceptance. Reuse valid
+unchanged coverage; do not repeat equivalent review without a material trigger or
+binding refresh requirement. Self-review is not independent review. Review does
+not establish inaccessible evidence, human/external isolation, CI success or merge
+permission. Material security claims requiring a qualified human retain that gate.
 
 ## Evidence and scope expansion
 
-Prepared commands and agent confidence are not validation evidence. Report exact
-results and relevant artifacts/CI links. Stop and surface any prerequisite that
-expands scope, exceeds authority, or crosses a protected boundary.
+Evidence supports only what was actually checked. Reference its source, identity,
+claim, coverage and freshness; retain failures and original records. For unresolved
+questions use the contract's finite investigation and blocker rule. Stop before a
+prerequisite expands scope, exceeds authority or crosses a protected boundary.
