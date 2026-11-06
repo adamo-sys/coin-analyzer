@@ -14,7 +14,7 @@ import re
 import subprocess
 import zlib
 
-from tools import c07_remaining, c07_synthetic
+from tools import c07_faults, c07_remaining, c07_synthetic
 from tools.gitleaks_history import LOG_OPTIONS, load_report, scan_environment
 
 
@@ -141,12 +141,68 @@ def check_resources(accounting):
     return str(remainder)
 
 
+def check_resource_evidence(accounting, *, ledger, counters):
+    """Validate supplied raw-byte correspondence, never provenance or admission.
+
+    These opaque bytes do not prove review, completeness of interval/counter
+    reconciliation, custody or authorization. The original unknown/exhausted
+    allowances remain unchanged. No diagnostic contains the supplied bytes.
+    """
+    remainder = check_resources(accounting)
+    for raw, key, prefix in ((ledger, "accounting_reconciliation", "reviewed-ledger-sha256:"),
+                             (counters, "counter_state", "reviewed-counters-sha256:")):
+        if type(raw) is not bytes or not 1 <= len(raw) <= 1024 * 1024:
+            raise ValueError("missing or oversized accounting evidence")
+        if prefix + hashlib.sha256(raw).hexdigest() != accounting[key]:
+            raise ValueError("accounting evidence digest mismatch")
+    return {"arithmetic_remainder_seconds": remainder, "digest_correspondence": "MATCHED",
+            "provenance": "NOT_AUTHENTICATED", "execution_status": "NOT_ADMITTED"}
+
+
+def capture_source_identity(raw):
+    """Bind retained C11 LF bytes while separately reporting actual checkout bytes.
+
+    Git may convert source line endings on checkout. Only CRLF-to-LF conversion
+    is allowed; no other source-byte change matches this retained identity.
+    Neither the raw nor canonical digest authenticates origin or approval.
+    """
+    if type(raw) is not bytes or not 1 <= len(raw) <= 1024 * 1024:
+        raise ValueError("missing or oversized C11 source")
+    canonical = raw.replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(canonical).hexdigest()
+    if len(canonical) != 24464 or digest != "13da006f18d8ea5ace45821554dadc88b0e7eaf234f338dc37292d7f441dcecf":
+        raise ValueError("retained C11 source identity mismatch")
+    return {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(),
+            "lf_canonical_bytes": len(canonical), "lf_canonical_sha256": digest}
+
+
+def _source_package():
+    """Observe exact public source bytes; hashes are not source authentication."""
+    root = Path(__file__).resolve().parent
+    result = []
+    for name in ("c07_native.py", "c07_capture.py", "c07_backend.py", "c07_faults.py",
+                 "c07_findings.py", "c07_synthetic.py", "c07_remaining.py"):
+        path = root / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("source package incomplete")
+        raw = path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        identity = (capture_source_identity(raw) if name == "c07_capture.py" else
+                    {"bytes": len(raw), "sha256": digest})
+        result.append(dict(identity, path="tools/" + name))
+    return result
+
+
 def preparation_manifest():
     """Deterministic source/graph package, never an execution authorization."""
     result = {
         "schema": "c07-preparation-v1", "execution_status": "NOT_ADMITTED", "qualified": False,
         "criterion_sha256": c07_synthetic.CRITERION_SHA256, "scanner_version": "8.24.3",
         "history_options": LOG_OPTIONS,
+        "source_package": _source_package(), "source_provenance": "NOT_AUTHENTICATED",
+        "native_backend": "UNIMPLEMENTED_UNQUALIFIED",
+        "fault_driver_counts": {family: sum(t.family == family for t in c07_faults.fault_trials())
+                                for family in ("CLEAN", "P11", "P12", "P14")},
         "cases": [{"case_id": cid, "snapshot_sha256": entry[2], "refs": list(entry[1]),
                    "baseline_config_sha256": hashlib.sha256(entry[0].baseline_config).hexdigest(),
                    "candidate_config_sha256": hashlib.sha256(entry[0].candidate_config).hexdigest()}
@@ -158,7 +214,7 @@ def preparation_manifest():
             "EACH_EXACT_EXCEPTION_DECISION", "AUTHENTICATED_RESOURCE_AND_COUNTER_RECONCILIATION",
             "INDEPENDENT_HUMAN_AND_CUSTODY_ROLES", "EXACT_RETENTION_DESTINATION_AND_ACCESS",
             "FINAL_NATIVE_DRIVER_AND_PROCESS_BACKEND_REVIEW", "P11_P12_P14_NATIVE_FAULT_DRIVERS",
-            "R2_BACKEND_AND_ALL_C12",
+            "R2_BACKEND_AND_ALL_C12", "NATIVE_PROCESS_AND_FILESYSTEM_BACKEND",
         ],
     }
     result["manifest_sha256"] = hashlib.sha256(json.dumps(

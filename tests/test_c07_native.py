@@ -102,6 +102,45 @@ class NativePreparationTests(unittest.TestCase):
             {k: v for k, v in manifest.items() if k != "manifest_sha256"},
             sort_keys=True, separators=(",", ":")).encode()).hexdigest())
 
+    def test_manifest_binds_actual_source_bytes_and_distinguishes_missing_native_backend(self):
+        manifest = driver.preparation_manifest()
+        sources = {row["path"]: row for row in manifest["source_package"]}
+        for name in ("tools/c07_capture.py", "tools/c07_backend.py", "tools/c07_faults.py"):
+            raw = (Path(__file__).resolve().parents[1] / name).read_bytes()
+            self.assertEqual(sources[name]["sha256"], hashlib.sha256(raw).hexdigest())
+            self.assertEqual(sources[name]["bytes"], len(raw))
+        self.assertEqual(sources["tools/c07_capture.py"]["lf_canonical_sha256"],
+                         "13da006f18d8ea5ace45821554dadc88b0e7eaf234f338dc37292d7f441dcecf")
+        self.assertEqual(manifest["fault_driver_counts"], {"CLEAN": 1, "P11": 10, "P12": 34, "P14": 13})
+        self.assertEqual(manifest["native_backend"], "UNIMPLEMENTED_UNQUALIFIED")
+        self.assertIn("NATIVE_PROCESS_AND_FILESYSTEM_BACKEND", manifest["required_external_bindings"])
+
+    def test_retained_source_identity_explicitly_normalizes_checkout_line_endings(self):
+        raw = (Path(__file__).resolve().parents[1] / "tools/c07_capture.py").read_bytes().replace(b"\r\n", b"\n")
+        lf = driver.capture_source_identity(raw)
+        crlf = driver.capture_source_identity(raw.replace(b"\n", b"\r\n"))
+        self.assertEqual(lf["lf_canonical_sha256"], crlf["lf_canonical_sha256"])
+        self.assertNotEqual(lf["sha256"], crlf["sha256"])
+        self.assertEqual(lf["lf_canonical_bytes"], 24464)
+        with self.assertRaises(ValueError):
+            driver.capture_source_identity(raw + b"# changed source\n")
+
+    def test_resource_bytes_must_match_review_references_without_claiming_provenance(self):
+        ledger, counters = b"inert reviewed ledger bytes", b"inert counter record"
+        accounting = {"ceiling_seconds": "36000", "charged_seconds": "5000.25",
+                      "reserved_seconds": "1000", "requested_seconds": "7200",
+                      "accounting_reconciliation": "reviewed-ledger-sha256:" + hashlib.sha256(ledger).hexdigest(),
+                      "unmetered_intervals": [],
+                      "counter_state": "reviewed-counters-sha256:" + hashlib.sha256(counters).hexdigest()}
+        result = driver.check_resource_evidence(accounting, ledger=ledger, counters=counters)
+        self.assertEqual(result["arithmetic_remainder_seconds"], "22799.75")
+        self.assertEqual(result["provenance"], "NOT_AUTHENTICATED")
+        self.assertEqual(result["execution_status"], "NOT_ADMITTED")
+        with self.assertRaises(ValueError):
+            driver.check_resource_evidence(accounting, ledger=ledger + b"x", counters=counters)
+        with self.assertRaises(ValueError):
+            driver.check_resource_evidence(accounting, ledger=ledger, counters=b"")
+
 
 if __name__ == "__main__":
     unittest.main()
