@@ -140,3 +140,77 @@ Later implementation, qualification, exception approval and technical acceptance
 remain separate decisions and are not supplied by this package.
 
 SEC-003 OPEN. Stage 1B NO-GO. R2 UNCHANGED. PRs #451/#452 HOLD.
+
+## Owner approval amendment — 2026-11-06
+
+**Current decision: OWNER APPROVED / PROSPECTIVE EFFECTIVENESS PENDING.**
+This append-only amendment preserves the preceding PR #455 decision record as
+historical text. Its statements that owner approval was absent describe that
+publication task. The explicit owner decision below supplies that approval;
+prospective adoption is not yet effective merely because approval is recorded.
+
+### Owner decision and criterion identity
+
+Authority: the owner's 2026-11-06 instruction, “SEC-003 — RECORD OWNER ADOPTION
+OF C07-P1”, explicitly states:
+
+> I formally APPROVE the prospective adoption of C07-P1 as an additive
+> suppression-safety acceptance standard.
+
+The owner approves the complete reviewed criterion, including all 14 acceptance
+cases P01-P14 and their subcases, at
+[docs/security/sec-003/C07_PROSPECTIVE_ACCEPTANCE_PROPOSAL.md](C07_PROSPECTIVE_ACCEPTANCE_PROPOSAL.md),
+19,885 committed bytes, SHA-256:
+`B85ACAB6B686F63665947E546F54C1586D5DEE4BCCCD405CA6A53B03D61B14D8`.
+The approved publication is verified at package commit
+`6d282fac89b13aea5260d5b7a94b1a082668b28d`, merged by
+[PR #455](https://github.com/adamo-sys/coin-analyzer/pull/455) as
+`0deed892100b37b6611f37466ba535ea40c977e4` at `2026-11-06T10:10:35Z`.
+These publication identities locate the approved criterion; they do not attribute
+an additional owner statement or historical authentication to a digest.
+The criterion itself is unchanged by this amendment.
+
+### Prospective effectiveness and change control
+
+PR #455 published a pending proposal. Its decision record expressly required a
+further explicit owner decision and applicable review/change control before
+adoption. Its merge alone did not establish adoption. This later owner approval
+cannot backdate adoption to PR #455, its merge time, or any earlier activity.
+
+Prospective effectiveness begins only when this newly approved adoption record
+is merged into `main`, after applicable independent final-snapshot review without
+unresolved blocking findings, current passing blocking CI for the exact PR head,
+and separate explicit owner authorization for that PR merge. The final reviewed
+amendment commit and review/check evidence must be identified in the PR record;
+the authorized merge commit and timestamp establish the effective revision and
+time. Until that merge completes under those conditions, effectiveness remains
+pending. This task authorizes a draft PR, not a merge.
+
+At that effective point only, this amendment supersedes the preceding record's
+pending-owner-decision/adoption labels and the frozen proposal's NOT ADOPTED
+label and request for a future adoption decision, solely for prospective governing
+status. Historical statements, requirements and evidence limitations remain intact.
+Material changes to the approved criterion or decision require corresponding
+owner approval and applicable independent review/change control.
+
+### Unchanged requirements and dispositions
+
+All preceding binding-requirement and limitation provisions remain controlling:
+complete R2 C1-C12 and all 30 C12 cases wherever originally applicable; native
+Ubuntu and Windows qualification, Windows 11 24H2 x64 and applicable approved
+interpreter/profile and full-matrix obligations; independent final-policy/harness,
+native-evidence and source/security review; every separately binding human,
+external, platform-separated and custody requirement; privacy, protected-data,
+provenance, preservation/retention, finite resources, admission and accounting.
+No historical consumption, uncertainty, counter or exhausted allowance changes.
+
+This approval neither authenticates nor satisfies missing historical C07, proves
+historical equivalence, qualifies the corrective patch, closes F-01-F-04 or G-02,
+nor upgrades any historical engineering evidence. Historical C07 remains
+UNRESOLVED/FAILING. C07 technical qualification remains outstanding. Each exact
+exception and technical acceptance of a qualified final snapshot still requires
+its own owner decision and applicable evidence. No implementation, scanner-policy
+change, qualification execution, evidence transfer or other operation is admitted.
+Pillow and full-program/Tier 1 dispositions above remain unchanged.
+
+**SEC-003 OPEN. Stage 1B NO-GO. R2 UNCHANGED. PRs #451/#452 HOLD.**
