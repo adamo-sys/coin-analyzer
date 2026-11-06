@@ -1,17 +1,17 @@
 # Coin Analyzer Agent Operations Contract
 
-**PROPOSED / NOT ADOPTED - general-governance replacement.** This draft awaits
-explicit owner adoption through applicable repository review. The task-authorized
-baseline and separately applicable adopted requirements remain operative meanwhile.
-The retained Package 0 and SEC-003 records below preserve the verified remote
-text, status conditions and limits; this banner neither revokes nor adopts them. The
-[proposal](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md) records baseline/remote differences,
-control equivalence, retained blockers and adoption decisions.
+**General governance: owner-approved for prospective adoption, subject to change
+control.** See the [adoption record](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md#prospective-general-governance-adoption)
+for scope and effectiveness after required review, passing CI and normal repository
+change control. Prior governing rules control until then. The retained Package 0
+and SEC-003 records preserve their exact text, status conditions and limits;
+this general approval neither revokes nor adopts specialized proposals or security
+exceptions. Historical decisions retain their original scope and evidence limits.
 
 ## Purpose
 
 One engineering contract defines scope, authority, risk, review and evidence.
-[AGENTS.md](../../AGENTS.md) is the entry point and owns unchanged context limits;
+[AGENTS.md](../../AGENTS.md) is the entry point and owns context-budget limits;
 [RUNBOOK.md](RUNBOOK.md) provides execution steps. These rules apply across agents,
 models, harnesses, schedulers and vendors.
 
@@ -247,14 +247,14 @@ release. Technical capability is not authorization.
 ## Conflict Rule
 
 Apply the stricter applicable boundary and surface unresolved conflicts. Isolate
-only genuinely independent authorized work; never use a general tier, this draft
+only genuinely independent authorized work; never use a general tier, this contract
 or efficiency as a waiver. A material authority conflict blocks the affected claim.
 
 ## Updating This Contract
 
 Adopt amendments through applicable repository review and explicit owner decisions.
 Drafting is not adoption. Do not rewrite policy to accommodate agent preferences.
-Recheck this reconciled proposal against then-current adopted remote governance
+Recheck amendments against then-current adopted remote governance
 before any adoption; no automatic transplant, supersession or publication.
 
 ## Specialized contracts and references
