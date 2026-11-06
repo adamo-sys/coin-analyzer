@@ -1,8 +1,10 @@
 # Agent Engineering Runbook
 
-**PROPOSED / NOT ADOPTED.** Procedure draft for owner review; the authorized
-baseline and independently applicable adopted rules govern until explicit adoption.
-See the [authority and equivalence assessment](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md).
+**General governance: owner-approved for prospective adoption, subject to change
+control.** The [adoption record](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md#prospective-general-governance-adoption)
+defines scope and effectiveness after required review, passing CI and normal
+repository change control. Prior governing rules apply until then; specialized
+requirements and proposals retain their separate status.
 
 ## Standard bounded change
 
@@ -55,10 +57,30 @@ and owner decisions. This does not require a new locator for every routine
 checkpoint. Preserve original historical evidence; a digest or summary alone
 does not qualify primary bytes.
 
-Apply the unchanged [root context-budget rules](../../AGENTS.md#codex-context-budget)
+Apply the [root context-budget rules](../../AGENTS.md#codex-context-budget)
 at task start, work-package boundaries and before substantive new steps. The
-50K/65K/75K/100K thresholds, boundary rotation and narrow finish exception remain.
+50K/65K/75K/100K thresholds and narrow finish exception remain unchanged.
 Compaction does not reset the budget. Prefer earlier checkpointing when uncertain.
+
+At each meaningful work-package boundary, checkpoint material state and record a
+continue-or-rotate decision with its reason. Continuing requires sufficient context,
+authorized next scope, understood repository/task state and still-valid evidence
+(source identity, scope, environment, freshness and claim). Recheck affected facts
+when those predicates change; an unresolved material mismatch stops dependent work.
+Continued context grants no additional scope or action authority.
+
+Rotate when capacity threatens reliable work, state uncertainty or evidence
+integrity cannot be resolved safely within the authorized current context, required
+task/reviewer separation demands a fresh session, or a specific binding security
+requirement requires a handoff. Preserve exact-file authority, protected evidence,
+specialized handoffs and independent reviewer separation. Rotation alone resolves
+none of those predicates: the receiving session must verify them before proceeding.
+Root budget stops/rotation and stricter task-specific rules always take precedence.
+
+If no substantive state has changed, reference the existing checkpoint and record
+only the decision or material delta; do not regenerate the same packet. A new
+action still needs current applicable evidence. Independently binding checkpoint,
+receipt, freshness and security-handoff requirements cannot be skipped by reuse.
 
 Reuse one compact closure/decision record as the checkpoint. Persist only to a
 named task-authorized non-sensitive Markdown path; never overwrite an unrelated

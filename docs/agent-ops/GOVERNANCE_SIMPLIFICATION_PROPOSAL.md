@@ -1,4 +1,105 @@
-# Governance simplification proposal
+# General-governance adoption and session rotation
+
+## Prospective general-governance adoption
+
+**Owner approval supplied; effectiveness pending required review, passing CI and
+normal repository change control.** The owner's governance-adoption and
+session-rotation task expressly approves prospective adoption of the general
+engineering framework introduced by [PR #453](https://github.com/adamo-sys/coin-analyzer/pull/453).
+That PR was squash-merged at `8ebc03e67edc0584ff673aec692c5af73777a6b9`.
+Read-only remote main verification for this package returned that exact SHA on
+2026-11-06 UTC; it is the authorized editing base, not an assertion of future
+remote freshness. PR #453 published a proposal; its merge did not itself adopt
+every proposal it contained.
+
+This approval covers the general entry/scope rules, action authority, engineering
+risk tiers, validation/review, evidence reuse, finite blocker handling, scheduled
+agents and bounded workflow in AGENTS, CONTRACT and RUNBOOK, with the prospective
+rotation amendment below. It adds no specialized acceptance or security exception.
+The general framework becomes **ADOPTED for future work** only after review of
+the exact final diff and security-equivalence assessment, independent confirmation
+of any blocking-finding resolutions, passing applicable CI on the exact final PR
+head, and completion of normal repository change control including a separately
+authorized merge into main. The owner approval is recorded here; those remaining
+conditions are not claimed complete by this working copy. Until effective, the
+previous governing policy, including mandatory work-package rotation, still applies.
+After effectiveness, this record supersedes general-framework proposal labels in
+the historical section below; it does not supersede specialized status labels.
+
+The adoption boundary preserves four distinct classes:
+
+- **General governance:** owner-approved prospectively, effective only on the
+  conditions above; this package prepares the exact uncommitted four-file diff.
+- **Historical decisions/evidence:** original scope, provenance limits and gaps
+  remain unchanged. No historical procedure, finding or review is newly validated.
+- **Specialized adopted requirements:** retain their existing exact scope and all
+  independent verification, custody, native qualification, budget and release gates.
+- **Specialized proposals:** Package 0 amendments, SEC-003 proposed amendments,
+  CA-OPS-EFF-001 and conditional owner clarifications keep their separate adoption
+  conditions. This general approval supplies none of their missing decisions.
+
+**SEC-003 OPEN; Stage 1B NO-GO; R2 UNCHANGED; PR #451 HOLD; PR #452 HOLD.**
+No SEC-003 acceptance, historical-evidence or release-gate change is authorized.
+The complete CONTRACT tail from the first Package 0 amendment remains unchanged.
+
+## Session-rotation amendment and security equivalence
+
+Binding source for the replaced general rule: AGENTS context-budget paragraph and
+RUNBOOK checkpoint procedure at the editing base above. This is a prospective
+policy-control change, treated as engineering Tier 3 despite documentation-only
+implementation. The failure modes are stale assumptions, lost decision history,
+overloaded context and erosion of specialized or independent assurance.
+
+**Old:** checkpoint at every bounded work-package boundary and rotate before
+another substantive package. **New, once effective:** checkpoint meaningful
+boundaries and record whether continuing is safe; continue only with sufficient
+context, authorized scope, understood state and valid evidence. Rotate on context,
+state, evidence, separation or binding security grounds. No new numeric allowance
+is introduced: 50K warning, 65K checkpoint/no new substantive steps, 75K hard
+rotation and 100K emergency ceiling retain their exact actions and finish exception.
+Compaction never resets accumulated context/work.
+
+Automatic boundary rotation was considered and retains a simple trigger, but
+does not itself establish evidence freshness or independent assurance. Removing
+rotation controls entirely would lose protection against overload and stale state.
+The selected bounded amendment retains mandatory limits and specialized triggers,
+and makes the general boundary decision explicit and reviewable.
+
+| Changed requirement / original objective | Replacement control | Verification method | Residual risk |
+| --- | --- | --- | --- |
+| R1 Automatic rotation before another substantive package: avoid overloaded context, forgotten constraints and stale assumptions | Meaningful-boundary checkpoint plus reasoned continuation decision; require sufficient context, authorized scope, understood state and valid evidence; rotate on capacity, uncertainty, integrity, separation or binding security trigger | Compare AGENTS/RUNBOOK against the base; independently challenge continuation with stale evidence, unknown state, exhausted capacity and unauthorized next scope; confirm all fail closed or require rotation as applicable | Capacity/freshness judgments can be mistaken; conservative checkpointing, affected-fact revalidation, mismatch stops and unchanged hard limits bound this risk |
+| R2 Repeated boundary checkpoint production: preserve decisions and resumability | Retain one sufficient record with all existing handoff fields; reference it and record decisions/material deltas when substantive state is unchanged; preserve original evidence and all mandatory complete receipts | Check unchanged handoff template, authorized-storage limits and locator paragraph; review unchanged-state and changed-state cases; confirm specialized receipts cannot be skipped | An incomplete record or missed delta can impair reconstruction; required fields, original sources, delta recording and receiver verification remain mandatory |
+| R3 Generic boundary handoff: obtain a reliable fresh start | Mandatory handoff for triggered rotation; receiving session verifies state, authority and next prerequisites; explicit specialized security handoffs and independent reviewer separation override continuation | Compare retained receiver verification, exact-file/protected-evidence boundaries and reviewer requirements; inspect the untouched specialized CONTRACT tail and exact final diff | Fresh sessions can inherit an incorrect summary; actual-source review and specialized custody/independence predicates remain necessary; rotation alone certifies nothing |
+
+These are documentary equivalence criteria for the general procedure, not runtime
+confidentiality, historical authentication or measured efficiency claims. Numeric
+thresholds, finish-exception text, mandatory security handoffs, exact-file authority,
+protected evidence and independent blocking-finding confirmation are retained.
+The historical E12 row describes PR #453's unchanged-budget design; only its
+blanket boundary-rotation retention is superseded prospectively by R1-R3.
+
+## Adoption-package validation and limits
+
+Acceptance requires exact four-file scope, whitespace/newline/conflict-marker and
+relevant local-link/anchor checks, exact specialized-tail preservation, unchanged
+numeric budget table and finish exception, unchanged conditional locator and
+handoff fields, original-checkout preservation, and independent technical review
+of the actual fixed diff. Review/check results and snapshot identities accompany
+delivery; the historical receipts below do not cover this amendment.
+
+No commit, staging, push, PR, merge or manual CI dispatch is authorized in this
+package. CI for these uncommitted changes is unrun; PR #453's results support only
+its own snapshot. Owner review of the final changes is the next action. Later
+publication and adoption gates need their own authority and fresh applicable
+evidence. No further SEC-003 investigation is needed or authorized here.
+
+## Historical PR #453 proposal and reconciliation record
+
+Everything below is the retained historical proposal record. Its dates, draft
+labels, source observations, task-local prohibitions and review receipts describe
+the original snapshots, not current general-framework effectiveness or a fresh
+verification. Specialized proposals and their conditions remain independently
+controlling; the prospective record above cannot adopt them by implication.
 
 **PROPOSED / NOT ADOPTED - documentation only, 2026-11-05.**
 Review target: READY TO ADOPT after final independent confirmation, not adopted policy, verified operational

@@ -1,10 +1,11 @@
-# Coin Analyzer Agent Harness - governance simplification draft
+# Coin Analyzer Agent Harness
 
-**PROPOSED / NOT ADOPTED.** Owner review is pending. This working copy does not
-replace governing policy. Until explicit adoption, the task-authorized baseline
-and any independently applicable adopted requirements control; see the
-[proposal and authority register](docs/agent-ops/GOVERNANCE_SIMPLIFICATION_PROPOSAL.md).
-No execution, disclosure, historical acceptance or publication authority is added.
+**General governance: owner-approved for prospective adoption, subject to change
+control.** The [adoption record](docs/agent-ops/GOVERNANCE_SIMPLIFICATION_PROPOSAL.md#prospective-general-governance-adoption)
+defines scope and effectiveness after required review, passing CI and normal
+repository change control. Until then, the prior governing rules remain in force.
+Specialized requirements and proposals retain their separate status. No execution,
+disclosure, historical acceptance or publication authority is added.
 
 ## Start and scope
 
@@ -32,9 +33,15 @@ discovery, accumulated history, and task complexity as proxies; prefer earlier
 checkpointing when uncertain. When operator confirmation is useful, recommend
 `/usage` where available or the visible session-status UI; do not assume it
 provides exact session-wide context accounting.
-Checkpoint at each bounded work-package boundary and rotate before another
-substantive package; genuinely nearly-complete current work may finish only under
-the exception below.
+Checkpoint at meaningful bounded work-package boundaries. Continue in the same
+thread only when context is sufficient, the next work remains authorized, state
+is understood and supporting evidence remains valid. Record that decision using
+the [runbook procedure](docs/agent-ops/RUNBOOK.md#checkpoint-and-thread-rotation).
+Rotate when context capacity, unresolved state uncertainty, evidence integrity,
+task separation or a specific binding security requirement requires it. A package
+boundary alone does not require rotation. Budget-triggered stops and rotation
+remain mandatory; genuinely nearly-complete work may finish only under the
+exception below.
 Check at task start, work-package boundaries, and before substantive new steps.
 
 | Threshold | Required action |
