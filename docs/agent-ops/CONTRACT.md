@@ -1,15 +1,19 @@
 # Coin Analyzer Agent Operations Contract
 
+**PROPOSED / NOT ADOPTED - general-governance replacement.** This draft awaits
+explicit owner adoption through applicable repository review. The task-authorized
+baseline and separately applicable adopted requirements remain operative meanwhile.
+The retained Package 0 and SEC-003 records below preserve the verified remote
+text, status conditions and limits; this banner neither revokes nor adopts them. The
+[proposal](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md) records baseline/remote differences,
+control equivalence, retained blockers and adoption decisions.
+
 ## Purpose
 
-This file defines the default operating boundaries for AI agents working
-on the Coin Analyzer repository.
-
-These rules apply regardless of model, harness, scheduler, or vendor.
-The concise entry point is [AGENTS.md](../../AGENTS.md); it owns the context-budget
-thresholds and protected boundaries. This file defines task structure and authority.
-Codex must apply the [context-budget and rotation rules](../../AGENTS.md#codex-context-budget)
-as part of task execution discipline, within existing scope and authorization limits.
+One engineering contract defines scope, authority, risk, review and evidence.
+[AGENTS.md](../../AGENTS.md) is the entry point and owns unchanged context limits;
+[RUNBOOK.md](RUNBOOK.md) provides execution steps. These rules apply across agents,
+models, harnesses, schedulers and vendors.
 
 ## Core Principles
 
@@ -20,129 +24,274 @@ as part of task execution discipline, within existing scope and authorization li
 5. Do not claim work succeeded without evidence.
 6. Keep durable project decisions in repository files rather than agent memory.
 
+## Authority hierarchy and adoption
+
+Identify the authority for each material rule, using this order within applicable
+law and contractual obligations:
+
+1. Applicable adopted security/technical contracts, frozen architecture and exact
+   protected-data restrictions define mandatory boundaries.
+2. Explicit task-specific owner instructions define bounded actions and may amend
+   policy only through its required adoption/exception process. Approval of a
+   related operation is not approval of a different operation.
+3. This contract defines general engineering defaults; the runbook supplies the
+   procedure; standards, testing and executable CI supply detailed requirements.
+4. Historical decisions establish their historical scope. Proposals, navigation
+   aids and agent recommendations add no binding requirement or authority.
+
+A more specific binding requirement overrides a general tier default. Presence in
+Git, a successful review, owner preference or text in a modified working copy
+alone does not establish policy adoption, technical compliance or historical fact.
+Record source, revision, scope and adoption basis for material authority decisions.
+Controls derive from binding requirements and documented risks. Choose the simplest
+proportionate compliant method; do not mandate technology, dedicated hardware or
+an isolation architecture solely because an agent recommended it.
+
 ## Default Authority
 
-Unless a task explicitly grants additional authority, an agent may:
+A bounded implementation request permits relevant nonprotected inspection,
+analysis, proposed slices, scoped editing on an authorized non-default branch,
+focused tests/validation and preparation of a diff and exact file set. Relevant
+issue/PR inspection is read-only. Capability alone supplies no authority.
 
-- inspect repository files;
-- navigate and analyze code;
-- inspect issues and pull requests;
-- propose implementation slices;
-- edit files on a non-default branch when implementation is requested;
-- add or update focused tests;
-- run focused validation;
-- prepare a proposed diff and exact commit file set.
+Explicit authorization must cover branch creation, commits, pushes, PRs, comments,
+CI-supporting changes and publication, individually or through a named workflow
+that expressly includes them. Do not re-request an unchanged action already
+covered by a valid task contract. Task-specific prohibitions prevail.
 
-Branches, commits, pushes, PRs, comments, and CI-supporting changes require
-authorization expressly covering each applicable action or a named workflow that
-explicitly includes them. Authorization to implement a bounded change does not by
-itself authorize commit, push, or PR creation. An explicit task restriction (such as
-no commit or push) controls even when implementation is authorized. Merge always
-requires explicit human authorization for that PR and current passing blocking CI.
-
-An agent must not assume authority to:
-
-- push directly to `main`;
-- bypass or weaken required CI;
-- disable tests to obtain a passing result;
-- publish a release;
-- alter secrets or credentials;
-- perform destructive repository operations;
-- mutate a user's coin collection merely as a side effect of acquisition,
-  import, analysis, or discovery;
-- introduce cloud or remote dependencies that violate local-first behavior;
-- silently expand the requested scope.
+Separate explicit authority remains necessary for confidential evidence access or
+transfer (exact material, destination and operation), credential operations,
+protected architecture/security-policy changes, security exceptions/material risk
+acceptance, destructive actions, history rewrite/force-push, releases/tags and
+other specifically restricted actions. Never push directly to `main`, bypass CI,
+disable tests for a pass, introduce mandatory cloud behavior or silently expand
+scope. Collection mutation requires explicit product workflow and collector intent.
+Each PR merge requires explicit human authorization for that PR and current passing
+blocking gates, preferably identified by current head SHA.
 
 ## Git Rules
 
-- Work from a task-authorized, verified base. Before substantive work, record and
-  compare actual branch, exact HEAD, and intended task-authorized base/ref against
-  task expectations; stop on mismatch or unresolved base expectations. Do not fetch
-  or mutate the checkout merely to satisfy this gate without authority.
-- Never perform implementation directly on the default branch.
-- Use a dedicated branch for each bounded change.
-- Keep unrelated changes out of the branch.
-- Prefer reviewable commits.
-- Preserve git history and repository evidence.
-- Do not force-push or rewrite shared history without explicit authorization.
+Record repository identity/worktree, actual branch, exact HEAD and intended
+owner-authorized base at entry. Compare with task expectations before substantive
+work. Stop on mismatch or unresolved expectations; never fetch or mutate a checkout
+merely to satisfy this gate without authority. Use a dedicated non-default branch;
+preserve unrelated work and history. Never reset, stash, clean or absorb unrelated
+changes without authority. Stage exact paths only when staging is authorized.
 
-## Validation
-
-Before claiming completion:
-
-1. Run the smallest relevant focused tests.
-2. Run additional validation required by the affected boundary.
-3. Report exactly what was run.
-4. Distinguish passing evidence from tests that were not run.
-5. Treat GitHub CI as authoritative for repository merge gates.
-
-A prepared command, prompt, or test plan is not evidence that validation ran.
+Reuse the entry record while its predicates remain valid. Recheck affected facts
+after checkout/ref/index changes, concurrent work, a handoff, a material mismatch,
+or before an action requiring current state (including publication/merge). Record
+exit scope/preservation and the final review snapshot. Specialized entry/exit raw
+hash, index, custody or checkpoint requirements are not replaced by this default.
+A local ref is not proof of remote freshness; pin and attribute verified remote
+observations separately. Do not silently replace the authorized baseline.
 
 ## Bounded-task contract
 
-Before editing, state these six fields in the task. Reuse a complete user-provided
-contract; fill only missing operational details. A separate repository task file
-is unnecessary unless durable state is needed for rotation.
+Before editing, state the expected paths and these six fields once in the task.
+Reuse a complete user contract; fill only missing operational facts. Update only
+material changes. No second task format or repository packet is required by this
+general default; a separately binding packet/evidence contract still controls.
 
 ```text
 GOAL: One objective and observable completion condition.
-IN SCOPE: Exact proposed files/components and permitted actions.
-OUT OF SCOPE: Excluded behavior, cleanup, tools, and follow-on work.
-PROTECTED BOUNDARIES: Applicable architecture, invariants, private/local data, authority.
-ACCEPTANCE GATES: Focused checks, applicable regression/CI, review, manual acceptance.
-STOP CONDITIONS: Task-specific blockers and budget stops, plus root contract stops.
+IN SCOPE: Exact files/components and permitted actions.
+OUT OF SCOPE: Excluded behavior, cleanup, tools and follow-on work.
+PROTECTED BOUNDARIES: Architecture, invariants, private data and authority.
+ACCEPTANCE GATES: Focused validation, applicable CI, review and manual acceptance.
+STOP CONDITIONS: Task-specific blockers, root stops and context-budget limits.
 ```
 
-Name expected files before editing. Add a prerequisite only if it fits this
-boundary; otherwise stop and propose the smallest scope amendment. Do not turn
-a documentation-only task into production, dependency, or CI changes.
+A prerequisite must fit this boundary; otherwise propose the smallest amendment
+and stop dependent work. Documentation work grants no code, dependency or CI work.
 
-If accomplishing the task requires meaningful expansion beyond the declared
-scope, stop and surface the expansion rather than silently implementing it.
+## Engineering risk tiers
+
+Classify actual impact, affected boundaries and binding obligations before editing.
+Use the highest applicable engineering tier for mixed work. These **engineering
+risk tiers are distinct from SEC-003 assurance tiers**, which classify dependency
+assurance claims and retain their original acceptance predicates.
+
+| Engineering tier | Typical impact | Minimum requirements |
+| --- | --- | --- |
+| 1 - Routine | Corrections, isolated tests, small non-sensitive UI/refactoring | Bounded scope, focused validation, developer self-review, concise closure; independent review optional unless binding elsewhere |
+| 2 - Significant | Features, persistence, architecture, substantial refactoring/integrations | Acceptance criteria, appropriate tests, independent technical review when practical, recorded blocking findings/resolution, applicable CI and merge authority; disclose unavailable review |
+| 3 - Security-critical | Credential/confidential-data handling, security-control changes, sensitive transmission, material release-security decisions | Explicit risk assessment, applicable controls/security and CI gates, appropriate independent technical verification, residual uncertainty, owner authority where required; missing mandatory verification blocks dependent acceptance |
+
+A small UI change can be Tier 2/3 when its effects warrant it. A task's use of the
+word "security" does not alone require a human specialist. A qualified human or
+security specialist is required when policy, law, contract or the claim's nature
+makes AI-only verification insufficient. General defaults cannot reduce a
+specialized mandatory human, independent-evidence or final-snapshot review.
+
+## Validation
+
+Validate narrowly first: focused checks, affected integration, then applicable
+static/regression checks under [TESTING.md](../../TESTING.md). Docs-only work uses
+whitespace, relevant local links and available relevant documentation checks;
+never run full regression solely for documentation. Root regression remains
+`python -m unittest discover -s . -p "test_*.py"` when applicable. Authoritative
+merge gates remain current GitHub Actions: Windows/Ubuntu unittest, Ruff syntax,
+Gitleaks and ratcheted bounded Pyright; whole-repository Pyright is advisory.
+Other independently applicable gates remain intact.
+
+Prepared commands and confidence are not evidence. Report exact checks/results,
+failures, skipped/unrun checks and CI head/status; do not hard-code test totals.
+Passing CI does not erase relevant focused failures. Never weaken tests or behavior
+for a pass, or update status/traceability before underlying evidence is verified.
+
+## Independent technical review
+
+A separate LLM may review where suitable: a different model/provider or a
+separated session of the same model can qualify for technical review. It must:
+
+- Identify reviewer/model and separation from the implementer appropriate to risk.
+- Examine actual requirements, relevant source evidence and exact diff/snapshot.
+- Independently challenge assumptions, correctness, security and validation claims.
+- Return PASS, PASS WITH NOTES (nonblocking only), FAIL, or BLOCKED; disclose
+  missing evidence, coverage and limitations.
+- Preserve blocking findings until independent confirmation of resolution on the
+  updated snapshot. Re-review the changed predicates and affected dependencies;
+  repeat full review when a binding requirement or changed risk demands it.
+
+A different model/session alone proves neither independent custody nor historical
+authentication. Do not claim human, external or platform-isolated assurance without
+evidence. AI cannot verify inaccessible evidence. Confidential material requires
+specific transfer authorization and an appropriate privacy assessment before any
+other model/provider receives it. Self-review is never independent review.
+Review grants no execution, remediation, publication or merge authority.
 
 ## Evidence and State
 
-Important agent activity should leave durable evidence where appropriate:
+Record material decisions durably at an authorized non-sensitive location, not
+solely in chat/model memory. Use one sufficient record plus authoritative links;
+no overlapping attestations by default. Retain original evidence and any specialized
+complete receipts. Reuse evidence only when source identity, scope, environment,
+freshness and claim remain valid. Record reference/revision or digest, coverage,
+current applicability check and delta. A digest establishes correspondence, not
+provenance, authorship, security or approval. Refresh changed/advisory-sensitive
+predicates; never infer current compliance from historical results.
 
-- commits;
-- pull requests;
-- issue comments;
-- test results;
-- release notes;
-- repository documentation;
-- machine-readable run ledgers for scheduled agents.
+For each significant security control state: objective, binding source, threat or
+failure mode, candidate methods, verification criteria and residual risk. Any
+replacement needs evidence of equal or stronger protection; if insufficient,
+retain the original and defer the replacement for separate review.
 
-Do not rely on chat history or model memory as the sole record of an
-important project decision.
+## Finite investigation and blocker handling
+
+Define each investigation's objective, evidence threshold and termination condition
+before starting. Consult only named authorized relevant sources and direct source
+references; do not repeat repository discovery, recover sessions or open a new
+investigation merely because the current conversation lacks evidence.
+
+Reuse a valid assessment/review. Repeat only for new material evidence, changed
+requirements/implementation/risk, an identified material defect, invalid identity/
+freshness, or an independently binding refresh. Do not repeatedly investigate the
+same unresolved question with unchanged inputs.
+
+Distinguish UNKNOWN (not established), FAIL (a criterion failed), BLOCKED (a named
+next action cannot proceed), accepted risk and verified compliance. A time limit
+may end inquiry, never convert an unresolved requirement into PASS.
+
+Use one blocker-to-action record: affected claim/action, exact prerequisite and
+source, observed condition, materiality/dependency, available evidence and limits,
+smallest authorized resolution/decision, responsible authority and exit condition.
+Escalate to that authority, retain mandatory blockers, and stop automatic retries.
+An authorized risk decision must be documented, bounded and within the owner's
+legitimate authority; it cannot invent history, certify an unknown control or
+replace mandatory technical verification, legal duties or required independent
+assurance. A policy exception requires its own applicable adoption process.
+
+A blocker affects actions that depend on its control. Record that dependency:
+SEC-003 can block dependency qualification, affected merges or release advancement;
+unrelated synthetic testing, UI, documentation or local development may proceed
+only under independent authority, without consuming blocked prerequisites or
+claiming qualification. Preserve any independently binding broader stop.
+
+## SEC-003 isolation clarification and preserved dispositions
+
+The owner reports a bounded review that did not establish permanent physical
+isolation as a binding Stage A requirement. This is a reconciliation input, not
+an adopted amendment, verified assessment or permission to execute. Neither
+persistently offline equipment nor temporary isolation with controlled release
+is qualified by this proposal. Consider alternatives only against applicable
+binding requirements and demonstrable risk; dedicated hardware is not mandatory
+merely because it was previously recommended.
+
+Confidential original files remain inaccessible without separate exact-file
+access authority. Confidential-content transmission, including delayed transmission
+after reconnection, remains prohibited without authorization. Local-persistence
+risk acceptance does not authorize transmission. Where confidential state could
+remain, reconnection needs a defensible release process under applicable policy;
+reconnection is prohibited while confidential state remains uncontrolled.
+Unknown handling risks cannot be resolved by owner preference alone. If a specific
+binding isolation requirement applies, retain it pending a separately adopted
+amendment. No Stage A feasibility assessment is authorized or reopened here.
+
+**SEC-003 OPEN; Stage 1B NO-GO; R2 UNCHANGED; PR #451 HOLD; PR #452 HOLD.**
+F-01-F-04 remain unresolved pending qualified disposition; G-02 historical
+conflicting decisions remain unresolved; C07 remains an unresolved failing control.
+No historical finding/review is closed, upgraded to PASS or waived. Complete R2,
+all applicable specialized gates, original native/platform requirements, exhausted
+allowances and historical limitations remain intact. Any SEC-003 criterion change
+requires separate explicit owner review and prospective adoption.
 
 ## Scheduled and Autonomous Agents
 
-Scheduled agents must:
-
-- use explicit written instructions;
-- maintain durable state between isolated runs when state is required;
-- record whether each run completed, skipped, or failed;
-- stop safely when assumptions, authentication, permissions, or environment
-  conditions differ materially from expectations.
-
-Autonomy should be granted incrementally:
-
-read → analyze → propose → implement → validate → PR → merge → release
-
-A capability being technically possible does not mean it is authorized.
+Scheduled agents need explicit written instructions, authorized durable state
+when required between runs, completed/skipped/failed records, and safe stops for
+material assumption/authentication/permission/environment changes. Authority
+progresses only as granted: read, analyze, propose, implement, validate, PR, merge,
+release. Technical capability is not authorization.
 
 ## Conflict Rule
 
-If an agent instruction conflicts with this contract, repository governance,
-or a more specific project safety rule, follow the stricter boundary and
-surface the conflict.
+Apply the stricter applicable boundary and surface unresolved conflicts. Isolate
+only genuinely independent authorized work; never use a general tier, this draft
+or efficiency as a waiver. A material authority conflict blocks the affected claim.
 
 ## Updating This Contract
 
-Change this contract through normal repository review.
+Adopt amendments through applicable repository review and explicit owner decisions.
+Drafting is not adoption. Do not rewrite policy to accommodate agent preferences.
+Recheck this reconciled proposal against then-current adopted remote governance
+before any adoption; no automatic transplant, supersession or publication.
 
-Agent behavior should adapt to this file; this file should not be silently
-rewritten to accommodate agent behavior.
+## Specialized contracts and references
+
+- [Detailed standards](STANDARDS.md), [security policy](../../SECURITY.md),
+  [testing/privacy contract](../../TESTING.md), [workflow tooling](../CODEX_WORKFLOW.md).
+- [Frozen persistence spec](../architecture/durable-persistence.md), SHA-256
+  `A77DAF73978A74A9869A4B9558ECC49A96B4AE4AD183F9D646A18CB1B7E362B4`.
+- [Recovery matrix](../DESKTOP_PACKAGE_IMPORT_RECOVERY_MATRIX.md),
+  [recovery invariants](../DESKTOP_PACKAGE_IMPORT_RECOVERY_INVARIANTS.md),
+  [traceability](../architecture/durable-persistence-traceability.md),
+  [tool evaluation](../AI_TOOL_EVALUATION.md).
+- SEC-003 technical sources absent from this historical baseline are referenced
+  at the separately observed remote revision in the [proposal register](GOVERNANCE_SIMPLIFICATION_PROPOSAL.md#baseline-and-authority-register).
+  Their absence grants no waiver; do not access referenced confidential originals.
+
+## Preserved specialized records and interpretation
+
+The following complete specialized tail is reproduced without textual change from
+[verified remote CONTRACT.md](https://github.com/adamo-sys/coin-analyzer/blob/31a0b19e0bd714fc498a84783670951550d853dd/docs/agent-ops/CONTRACT.md),
+starting at the first Package 0 amendment. Every adoption condition, exception
+scope, historical limitation, mandatory review, accounting limit and operational
+hold remains intact. Retaining proposed text does not adopt it. Historical
+package-local statements such as "this package" and "unpublished" retain their
+original snapshot scope; they describe neither this review nor current publication
+status. No historical EDR gap is discharged by this governance review.
+
+The earlier historical assurance text remains available at the
+[authorized immutable baseline](https://github.com/adamo-sys/coin-analyzer/blob/0a4a4bc8f9ae4eed0b3981d8fd1d25d4f83073e0/docs/agent-ops/CONTRACT.md#sec-003-assurance-tier-amendment).
+Its historical attribution is preserved; the remote adapted representation below
+controls this proposal's current-source comparison. This is clause preservation,
+not a new SEC-003 or Package 0 adoption, qualification or disposition decision.
+Relative source links in the reproduced tail use the pinned remote repository
+layout. Targets absent from this historical checkout remain pinned-source locators,
+not permission to access protected originals or a claim of local availability.
+General procedure adoption cannot adopt separately proposed specialized sections
+by implication; each keeps its own required owner decisions and change control.
 
 **Package 0 — single historical checkpoint acceptance amendment**
 
