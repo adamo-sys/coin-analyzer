@@ -8,7 +8,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from copy import deepcopy
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
@@ -25,6 +26,10 @@ from tools.bakeoff_v1_run_ledger import RunLedgerValidationError, validate_run_r
 
 class GradingEvidenceError(ValueError):
     """Raised when independently collected candidate evidence is invalid."""
+
+
+class GradingEvidenceRetentionError(RuntimeError):
+    """Evidence retention failed; no successful retention may be inferred."""
 
 
 _CHECK_TIMEOUT_SECONDS = 5
@@ -318,10 +323,21 @@ def _grade_collected_evidence(record: Mapping[str, object], manifest: Path, side
     return result
 
 
-def grade_run(record: Mapping[str, object], manifest: Path, sidecar: Path, *, candidate_repository: Path, expected_corpus_seal: str | None = None, check_inputs: Mapping[str, Mapping[str, str]] | None = None, claimed_changed_paths: list[str] | None = None, claimed_required_checks: Mapping[str, str] | None = None, materialization_manifest: Mapping[str, object] | None = None) -> dict[str, object]:
-    """Collect independent candidate evidence, then grade it; claims never control success."""
+def grade_run(record: Mapping[str, object], manifest: Path, sidecar: Path, *, candidate_repository: Path, expected_corpus_seal: str | None = None, check_inputs: Mapping[str, Mapping[str, str]] | None = None, claimed_changed_paths: list[str] | None = None, claimed_required_checks: Mapping[str, str] | None = None, materialization_manifest: Mapping[str, object] | None = None, retain_evidence: Callable[[dict[str, object]], None] | None = None) -> dict[str, object]:
+    """Grade one collection, optionally retaining a detached copy through the caller.
+
+    Retention runs once after grading; failures raise GradingEvidenceRetentionError
+    with the original cause. The caller owns persistence and duplicate handling.
+    Collection failures return INVALID without invoking retention.
+    """
     try:
         evidence = collect_grading_evidence(record, manifest, sidecar, candidate_repository=candidate_repository, expected_corpus_seal=expected_corpus_seal, check_inputs=check_inputs, claimed_changed_paths=claimed_changed_paths, claimed_required_checks=claimed_required_checks, materialization_manifest=materialization_manifest)
     except (RunLedgerValidationError, GradingEvidenceError, ValueError) as exc:
         return {"schema_version": "1", "status": "INVALID", "invalid_reasons": [str(exc)], "findings": [], "checked_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
-    return _grade_collected_evidence(record, manifest, sidecar, evidence, expected_corpus_seal=expected_corpus_seal)
+    result = _grade_collected_evidence(record, manifest, sidecar, evidence, expected_corpus_seal=expected_corpus_seal)
+    if retain_evidence is not None:
+        try:
+            retain_evidence(deepcopy(evidence))
+        except Exception as exc:
+            raise GradingEvidenceRetentionError("grading evidence retention failed") from exc
+    return result

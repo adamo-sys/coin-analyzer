@@ -1,15 +1,19 @@
+import copy
 import json
 import os
 import shutil
 import subprocess
 import tempfile
 import unittest
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from hashlib import sha256
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.test_bakeoff_v1_final_acceptance import encoded, finding, fixture
 from tests.test_bakeoff_v1_run_ledger import valid_record, valid_v11_record
+from tools.bakeoff_v1_final_acceptance import evaluate_final_acceptance
+from tools import bakeoff_v1_grader as grader
 from tools.bakeoff_v1_candidate_state import (
     create_materialization_manifest,
     freeze_candidate_state,
@@ -559,3 +563,287 @@ class GraderTests(unittest.TestCase):
         changed = json.loads(json.dumps(unsigned))
         changed["independent_acceptance"][0]["candidate_module_provenance"].append(["wrong_source", "outside/candidate.py"])
         self.assertNotEqual(original, _canonical_digest(changed))
+
+
+class ExactEvidenceRetentionTests(unittest.TestCase):
+    """Synthetic collection seams; real collector, grading and final acceptance."""
+
+    @contextmanager
+    def synthetic(self, *, protocol="1.0", extra_path=None, failed=False):
+        values = fixture()
+        expected, evidence, packet = values[:3]
+        if extra_path:
+            evidence["candidate"]["changed_paths"].append(extra_path)
+            evidence["candidate"]["name_status"].append("A\t" + extra_path)
+        if protocol == "1.1":
+            candidate = evidence["candidate"]
+            candidate.pop("ending_sha")
+            candidate["candidate_state_sha256"] = "b" * 64
+            candidate["frozen_state"] = {"synthetic": True}
+            candidate["diff_fingerprint"] = "b" * 64
+            expected["scope"]["diff_fingerprint"] = "b" * 64
+            expected["candidate_state_sha256"] = "b" * 64
+            expected["execution_protocol_version"] = "1.1"
+            for check in evidence["required_checks"] + evidence["independent_acceptance"]:
+                check.pop("candidate_ending_sha")
+                check["candidate_state_sha256"] = "b" * 64
+            expected["required_validation"]["evidence"] = copy.deepcopy(evidence["required_checks"])
+        if failed:
+            evidence["required_checks"][0].update(status="failed", exit_code=1)
+        record = {key: evidence[key] for key in ("task_id", "run_id", "starting_sha", "corpus_manifest_sha256")}
+        record.update(schema_version="1" if protocol == "1.0" else "1.1", freezer={"status": "frozen"})
+        record.update({key: value for key, value in evidence["candidate"].items()
+                       if key in ("ending_sha", "candidate_state_sha256")})
+        with ExitStack() as stack:
+            for name, value in (
+                ("validate_run_record", record),
+                ("validate_frozen_corpus", {"tasks": [packet]}),
+                ("_frozen_packet", packet),
+                ("_candidate_identity", evidence["candidate"]),
+                ("_uncommitted_candidate_identity", evidence["candidate"]),
+                ("_execute_checks", evidence["required_checks"]),
+                ("_independent_acceptance", evidence["independent_acceptance"]),
+            ):
+                stack.enter_context(patch.object(grader, name, return_value=copy.deepcopy(value)))
+            stack.enter_context(patch.object(grader, "_trusted_grading_copy", side_effect=lambda _: nullcontext("synthetic-only")))
+            stack.enter_context(patch.object(grader, "verify_frozen_worktree_copy"))
+            collector = stack.enter_context(patch.object(grader, "collect_grading_evidence", wraps=collect_grading_evidence))
+            kwargs = {"candidate_repository": Path("synthetic-only"), "expected_corpus_seal": "a" * 64}
+            if protocol == "1.1":
+                kwargs["materialization_manifest"] = {}
+            yield record, kwargs, values, collector
+
+    def retained_grade(self, **options):
+        retained = []
+        with self.synthetic(**options) as (record, kwargs, values, collector):
+            result = grade_run(record, MANIFEST, SIDECAR, retain_evidence=retained.append, **kwargs)
+            collector.assert_called_once()
+        self.assertEqual(len(retained), 1)
+        values[0], values[1] = result, retained[0]
+        return values
+
+    def bound_bytes(self, values):
+        """Bind finalized bytes without repairing any technical checksum or result."""
+        result, evidence, packet, review, attestation = values
+        raw = [encoded(result), encoded(evidence), encoded(packet)]
+        bindings = {
+            "grading_result_sha256": sha256(raw[0]).hexdigest(),
+            "grading_evidence_sha256": sha256(raw[1]).hexdigest(),
+            "task_packet_sha256": sha256(raw[2]).hexdigest(),
+            "run_identity": {key: evidence[key] for key in ("task_id", "run_id", "starting_sha", "corpus_manifest_sha256")},
+            "candidate_identity": {"kind": "candidate_state_sha256", "value": evidence["candidate"]["candidate_state_sha256"]}
+            if "candidate_state_sha256" in evidence["candidate"] else {"kind": "ending_sha", "value": evidence["candidate"]["ending_sha"]},
+        }
+        review["bindings"] = copy.deepcopy(bindings)
+        attestation["bindings"] = copy.deepcopy(bindings)
+        raw.append(encoded(review))
+        attestation["review_sha256"] = sha256(raw[3]).hexdigest()
+        raw.append(encoded(attestation))
+        return raw
+
+    def test_default_result_and_exact_retention_for_both_protocols(self):
+        for protocol in ("1.0", "1.1"):
+            with self.subTest(protocol=protocol), self.synthetic(protocol=protocol) as (record, kwargs, values, collector):
+                expected = copy.deepcopy(values[0])
+                baseline = grade_run(record, MANIFEST, SIDECAR, **kwargs)
+                collector.assert_called_once()
+                collector.reset_mock()
+                retained = []
+                result = grade_run(record, MANIFEST, SIDECAR, retain_evidence=retained.append, **kwargs)
+                collector.assert_called_once()
+                self.assertEqual(len(retained), 1)
+                evidence = retained[0]
+                checksum = sha256(encoded({key: value for key, value in evidence.items() if key != "evidence_sha256"})).hexdigest()
+                self.assertEqual(evidence["evidence_sha256"], checksum)
+                self.assertEqual(result["evidence"]["evidence_sha256"], checksum)
+                for output in (baseline, result):
+                    output = copy.deepcopy(output)
+                    output.pop("checked_at_utc")
+                    expected.pop("checked_at_utc", None)
+                    expected["evidence"]["evidence_sha256"] = checksum
+                    self.assertEqual(output, expected)
+
+    def test_nested_callback_mutation_cannot_change_result_or_collected_evidence(self):
+        with self.synthetic() as (record, kwargs, _, collector):
+            collected = []
+            original_collect = collect_grading_evidence
+
+            def capture(*args, **kw):
+                value = original_collect(*args, **kw)
+                collected.append(value)
+                return value
+
+            collector.side_effect = capture
+            retained = []
+
+            def mutate(value):
+                retained.append(value)
+                value["candidate"]["changed_paths"].append("tools/bakeoff_v1_grader.py")
+                value["required_checks"][0]["status"] = "failed"
+                value["independent_acceptance"][0]["candidate_module_provenance"][0][1] = "outside.py"
+                value["unverified_claim_mismatches"]["forged"] = True
+
+            result = grade_run(record, MANIFEST, SIDECAR, retain_evidence=mutate, **kwargs)
+            collector.assert_called_once()
+        self.assertEqual(result["status"], "VALID_WITH_FINDINGS")
+        self.assertEqual(result["task_success"], "passed")
+        self.assertEqual(result["scope"]["changed_paths"], ["synthetic.py"])
+        self.assertEqual(result["required_validation"]["evidence"][0]["status"], "passed")
+        self.assertEqual(result["evidence"]["claims"], {})
+        self.assertEqual(collected[0]["independent_acceptance"][0]["candidate_module_provenance"], [["synthetic", "synthetic.py", True]])
+        retained[0]["candidate"]["name_status"].clear()
+        self.assertEqual(result["scope"]["name_status"], ["M\tsynthetic.py"])
+        self.assertEqual(collected[0]["candidate"]["changed_paths"], ["synthetic.py"])
+
+    def test_retention_failure_is_explicit_and_never_retried(self):
+        for error in (OSError("synthetic disk failure"), ValueError("synthetic serialization failure")):
+            with self.subTest(error=type(error).__name__), self.synthetic() as (record, kwargs, _, collector):
+                calls = []
+
+                def fail(value):
+                    calls.append(value)
+                    raise error
+
+                with self.assertRaises(grader.GradingEvidenceRetentionError) as raised:
+                    grade_run(record, MANIFEST, SIDECAR, retain_evidence=fail, **kwargs)
+                self.assertIs(raised.exception.__cause__, error)
+                self.assertEqual(len(calls), 1)
+                collector.assert_called_once()
+
+    def test_partial_persistence_failure_does_not_return_success(self):
+        with tempfile.TemporaryDirectory() as directory, self.synthetic() as (record, kwargs, _, collector):
+            path = Path(directory) / "evidence.json"
+
+            def partial(value):
+                path.write_bytes(encoded(value)[:20])
+                raise OSError("synthetic partial write")
+
+            with self.assertRaises(grader.GradingEvidenceRetentionError):
+                grade_run(record, MANIFEST, SIDECAR, retain_evidence=partial, **kwargs)
+            self.assertEqual(path.stat().st_size, 20)
+            collector.assert_called_once()
+
+    def test_collection_failure_never_calls_retention_or_fabricates_evidence(self):
+        for error in (grader.GradingEvidenceError("synthetic collection failure"), ValueError("synthetic invalid run")):
+            with self.subTest(error=type(error).__name__), self.synthetic() as (record, kwargs, _, collector):
+                collector.side_effect = error
+                retained = []
+                result = grade_run(record, MANIFEST, SIDECAR, retain_evidence=retained.append, **kwargs)
+                collector.assert_called_once()
+                self.assertEqual(retained, [])
+                self.assertEqual(result["status"], "INVALID")
+                self.assertEqual(result["invalid_reasons"], [str(error)])
+                self.assertNotIn("evidence", result)
+
+    def test_repeated_grading_leaves_duplicate_persistence_policy_to_caller(self):
+        with self.synthetic() as (record, kwargs, _, collector):
+            seen = set()
+            calls = []
+
+            def retain_once(value):
+                calls.append(value["evidence_sha256"])
+                if value["evidence_sha256"] in seen:
+                    raise FileExistsError("synthetic duplicate retention")
+                seen.add(value["evidence_sha256"])
+
+            first = grade_run(record, MANIFEST, SIDECAR, retain_evidence=retain_once, **kwargs)
+            with self.assertRaises(grader.GradingEvidenceRetentionError) as raised:
+                grade_run(record, MANIFEST, SIDECAR, retain_evidence=retain_once, **kwargs)
+            self.assertIsInstance(raised.exception.__cause__, FileExistsError)
+            self.assertEqual(calls, [first["evidence"]["evidence_sha256"]] * 2)
+            self.assertEqual(collector.call_count, 2)
+
+    def test_exact_handoff_preserves_raw_results_and_both_candidate_identities(self):
+        for protocol, kind in (("1.0", "ending_sha"), ("1.1", "candidate_state_sha256")):
+            with self.subTest(protocol=protocol):
+                values = self.retained_grade(protocol=protocol)
+                raw_result = copy.deepcopy(values[0])
+                inputs = self.bound_bytes(values)
+                output = evaluate_final_acceptance(*inputs)
+                self.assertEqual(output["verdict"], "PASS")
+                self.assertEqual(output["bindings"]["candidate_identity"]["kind"], kind)
+                self.assertEqual(output["bindings"]["run_identity"]["run_id"], "synthetic-run")
+                self.assertEqual(output["bindings"]["grading_evidence_sha256"], sha256(inputs[1]).hexdigest())
+                self.assertEqual(values[0], raw_result)
+                self.assertEqual(values[0]["task_success"], "passed")
+                self.assertNotIn("verdict", values[0])
+                self.assertNotIn("task_success", output)
+
+    def test_missing_review_attestation_and_false_authority_cannot_promote_success(self):
+        for index in (1, 3, 4):
+            with self.subTest(missing=index):
+                values = self.retained_grade()
+                inputs = self.bound_bytes(values)
+                inputs[index] = None
+                self.assertEqual(evaluate_final_acceptance(*inputs)["verdict"], "FAIL")
+                self.assertEqual(values[0]["task_success"], "passed")
+        for key in ("reviewer_independently_authorized", "reviewer_not_contestant",
+                    "operator_approved_review", "operator_accepts_authority_responsibility"):
+            with self.subTest(confirmation=key):
+                values = self.retained_grade()
+                values[4][key] = False
+                self.assertEqual(evaluate_final_acceptance(*self.bound_bytes(values))["verdict"], "FAIL")
+
+    def test_replaced_stale_and_checksum_mismatched_evidence_fail_closed(self):
+        for mutation in ("byte_change", "replaced", "stale", "canonical", "result_checksum", "missing_check"):
+            with self.subTest(mutation=mutation):
+                values = self.retained_grade()
+                inputs = self.bound_bytes(values)
+                if mutation == "byte_change":
+                    inputs[1] += b"\n"
+                elif mutation == "replaced":
+                    values[1]["required_checks"][0]["output_sha256"] = "f" * 64
+                    inputs[1] = encoded(values[1])
+                else:
+                    if mutation == "stale":
+                        values[1]["run_id"] = "older-run"
+                    elif mutation == "canonical":
+                        values[1]["evidence_sha256"] = "f" * 64
+                    elif mutation == "result_checksum":
+                        values[0]["evidence"]["evidence_sha256"] = "f" * 64
+                    else:
+                        values[1]["required_checks"] = []
+                    inputs = self.bound_bytes(values)
+                self.assertEqual(evaluate_final_acceptance(*inputs)["verdict"], "FAIL")
+
+    def test_review_bound_to_another_run_or_candidate_fails_closed(self):
+        for field in ("run_identity", "candidate_identity"):
+            with self.subTest(field=field):
+                values = self.retained_grade()
+                self.bound_bytes(values)
+                key = "run_id" if field == "run_identity" else "value"
+                values[3]["bindings"][field][key] = "other-run" if key == "run_id" else "f" * 40
+                values[4]["bindings"] = copy.deepcopy(values[3]["bindings"])
+                values[4]["review_sha256"] = sha256(encoded(values[3])).hexdigest()
+                self.assertEqual(evaluate_final_acceptance(*[encoded(value) for value in values])["verdict"], "FAIL")
+
+    def test_scope_findings_require_one_consistent_independent_disposition(self):
+        for disposition, want in (("nonblocking", "PASS_WITH_NOTES"), ("blocking", "FAIL"),
+                                  ("ambiguous", "FAIL"), ("missing", "FAIL"), ("duplicate", "FAIL"),
+                                  ("contradictory", "FAIL")):
+            with self.subTest(disposition=disposition):
+                values = self.retained_grade(extra_path="note.txt")
+                raw = {"kind": "out_of_scope_change", "path": "note.txt"}
+                self.assertEqual(values[0]["scope"]["findings"], [raw])
+                note = finding("nonblocking" if disposition in ("duplicate", "contradictory") else disposition,
+                               technical=raw)
+                values[3]["findings"] = [] if disposition == "missing" else [note]
+                if disposition == "duplicate":
+                    other = copy.deepcopy(note)
+                    other["finding_id"] = "second"
+                    values[3]["findings"].append(other)
+                elif disposition == "contradictory":
+                    note["severity"] = "blocking"
+                self.assertEqual(evaluate_final_acceptance(*self.bound_bytes(values))["verdict"], want)
+                self.assertEqual(values[0]["task_success"], "passed")
+
+    def test_confirmed_shortcut_and_technical_invalid_precede_task_failure(self):
+        values = self.retained_grade(failed=True)
+        self.assertEqual(values[0]["status"], "FAILED_TASK")
+        self.assertEqual(evaluate_final_acceptance(*self.bound_bytes(values))["verdict"], "FAIL")
+        values[3]["findings"] = [finding("prohibited_shortcut")]
+        self.assertEqual(evaluate_final_acceptance(*self.bound_bytes(values))["verdict"], "INVALID_RUN")
+        values = self.retained_grade(extra_path="tools/bakeoff_v1_grader.py", failed=True)
+        self.assertEqual(values[0]["status"], "INVALID")
+        self.assertEqual(values[0]["task_success"], "unavailable")
+        self.assertEqual(evaluate_final_acceptance(encoded(values[0]), None, None, None, None)["verdict"], "INVALID_RUN")
