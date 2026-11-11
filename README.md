@@ -4,7 +4,7 @@
 
 Coin Analyzer is a local-first Python desktop application for managing a coin and banknote collection, tracking exact acquisition costs, understanding portfolio coverage, and asking grounded natural-language questions about collection data.
 
-The project combines practical collector workflows with disciplined software engineering: deterministic analytics, backward-compatible JSON persistence, optional cloud AI, explicit privacy boundaries, and 4,857 automated tests.
+The project combines practical collector workflows with disciplined software engineering: deterministic analytics, backward-compatible JSON persistence, optional cloud AI, and explicit privacy boundaries.
 
 ## See it in action
 
@@ -17,6 +17,71 @@ The project combines practical collector workflows with disciplined software eng
 | ![Ask My Collection with grounded evidence](docs/screenshots/ask-my-collection.png) | ![Short Ask My Collection demonstration](docs/screenshots/ask-my-collection-demo.gif) |
 
 *All screenshots and demonstrations use synthetic collection data. No real collection records, API keys, or personal information are shown.*
+
+## Quick start on Windows
+
+### Requirements
+
+- Windows
+- Git, or download and extract the source ZIP
+- Python 3.12 or newer (3.x)
+- Tkinter, normally included with the Windows Python installer
+
+### Install and run
+
+```powershell
+git clone https://github.com/adamo-sys/coin-analyzer.git
+cd coin-analyzer
+
+py -3.12 -m venv .venv
+
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe coin_collection_gui.py
+```
+
+If `py` is unavailable or cannot find Python 3.12, use the installed
+interpreter directly. Run `python --version` to confirm that it reports
+Python 3.12 or a newer Python 3 version, then replace the `py` line with
+`python -m venv .venv`. If `python` is unavailable, use the full path to
+the installed `python.exe` in both commands.
+
+If you downloaded the source ZIP, open PowerShell in the extracted folder
+and start with the virtual-environment step. After installing dependencies, you
+can also double-click `Launch_Coin_Analyzer.bat`.
+
+### Add your first coin manually
+
+Recognition is optional. After starting the desktop app, you can enter and save
+what you know without running a detector or configuring AI:
+
+1. Put your photographs in a permanent folder before selecting them. Click
+   **Add Photos** to attach one or more images; selecting photos does not save a record.
+2. Type the **Country**, **Denomination**, **Year**, **Grade**, and **Notes** you
+   know in **Coin Details**. Leave unknown information blank.
+3. Click **Save to Collection**. Wait for **Coin added to collection**, then
+   dismiss the message. The form clears and the saved row appears in **Collection**.
+4. Type a year, country, or saved ID in **Search:**. Select the matching row and
+   click **View Details** to reopen its metadata and photographs. Select each
+   photo row in **Item Details** to see its preview.
+5. After closing the app, start it again from the same project folder and repeat
+   the search. Use **Edit Item** and its **Save** button to change an existing record.
+
+Ordinary first entry stores references to the selected source photographs; keep
+those files at their original paths. Back up the files separately as well as
+`data/collection.json`. **Backup packages contain photo references and metadata,
+not photograph file contents.** Restoring a package does not restore the photos.
+
+See [Your first coin: add, save, find, and reopen](USER_GUIDE.md#your-first-coin-add-save-find-and-reopen)
+for the full walkthrough and [Backup and recovery](docs/BACKUP.md) for coverage.
+These instructions describe the current source-supported workflow; they do not
+claim completed native, packaged, or novice acceptance.
+
+If the app does not start, run the offline Doctor with the same interpreter.
+
+```powershell
+.\.venv\Scripts\python.exe -m coin_analyzer_doctor --json
+```
 
 ## Why this project exists
 
@@ -40,7 +105,6 @@ Coin Analyzer brings those workflows into one Windows desktop application. The c
 | AI | Optional OpenAI Responses API |
 | Architecture | Local-first with an explicit optional cloud boundary |
 | Financial arithmetic | `Decimal` acquisition money |
-| Automated regression | 4,857 tests discovered; 4,833 passed and 24 skipped |
 | Primary platform | Windows |
 
 ## What it helps you do
@@ -103,7 +167,7 @@ If a model explanation introduces unsupported numeric wording or fails validatio
 - **Backward compatibility:** older JSON and CSV records load without migrations or fabricated acquisition data.
 - **Atomic persistence:** collection writes use a validated temporary-file replacement workflow.
 - **Optional dependency isolation:** core startup and CI do not require the OpenAI SDK or an API key.
-- **Regression discipline:** 4,857 automated tests cover backend, persistence, workflows, integrations, and headless GUI behavior.
+- **Regression coverage:** automated tests cover backend, persistence, workflows, integrations, and headless GUI behavior.
 - **OCR review package boundaries:** Sprint 19 adds AST-based import-boundary enforcement for OCR review workflow, persistence, and desktop integration modules.
 - **Decision records:** accepted architectural choices are documented as ADRs.
 
@@ -150,67 +214,6 @@ The adapter does not send complete collection records, notes, comments, images, 
 
 A controlled live-provider acceptance test using 10 synthetic records and `gpt-5.6` completed six representative questions with exact agreement between model wording and deterministic results. The sample used 12 successful provider calls, averaged approximately 5.4 seconds end to end per question, and cost approximately US$0.083 at the published rates available during the test. These figures are acceptance observations, not performance guarantees.
 
-## Quick start
-
-### Requirements
-
-- Windows
-- Python 3.12 or newer recommended
-- Tkinter, normally included with the Windows Python installer
-
-CI currently verifies Python 3.12. The optional live-provider acceptance test also ran successfully on Python 3.14.
-
-### Install and run
-
-```powershell
-git clone https://github.com/adamo-sys/coin-analyzer.git
-cd coin-analyzer
-
-# Preferred when the Windows Python launcher is available:
-py -3.12 -m venv .venv
-
-# Fallback when `py` is unavailable:
-python -m venv .venv
-
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe coin_collection_gui.py
-```
-
-Use one virtual-environment command, not both. Whichever `py` or `python`
-executable you select must report Python 3.12 or newer.
-
-After dependencies are installed, `Launch_Coin_Analyzer.bat` is also available as a Windows launcher.
-
-A fresh installation begins with an empty collection. Back up `data/collection.json` independently; cloning or backing up the repository does not preserve live collection data. See [Backup and recovery](docs/BACKUP.md).
-
-### Add your first coin manually
-
-Recognition is optional. After starting the desktop app, you can enter and save
-what you know without running a detector or configuring AI:
-
-1. Put your photographs in a permanent folder before selecting them. Click
-   **Add Photos** to attach one or more images; selecting photos does not save a record.
-2. Type the **Country**, **Denomination**, **Year**, **Grade**, and **Notes** you
-   know in **Coin Details**. Leave unknown information blank.
-3. Click **Save to Collection**. Wait for **Coin added to collection**, then
-   dismiss the message. The form clears and the saved row appears in **Collection**.
-4. Type a year, country, or saved ID in **Search:**. Select the matching row and
-   click **View Details** to reopen its metadata and photographs. Select each
-   photo row in **Item Details** to see its preview.
-5. After closing the app, start it again from the same project folder and repeat
-   the search. Use **Edit Item** and its **Save** button to change an existing record.
-
-Ordinary first entry stores references to the selected source photographs; keep
-those files at their original paths. Back up the files separately as well as
-`data/collection.json`. **Backup packages contain photo references and metadata,
-not photograph file contents.** Restoring a package does not restore the photos.
-
-See [Your first coin: add, save, find, and reopen](USER_GUIDE.md#your-first-coin-add-save-find-and-reopen)
-for the full walkthrough and [Backup and recovery](docs/BACKUP.md) for coverage.
-These instructions describe the current source-supported workflow; they do not
-claim completed native, packaged, or novice acceptance.
-
 ## Optional Ask My Collection setup
 
 Core collection management does not require an API key or AI dependency.
@@ -232,7 +235,7 @@ Run the complete `unittest` suite from the repository root:
 .\.venv\Scripts\python.exe -m unittest discover -s . -p "test_*.py"
 ```
 
-The current verified baseline is **4,833 passing tests** from 4,857 discovered, with 24 platform-gated skips. Normal tests use isolated fixtures, temporary directories, and fake AI adapters; they do not load the live collection or make provider calls.
+The [v1.1.0 release](docs/releases/v1.1.0.md#release-validation) recorded **4,833 passing tests** from 4,857 discovered, with 24 skips on native Windows. Normal tests use isolated fixtures, temporary directories, and fake AI adapters; they do not load the live collection or make provider calls.
 
 See [TESTING.md](TESTING.md) for fixture, OCR experiment, GUI, and manual-acceptance guidance.
 

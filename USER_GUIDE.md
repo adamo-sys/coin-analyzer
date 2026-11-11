@@ -55,11 +55,16 @@ Python 3.12 or newer:
 py -3.12 -m venv .venv
 ```
 
-If the `py` launcher is unavailable, use:
+If `py` is unavailable or cannot find Python 3.12, use the installed
+interpreter directly. Check the version before creating the environment.
 
 ```powershell
+python --version
 python -m venv .venv
 ```
+
+If `python` is unavailable, use the full path to the installed `python.exe`
+in both commands. Use Python 3.12 or a newer Python 3 version.
 
 Install the required Python packages into that environment:
 
