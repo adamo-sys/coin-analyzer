@@ -44,6 +44,47 @@ STOP CONDITIONS: Credential exposure, identity/evidence conflict, protected-data
 access, architecture contradiction, unsafe validation failure, authority expansion,
 blocking review, exhausted allowances and AGENTS context/work-package boundaries.
 
+
+### Required SEC-003 / EDR preflight additions — owner-directed 2026-11-11
+
+The following two checks are mandatory inputs to the existing independent
+final-diff review gate for later agent-assisted SEC-003 packages. They add no
+execution, merge, release, remediation or evidence-access authority. They do not
+change any current verdict and are **NOT RUN** for existing packages unless an
+exact review record says otherwise.
+
+1. **Agent-configuration secret provenance.** On the exact reviewed repository
+   snapshot, the reviewer SHALL determine whether agent permission/configuration
+   files, including applicable `.claude/settings.json` and
+   `.claude/settings.local.json` paths, are present, tracked, ignored only by a
+   machine-local rule, or present in reachable repository history. The check
+   SHALL also determine whether an applicable permission rule contains a literal
+   credential, token, connection string or secret-bearing command. Evidence
+   SHALL identify only path, Git state, rule category and sanitized finding
+   identity; secret values SHALL NOT be printed, copied into review artifacts or
+   exposed to an LLM. A detected or potentially exposed secret is a STOP
+   condition requiring rotation/custody disposition outside this documentation
+   amendment. An exact-tree-and-history ABSENT result may satisfy the check only
+   when its bounded scope and method are recorded.
+
+2. **Authenticated safeguard-bearing review context.** Before the independent
+   reviewer may issue PASS, the review packet SHALL identify the security
+   safeguard or policy relevant to each security-sensitive change, authenticate
+   its exact repository path and snapshot/blob identity, and state why it is
+   controlling evidence. The reviewer SHALL construct or verify this context
+   independently of the implementer's conclusion. Functionally similar,
+   legacy, vulnerable or otherwise unauthenticated exemplars SHALL be labeled
+   untrusted and cannot substitute for the controlling safeguard. If the
+   governing safeguard cannot be located and authenticated within authorized
+   scope, the dependent review result is BLOCKED rather than inferred from
+   nearby code.
+
+The final EDR report SHALL record each check as PASS, FAIL or BLOCKED, the exact
+snapshot reviewed, sanitized evidence and remaining limitations. Reviewer/model
+diversity or agreement cannot substitute for either check. These additions do
+not revise historical EDR receipts, retroactively fail completed packages or
+supply any missing F/R/G/C07/R2 evidence.
+
 | Identity | Verified value |
 | --- | --- |
 | Repository | `adamo-sys/coin-analyzer`, origin `https://github.com/adamo-sys/coin-analyzer.git` |
