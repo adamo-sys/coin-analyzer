@@ -43,6 +43,79 @@ provenance, plus affected persistence/integration regression. Native Tk acceptan
 Work Queue projection/GUI integration, Command Center, Sprint wording, schema
 migration, banknote-specific UI, and unrelated cleanup are out of scope.
 
+## Proposed Option B amendment — not adopted
+
+Status: PROPOSED — ordinary-media Phase 1 new-item first saves only.
+
+These proposed additions use source revision
+`ccaf7e8d1b3eced4f19cbf899e3e3ae2a53ad8a8` and accompany the complete
+[proposed baseline amendment](architecture/ORDINARY_COLLECTION_BASELINE.md#proposed-option-b-amendment--not-adopted).
+Existing approved requirements remain governing until explicit owner adoption.
+Documentation preparation, PR submission, or review provides no implementation
+authority or technical acceptance. Package 0 remains BLOCKED; Phase 1 remains
+NO-GO; Phase 2 remains HOLD; the execution allowlist remains EMPTY. No historical
+Package 0 evidence is repaired or reclassified by this proposal.
+
+### Proposed addition after the existing-item media paragraph
+
+These existing-item obligations are not relaxed by the Option B ordinary-media
+Phase 1 first-save exception in ORDINARY_COLLECTION_BASELINE.md. That exception
+permits retained attempt-created media only for eligible new-item creation. It
+does not relax editor reference resolution, media verification, existing-item
+cleanup, provenance protection or source preservation.
+
+### Proposed addition after the validation-scope paragraph
+
+Option B requires additional focused validation of the eligible first-save
+exception and regression coverage preserving existing-item behavior. Historical
+validation below does not establish Option B correctness or Windows feasibility.
+Execution and implementation require separate authorization.
+
+### Proposed acceptance and independent-review requirements
+
+These are requirements for later authorized work, not evidence that tests or
+filesystem experiments have run.
+
+| Scenario | Required acceptance evidence |
+| --- | --- |
+| Definite first-save failure | No published new item or authoritative in-memory addition; retained media permitted; sources unchanged. |
+| Stale baseline after staging | Intervening collection bytes preserved; rejected item unpublished; baseline unadvanced; explicit reload required; retained media permitted. |
+| Existing-item failure | Existing cleanup expectations remain, including unchanged attempt-owned rollback, source preservation and reference checks after ingestion. |
+| Uncertain publication | Uncertainty reported; no compensating rewrite, unsafe deletion or automatic retry; explicit reload establishes current contents only, not the historical attempt outcome. |
+| Edit after reload | A fresh reference to the currently selected item is captured and validated; pre-reload references and the attempted ID do not establish continuity. |
+| Restart after interruption | No persistent first-save guard, orphan adoption or prior-attempt replay; ordinary loading remains required. |
+| Successful creation | Referenced media verified; ordinary locked publication and exact receipt-based baseline advancement preserved. |
+| Resource exhaustion/repeated failures | Approved limits enforced without orphan reclamation or silent bypass. |
+| Windows/source races | Synthetic NTFS evidence covers interrupted copying/publication, exclusivity, source mutation/replacement and relevant handle behavior; unsupported guarantees remain explicit. |
+
+Future tests that require deletion for eligible new-item first saves may need
+revision after amendment adoption. Tests for existing-item cleanup must remain.
+Any other test change needs a demonstrated requirement connection; retained
+artifacts must not become an excuse to weaken persistence or verification
+assertions.
+
+An independent review should assess the amendment and later implementation
+separately. Reports should use PASS, PASS WITH NOTES, or FAIL, identify blocking
+findings, and verify that the exception cannot escape its creation-only
+boundary. Windows feasibility requires observed evidence; document approval or
+passing unit tests cannot substitute for it. Existing applicable CI gates remain
+unchanged.
+
+### Outstanding owner decisions
+
+- Adopt or revise the proposed amendment through a separately authorized owner
+  decision; documentation preparation and PR submission do not adopt it.
+- Accept or revise the separate proposed fresh-creation policy after explicit
+  reload, including duplicate-risk communication following uncertainty.
+- Set resource-cap values, accounting units and required concurrency guarantees,
+  including treatment of accumulated retained artifacts and storage exhaustion.
+- Accept retention without automatic reclamation, including the possibility
+  that storage exhaustion prevents further staging.
+- Define the source-coherence guarantee and Windows NTFS evidence required for
+  a technical GO decision.
+- Review the final amendment and independent-review findings before any separate
+  implementation or execution authorization.
+
 ## Reconciliation and validation
 
 Reconstructed on main `df29e35a8abcedb05d9db67b959855bc19b894ae` with fresh

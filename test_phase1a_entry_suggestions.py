@@ -1,23 +1,13 @@
 """Tests for v8.7 Phase 1A editable collection-entry suggestions."""
 
 import unittest
+import tkinter as tk
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from coin_collection import CoinCollection
 from coin_collection_gui import CoinCollectionGUI, GRADE_SUGGESTIONS
 from test_backend import make_coin_item
-
-
-class DummyVar:
-    def __init__(self, value=""):
-        self.value = value
-
-    def get(self):
-        return self.value
-
-    def set(self, value):
-        self.value = value
 
 
 class DummyText:
@@ -35,10 +25,11 @@ class DummyCombo(dict):
 def make_gui(collection):
     gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
     gui.app = SimpleNamespace(collection=collection)
-    gui.country_var = DummyVar()
-    gui.denomination_var = DummyVar()
-    gui.year_var = DummyVar()
-    gui.grade_var = DummyVar()
+    interpreter = tk.Tcl()
+    gui.country_var = tk.StringVar(interpreter)
+    gui.denomination_var = tk.StringVar(interpreter)
+    gui.year_var = tk.StringVar(interpreter)
+    gui.grade_var = tk.StringVar(interpreter)
     gui.notes_text = DummyText()
     gui.country_combo = DummyCombo()
     gui.denomination_combo = DummyCombo()

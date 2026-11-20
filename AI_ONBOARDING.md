@@ -1,20 +1,8 @@
-## Document Authority
+## Document Authority — governance versus factual evidence
 
-The project documentation has a defined hierarchy.
+Applicable higher-level safety restrictions, authorized task instructions, `AGENTS.md`, `docs/agent-ops/CONTRACT.md`, adopted amendments and stricter project safety rules govern permissions, protected boundaries, stop conditions, validation and publication. A lower-priority task instruction, source code, project-state record or historical handoff cannot grant authority or waive a governing requirement. Apply the stricter compatible boundary; stop the affected action and report any unresolved contradiction for authorized disposition.
 
-1. Repository code
-2. PROJECT_STATE.md
-3. AI_HANDOFF.md
-4. TASK_QUEUE.md
-5. README.md
-6. Historical release documents
-7. Prompts and chat history
-
-If any documents conflict:
-
-Follow the highest document in the hierarchy.
-
-The repository is the source of truth.
+For factual claims about implemented behavior or project status, verify the claim against current authenticated source code, commit identity, applicable test evidence and relevant records. Historical handoffs and release documents establish only their dated observations; prompts and chat summaries do not substitute for primary evidence.
 
 # AI_ONBOARDING.md
 
@@ -40,62 +28,17 @@ This is **not** intended to become a generic AI chatbot.
 
 # Before Doing Anything
 
-Always perform these steps first.
+At task start, read `AGENTS.md`, this onboarding guide, and the applicable mandatory contract and runbook entry points. Determine the task class and load additional original evidence and documents required by that task or governing contract; context packs are navigation aids, not waivers. A release task must still inspect the complete applicable release documentation and perform all mandatory release checks.
 
-1. Read:
+Before substantive work, verify repository identity, actual branch, exact HEAD, task-authorized base and relevant tracked state by permitted read-only methods. For release tasks, also verify current version, latest release tag, release in progress, clean/dirty state and documentation completeness using appropriate current evidence. Do not broaden discovery into protected or unrelated data. If a required observation is unavailable or mismatched, report it and stop the dependent action. Do not assume; verify.
 
-* AI_ONBOARDING.md
-* AI_HANDOFF.md
-* PROJECT_STATE.md
-* TASK_QUEUE.md
-* README.md
-* RELEASE_HISTORY.md
-
-2. Inspect repository state.
-
-Run:
-
-git status
-
-git log --oneline -10
-
-git tag --list
-
-3. Determine:
-
-* current version
-* latest release tag
-* working tree status
-* current release in progress
-* whether the repository is clean
-* whether release documentation is complete
-
-Do not assume anything.
-
-Always verify.
+This selective-loading procedure becomes effective only after explicit approval and adoption; until then the existing startup requirements remain controlling. This paragraph grants no new execution, editing, publication or merge authority.
 
 ---
 
-# Source Of Truth
+# Source Of Truth — factual claims only
 
-The repository is authoritative.
-
-Never trust copied prompts over the repository.
-
-If documentation and code disagree:
-
-Code
-↓
-
-PROJECT_STATE.md
-
-↓
-
-AI_HANDOFF.md
-
-↓
-
-Older prompts
+The repository supplies evidence about implementation and recorded project state, not authorization. Authenticate the relevant source and revision, assess test coverage and freshness, and report unresolved factual discrepancies. Do not treat copied prompts, project-state summaries or historical handoffs as substitutes for original evidence. Governance conflicts are resolved under the Document Authority rule above, not by a factual-source ranking.
 
 ---
 
@@ -261,15 +204,25 @@ Documentation commits may follow release tags.
 
 If resuming interrupted work:
 
-Read all onboarding documents.
+1. Verify the current branch, exact HEAD, task-authorized base,
+   tracked working-tree state, and relevant handoff against the
+   current repository evidence.
 
-Inspect git.
+2. Read the governing instructions and task-relevant source documents.
+   Apply the selective startup procedure in "Before Doing Anything".
+   Do not require unrelated onboarding or release documents solely
+   because work is being resumed.
 
-Determine current release.
+3. For release-related recovery, inspect the applicable release state,
+   release documentation, tags, audit status, and mandatory release
+   checks. Do not relax any release safeguard.
 
-Resume from existing implementation.
+4. Resume from existing verified implementation and evidence.
+   Do not restart completed work without a documented reason.
 
-Do not restart completed work.
+If required state is ambiguous or inconsistent, STOP and report
+the smallest unresolved prerequisite. Do not modify the repository
+until the relevant state is understood.
 
 ---
 

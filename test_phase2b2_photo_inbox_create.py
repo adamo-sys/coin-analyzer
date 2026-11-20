@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import tkinter as tk
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -8,17 +9,6 @@ from unittest.mock import patch
 from coin_collection import PhotoRole
 from coin_collection_gui import CoinCollectionGUI
 from photo_inbox import PhotoInboxConfig, PhotoInboxManager, PhotoSetState
-
-
-class DummyVar:
-    def __init__(self, value=""):
-        self.value = value
-
-    def get(self):
-        return self.value
-
-    def set(self, value):
-        self.value = value
 
 
 class DummyText:
@@ -61,10 +51,11 @@ class DummyApp:
 def make_gui(app=None):
     gui = CoinCollectionGUI.__new__(CoinCollectionGUI)
     gui.app = app or DummyApp()
-    gui.country_var = DummyVar("Canada")
-    gui.denomination_var = DummyVar("Cent")
-    gui.year_var = DummyVar("1920")
-    gui.grade_var = DummyVar("VF-20")
+    interpreter = tk.Tcl()
+    gui.country_var = tk.StringVar(interpreter, value="Canada")
+    gui.denomination_var = tk.StringVar(interpreter, value="Cent")
+    gui.year_var = tk.StringVar(interpreter, value="1920")
+    gui.grade_var = tk.StringVar(interpreter, value="VF-20")
     gui.notes_text = DummyText("notes")
     gui.current_item_photos = []
     gui.selected_photo_index = None

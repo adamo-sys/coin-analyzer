@@ -63,6 +63,15 @@ def validate_workflow_privacy(text, filename):
             if not isinstance(step, dict) or not isinstance(step.get("uses", ""), str):
                 raise ValueError(f"{location}: invalid step")
             action = step.get("uses", "").lower()
+            if action.startswith("gitleaks/gitleaks-action@"):
+                environment = step.get("env")
+                switches = ("GITLEAKS_ENABLE_UPLOAD_ARTIFACT", "GITLEAKS_ENABLE_SUMMARY",
+                            "GITLEAKS_ENABLE_COMMENTS")
+                if not isinstance(environment, dict) or any(
+                    environment.get(key) != "false" for key in switches
+                ):
+                    raise ValueError(f"{location}: Gitleaks report publication must be disabled")
+                continue
             if not action.startswith(("actions/checkout@", "actions/upload-artifact@")):
                 continue
             options = step.get("with", {})
@@ -150,6 +159,32 @@ class RepositoryPrivacyBoundaryTests(unittest.TestCase):
         self.assertEqual(validate_workflow_privacy(
             yaml.safe_dump({"jobs": {"valid": {"steps": [checkout]}}}), "tests.yml"
         ), 1)
+
+    def test_embedded_gitleaks_publication_is_rejected(self):
+        switches = ("GITLEAKS_ENABLE_UPLOAD_ARTIFACT", "GITLEAKS_ENABLE_SUMMARY",
+                    "GITLEAKS_ENABLE_COMMENTS")
+        safe = {"uses": "gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
+                "env": dict.fromkeys(switches, "false")}
+
+        def check(step):
+            return validate_workflow_privacy(yaml.safe_dump({"jobs": {
+                "gitleaks": {"steps": [step]}}}), "tests.yml")
+
+        check(safe)
+        for switch in switches:
+            for value in (None, "true", "False", False, 0, "${{ inputs.publish }}"):
+                unsafe = copy.deepcopy(safe)
+                if value is None:
+                    del unsafe["env"][switch]
+                else:
+                    unsafe["env"][switch] = value
+                with self.subTest(switch=switch, value=value), self.assertRaises(ValueError):
+                    check(unsafe)
+        for environment in (None, [], "false"):
+            unsafe = copy.deepcopy(safe)
+            unsafe["env"] = environment
+            with self.subTest(environment=environment), self.assertRaises(ValueError):
+                check(unsafe)
 
     def test_policy_rejects_malformed_duplicate_and_ambiguous_yaml(self):
         fixtures = [

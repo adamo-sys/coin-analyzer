@@ -121,6 +121,87 @@ class TestCoinRecognitionQuality(unittest.TestCase):
         self.assertEqual("1859", result["year"])
         self.assertEqual("penny", denomination["denomination"])
 
+    def detect_fixture_dates(self, readings):
+        """Supply deterministic OCR text without accessing photos or an engine."""
+        jobs = [
+            (f"fixture_{index}", np.zeros((20, 40), dtype=np.uint8), "fixture-config")
+            for index in range(len(readings))
+        ]
+        fake_ocr = SimpleNamespace(image_to_string=Mock(side_effect=readings))
+        with (
+            patch.object(self.recognizer, "crop_date_region", return_value=None),
+            patch.object(self.recognizer, "build_embossed_text_jobs", return_value=jobs),
+            patch.dict(sys.modules, {"pytesseract": fake_ocr}),
+        ):
+            return self.recognizer.detect_year(
+                np.empty((0, 0), dtype=np.uint8), "reverse", "synthetic.jpg",
+                {"center": (20, 20), "radius": 15},
+            )
+
+    def test_conflicting_dates_abstain_even_with_repeated_majority(self):
+        for readings in (
+            ["1959", "1959", "1969"],
+            ["1969", "1959", "1959"],
+            ["1959 1959 1959", "1969"],
+            ["1959", "1969"],
+            ["1959 1969"],
+            ["1959 19 69"],
+            ["19 59 1969"],
+            ["19 59 19 69"],
+        ):
+            with self.subTest(readings=readings):
+                result = self.detect_fixture_dates(readings)
+                self.assertIsNone(result["year"])
+                self.assertEqual(0.0, result["confidence"])
+                self.assertEqual({"1959", "1969"}, {c["year"] for c in result["candidates"]})
+                self.assertTrue(all(c["source"] for c in result["candidates"]))
+
+    def test_date_parser_does_not_complete_partial_or_ambiguous_digits(self):
+        for text in ("19\n59", "19\r\n59", "19\v59", "19", "195", "19?9", "19S9", "", "unreadable"):
+            with self.subTest(text=text):
+                self.assertEqual([], self.recognizer.extract_years_from_text(text))
+
+    def test_clear_dates_and_horizontal_spacing_remain_supported(self):
+        for text in ("CANADA ONE CENT 1959", "CANADA ONE CENT 19 59", "1 9 5 9", "19\t59"):
+            with self.subTest(text=text):
+                result = self.detect_fixture_dates([text, text])
+                self.assertEqual("1959", result["year"])
+                self.assertGreater(result["confidence"], 0.0)
+
+    def test_missing_partial_and_unreadable_dates_abstain(self):
+        for readings in (["", ""], ["195", "19?9"], ["19\n59", "19S9"], [RuntimeError("OCR timeout")]):
+            with self.subTest(readings=readings):
+                result = self.detect_fixture_dates(readings)
+                self.assertIsNone(result["year"])
+                self.assertEqual([], result["candidates"])
+                self.assertEqual(0.0, result["confidence"])
+
+    def test_uncertain_date_cannot_complete_canadian_identity(self):
+        from coin_collection_gui import CoinCollectionGUI
+        from legacy_coin_recognition_capability import LegacyCoinRecognitionCapability, to_legacy_detector_result
+
+        image = np.zeros((40, 40, 3), dtype=np.uint8)
+        readings = ["CANADA ONE CENT 1959", "1959", "1969"]
+        fake_ocr = SimpleNamespace(image_to_string=Mock(side_effect=readings))
+        with (
+            patch("coin_recognition.cv2.imread", return_value=image),
+            patch.object(self.recognizer, "detect_coin_circle", return_value={
+                "success": True, "center": (20, 20), "radius": 15, "diameter": 30,
+            }),
+            patch.object(self.recognizer, "crop_date_region", return_value=None),
+            patch.object(self.recognizer, "build_embossed_text_jobs", return_value=[]),
+            patch.dict(sys.modules, {"pytesseract": fake_ocr}),
+        ):
+            capability = LegacyCoinRecognitionCapability(lambda: self.recognizer)
+            result = to_legacy_detector_result(capability.execute("synthetic.jpg"))
+
+        self.assertTrue(result["success"])
+        self.assertEqual("Canada", result["country"])
+        self.assertEqual("penny", result["denomination"])
+        self.assertIsNone(result["year"])
+        self.assertEqual(0.0, result["year_confidence"])
+        self.assertTrue(CoinCollectionGUI.recognition_result_needs_paired_review(result))
+
     def test_embossed_text_jobs_are_bounded(self):
         image = np.zeros((3200, 3000), dtype=np.uint8)
         with patch("coin_recognition.cv2.imread", return_value=image):

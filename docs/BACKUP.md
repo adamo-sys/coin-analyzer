@@ -76,6 +76,18 @@ Recommended practice:
 
 v2.4.1 can create local backup packages with Tools -> Create Backup Package.
 
+**Photograph file contents are not included in backup packages.** Collection
+records and Photo Vault records preserve photo references and metadata only.
+Back up the underlying photograph files separately, including photographs
+referenced by collection records and Photo Vault. Restoring a backup package
+does not restore those photograph files.
+
+New packages disclose this limit in the creation dialog and in both manifest
+formats, using the existing warnings and restore notes. Verification preserves
+the recorded disclosure; a successful verification checks archive integrity and
+listed file checksums, not completeness of photograph protection. Older packages
+may lack this disclosure and do not gain photograph coverage by being verified.
+
 Default package location:
 
 - `backups/packages/`

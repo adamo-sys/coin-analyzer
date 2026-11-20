@@ -76,6 +76,9 @@ class RecognitionUsabilityHandoffTests(unittest.TestCase):
         gui.confidence_label = Mock()
         gui.visual_review_handoff_button = Mock()
         gui.log_detection = Mock()
+        interpreter = tk.Tcl()
+        for field in ("country", "denomination", "year"):
+            setattr(gui, field + "_var", tk.StringVar(interpreter))
 
         gui.run_detection()
 

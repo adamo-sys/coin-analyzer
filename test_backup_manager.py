@@ -5,6 +5,8 @@ import os
 import tempfile
 import unittest
 import zipfile
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from backup_manager import BackupManager, BackupManifest, CollectionRecoveryReport, DataSafetyValidator
 from coin_collection import CoinItem
@@ -62,6 +64,92 @@ class TestBackupManager(unittest.TestCase):
             self.assertTrue(result.manifest.included_files)
             self.assertEqual(result.manifest.collection_json_backed_up, "YES")
             self.assertEqual(result.manifest.app_state_backed_up, "YES")
+
+    def test_photograph_coverage_survives_manifest_and_verification(self):
+        warning = (
+            "Photograph file contents are not included in this backup. "
+            "Collection and Photo Vault records preserve photo references/metadata only. "
+            "Back up the photograph files separately."
+        )
+        note = "Restore does not restore photograph file contents; recover them from a separate photograph backup."
+        for with_photo_records in (False, True):
+            with self.subTest(with_photo_records=with_photo_records), tempfile.TemporaryDirectory() as temp_dir:
+                persistence, backup, collection_json = make_managers(temp_dir)
+                write_collection_json(collection_json)
+                photos = [PhotoRecord("synthetic-photo.jpg", "Collection Photo")] if with_photo_records else []
+                self.assertTrue(persistence.save_state(AppState(photo_records=photos)).success)
+
+                result = backup.create_backup_package()
+                self.assertTrue(result.success, result.errors)
+                # First warning stays visible in the existing eight-warning presentation.
+                self.assertEqual(result.warnings[0], warning)
+                self.assertIn(note, result.manifest.restore_notes)
+                with zipfile.ZipFile(result.package_path) as archive:
+                    payload = json.loads(archive.read("backup_manifest.json"))
+                    markdown = archive.read("backup_manifest.md").decode("utf-8")
+                self.assertIn(warning, payload["warnings"])
+                self.assertIn(note, payload["restore_notes"])
+                self.assertIn(warning, markdown)
+                self.assertIn(note, markdown)
+                round_trip = BackupManifest.from_dict(json.loads(json.dumps(result.manifest.to_dict())))
+                self.assertIn(warning, round_trip.warnings)
+                self.assertIn(note, round_trip.restore_notes)
+                verified = backup.verify_backup_package(result.package_path)
+                self.assertTrue(verified.success, verified.errors)
+                self.assertIn(warning, verified.warnings[:8])
+                self.assertIn(note, verified.manifest.restore_notes)
+
+    def test_photograph_references_do_not_add_archive_members(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            persistence, backup, collection_json = make_managers(temp_dir)
+            photo_paths = [os.path.join(temp_dir, name) for name in ("collection-photo.jpg", "vault-photo.jpg")]
+            for path in photo_paths:
+                with open(path, "wb") as handle:
+                    handle.write(b"synthetic photograph contents")
+            os.makedirs(os.path.dirname(collection_json), exist_ok=True)
+            collection = [{"id": "1", "image_path": photo_paths[0]}]
+            with open(collection_json, "w", encoding="utf-8") as handle:
+                json.dump(collection, handle)
+            self.assertTrue(persistence.save_state(AppState(photo_records=[
+                PhotoRecord(photo_paths[1], "Collection Photo", linked_collection_item_id="1"),
+            ])).success)
+            previous_cwd = os.getcwd()
+            try:
+                # Only generated collection and state files exist among the candidates.
+                os.chdir(temp_dir)
+                result = backup.create_backup_package()
+            finally:
+                os.chdir(previous_cwd)
+            self.assertTrue(result.success, result.errors)
+            with zipfile.ZipFile(result.package_path) as archive:
+                self.assertEqual(set(archive.namelist()), {
+                    "data/collection.json", "collection_data/app_state/app_state.json",
+                    "backup_manifest.json", "backup_manifest.md",
+                })
+                self.assertEqual(json.loads(archive.read("data/collection.json")), collection)
+                state = json.loads(archive.read("collection_data/app_state/app_state.json"))
+                self.assertEqual(state["photo_records"][0]["file_path"], photo_paths[1])
+            self.assertEqual({record.archive_path for record in result.manifest.included_files}, {
+                "data/collection.json", "collection_data/app_state/app_state.json",
+            })
+            self.assertEqual(result.manifest.collection_json_backed_up, "YES")
+            self.assertEqual(result.manifest.app_state_backed_up, "YES")
+
+    def test_create_backup_dialog_discloses_photograph_coverage(self):
+        from coin_collection_gui import CoinCollectionGUI
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            persistence, backup, collection_json = make_managers(temp_dir)
+            write_collection_json(collection_json)
+            self.assertTrue(persistence.save_state(AppState()).success)
+            # Run the existing callback with the real manager, without a Tk window.
+            app = SimpleNamespace(backup_manager=backup)
+            with patch("coin_collection_gui.messagebox.showinfo") as showinfo:
+                CoinCollectionGUI.create_backup_package(app)
+            detail = showinfo.call_args.args[1]
+            self.assertIn("Photograph file contents are not included in this backup.", detail)
+            self.assertIn("Collection and Photo Vault", detail)
+            self.assertIn("Back up the photograph files separately.", detail)
 
     def test_backup_manifest_creation(self):
         manifest = BackupManifest(backup_created_at="2026-06-18 12:00:00", collection_json_backed_up="YES")

@@ -10,6 +10,31 @@ from legacy_recognition_orchestration import (
 )
 
 
+def complete_year(value: object) -> str | None:
+    """Accept a complete ASCII year without completing partial OCR digits."""
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        return None
+    text = str(value).strip()
+    if len(text) == 4 and text.isascii() and text.isdigit() and text[0] != "0":
+        return text
+    return None
+
+
+def bounded_identification_evidence(value: object) -> dict[str, list[str]] | None:
+    """Allow only short match/candidate lists; never forward full OCR or diagnostics."""
+    if not isinstance(value, Mapping):
+        return None
+    evidence = {}
+    for name in ("country_matches", "country_candidates", "denomination_matches", "denomination_candidates"):
+        values = value.get(name)
+        evidence[name] = sorted({
+            " ".join(item.split())
+            for item in (values[:20] if isinstance(values, list) else [])
+            if isinstance(item, str) and 0 < len(item.strip()) <= 40 and item.isprintable()
+        })
+    return evidence
+
+
 class LegacyCoinRecognitionCapability:
     name = LEGACY_COIN_RECOGNITION
 
@@ -81,6 +106,18 @@ class LegacyCoinRecognitionCapability:
             )
             if name in output
         }
+        if "year_candidates" in output:
+            # Only years cross this boundary; raw OCR, source labels and scores do not.
+            candidates = output.get("year_candidates")
+            metadata["year_candidates"] = sorted({
+                year
+                for candidate in (candidates if isinstance(candidates, list) else [])
+                if isinstance(candidate, Mapping)
+                if (year := complete_year(candidate.get("year"))) is not None
+            })
+        identification_evidence = bounded_identification_evidence(output.get("identification_evidence"))
+        if identification_evidence is not None:
+            metadata["identification_evidence"] = identification_evidence
         return RecognitionCapabilityResult(
             capability=self.name,
             success=True,
@@ -105,7 +142,7 @@ def to_legacy_detector_result(
     """Restore the exact dictionary shape historically observed by the GUI."""
 
     if result.success:
-        return {
+        output = {
             "success": True,
             "country": result.findings.get("country", "Unknown"),
             "denomination": result.findings.get("denomination", "Unknown"),
@@ -114,6 +151,12 @@ def to_legacy_detector_result(
             "year_confidence": result.source_metadata.get("year_confidence", 0.0),
             "method": "coin_recognition",
         }
+        if "year_candidates" in result.source_metadata:
+            output["year_candidates"] = list(result.source_metadata["year_candidates"])
+        identification_evidence = bounded_identification_evidence(result.source_metadata.get("identification_evidence"))
+        if identification_evidence is not None:
+            output["identification_evidence"] = identification_evidence
+        return output
     return {
         "success": False,
         "error": result.source_metadata.get("legacy_error", "Detection failed"),

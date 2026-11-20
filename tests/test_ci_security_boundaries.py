@@ -47,13 +47,16 @@ def validate_tests_security(text):
     jobs = workflow["jobs"]
     if "gitleaks" not in jobs:
         raise ValueError("Blocking Gitleaks job required")
-    for job in jobs.values():
+    for job_name, job in jobs.items():
         if "permissions" in job and job["permissions"] != {"contents": "read"}:
             raise ValueError("Job permissions must not expand token authority")
         if "uses" in job or "secrets" in job:
             raise ValueError("Unreviewed reusable workflow or inherited secrets")
         for step in job.get("steps", []):
-            if "uses" in step and step["uses"] not in ALLOWED_ACTIONS:
+            if "uses" in step and step["uses"] not in ALLOWED_ACTIONS and not (
+                job_name == "offline-pwa-browser"
+                and step["uses"] == "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38"
+            ):
                 raise ValueError("Unreviewed action or embedded publication")
     job = jobs["gitleaks"]
     if any(key in job for key in ("if", "continue-on-error", "needs", "strategy", "env")):
@@ -124,6 +127,42 @@ class TestsWorkflowSecurityTests(unittest.TestCase):
 
     def test_blocking_tests_controls(self):
         validate_tests_security(self.text)
+
+    def test_pinned_setup_node_is_accepted_in_offline_pwa_browser(self):
+        workflow = copy.deepcopy(self.workflow)
+        action = "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38"
+        self.assertIn({"uses": action}, [
+            {"uses": step.get("uses")} for step in workflow["jobs"]["offline-pwa-browser"]["steps"]
+        ])
+        validate_tests_security(yaml.safe_dump(workflow))
+
+    def test_setup_node_is_rejected_outside_offline_pwa_browser(self):
+        action = "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38"
+        for name in self.workflow["jobs"]:
+            if name == "offline-pwa-browser":
+                continue
+            workflow = copy.deepcopy(self.workflow)
+            workflow["jobs"][name]["steps"].append({"uses": action})
+            with self.subTest(job=name), self.assertRaisesRegex(ValueError, "Unreviewed action"):
+                validate_tests_security(yaml.safe_dump(workflow))
+        workflow = copy.deepcopy(self.workflow)
+        workflow["jobs"]["renamed-offline-pwa-browser"] = workflow["jobs"].pop("offline-pwa-browser")
+        with self.assertRaisesRegex(ValueError, "Unreviewed action"):
+            validate_tests_security(yaml.safe_dump(workflow))
+
+    def test_offline_pwa_browser_rejects_other_setup_node_refs(self):
+        for action in (
+            "actions/setup-node@v6",
+            "actions/setup-node@main",
+            "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c39",
+            "actions/setup-node@249970729CB0EF3589644E2896645E5DC5BA9C38",
+        ):
+            workflow = copy.deepcopy(self.workflow)
+            for step in workflow["jobs"]["offline-pwa-browser"]["steps"]:
+                if step.get("uses", "").startswith("actions/setup-node@"):
+                    step["uses"] = action
+            with self.subTest(action=action), self.assertRaisesRegex(ValueError, "Unreviewed action"):
+                validate_tests_security(yaml.safe_dump(workflow))
 
     def test_explicit_and_embedded_artifact_actions_are_rejected(self):
         for name in self.workflow["jobs"]:

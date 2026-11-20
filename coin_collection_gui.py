@@ -13,6 +13,8 @@ from collector_work_queue_gui import WorkQueueWindow
 from collection_resume import collection_resume_rows
 from collection_shelf_gui import CollectionShelfWindow
 from copy import deepcopy
+from dataclasses import replace
+import weakref
 from collector_work_queue import derive_work_queue, WorkQueueProjectionError
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from decimal import Decimal
@@ -80,6 +82,8 @@ from multi_device_workspace import (
 )
 from portfolio_performance import PortfolioPerformanceEngine
 from coin_identifier_interface import CoinIdentifierFactory
+from legacy_coin_recognition_capability import bounded_identification_evidence, complete_year
+from identification_recapture_guidance import build_recapture_guidance
 from upgrade_advisor import UpgradeAdvisor
 from portfolio_dashboard import PortfolioDashboard
 from session_context import SessionContext
@@ -96,7 +100,8 @@ from collection_dashboard import CollectionDashboard
 from collector_companion_readiness import CollectorCompanionReadinessAuditor
 from collector_home_dashboard import CollectorHomeDashboard
 from collector_workspace import CollectorWorkspace
-from canadian_reference_provider import ReferenceFilters, ReferenceQuery
+from canadian_reference_provider import ReferenceFilters, ReferenceQuery, normalize_country as normalize_reference_country
+from capture_import.evidence_candidate_resolver import normalize_country as normalize_evidence_country
 from collection_integrity import CollectionIntegrityAudit
 from denomination_label_audit import (
     DenominationAuditRecord,
@@ -417,6 +422,7 @@ class CoinCollectionGUI:
         self.pending_inbox_refresh_callback = None
         self.pending_inbox_completion_done = False
         self.detection_result = None
+        self._observed_source_revision = self.app.image_source_revision
 
         self.capture_import_ready = False
         self.capture_import_recovery_message = RecoveryRequired().safe_message
@@ -1700,6 +1706,13 @@ Total Unique Dates: {total_unique_dates}
         )
         self.year_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         self.year_combo.bind('<KeyRelease>', lambda e: self.on_autocomplete('year', self.year_var.get()))
+
+        self.identity_origin_labels = {}
+        for row, field in enumerate(("country", "denomination", "year")):
+            label = ttk.Label(edit_frame, wraplength=160)
+            label.grid(row=row, column=2, sticky=tk.W, padx=(8, 0))
+            self.identity_origin_labels[field] = label
+        self.initialize_identity_handoff()
         
         ttk.Label(edit_frame, text="Grade:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.grade_var = tk.StringVar()
@@ -1738,10 +1751,27 @@ Total Unique Dates: {total_unique_dates}
         # Action buttons
         action_frame = ttk.Frame(edit_frame)
         action_frame.grid(row=7, column=0, columnspan=2, pady=(10, 0))
+
+        ttk.Label(
+            edit_frame,
+            text="Review and correct the fields above. Save to Collection confirms these values; "
+                 "OCR readings remain unverified. Manual edits are kept when applying suggestions.",
+            wraplength=450,
+        ).grid(row=8, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
         
         ttk.Button(action_frame, text="Use Detection Results", command=self.use_detection_results).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Save to Collection", command=self.save_to_collection).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(action_frame, text="Clear Form", command=self.clear_form).pack(side=tk.LEFT)
+
+        self._saved_coin_reference = None
+        self.saved_coin_receipt_var = tk.StringVar(value="")
+        receipt_frame = ttk.Frame(edit_frame)
+        receipt_frame.grid(row=9, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
+        ttk.Label(receipt_frame, textvariable=self.saved_coin_receipt_var).pack(side=tk.LEFT)
+        self.saved_coin_receipt_button = ttk.Button(
+            receipt_frame, text="View saved coin", command=self.view_saved_coin, state=tk.DISABLED,
+        )
+        self.saved_coin_receipt_button.pack(side=tk.LEFT)
         
         # Collection list
         collection_frame = ttk.LabelFrame(right_panel, text="Collection", padding="10")
@@ -1760,12 +1790,7 @@ Total Unique Dates: {total_unique_dates}
         search_frame = ttk.Frame(collection_frame)
         search_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
-        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        search_entry.bind('<KeyRelease>', self.on_search)
-        ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT)
+        self.create_collection_search_controls(search_frame)
 
         # Collection buttons
         collection_buttons = ttk.Frame(collection_frame)
@@ -2671,6 +2696,7 @@ Total Unique Dates: {total_unique_dates}
         self.current_item_photos = photos
         primary = next((photo for photo in photos if photo.is_primary), None)
         self.app.current_image_path = primary.path if primary else None
+        self.reconcile_source_results()
 
     def upload_image(self):
         """Attach one or more coin photos."""
@@ -2830,6 +2856,30 @@ Total Unique Dates: {total_unique_dates}
         )
         self.refresh_photo_list()
     
+    def reconcile_source_results(self):
+        """Reconcile advice with the GUI's own last-observed primary source."""
+        revision = getattr(self.app, "image_source_revision", 0)
+        previous = getattr(self, "_observed_source_revision", None)
+        self._observed_source_revision = revision
+        if previous is not None and previous != revision:
+            self.invalidate_source_results()
+        return revision
+
+    def invalidate_source_results(self):
+        """Discard source-owned advice without changing manual fields or storage."""
+        self._observed_source_revision = getattr(self.app, "image_source_revision", 0)
+        self.discard_identity_suggestions()
+        self.detection_result = None
+        self.app.current_detection_result = None
+        if hasattr(self, "detection_label"):
+            self.detection_label.config(text="No detection results")
+        if hasattr(self, "confidence_label"):
+            self.confidence_label.config(text="")
+        if hasattr(self, "advanced_id_label"):
+            self.advanced_id_label.config(text="")
+        self._set_visual_review_handoff_available(False)
+        self.refresh_entry_suggestions()
+
     def clear_image(self):
         """Clear current image and attached photo state."""
         self.current_image = None
@@ -2839,11 +2889,7 @@ Total Unique Dates: {total_unique_dates}
         if hasattr(self, "image_label"):
             self.image_label.config(image="", text="No photos selected")
         self.app.current_image_path = None
-        self.detection_result = None
-        if hasattr(self, "detection_label"):
-            self.detection_label.config(text="No detection results")
-        if hasattr(self, "confidence_label"):
-            self.confidence_label.config(text="")
+        self.invalidate_source_results()
         self.refresh_photo_list()
     
     def run_detection(self):
@@ -2852,13 +2898,63 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showwarning("Warning", "Please upload an image first")
             return
         
+        source_revision = self.reconcile_source_results()
         result = self.app.run_denomination_detector()
+        if source_revision != self.reconcile_source_results():
+            return
+        self._detection_source_revision = source_revision
+        self.discard_identity_suggestions()
         self.detection_result = result
         
         if result['success']:
-            text = f"Suggested Country: {result['country']}\n"
+            text = self.identification_evidence_summary(result)
+            text += "\nIdentity suggestions\n"
+            if self.identification_country_conflicts(result):
+                text += "Country suggestion withheld: conflicting OCR evidence. Verify manually.\n"
+            else:
+                text += f"Suggested Country: {result['country']}\n"
             text += f"Suggested Denomination: {result['denomination']}\n"
-            text += f"Suggested Year: {result['year']}\n"
+            year = complete_year(result.get("year"))
+            if year is not None:
+                text += f"Suggested Year: {year}\n"
+            else:
+                text += "Date uncertain: OCR could not determine a complete year reliably.\n"
+                candidates = result.get("year_candidates")
+                years = sorted({
+                    year for value in (candidates if isinstance(candidates, list) else [])
+                    if (year := complete_year(value)) is not None
+                })
+                if years:
+                    text += "Plausible OCR years (suggestions only): " + ", ".join(years) + "\n"
+                if len(years) > 1:
+                    text += "Manual verification is required because of conflicting OCR readings.\n"
+                elif years:
+                    text += "OCR did not establish the date reliably; manual verification is required.\n"
+                else:
+                    text += "Partial or unreadable date evidence requires manual verification.\n"
+                text += (
+                    "The correct year may be different. Check the date on the coin manually "
+                    "and enter it in the Year field. A clearer photo may provide additional evidence.\n"
+                    "Use Detection Results will leave your Year field unchanged.\n"
+                )
+
+            # Only explicit roles for every supplied input establish a missing
+            # reverse. Unlabelled photos or an unattached analysed image leave
+            # side coverage unknown; do not infer it from recognition output.
+            photos = self.normalized_photo_state(self.current_item_photos)
+            reverse_missing = bool(
+                photos
+                and all(photo.role == PhotoRole.FRONT for photo in photos)
+                and any(
+                    os.path.normcase(os.path.abspath(photo.path))
+                    == os.path.normcase(os.path.abspath(self.app.current_image_path))
+                    for photo in photos
+                )
+            )
+            guidance = build_recapture_guidance(result, reverse_missing=reverse_missing)
+            if guidance:
+                text += "\nPhoto suggestions (optional; not identity evidence)\n"
+                text += "\n".join(guidance) + "\n"
 
             needs_review = self.recognition_result_needs_paired_review(result)
             pair = self.paired_visual_review_paths(self.current_item_photos)
@@ -2875,10 +2971,9 @@ Total Unique Dates: {total_unique_dates}
             self.detection_label.config(text=text)
             self._set_visual_review_handoff_available(bool(needs_review and pair))
             
-            confidence_text = f"Denomination Evidence Score: {result['confidence']:.2%}\n"
-            confidence_text += f"Year Evidence Score: {result['year_confidence']:.2%}\n"
-            confidence_text += "Source scores are not calibrated probabilities."
-            self.confidence_label.config(text=confidence_text)
+            self.confidence_label.config(
+                text="Confidence: unavailable. Source scores are not calibrated probabilities."
+            )
             
             # Log detection for debugging
             self.log_detection(result)
@@ -2886,6 +2981,44 @@ Total Unique Dates: {total_unique_dates}
             self.detection_label.config(text=f"Detection failed: {result.get('error', 'Unknown error')}")
             self.confidence_label.config(text="")
             self._set_visual_review_handoff_available(False)
+
+    @staticmethod
+    def identification_country_conflicts(result):
+        """Compare bounded candidates using existing aliases; absence proves nothing."""
+        evidence = bounded_identification_evidence(result.get("identification_evidence")) or {}
+        countries = {
+            normalize_reference_country(normalize_evidence_country(value))
+            for value in evidence.get("country_candidates", [])
+        }
+        return len(countries) > 1
+
+    @staticmethod
+    def identification_evidence_summary(result):
+        """Describe bounded OCR support separately from the detector's identity findings."""
+        evidence = bounded_identification_evidence(result.get("identification_evidence")) or {}
+        candidates = result.get("year_candidates")
+        years = sorted({
+            year for value in (candidates if isinstance(candidates, list) else [])
+            if (year := complete_year(value)) is not None
+        })
+        lines = ["OCR readings (may be wrong; normalized matches)"]
+        for label, values in (
+            ("Country", evidence.get("country_matches", [])),
+            ("Denomination", evidence.get("denomination_matches", [])),
+            ("Date", years),
+        ):
+            lines.append(f"{label}: " + (", ".join(values) if values else "unavailable"))
+        lines.append("Other inscriptions: unavailable in this summary.")
+        for label, field in (("Country", "country"), ("Denomination", "denomination")):
+            choices = evidence.get(field + "_candidates", [])
+            conflicting = (CoinCollectionGUI.identification_country_conflicts(result)
+                           if field == "country" else len(choices) > 1)
+            if conflicting:
+                lines.append(f"{label} conflicting: " + ", ".join(choices) + ". Verify manually.")
+            elif str(result.get(field) or "").strip().casefold() in {"", "unknown", "none"}:
+                lines.append(f"{label} unresolved: verify manually.")
+        lines.append("Status: not verified. Manually verify Country, Denomination, Year before saving.")
+        return "\n".join(lines) + "\n"
 
     @staticmethod
     def recognition_result_needs_paired_review(result):
@@ -2958,8 +3091,11 @@ Total Unique Dates: {total_unique_dates}
             messagebox.showwarning("Warning", "Please upload an image first")
             return
         
+        source_revision = self.reconcile_source_results()
         try:
             result = self.identifier.identify_coin(self.app.current_image_path)
+            if source_revision != self.reconcile_source_results():
+                return
             
             if result['success']:
                 text = f"Year: {result['year']}\n"
@@ -2969,30 +3105,78 @@ Total Unique Dates: {total_unique_dates}
             else:
                 self.advanced_id_label.config(text=f"Identification failed: {result.get('error', 'Unknown error')}")
         except Exception as e:
+            if source_revision != self.reconcile_source_results():
+                return
             messagebox.showerror("Error", f"Advanced identification failed: {str(e)}")
     
+    def initialize_identity_handoff(self):
+        """Track form edits without retaining Tk objects in callback cycles."""
+        if hasattr(self, "_identity_origins"):
+            return
+        self._identity_origins = {}
+        self._setting_identity = False
+        reference = weakref.ref(self)
+        for field in ("country", "denomination", "year"):
+            variable = getattr(self, field + "_var")
+            self._identity_origins[field] = "unknown" if variable.get() else "empty"
+
+            def changed(*_args, field=field, reference=reference):
+                gui = reference()
+                if gui is not None and not gui._setting_identity:
+                    gui._identity_origins[field] = "manual"
+                    gui.refresh_identity_origins()
+
+            variable.trace_add("write", changed)
+        self.refresh_identity_origins()
+
+    def identity_origin_text(self, field):
+        return {
+            "empty": "Not supplied",
+            "unknown": "Origin unknown / review",
+            "manual": "Manually entered / corrected",
+            "suggested": "Suggested / unconfirmed",
+        }[self._identity_origins[field]]
+
+    def refresh_identity_origins(self):
+        for field, label in getattr(self, "identity_origin_labels", {}).items():
+            label.config(text=self.identity_origin_text(field))
+
+    def set_identity_field(self, field, value, origin):
+        self._setting_identity = True
+        try:
+            getattr(self, field + "_var").set(value)
+            self._identity_origins[field] = origin
+        finally:
+            self._setting_identity = False
+        self.refresh_identity_origins()
+
+    def discard_identity_suggestions(self):
+        self.initialize_identity_handoff()
+        for field, origin in self._identity_origins.copy().items():
+            if origin == "suggested":
+                self.set_identity_field(field, "", "empty")
+
     def use_detection_results(self):
         """Use detection results to fill form as suggestions."""
+        self.reconcile_source_results()
         if not self.detection_result or not self.detection_result['success']:
             messagebox.showwarning("Warning", "No successful detection results available")
             return
         
-        # Store original values for comparison
-        original_country = self.country_var.get()
-        original_denomination = self.denomination_var.get()
-        original_year = self.year_var.get()
-        
-        # Pre-fill fields as suggestions only
-        self.country_var.set(self.detection_result['country'])
-        self.denomination_var.set(self.detection_result['denomination'])
-        self.year_var.set(self.detection_result['year'])
+        self.initialize_identity_handoff()
+        years = {year for value in (self.detection_result.get("year_candidates") or [])
+                 if (year := complete_year(value)) is not None}
+        for field in ("country", "denomination", "year"):
+            if field == "country" and self.identification_country_conflicts(self.detection_result):
+                continue
+            value = self.detection_result.get(field)
+            if field == "year":
+                value = complete_year(value) if len(years) <= 1 else None
+            if (self._identity_origins[field] in {"empty", "suggested"}
+                    and isinstance(value, str) and value.strip()
+                    and value.strip().casefold() not in {"unknown", "unidentified", "unresolved", "none", "n/a"}):
+                self.set_identity_field(field, value.strip(), "suggested")
         self.refresh_entry_suggestions()
-        
-        # Show warning that these are suggestions
-        messagebox.showwarning("Experimental Suggestion", 
-                             "Detection results pre-filled as suggestions only.\n"
-                             "Please verify manually before saving.\n"
-                             "These are NOT guaranteed to be correct.")
     
     def log_detection(self, detection_result):
         """Log detection results to debug feedback CSV."""
@@ -3037,6 +3221,11 @@ Total Unique Dates: {total_unique_dates}
     
     def save_to_collection(self):
         """Save current coin to collection."""
+        previous_receipt = getattr(self, "_saved_coin_reference", None)
+        if previous_receipt is not None:
+            self.saved_coin_receipt_var.set(
+                f"Saved coin: {previous_receipt.item_id} (earlier successful save) — "
+            )
         self.sync_current_image_path_from_photos()
         
         country = self.country_var.get().strip()
@@ -3044,6 +3233,10 @@ Total Unique Dates: {total_unique_dates}
         year = self.year_var.get().strip()
         grade = self.grade_var.get().strip()
         notes = self.notes_text.get("1.0", tk.END).strip()
+
+        if not any((country, denomination, year, grade, notes, self.current_item_photos)):
+            messagebox.showwarning("Collection Entry", "Enter coin details or attach a photo before saving.")
+            return
         
 
         try:
@@ -3064,7 +3257,7 @@ Total Unique Dates: {total_unique_dates}
         add_kwargs: dict[str, Any] = {"photos": photos}
         if hasattr(self, "acquisition_controls"):
             add_kwargs.update(acquisition)
-        if self.app.add_to_collection(
+        saved = self.app.add_to_collection(
             country,
             denomination,
             year,
@@ -3072,7 +3265,21 @@ Total Unique Dates: {total_unique_dates}
             notes,
             use_detection,
             **add_kwargs,
-        ):
+        )
+        if saved is True:
+            if hasattr(self, "saved_coin_receipt_var"):
+                from collection_item_reference import CollectionItemReference
+                try:
+                    item = self.app.collection.get_item(self.app.last_added_item_id)
+                    reference = CollectionItemReference.capture(self.app.collection, item)
+                except ValueError:
+                    messagebox.showwarning(
+                        "Item unavailable", "The saved record is unavailable. Refresh the collection before opening it.",
+                    )
+                else:
+                    self._saved_coin_reference = reference
+                    self.saved_coin_receipt_var.set(f"Saved coin: {reference.item_id} — ")
+                    self.saved_coin_receipt_button.configure(state=tk.NORMAL)
             if self.pending_inbox_manager and self.pending_inbox_photo_set_id:
                 if not self.complete_pending_inbox_create(getattr(self.app, "last_added_item_id", "")):
                     messagebox.showwarning(
@@ -3090,9 +3297,27 @@ Total Unique Dates: {total_unique_dates}
         else:
             messagebox.showerror("Error", "Failed to add coin to collection")
 
+    def view_saved_coin(self):
+        """Open the latest session receipt only while its exact record is current."""
+        reference = self._saved_coin_reference
+        if reference is None:
+            return
+        try:
+            item = reference.resolve(self.app.collection)
+        except ValueError:
+            self.saved_coin_receipt_button.configure(state=tk.DISABLED)
+            messagebox.showwarning(
+                "Item unavailable", "This record changed. Select a current record after refresh.",
+            )
+            return
+        self.open_item_details_window(item)
+
     def record_detection_observation_after_save(self, country, denomination, year, photos):
         """Persist a confirmed detection outcome after collection persistence succeeds."""
         if not self.detection_result or not self.detection_result.get("success"):
+            return None
+        # An incomplete manual save is allowed, but is not a confirmed date identity.
+        if complete_year(year) is None:
             return None
         observation = ConfirmedObservationRecord.for_detection_save(
             self.detection_result,
@@ -3105,6 +3330,10 @@ Total Unique Dates: {total_unique_dates}
             application_version=APPLICATION_VERSION,
             photos=photos,
         )
+        # Source scores have no defensible confidence semantics at this handoff.
+        observation = replace(observation, evidence_snapshot={
+            "method": self.detection_result.get("method", "unknown"),
+        })
         result = self.confirmed_observation_store.append(observation)
         if not result.success:
             messagebox.showwarning(
@@ -3155,9 +3384,9 @@ Total Unique Dates: {total_unique_dates}
     
     def clear_form(self):
         """Clear form fields."""
-        self.country_var.set("")
-        self.denomination_var.set("")
-        self.year_var.set("")
+        self.initialize_identity_handoff()
+        for field in ("country", "denomination", "year"):
+            self.set_identity_field(field, "", "empty")
         self.grade_var.set("")
         self.notes_text.delete("1.0", tk.END)
         if hasattr(self, "acquisition_controls"):
@@ -3185,9 +3414,18 @@ Total Unique Dates: {total_unique_dates}
             self.collection_resume_state_var.set("No collection is available yet.")
             return
         count = len(rows)
-        self.collection_resume_state_var.set(f"{count} collection record{'s' if count != 1 else ''}")
         search_query = self.search_var.get().strip()
         matching = {id(item) for item in collection.search_items(search_query)} if search_query else None
+        total_text = f"{count} collection record{'s' if count != 1 else ''}"
+        if count == 0:
+            summary = f"{total_text} (empty collection)"
+        elif matching is not None:
+            match_count = sum(id(row.reference.item) in matching for row in rows)
+            summary = (f"{match_count} of {total_text}" if match_count
+                       else f"No matching collection records (0 of {count})")
+        else:
+            summary = total_text
+        self.collection_resume_state_var.set(summary)
         for index, row in enumerate(rows):
             if matching is not None and id(row.reference.item) not in matching:
                 continue
@@ -3195,6 +3433,20 @@ Total Unique Dates: {total_unique_dates}
             self.collection_tree.insert("", tk.END, iid=row_id,
                                         values=(row.reference.item_id, row.label, row.status, row.recorded_date))
             self._collection_resume_rows[row_id] = row
+
+    def create_collection_search_controls(self, parent):
+        """Build native search controls and keep Clear available only for query text."""
+        ttk.Label(parent, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        self.search_entry = ttk.Entry(parent, textvariable=self.search_var)
+        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.search_entry.bind('<KeyRelease>', self.on_search)
+        self.clear_search_button = ttk.Button(parent, text="Clear", command=self.clear_search, state=tk.DISABLED)
+        self.clear_search_button.pack(side=tk.LEFT)
+        self.search_var.trace_add("write", self._update_clear_search_state)
+
+    def _update_clear_search_state(self, *_args):
+        self.clear_search_button.configure(state=tk.NORMAL if self.search_var.get() else tk.DISABLED)
 
     def on_search(self, event):
         """Handle search input."""
@@ -4705,24 +4957,29 @@ Total Unique Dates: {total_unique_dates}
         grade_combo.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Asking Price
+        monetary_entries = {}
         ttk.Label(form_frame, text="Asking Price ($):").grid(row=6, column=0, sticky=tk.W, pady=5)
         asking_price_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=asking_price_var).grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Asking price"] = ttk.Entry(form_frame, textvariable=asking_price_var)
+        monetary_entries["Asking price"].grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Shipping
         ttk.Label(form_frame, text="Shipping ($):").grid(row=7, column=0, sticky=tk.W, pady=5)
         shipping_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=shipping_var).grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Shipping"] = ttk.Entry(form_frame, textvariable=shipping_var)
+        monetary_entries["Shipping"].grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Tax/Fees
         ttk.Label(form_frame, text="Tax/Fees ($):").grid(row=8, column=0, sticky=tk.W, pady=5)
         tax_fees_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=tax_fees_var).grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Tax/fees"] = ttk.Entry(form_frame, textvariable=tax_fees_var)
+        monetary_entries["Tax/fees"].grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         
         # Estimated Market Value
         ttk.Label(form_frame, text="Est. Market Value ($):").grid(row=9, column=0, sticky=tk.W, pady=5)
         estimated_value_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=estimated_value_var).grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        monetary_entries["Estimated value"] = ttk.Entry(form_frame, textvariable=estimated_value_var)
+        monetary_entries["Estimated value"].grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
 
         if staged_want_list_intents:
             want_list_status = f"Using shared WANT_LIST context: {len(staged_want_list_intents)} active intent(s)."
@@ -4759,26 +5016,33 @@ Total Unique Dates: {total_unique_dates}
                 )
         
         def get_advice():
+            from math import isfinite
             from buy_advisor import BuyAdvisor
+
+            amounts = []
+            for label, variable in (
+                ("Asking price", asking_price_var),
+                ("Shipping", shipping_var),
+                ("Tax/fees", tax_fees_var),
+                ("Estimated value", estimated_value_var),
+            ):
+                raw = variable.get()
+                try:
+                    amount = float(raw) if raw else 0.0
+                    if not isfinite(amount):
+                        raise ValueError("Non-finite amount")
+                except ValueError:
+                    messagebox.showerror(
+                        "Invalid Amount",
+                        f"{label}: please enter a finite number or leave the field empty.",
+                        parent=dialog,
+                    )
+                    monetary_entries[label].focus_set()
+                    return
+                amounts.append(amount)
+            asking_price, shipping, tax_fees, estimated_market_value = amounts
+
             advisor = BuyAdvisor(self.app.collection, staged_want_list_intents=staged_want_list_intents)
-            
-            # Parse asking price inputs
-            try:
-                asking_price = float(asking_price_var.get()) if asking_price_var.get() else 0.0
-            except ValueError:
-                asking_price = 0.0
-            try:
-                shipping = float(shipping_var.get()) if shipping_var.get() else 0.0
-            except ValueError:
-                shipping = 0.0
-            try:
-                tax_fees = float(tax_fees_var.get()) if tax_fees_var.get() else 0.0
-            except ValueError:
-                tax_fees = 0.0
-            try:
-                estimated_market_value = float(estimated_value_var.get()) if estimated_value_var.get() else 0.0
-            except ValueError:
-                estimated_market_value = 0.0
             
             rec = advisor.advise(
                 country_var.get(),
@@ -4979,20 +5243,30 @@ Total Unique Dates: {total_unique_dates}
             self.refresh_collection_list()
             self.collection_task_var.set("This task changed. Select a current record after refresh.")
 
-    def view_item_details(self):
-        """View selected item details."""
+    def _selected_collection_reference(self):
+        """Keep list actions bound to the exact record displayed before selection."""
         selection = self.collection_tree.selection()
         if not selection:
             messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
-        if item:
-            self.open_item_details_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
+            return None
+        row = getattr(self, "_collection_resume_rows", {}).get(selection[0])
+        try:
+            if row is None:
+                raise ValueError("The selected row is unavailable.")
+            row.reference.resolve(self.app.collection)
+        except ValueError:
+            self.refresh_collection_list()
+            messagebox.showwarning(
+                "Item unavailable", "This record changed. Select a current record after refresh.",
+            )
+            return None
+        return row.reference
+
+    def view_item_details(self):
+        """View details only for the exact current record retained by the list."""
+        reference = self._selected_collection_reference()
+        if reference is not None:
+            self.open_item_details_window(reference.resolve(self.app.collection))
 
     def open_item_details_window(self, item, *, metadata_only=False):
         """Open a read-only item details window with a photo gallery."""
@@ -5087,19 +5361,10 @@ Total Unique Dates: {total_unique_dates}
         ttk.Button(content, text="Close", command=dialog.destroy).grid(row=1, column=1, sticky=tk.E, pady=(10, 0))
     
     def edit_item(self):
-        """Edit selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
-            return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        item = self.app.collection.get_item(item_id)
-        
-        if item:
-            self.open_edit_item_window(item)
-        else:
-            messagebox.showerror("Error", "Item not found")
+        """Edit only the exact current record retained by the list."""
+        reference = self._selected_collection_reference()
+        if reference is not None:
+            self.open_edit_item_window(reference.resolve(self.app.collection))
 
     def open_work_queue(self):
         """Open or refresh the first-class Collector Work Queue window."""
@@ -5201,22 +5466,42 @@ Total Unique Dates: {total_unique_dates}
         role_var = tk.StringVar(value=PhotoRole.OTHER.value)
         note_var = tk.StringVar()
 
+        def edit_suggestions(field):
+            return self.app.collection.get_field_suggestions(
+                field,
+                country=country_var.get() if field in ("denomination", "year") else "",
+                denomination=denomination_var.get() if field == "year" else "",
+            )
+
         fields = [
-            ("Country:", country_var, self.get_entry_suggestions("country")),
-            ("Denomination:", denomination_var, self.get_entry_suggestions("denomination")),
-            ("Year:", year_var, self.get_entry_suggestions("year")),
+            ("Country:", country_var, edit_suggestions("country")),
+            ("Denomination:", denomination_var, edit_suggestions("denomination")),
+            ("Year:", year_var, edit_suggestions("year")),
             ("Grade:", grade_var, GRADE_SUGGESTIONS),
             ("Type / design:", type_design_var, ()),
         ]
+        edit_combos = {}
         for row_index, (label, variable, values) in enumerate(fields):
             ttk.Label(form, text=label).grid(row=row_index, column=0, sticky=tk.W, pady=4)
-            ttk.Combobox(form, textvariable=variable, values=values).grid(
+            combo = ttk.Combobox(form, textvariable=variable, values=values)
+            edit_combos[label] = combo
+            combo.grid(
                 row=row_index,
                 column=1,
                 sticky=(tk.W, tk.E),
                 pady=4,
                 padx=(5, 0),
             )
+
+        def refresh_edit_years(*_args):
+            edit_combos["Year:"]["values"] = edit_suggestions("year")
+
+        def refresh_edit_dependents(*_args):
+            edit_combos["Denomination:"]["values"] = edit_suggestions("denomination")
+            refresh_edit_years()
+
+        country_var.trace_add("write", refresh_edit_dependents)
+        denomination_var.trace_add("write", refresh_edit_years)
 
         ttk.Label(form, text="Notes:").grid(row=5, column=0, sticky=tk.NW, pady=4)
         notes_text = tk.Text(form, height=4, width=36)
@@ -5415,21 +5700,25 @@ Total Unique Dates: {total_unique_dates}
             initial_photo_refresh()
     
     def delete_item(self):
-        """Delete selected item."""
-        selection = self.collection_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select an item")
+        """Delete one explicitly confirmed, still-current displayed record."""
+        reference = self._selected_collection_reference()
+        if reference is None:
             return
-        
-        item_id = self.collection_tree.item(selection[0])['values'][0]
-        
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this item?"):
-            if self.app.collection.delete_item(item_id):
+            try:
+                item = reference.resolve(self.app.collection)
+            except ValueError:
+                self.refresh_collection_list()
+                messagebox.showwarning(
+                    "Item unavailable", "This record changed. Select a current record after refresh.",
+                )
+                return
+            if self.app.collection.delete_item(item.id):
                 self.refresh_collection_list()
                 messagebox.showinfo("Success", "Item deleted")
             else:
                 messagebox.showerror("Error", "Failed to delete item")
-    
+
     def export_csv(self):
         """Export collection to CSV."""
         file_path = filedialog.asksaveasfilename(
