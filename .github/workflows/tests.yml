@@ -1,168 +1,13 @@
 name: Tests
+run-name: Prospective PR 392 provenance (diagnostic only)
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  offline-pwa-browser:
-    name: Offline PWA browser
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    defaults:
-      run:
-        shell: bash
-        working-directory: offline_pwa
-    env:
-      PWA_PYTHON: python
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Python for the synthetic shell builder
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12.10"
-
-      - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24.18.0"
-          package-manager-cache: false
-
-      - name: Install locked browser-test dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
-
-      - name: Install matching Chromium and Linux dependencies
-        run: node node_modules/playwright/cli.js install --with-deps chromium
-
-      - name: Check JavaScript syntax
-        run: npm run check
-
-      - name: Run offline PWA browser tests
-        run: npm test
-
-  ruff:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install Ruff
-        run: python -m pip install ruff==0.16.5
-
-      - name: Run syntax-level Ruff checks
-        run: ruff check . --select E9 --exclude .venv
-
-  pyright-event-bus:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install runtime dependencies and Pyright
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyright==1.1.411
-
-      - name: Type-check cleaned boundaries
-        run: pyright event_bus.py image_analyzer.py denomination_label_audit.py market_intelligence_automation.py photo_inbox.py confirmed_observation_evaluator.py diagnostic_agent.py improvement_agent.py retrieval_contracts.py local_retrieval.py atomic_json.py
-
-  openai-dependency-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install optional OpenAI dependencies at compatibility floor
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-ai.txt "openai==3.13.0"
-
-      - name: Verify OpenAI SDK surfaces without network access
-        run: |
-          python - <<'PY'
-          from importlib.metadata import version
-
-          import openai_collection_assistant
-          from capture_import import visual_identity_provider
-          from openai import OpenAI
-
-          assert version("openai") == "3.13.0"
-          client = OpenAI(api_key="sk-ci-smoke-test")
-          assert callable(client.responses.create)
-          assert callable(client.responses.parse)
-          assert openai_collection_assistant.OpenAIResponsesAdapter.provider_name == "OpenAI"
-          assert visual_identity_provider.OPENAI_VISUAL_PROVIDER_ID == "openai-responses-visual"
-          print("OpenAI 3.13.0 optional dependency smoke check passed")
-          PY
-
-      - name: Verify OpenAI 3.13.0 transport compatibility without network access
-        run: python -m unittest tests.test_openai_sdk_transport_compatibility -v
-
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -171,6 +16,7 @@ jobs:
       - name: Check out full Git history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: 498b886c8dd215844356c9f2acf704066263373a
           fetch-depth: 0
           persist-credentials: false
           sparse-checkout: |
@@ -179,11 +25,35 @@ jobs:
             /test_coins/README.md
           sparse-checkout-cone-mode: false
 
+      - name: Verify pinned PR metadata before object preparation
+        shell: bash
+        env:
+          CI_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          try:
+              request = urllib.request.Request('https://api.github.com/repos/adamo-sys/coin-analyzer/pulls/392', headers={'Authorization': 'Bearer ' + os.environ['CI_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  data = json.load(response)
+              assert data['state'] == 'open' and data['merged'] is False
+              assert data['head']['sha'] == '498b886c8dd215844356c9f2acf704066263373a'
+              assert data['base']['sha'] == '2ea1917ab702809b4e2961c55bf9507297e7257e'
+              assert data['merge_commit_sha'] == '53895b766fcfb3b7474ecbf8fbaf9b150ff7123d'
+              print('prospective-provenance {"kind":"pr-precheck","pinned_identity_match":true}')
+          except Exception:
+              print('::error::Pinned PR metadata mismatch or unavailable; raw response suppressed')
+              raise SystemExit(1)
+          PY
+
       - name: Prepare complete Git objects for security scanning
         shell: bash
         env:
           CI_TOKEN: ${{ github.token }}
-          CI_SHA: ${{ github.sha }}
+          CI_SHA: 53895b766fcfb3b7474ecbf8fbaf9b150ff7123d
         run: |
           set -euo pipefail
           # Full-history scanning is authorized to transfer historical objects.
@@ -298,65 +168,149 @@ jobs:
           echo '9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  gitleaks.tar.gz' | sha256sum --check --strict
           tar -xzf gitleaks.tar.gz gitleaks
 
-      - name: Scan all available Git history for secrets
+      - name: Capture sanitized prospective scanner provenance
         shell: bash
         env:
           GIT_NO_LAZY_FETCH: "1"
           GIT_TERMINAL_PROMPT: "0"
         run: |
           set -euo pipefail
-          # No SARIF, artifact, comment, summary, or verbose finding output.
-          "$RUNNER_TEMP/gitleaks/gitleaks" git . --config=.gitleaks.toml \
-            --log-opts="--full-history --all --root -m --no-ext-diff --no-textconv" \
-            --redact=100 --exit-code=2 --log-level=info
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path, PurePosixPath
+          import re
+          import subprocess
+          import sys
 
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
+          SOURCE = '498b886c8dd215844356c9f2acf704066263373a'
+          BASE = '2ea1917ab702809b4e2961c55bf9507297e7257e'
+          EVENT = '53895b766fcfb3b7474ecbf8fbaf9b150ff7123d'
+          CONFIG = '0238323f4229e48dfa5f19d273b558e07fa51bad8f49656d53a415e45ddcad51'
+          IGNORE = 'd7274feab84b044eab540058a989a5b65e3044104e89801729d57e40e08c9283'
+          ARCHIVE = '9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c'
+          BINARY = 'e18325d568268b6efb6cd0cc721f8bea5667f4cd1c8d03618ab61987f41269ad'
 
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          # Exclude local-only images from the worktree; Git history is still fetched.
-          sparse-checkout: |
-            /*
-            !/test_coins/*
-            /test_coins/README.md
-          sparse-checkout-cone-mode: false
+          def sha(raw):
+              return hashlib.sha256(raw).hexdigest()
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-          cache: pip
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          def probe(*args):
+              p = subprocess.run(args, capture_output=True, timeout=120, check=False)
+              if p.returncode:
+                  raise ValueError('metadata command failed')
+              return p.stdout
 
-      - name: Compile Python sources
-        run: python -m compileall -q .
 
-      - name: Verify architecture and privacy boundaries
-        run: >-
-          python -m unittest
-          tests.test_sprint19_ocr_review_package_boundaries
-          tests.test_evaluation_case_contract
-          tests.test_repository_privacy_boundaries
-          tests.test_ci_security_boundaries
-          tests.test_legacy_recognition_orchestration
-          tests.test_legacy_coin_recognition_capability
-          tests.test_legacy_recognition_integration
+          def safe_findings(raw, status):
+              if status not in (0, 2):
+                  raise ValueError('scanner error')
+              try:
+                  rows = json.loads(raw)
+              except (ValueError, UnicodeError):
+                  raise ValueError('invalid report') from None
+              if rows is None and status == 0:
+                  rows = []
+              if not isinstance(rows, list) or bool(rows) != (status == 2):
+                  raise ValueError('inconsistent report')
+              safe = []
+              for row in rows:
+                  if not isinstance(row, dict) or row.get('Secret') not in ('', 'REDACTED'):
+                      raise ValueError('unredacted report')
+                  file = row.get('File')
+                  rule = row.get('RuleID')
+                  commit = row.get('Commit')
+                  start, end = row.get('StartLine'), row.get('EndLine')
+                  if (not isinstance(file, str) or not re.fullmatch(r'[A-Za-z0-9_. /@+()-]+', file)
+                          or file.startswith('/') or any(p in ('', '.', '..') for p in file.split('/'))
+                          or str(PurePosixPath(file)) != file):
+                      raise ValueError('unsafe path')
+                  if not isinstance(rule, str) or not re.fullmatch(r'[a-zA-Z0-9_-]+', rule):
+                      raise ValueError('unsafe rule')
+                  if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}', commit):
+                      raise ValueError('unsafe commit')
+                  if type(start) is not int or type(end) is not int or start < 1 or end < start:
+                      raise ValueError('unsafe lines')
+                  if row.get('Fingerprint') != f'{commit}:{file}:{rule}:{start}':
+                      raise ValueError('inconsistent fingerprint')
+                  safe.append({k: row[k] for k in ('File', 'StartLine', 'EndLine', 'RuleID', 'Commit', 'Fingerprint')})
+              return safe
 
-      - name: Run tests
-        run: python -m unittest discover -s . -p "test_*.py"
+
+          def refs():
+              raw = probe('git', 'for-each-ref', '--format=%(refname) %(objectname)')
+              result = []
+              for line in raw.decode('ascii').splitlines():
+                  if not re.fullmatch(r'refs/[A-Za-z0-9_./@+()-]+ [0-9a-f]{40}', line):
+                      raise ValueError('unsafe ref metadata')
+                  result.append(line)
+              return result
+
+
+          def emit(kind, value):
+              print('prospective-provenance ' + json.dumps({'kind': kind, **value}, sort_keys=True), flush=True)
+
+
+          def main():
+              if probe('git', 'rev-parse', 'HEAD').decode().strip() != SOURCE:
+                  raise ValueError('source drift')
+              if probe('git', 'rev-parse', '--is-shallow-repository').strip() != b'false':
+                  raise ValueError('shallow history')
+              for ref, expected in [('refs/remotes/origin/fix/ci-policy-security-hardening', SOURCE),
+                                    ('refs/remotes/origin/main', BASE), ('refs/ci/security-event', EVENT)]:
+                  if probe('git', 'rev-parse', ref).decode().strip() != expected:
+                      raise ValueError('ref drift')
+              for file, expected in [('.gitleaks.toml', CONFIG), ('.gitleaksignore', IGNORE)]:
+                  raw = Path(file).read_bytes()
+                  if sha(raw) != expected or raw != probe('git', 'show', SOURCE + ':' + file):
+                      raise ValueError('configuration drift')
+              if len(Path('.gitleaksignore').read_text().splitlines()) != 6:
+                  raise ValueError('exclusion drift')
+              tool = Path(os.environ['RUNNER_TEMP']) / 'gitleaks'
+              binary = tool / 'gitleaks'
+              if sha(binary.read_bytes()) != BINARY or sha((tool / 'gitleaks.tar.gz').read_bytes()) != ARCHIVE:
+                  raise ValueError('scanner drift')
+              if probe(str(binary), 'version').strip() != b'8.24.3':
+                  raise ValueError('scanner version drift')
+              inventory = probe('git', 'rev-list', '--objects', '--all', '--missing=print', '--no-object-names')
+              if any(not re.fullmatch(rb'[0-9a-f]{40}', line) for line in inventory.splitlines()):
+                  raise ValueError('incomplete objects')
+              before = refs()
+              argv = [str(binary), 'git', '.', '--config=.gitleaks.toml',
+                      '--log-opts=--full-history --all --root -m --no-ext-diff --no-textconv',
+                      '--redact=100', '--exit-code=2', '--log-level=info',
+                      '--report-format=json', '--report-path=/dev/stdout']
+              # Workflow metadata are fixed-shape fields, never an environment dump.
+              workflow_sha = os.environ['GITHUB_SHA']
+              if not re.fullmatch(r'[0-9a-f]{40}', workflow_sha):
+                  raise ValueError('invalid workflow identity')
+              emit('inputs', dict(schema=1, evidence='prospective-only', source=SOURCE, base=BASE,
+                                  scan_event=EVENT, workflow_sha=workflow_sha,
+                                  config_sha256=CONFIG, ignore_sha256=IGNORE, exclusions=6,
+                                  archive_sha256=ARCHIVE, binary_sha256=BINARY, version='8.24.3',
+                                  argv=argv, object_inventory_sha256=sha(inventory),
+                                  object_inventory_count=len(inventory.splitlines()),
+                                  reachable_commits=int(probe('git', 'rev-list', '--all', '--count')),
+                                  refs=before))
+              p = subprocess.run(argv, capture_output=True, timeout=300, check=False)
+              # No raw scanner stream, even on error, enters a log/file/artifact/summary.
+              emit('scanner-exit', {'exit': p.returncode})
+              findings = safe_findings(p.stdout, p.returncode)
+              if refs() != before:
+                  raise ValueError('ref mutation during scan')
+              for row in findings:
+                  probe('git', 'cat-file', '-e', row['Commit'] + '^{commit}')
+              emit('result', dict(exit=p.returncode, findings=findings, count=len(findings),
+                                  ref_inventory_unchanged=True, raw_streams_retained=False))
+              return p.returncode
+
+
+          if __name__ == '__main__':
+              try:
+                  raise SystemExit(main())
+              except Exception:
+                  print('::error::Prospective capture stopped; raw diagnostics suppressed', flush=True)
+                  raise SystemExit(1)
+          PY
