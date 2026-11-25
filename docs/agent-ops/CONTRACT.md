@@ -161,6 +161,21 @@ specific transfer authorization and an appropriate privacy assessment before any
 other model/provider receives it. Self-review is never independent review.
 Review grants no execution, remediation, publication or merge authority.
 
+For a solo-owner project, additional human participation is not required solely
+because development is AI-assisted or the owner works alone. Eligible separated
+AI review may satisfy technical-review requirements under the criteria above.
+This clarification does not supersede specialized mandatory human review,
+independent evidence, custody, historical authentication or final-snapshot gates.
+Where independent review is optional, record any material review limitation and
+applicable owner risk decision; unavailable mandatory review remains blocking.
+
+Keep review cycles finite and proportionate. Do not reopen accepted findings
+without changed evidence, governing requirements, affected implementation,
+material risk or a binding re-review requirement. Resolve material blocking
+findings on the updated snapshot under the review requirements above. This
+clarification grants no operational authority and changes no SEC-003 acceptance
+predicate.
+
 ## Evidence and State
 
 Record material decisions durably at an authorized non-sensitive location, not
